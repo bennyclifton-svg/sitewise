@@ -927,11 +927,13 @@ async def post_agent_stream(
             failure_message = FAILED_TURN_MESSAGE
             log.warning(
                 "agent_stream_failed",
+                debug_tag="[DEBUG-pi-turn-error]",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
                 agent_runtime=agent_runtime,
                 error_type=type(exc).__name__,
+                error=str(exc),
             )
             async for event in stream_error(failure_message):
                 yield event

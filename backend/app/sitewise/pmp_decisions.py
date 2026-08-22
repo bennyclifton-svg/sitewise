@@ -49,15 +49,6 @@ PMP_CORE_DECISIONS: dict[str, dict[str, Any]] = {
             {"value": "other", "label": "Other - legal review required"},
         ],
     },
-    "staging-strategy": {
-        "label": "Staging strategy",
-        "section": "Programme & milestones",
-        "options": [
-            {"value": "single_stage", "label": "Single stage delivery"},
-            {"value": "staged_oc", "label": "Staged OC / partial handover"},
-            {"value": "phased_occupation", "label": "Phased occupation"},
-        ],
-    },
 }
 
 

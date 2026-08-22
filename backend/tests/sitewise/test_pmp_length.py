@@ -108,6 +108,7 @@ def test_length_retry_instruction_names_band_budgets_and_forbids_register_restat
             "risks": 0.19,
             "compliance-approvals": 0.16,
             "procurement-delivery": 0.13,
+            "programme": 0.08,
             "citation-key": 0.04,
         },
         target_words=1900,
@@ -117,6 +118,7 @@ def test_length_retry_instruction_names_band_budgets_and_forbids_register_restat
     assert "Risks and mitigations (~361 words)" in instruction
     assert "Planning and Compliance (~304 words)" in instruction
     assert "Procurement and Delivery (~247 words)" in instruction
+    assert "Programme (heading only; dates live on the Program Gantt)" in instruction
     assert "project-specific depth" in instruction
     assert "not restate the register" in instruction
     assert "# PMP" in instruction

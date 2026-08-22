@@ -13,16 +13,16 @@ type AnswerTraceProps = {
 
 const toneClassName: Record<AnswerTraceTone, string> = {
   context:
-    "border-[color-mix(in_oklch,var(--sw-beam)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] text-[var(--sw-beam)]",
+    "border-[var(--brand-border)] bg-[var(--brand-subtle)] text-[var(--brand-text)]",
   documents:
-    "border-[color-mix(in_oklch,var(--sw-positive)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-positive)_14%,transparent)] text-[var(--sw-positive)]",
+    "border-[var(--ok-border)] bg-[var(--ok-bg)] text-[var(--ok-text)]",
   knowledge:
-    "border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)]",
+    "border-border bg-muted/60 text-foreground",
   web:
-    "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)]",
+    "border-[var(--brand-border)] bg-[var(--brand-subtle)] text-[var(--brand-text)]",
   tools:
-    "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)]",
-  model: "border-border bg-muted/60 text-muted-foreground",
+    "border-[var(--brand-border)] bg-[var(--brand-subtle)] text-[var(--brand-text)]",
+  model: "border-border bg-muted/60 text-foreground",
 };
 
 export function AnswerTrace({

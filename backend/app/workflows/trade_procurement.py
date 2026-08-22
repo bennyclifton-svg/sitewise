@@ -68,6 +68,7 @@ _MAIN_WORKS_PLATFORM_EXCLUSIONS = (
 
 @dataclass(frozen=True, slots=True)
 class TradeProfile:
+    discipline_code: str | None
     name: str
     slug: str
     aliases: tuple[str, ...]
@@ -88,12 +89,14 @@ def _normalise_key(value: str) -> str:
 def _profile(
     name: str,
     *,
+    discipline_code: str | None = None,
     aliases: tuple[str, ...] = (),
     baseline_scope: tuple[str, ...],
     price_rows: tuple[str, ...],
     returnables: tuple[str, ...],
 ) -> TradeProfile:
     return TradeProfile(
+        discipline_code=discipline_code,
         name=name,
         slug=_slugify(name),
         aliases=aliases,
@@ -106,6 +109,7 @@ def _profile(
 TRADE_PACKAGES: dict[str, TradeProfile] = {
     "main works": _profile(
         "Main Works",
+        discipline_code="trade.main_works",
         aliases=("head contractor", "main contractor", "builder"),
         baseline_scope=(
             "Deliver the complete Main Works in accordance with the PPR, project brief, approvals, and issued design information.",
@@ -145,6 +149,7 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
     ),
     "structural steel": _profile(
         "Structural Steel",
+        discipline_code="trade.structural_steel",
         aliases=("steel", "structural steelwork", "steel framing"),
         baseline_scope=(
             "Supply, fabricate, deliver, erect, and protect structural steelwork shown in the issued documents.",
@@ -166,6 +171,7 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
     ),
     "electrical": _profile(
         "Electrical Services",
+        discipline_code="trade.electrical",
         aliases=("electrician", "electrical services", "electrical contractor"),
         baseline_scope=(
             "Provide the electrical services scope identified in the issued documents and confirmed project evidence.",
@@ -187,6 +193,7 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
     ),
     "windows and glazing": _profile(
         "Windows and Glazing",
+        discipline_code="supplier.windows_glazing",
         aliases=("windows", "glazing", "aluminium windows", "window supplier"),
         baseline_scope=(
             "Supply and install the scheduled windows, glazed doors, glazing, hardware, flashings, seals, and associated interfaces.",
@@ -208,6 +215,7 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
     ),
     "hydraulic and plumbing": _profile(
         "Hydraulic and Plumbing Services",
+        discipline_code="trade.hydraulic_plumbing",
         aliases=("plumbing", "hydraulic", "hydraulic services", "plumber"),
         baseline_scope=(
             "Provide the documented water, sanitary, stormwater, gas, trade-waste, and related hydraulic services scope.",
@@ -229,6 +237,7 @@ TRADE_PACKAGES: dict[str, TradeProfile] = {
     ),
     "joinery and kitchens": _profile(
         "Joinery and Kitchens",
+        discipline_code="trade.joinery_kitchens",
         aliases=("joinery", "kitchens", "cabinetry", "cabinet maker"),
         baseline_scope=(
             "Measure, manufacture, supply, deliver, and install the joinery and kitchen scope shown in the issued information.",

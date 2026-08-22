@@ -50,7 +50,7 @@ describe("ClassificationChip", () => {
     ).toHaveTextContent("Report");
   });
 
-    it("offers Architect as a category", async () => {
+  it("offers Architect as a category", async () => {
     const user = userEvent.setup();
 
     render(
@@ -77,5 +77,47 @@ describe("ClassificationChip", () => {
     expect(screen.getByRole("menuitem", { name: "Interior Design" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Civil" })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Civil Stormwater" })).not.toBeInTheDocument();
+  });
+
+  it("sorts both menus by their visible labels and gives them room for full names", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <ClassificationChip
+        documentClass="statutory_instrument"
+        documentSubject="quantity_surveyor"
+        confidence={0.9}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const classTrigger = screen.getByRole("button", { name: /document class/i });
+    const categoryTrigger = screen.getByRole("button", { name: /category/i });
+
+    expect(classTrigger).toHaveTextContent("Statutory Instrument");
+    expect(categoryTrigger).toHaveTextContent("Quantity Surveyor");
+    expect(classTrigger).toHaveClass("w-[11.5rem]");
+    expect(categoryTrigger).toHaveClass("w-[11.5rem]");
+
+    await user.click(classTrigger);
+    const classLabels = screen
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent?.trim() ?? "");
+    expect(classLabels).toEqual(
+      [...classLabels].sort((left, right) =>
+        left.localeCompare(right, "en-AU", { numeric: true, sensitivity: "base" }),
+      ),
+    );
+
+    await user.keyboard("{Escape}");
+    await user.click(categoryTrigger);
+    const categoryLabels = screen
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent?.trim() ?? "");
+    expect(categoryLabels).toEqual(
+      [...categoryLabels].sort((left, right) =>
+        left.localeCompare(right, "en-AU", { numeric: true, sensitivity: "base" }),
+      ),
+    );
   });
 });

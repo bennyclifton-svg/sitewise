@@ -230,17 +230,17 @@ def test_render_pmp_scaffold_chen_stage1_upgrades_brief_and_budget() -> None:
     assert "Construction budget not evidenced | Owner |" not in markdown
     assert "double garage.." not in markdown
     assert "Brief signed on file.." not in markdown
-    assert "September 2026** (engagement letter); brief signed on file." in markdown
     assert "Owner project brief signed 12 May 2026." in markdown
     assert "Construction budget confirmed $1,850,000 working ceiling." in markdown
 
 
-def test_render_pmp_scaffold_includes_programme_submilestone_table() -> None:
+def test_render_pmp_scaffold_programme_section_is_heading_only() -> None:
     markdown = _render_harrison_clarke_scaffold()
 
-    assert "| Sub-milestone | Maps to stage | Status | Note |" in markdown
-    assert "Slab / substructure" in markdown
-    assert "Lockup" in markdown
+    assert "## Programme and staging regime" in markdown
+    assert "| Sub-milestone | Maps to stage | Status | Note |" not in markdown
+    assert "Baseline 3-stage regime" not in markdown
+    assert "staging-strategy" not in markdown
 
 
 def test_render_pmp_scaffold_includes_nsw_basix_authority_row() -> None:

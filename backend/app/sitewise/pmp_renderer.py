@@ -25,10 +25,8 @@ from app.sitewise.pmp_citations import (
     format_citation_key_lines,
 )
 from app.sitewise.pmp_greenfield_brief import (
-    ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE,
     RISK_REGISTER_TABLE,
     _archetype_due_diligence_checklist,
-    programme_submilestone_table,
     strip_due_diligence_contract_meta,
 )
 from app.sitewise.pmp_sources import document_title, required_section_headings
@@ -668,48 +666,8 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     return "\n".join(rows)
 
 
-def _render_programme(pack: MobilisationEvidencePack) -> str:
-    submilestone_block = programme_submilestone_table()
-    submilestone_table = _table_lines_from_brief(
-        submilestone_block
-    ) or _table_lines_from_brief(ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE)
-    brief_note = (
-        "brief signed on file"
-        if pack.owner_brief_on_file and not pack_has_gap(pack, GAP_OWNER_BRIEF)
-        else "subject to due diligence and brief sign-off"
-    )
-    target_line = (
-        f"Target DA lodgement: **{pack.target_da_lodgement}** (engagement letter); {brief_note}."
-        if pack.target_da_lodgement
-        else "Target DA lodgement: Assumption — confirm with owner."
-    )
-    programme_note = (
-        "Master programme on file — activity durations per programme v0.1."
-        if not pack_has_gap(pack, GAP_MASTER_PROGRAMME)
-        else "Assumption: activity durations TBC unless evidenced in master programme."
-    )
-    programme_evidence = [
-        *[f"Owner aspiration: {item}" for item in pack.owner_programme_aspirations],
-        *([pack.builder_rom_programme] if pack.builder_rom_programme else []),
-    ]
-    return "\n".join(
-        [
-            "## Programme and staging regime",
-            "",
-            "Baseline 3-stage regime:",
-            "- Stage 1: concept/schematic through DA/CDC lodgement and determination.",
-            "- Stage 2: design development.",
-            "- Stage 3: construction documentation, procurement, and delivery.",
-            "",
-            target_line,
-            *_optional_bullet_block("Programme evidence", programme_evidence),
-            "",
-            "### Sub-milestone table",
-            submilestone_table,
-            "",
-            programme_note,
-        ]
-    )
+def _render_programme() -> str:
+    return "## Programme and staging regime"
 
 
 def _render_cost_procurement(pack: MobilisationEvidencePack) -> str:
@@ -1659,10 +1617,7 @@ def _render_taxonomy_consultants(
     citation_index: CitationIndex | None = None,
 ) -> str:
     from app.sitewise.consultant_register import consultant_appointment_rows
-    from app.sitewise.consultant_typical import (
-        removed_consultant_labels,
-        typical_consultant_labels,
-    )
+    from app.sitewise.discipline_catalog import required_project_disciplines
 
     context = pmp_taxonomy_context(project)
     if context is None:
@@ -1701,21 +1656,14 @@ def _render_taxonomy_consultants(
             citation = "—"
         rows.append(f"| {lead} | {firm} | {fee} | {status} | {citation} |")
         seen.add(lead.strip().lower())
-    removed = removed_consultant_labels(project)
     expected = [
-        consultant
-        for item in work_scope_items_for(context.work_type, context.work_scope)
-        for consultant in item.consultants
+        discipline.label
+        for discipline in required_project_disciplines(project)
+        if discipline.participant_type == "consultant"
     ]
-    expected.extend(
-        typical_consultant_labels(
-            work_type=context.work_type,
-            subclasses=context.subclasses,
-        )
-    )
     for consultant in expected:
         key = consultant.strip().lower()
-        if not key or key in seen or key in removed:
+        if not key or key in seen:
             continue
         seen.add(key)
         fact = appointment_rows.get(key)
@@ -1876,23 +1824,7 @@ def _render_taxonomy_programme(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
-    return "\n".join(
-        [
-            f"## {heading_for_section_id('programme', work_type=context.work_type)}",
-            "",
-            "| Milestone | Status | Basis | Next action |  |",
-            "| --- | --- | --- | --- | --- |",
-            "| Setup / brief confirmation | Active | Current project profile | Confirm scope and budget lock |  |",
-            "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |  |",
-            "| Procurement / services start | Assumption | Work type and role | Confirm procurement or advisory deliverables programme |  |",
-            "| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |  |",
-            "",
-            "Programme logic should stay milestone-based until a current programme is uploaded. "
-            "Authority lead times, live-environment staging, shutdown windows, and client "
-            "review periods are assumptions that need confirmation before dates are issued.",
-            _emphasis_note(project, "programme"),
-        ]
-    )
+    return f"## {heading_for_section_id('programme', work_type=context.work_type)}"
 
 
 def _render_taxonomy_cost(project: Project) -> str:
@@ -2157,7 +2089,7 @@ def render_pmp_scaffold(
         _render_fee_services(pack),
         _render_scope_change(pack),
         _render_approvals(project, pack),
-        _render_programme(pack),
+        _render_programme(),
         _render_cost_procurement(pack),
         _render_consultant_coordination(pack),
         _render_risks_skeleton(project, pack),

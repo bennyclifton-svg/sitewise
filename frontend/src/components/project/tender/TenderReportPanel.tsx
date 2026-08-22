@@ -1,7 +1,8 @@
-import { AlertCircle, Check, ExternalLink, FileText, LoaderCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, Check, FileText, LoaderCircle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { PdfFileIcon } from "@/components/icons/OfficeFileIcons";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 import { normalizeDraftMarkdown } from "@/lib/artifact-markdown";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +26,7 @@ export function TenderReportPanel({
   const reportQuery = useTenderReport(comparisonId, revision);
   const [isBuilding, setIsBuilding] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const report = reportQuery.data?.report ?? null;
@@ -65,7 +67,29 @@ export function TenderReportPanel({
     }
   }
 
-  const pdfHref = report?.pdf_path ? browserArtifactSrc(report.pdf_path) : null;
+  async function downloadPdf() {
+    setIsDownloadingPdf(true);
+    setError(null);
+    try {
+      const blob = await api.downloadTenderReportPdf(comparisonId, revision);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Tender_Comparison_Report_v${String(report?.version ?? revision ?? 1).padStart(2, "0")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (downloadError) {
+      setError(
+        downloadError instanceof ApiError
+          ? downloadError.message
+          : "Could not download the tender PDF.",
+      );
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  }
 
   return (
     <section className="rounded-md border bg-card">
@@ -111,12 +135,19 @@ export function TenderReportPanel({
           )}
           Approve
         </Button>
-        {pdfHref ? (
-          <Button asChild variant="outline">
-            <a href={pdfHref} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-4" aria-hidden />
-              Frozen PDF
-            </a>
+        {report ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void downloadPdf()}
+            disabled={isDownloadingPdf || isBuilding || isApproving}
+          >
+            {isDownloadingPdf ? (
+              <LoaderCircle className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <PdfFileIcon className="size-4" />
+            )}
+            PDF
           </Button>
         ) : null}
       </div>
@@ -146,10 +177,4 @@ export function TenderReportPanel({
       )}
     </section>
   );
-}
-
-function browserArtifactSrc(path: string): string | null {
-  if (/^(https?:|blob:|data:)/.test(path)) return path;
-  if (path.startsWith("/")) return path;
-  return null;
 }

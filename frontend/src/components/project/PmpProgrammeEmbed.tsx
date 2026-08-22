@@ -15,14 +15,11 @@ import { ProgramGantt } from "@/components/project/ProgramGantt";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { ProgrammeScale, ProgrammeState } from "@/lib/programme";
-
-const PROGRAMME_HEADINGS = new Set([
-  "programme",
-  "program",
-  "programme of services",
-  "programme and staging regime",
-]);
+import {
+  PROGRAMME_HEADINGS,
+  type ProgrammeScale,
+  type ProgrammeState,
+} from "@/lib/programme";
 
 type ProgrammeContextValue = {
   state: ProgrammeState | null;
@@ -86,11 +83,29 @@ export function PmpProgrammeProvider({
   );
 }
 
-export function PmpProgrammeFigure({ host }: { host: HTMLElement | null }) {
+export function PmpProgrammeFigure({
+  host,
+  contentKey,
+}: {
+  host: HTMLElement | null;
+  contentKey?: string;
+}) {
   const context = useContext(ProgrammeContext);
   const state = context?.state ?? null;
   const [figureMount, setFigureMount] = useState<HTMLElement | null>(null);
   const [iconMount, setIconMount] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!host) return;
+    const apply = () => {
+      const heading = findProgrammeHeading(host);
+      if (heading) hideProgrammeSectionBody(heading);
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(host, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [host, contentKey]);
 
   useLayoutEffect(() => {
     if (!host || !state) {
@@ -131,7 +146,7 @@ export function PmpProgrammeFigure({ host }: { host: HTMLElement | null }) {
       setIconMount(null);
       setFigureMount(null);
     };
-  }, [host, state, state?.pmp_embed_visible, state?.version]);
+  }, [host, contentKey, state, state?.pmp_embed_visible, state?.version]);
 
   if (!state) return null;
   return (
@@ -192,4 +207,33 @@ function programmeSectionRoot(heading: HTMLElement): HTMLElement {
     return parent;
   }
   return heading;
+}
+
+function isPmpSectionHeadingRoot(node: HTMLElement): boolean {
+  if (node.matches("h2.pmp-section-heading, h2")) return true;
+  return node.querySelector(":scope > h2.pmp-section-heading, :scope > h2") !== null;
+}
+
+function hideProgrammeSectionBody(heading: HTMLElement): () => void {
+  const section = programmeSectionRoot(heading);
+  const hidden: HTMLElement[] = [];
+  let node = section.nextElementSibling;
+  while (node instanceof HTMLElement) {
+    const next = node.nextElementSibling;
+    if (node.dataset.programmeFigure === "true") {
+      node = next;
+      continue;
+    }
+    if (isPmpSectionHeadingRoot(node)) break;
+    node.hidden = true;
+    node.setAttribute("data-programme-body-hidden", "true");
+    hidden.push(node);
+    node = next;
+  }
+  return () => {
+    for (const item of hidden) {
+      item.hidden = false;
+      item.removeAttribute("data-programme-body-hidden");
+    }
+  };
 }

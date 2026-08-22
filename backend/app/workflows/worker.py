@@ -378,6 +378,10 @@ async def _attach_procurement_result(
         return None
     raw_request_id = parameters.get("procurement_request_id")
     request_id = uuid.UUID(str(raw_request_id)) if raw_request_id else None
+    raw_strategy_row_id = parameters.get("strategy_row_id")
+    strategy_row_id = (
+        uuid.UUID(str(raw_strategy_row_id)) if raw_strategy_row_id else None
+    )
     request = await attach_generated_draft(
         session,
         project_id=draft.project_id,
@@ -386,10 +390,20 @@ async def _attach_procurement_result(
         target_name=target_name,
         kind=kind,
         request_id=request_id,
+        discipline_code=(
+            str(parameters["discipline_code"])
+            if parameters.get("discipline_code")
+            else None
+        ),
+        strategy_row_id=strategy_row_id,
     )
     metadata = dict(getattr(draft, "provenance_metadata", None) or {})
     metadata["procurement_request_id"] = str(request.id)
     metadata["procurement_request_kind"] = request.kind
+    if discipline_code := getattr(request, "discipline_code", None):
+        metadata["discipline_code"] = discipline_code
+    if strategy_row_id := getattr(request, "strategy_row_id", None):
+        metadata["strategy_row_id"] = str(strategy_row_id)
     draft.provenance_metadata = metadata
     await session.flush()
     return request.id

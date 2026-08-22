@@ -4,7 +4,6 @@ from app.sitewise.pmp_greenfield_brief import (
     greenfield_markers_missing,
     greenfield_quality_markers,
     greenfield_structure_violations,
-    programme_submilestone_table,
 )
 
 
@@ -42,15 +41,15 @@ def test_build_greenfield_brief_includes_due_diligence_checklist() -> None:
     assert "03-design/01-due-diligence/" in brief
 
 
-def test_build_greenfield_brief_includes_programme_submilestones() -> None:
+def test_build_greenfield_brief_keeps_programme_as_gantt_only() -> None:
     brief = build_greenfield_brief(
         archetype="new-dwelling",
         state="NSW",
     )
-    assert "Sub-milestone" in brief
-    assert "Slab / substructure" in brief
-    assert "Lockup" in brief
-    assert "Defects liability period (DLP)" in brief
+    assert "heading only" in brief
+    assert "Program Gantt is the source of truth" in brief
+    assert "Sub-milestone" not in brief
+    assert "staging-strategy decision" in brief
 
 
 def test_build_greenfield_brief_includes_owner_escalation_format() -> None:
@@ -101,11 +100,6 @@ def test_greenfield_quality_markers_merges_architect_pm_common() -> None:
     markers = greenfield_quality_markers(archetype="new-dwelling")
     for common in ARCHITECT_PM_COMMON_MARKERS:
         assert common in markers
-
-
-def test_programme_submilestone_table_is_single_shape() -> None:
-    table = programme_submilestone_table().lower()
-    assert "| builder procured / contract executed |" in table
 
 
 def test_build_greenfield_brief_adapts_due_diligence_for_vic() -> None:
@@ -174,4 +168,4 @@ def test_greenfield_markers_missing_detects_gaps() -> None:
     )
     assert "basix" in missing
     assert "what this means" in missing
-    assert "slab" in missing
+    assert "invited" in missing

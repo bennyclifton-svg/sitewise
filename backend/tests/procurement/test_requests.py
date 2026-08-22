@@ -195,7 +195,7 @@ def test_attach_rejects_a_draft_from_another_project() -> None:
 
 def test_attach_generated_draft_reuses_matching_open_request() -> None:
     request = _request(kind="trade_rft")
-    session = _Session(_Result(request))
+    session = _Session(_Result(request), _Result())
 
     attached = run_async(
         service.attach_generated_draft(
@@ -214,7 +214,7 @@ def test_attach_generated_draft_reuses_matching_open_request() -> None:
 
 
 def test_attach_generated_draft_creates_one_when_no_open_request_exists() -> None:
-    session = _Session(_Result())
+    session = _Session(_Result(), _Result())
 
     request = run_async(
         service.attach_generated_draft(

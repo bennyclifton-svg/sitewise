@@ -27,6 +27,10 @@ PI_MCP_DIRECT_TOOLS = (
     "apply_consultant_fee_forecast",
     "apply_cost_plan_budget_forecast",
     "get_cost_plan",
+    "get_procurement_strategy",
+    "refresh_procurement_strategy",
+    "apply_procurement_strategy_operations",
+    "search_procurement_candidates",
     "appoint_consultant",
     "get_artefact_blocks",
     "apply_artefact_operations",
@@ -346,11 +350,28 @@ async def _read_stderr(stream: _Stream | None, tail: deque[str]) -> None:
         tail.append(raw.decode(errors="replace").rstrip())
 
 
-async def _iter_pi_stdout(stream: _Stream | None) -> AsyncIterator[str]:
+async def _readline_before_deadline(
+    stream: _Stream,
+    *,
+    deadline: float | None,
+) -> bytes:
+    if deadline is None:
+        return await stream.readline()
+    remaining = deadline - asyncio.get_running_loop().time()
+    if remaining <= 0:
+        raise TimeoutError
+    return await asyncio.wait_for(stream.readline(), timeout=remaining)
+
+
+async def _iter_pi_stdout(
+    stream: _Stream | None,
+    *,
+    deadline: float | None = None,
+) -> AsyncIterator[str]:
     if stream is None:
         return
     while True:
-        raw = await stream.readline()
+        raw = await _readline_before_deadline(stream, deadline=deadline)
         if not raw:
             return
         line = raw.decode(errors="replace")
@@ -405,12 +426,24 @@ async def stream_pi_turn(
             ) from exc
 
         stderr_task = asyncio.create_task(_read_stderr(process.stderr, stderr_tail))
+        deadline = (
+            asyncio.get_running_loop().time()
+            + settings.agent_turn_timeout_seconds
+        )
         try:
             try:
-                async with asyncio.timeout(settings.agent_turn_timeout_seconds):
-                    async for chunk in _iter_pi_stdout(process.stdout):
-                        yield chunk
-                    returncode = await process.wait()
+                async for chunk in _iter_pi_stdout(
+                    process.stdout,
+                    deadline=deadline,
+                ):
+                    yield chunk
+                remaining = deadline - asyncio.get_running_loop().time()
+                if remaining <= 0:
+                    raise TimeoutError
+                returncode = await asyncio.wait_for(
+                    process.wait(),
+                    timeout=remaining,
+                )
             except TimeoutError as exc:
                 await _kill_and_wait(process)
                 raise PiTurnTimeout("Pi turn timed out") from exc

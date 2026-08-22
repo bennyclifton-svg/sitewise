@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#060608" />
+    <script src="/style-guide/theme-boot.js"></script>
     <meta
       name="description"
       content="SiteWise connects project evidence, tender comparisons, live project controls and correspondence while keeping every decision with the project team."
@@ -38,6 +39,15 @@
           <a href="#tenders">Tenders</a>
           <a href="#change">Change</a>
         </nav>
+        <button type="button" class="lp-theme" id="lp-theme-toggle" aria-label="Light">
+          <svg class="lp-theme__sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.75" />
+            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+          </svg>
+          <svg class="lp-theme__moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <path d="M16.5 13.5A6.5 6.5 0 0 1 10.5 7 5.5 5.5 0 1 0 16.5 13.5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" />
+          </svg>
+        </button>
         <a class="lp-button lp-button--small" href="/login">Open SiteWise</a>
       </div>
     </header>
@@ -316,6 +326,40 @@
       </section>
     </main>
 
+    <script>
+      (function () {
+        var button = document.getElementById("lp-theme-toggle");
+        if (!button) return;
+        var key = "clerk.colorTheme.v1";
+        function currentTheme() {
+          return document.documentElement.getAttribute("data-theme") === "light"
+            ? "light"
+            : "dark";
+        }
+        function sync() {
+          var theme = currentTheme();
+          button.setAttribute("aria-label", theme === "light" ? "Dark" : "Light");
+        }
+        button.addEventListener("click", function () {
+          var next = currentTheme() === "light" ? "dark" : "light";
+          try {
+            window.localStorage.setItem(key, next);
+          } catch (error) {
+            /* ignore */
+          }
+          document.documentElement.setAttribute("data-theme", next);
+          document.documentElement.style.colorScheme = next;
+          var colorScheme = document.querySelector('meta[name="color-scheme"]');
+          if (colorScheme) colorScheme.setAttribute("content", next);
+          var themeColor = document.querySelector('meta[name="theme-color"]');
+          if (themeColor) {
+            themeColor.setAttribute("content", next === "light" ? "#F7F7F4" : "#060608");
+          }
+          sync();
+        });
+        sync();
+      })();
+    </script>
     <footer class="lp-footer">
       <div class="lp-footer__inner">
         <a class="lp-brand lp-brand--small" href="/landing.html" aria-label="SiteWise home">

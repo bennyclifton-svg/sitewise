@@ -76,6 +76,17 @@ describe("ProgramGantt", () => {
     expect(screen.getByRole("button", { name: "quarter" })).toBeInTheDocument();
   });
 
+  it("styles the header like the cost plan and sits column labels on the bottom row", () => {
+    render(<ProgramGantt state={state()} mode="edit" />);
+    const header = document.querySelector("[data-gantt-header]");
+    expect(header).toHaveClass("program-gantt-header");
+    expect(header?.querySelector(".program-gantt-header-label")?.textContent).toBe("Activity");
+    expect(screen.getByText("Activity").className).toContain("program-gantt-header-label");
+    expect(screen.getByText("Start").className).toContain("bottom-1.5");
+    expect(screen.getByText("Days").className).toContain("bottom-1.5");
+    expect(screen.getByText("Activity").parentElement).toHaveClass("bottom-1");
+  });
+
   it("lets the PMP figure toggle month and quarter without edit chrome", () => {
     const onScaleChange = vi.fn();
     render(
@@ -100,6 +111,7 @@ describe("ProgramGantt", () => {
     render(<ProgramGantt state={state()} mode="figure" />);
     expect(document.querySelector("[data-interactive]")).toBeNull();
     expect(document.querySelector("[data-gantt-bar] button")).toBeNull();
+    expect(document.querySelector("[data-gantt-handle]")).toBeNull();
     expect(screen.queryByRole("button", { name: "Open Program" })).not.toBeInTheDocument();
   });
 
@@ -241,15 +253,15 @@ describe("ProgramGantt", () => {
     expect(paths.length).toBe(2);
     for (const path of paths) {
       expect(path.getAttribute("d") ?? "").toMatch(
-        /^M -?\d+(?:\.\d+)? -?\d+(?:\.\d+)? L -?\d+(?:\.\d+)? -?\d+(?:\.\d+)?$/,
+        /^M -?\d+(?:\.\d+)? -?\d+(?:\.\d+)? [HV] -?\d+(?:\.\d+)?/,
       );
-      expect(path.getAttribute("d") ?? "").not.toMatch(/[HV]/);
+      expect(path.getAttribute("d") ?? "").not.toMatch(/\bL\b/);
     }
     expect(document.querySelector("[data-gantt-link='planning->procurement']")?.getAttribute("d")).toBe(
-      "M 90 12 L 90 36",
+      "M 90 12 V 36",
     );
     expect(document.querySelector("[data-gantt-link='procurement->delivery']")?.getAttribute("d")).toBe(
-      "M 150 36 L 150 60",
+      "M 150 36 V 60",
     );
   });
 
@@ -296,15 +308,15 @@ describe("ProgramGantt", () => {
     expect(paths.length).toBe(2);
     for (const path of paths) {
       expect(path.getAttribute("d") ?? "").toMatch(
-        /^M -?\d+(?:\.\d+)? -?\d+(?:\.\d+)? L -?\d+(?:\.\d+)? -?\d+(?:\.\d+)?$/,
+        /^M -?\d+(?:\.\d+)? -?\d+(?:\.\d+)? [HV] -?\d+(?:\.\d+)?/,
       );
-      expect(path.getAttribute("d") ?? "").not.toMatch(/[HV]/);
+      expect(path.getAttribute("d") ?? "").not.toMatch(/\bL\b/);
     }
     expect(document.querySelector("[data-gantt-link='planning->procurement']")?.getAttribute("d")).toBe(
-      "M 90 12 L 90 36",
+      "M 90 12 V 36",
     );
     expect(document.querySelector("[data-gantt-link='procurement->delivery']")?.getAttribute("d")).toBe(
-      "M 150 36 L 150 60",
+      "M 150 36 V 60",
     );
   });
 
@@ -423,5 +435,33 @@ describe("ProgramGantt", () => {
     expect(screen.getByRole("button", { name: "Reorder Planning" })).toBeInTheDocument();
     rerender(<ProgramGantt state={state()} mode="figure" />);
     expect(screen.queryByRole("button", { name: "Reorder Planning" })).not.toBeInTheDocument();
+  });
+
+  it("draws inbound resize ticks on edit bars and a time grid", () => {
+    render(<ProgramGantt state={state()} mode="edit" />);
+    const bar = document.querySelector("[data-gantt-bar='planning']");
+    expect(bar?.querySelector("[data-gantt-handle='start']")).toBeTruthy();
+    expect(bar?.querySelector("[data-gantt-handle='end']")).toBeTruthy();
+    expect(screen.getByRole("separator", { name: "Resize start of Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize Planning" })).toBeInTheDocument();
+    expect(document.querySelector("[data-gantt-grid]")).toBeTruthy();
+    expect(document.querySelectorAll("[data-gantt-grid-x]").length).toBeGreaterThan(2);
+  });
+
+  it("resizes from the start edge without moving the finish", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
+    await user.click(screen.getByRole("button", { name: "Fit to screen" }));
+    const handle = screen.getByRole("separator", { name: "Resize start of Planning" });
+    fireEvent.pointerDown(handle, { clientX: 400, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 340, pointerId: 1 });
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "UPDATE",
+        target_id: "planning",
+        values: { start_date: "2026-08-06", duration_days: 100 },
+      }),
+    ]);
   });
 });

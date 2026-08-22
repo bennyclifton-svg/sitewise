@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -173,6 +175,68 @@ def test_approve_report_endpoint_blocks_unapproved_customer_quality_gate(
 
     assert response.status_code == 409
     assert response.json()["detail"] == "Tender customer quality gate is blocked"
+
+
+def test_report_pdf_endpoint_downloads_generated_bytes(client: TestClient) -> None:
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.report.load_report_pdf",
+            new=AsyncMock(return_value=(b"%PDF-tender", "Tender_Comparison_Report_v02.pdf")),
+        ),
+    ):
+        response = client.get(f"/api/tender/comparisons/{COMPARISON_ID}/report/pdf")
+
+    assert response.status_code == 200
+    assert response.content == b"%PDF-tender"
+    assert response.headers["content-type"] == "application/pdf"
+    assert "Tender_Comparison_Report_v02.pdf" in response.headers["content-disposition"]
+
+
+def test_load_report_pdf_converts_html_when_pdf_path_is_missing() -> None:
+    record = SimpleNamespace(
+        version=2,
+        pdf_path=None,
+        html_path="reports/draft.html",
+    )
+
+    async def run() -> tuple[bytes, str]:
+        session = AsyncMock()
+        with (
+            patch(
+                "tender.services.report._latest_report",
+                new=AsyncMock(return_value=record),
+            ),
+            patch(
+                "tender.services.report.download_project_file",
+                new=MagicMock(return_value=b"<html>draft</html>"),
+            ),
+            patch(
+                "tender.services.report.render_pdf_bytes",
+                new=MagicMock(return_value=b"%PDF-from-html"),
+            ),
+            patch("tender.services.report.upload_project_file", new=MagicMock()),
+        ):
+            return await report.load_report_pdf(session, comparison_id=COMPARISON_ID)
+
+    content, filename = asyncio.run(run())
+    assert content == b"%PDF-from-html"
+    assert filename == "Tender_Comparison_Report_v02.pdf"
+    assert record.pdf_path == "reports/draft.pdf"
+
+
+def test_report_pdf_endpoint_maps_missing_report(client: TestClient) -> None:
+    with (
+        patch("tender.router.require_comparison_owner", new=AsyncMock()),
+        patch(
+            "tender.router.report.load_report_pdf",
+            new=AsyncMock(side_effect=report.ReportLifecycleError("missing")),
+        ),
+    ):
+        response = client.get(f"/api/tender/comparisons/{COMPARISON_ID}/report/pdf")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Tender report PDF is not available."}
 
 
 def _lifecycle(

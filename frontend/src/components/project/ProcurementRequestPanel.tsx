@@ -1,4 +1,5 @@
-import { Download, Play, RefreshCw } from "lucide-react";
+import { Download, Play, RefreshCw, Table2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import {
   lazy,
   Suspense,
@@ -11,6 +12,7 @@ import {
 
 import { PdfFileIcon, WordFileIcon } from "@/components/icons/OfficeFileIcons";
 import { CopyContentButton } from "@/components/project/CopyContentButton";
+import { ProcurementStrategyGrid } from "@/components/project/ProcurementStrategyGrid";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,10 +28,6 @@ import { queryClient } from "@/lib/query-client";
 import { workbenchKeys } from "@/lib/queries/workbench";
 import { cn } from "@/lib/utils";
 import {
-  DEFAULT_CONSULTANT_DISCIPLINES,
-  DEFAULT_TRADE_PACKAGES,
-  disciplinesFromPmpMarkdown,
-  kindForTargetName,
   latestRequest,
   mergeDisciplineOptions,
 } from "@/lib/procurement-disciplines";
@@ -39,6 +37,9 @@ import type {
   EvidencePreview,
   ProcurementRequest,
   ProcurementRequestKind,
+  ProcurementStrategyOperation,
+  ProcurementStrategyRow,
+  ProjectDiscipline,
   ProjectDetail,
   WorkflowRun,
 } from "@/lib/types/project";
@@ -83,6 +84,7 @@ export function ProcurementRequestPanel({
   selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
+  onEditStrategyRowWithAi,
 }: {
   project: ProjectDetail;
   /** @deprecated Progress now lives in chat; retained for call-site compatibility. */
@@ -103,10 +105,16 @@ export function ProcurementRequestPanel({
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
   ) => void;
+  onEditStrategyRowWithAi?: (row: ProcurementStrategyRow) => void;
 }) {
   const [discipline, setDiscipline] = useState("");
-  const [pmpDisciplines, setPmpDisciplines] = useState<string[]>([]);
+  const [disciplines, setDisciplines] = useState<ProjectDiscipline[]>([]);
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
+  const [view, setView] = useState<"request" | "strategy">("request");
+  const [strategyReady, setStrategyReady] = useState(false);
+  const [strategyOpening, setStrategyOpening] = useState(false);
+  const [strategySaving, setStrategySaving] = useState(false);
+  const [strategyError, setStrategyError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draftExportAction, setDraftExportAction] = useState<"docx" | "pdf" | null>(
     null,
@@ -115,12 +123,21 @@ export function ProcurementRequestPanel({
   const reportedDraftId = useRef<string | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
   const loadedProjectId = useRef(project.id);
+  const strategyQuery = useQuery({
+    queryKey: workbenchKeys.procurementStrategy(project.id),
+    queryFn: () => api.getProcurementStrategy(project.id),
+    enabled: strategyReady && view === "strategy",
+  }, queryClient);
+  const strategy = strategyQuery.data ?? null;
+  const strategyLoading = strategyOpening || (strategyQuery.isFetching && !strategy);
 
   useEffect(() => {
     let cancelled = false;
     if (loadedProjectId.current !== project.id) {
       loadedProjectId.current = project.id;
       knownIds.current = new Set();
+      setStrategyReady(false);
+      setView("request");
     }
     void queryClient
       .fetchQuery({
@@ -166,23 +183,21 @@ export function ProcurementRequestPanel({
 
   useEffect(() => {
     let cancelled = false;
-    void api
-      .getLatestDraft(project.id, "create_pmp")
-      .then((draft) => {
-        if (cancelled) return;
-        setPmpDisciplines(
-          draft?.content_markdown
-            ? disciplinesFromPmpMarkdown(draft.content_markdown)
-            : [],
-        );
+    void queryClient
+      .fetchQuery({
+        queryKey: workbenchKeys.disciplines(project.id),
+        queryFn: () => api.listProjectDisciplines(project.id),
+      })
+      .then((next) => {
+        if (!cancelled) setDisciplines(next);
       })
       .catch(() => {
-        if (!cancelled) setPmpDisciplines([]);
+        if (!cancelled) setDisciplines([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [project.id, refreshToken]);
+  }, [project.id]);
 
   const selectedRequest = useMemo(() => {
     const key = discipline.trim().toLowerCase();
@@ -197,7 +212,15 @@ export function ProcurementRequestPanel({
       ) ?? null
     );
   }, [discipline, requests]);
-  const createKind = kindForTargetName(discipline, pmpDisciplines, requests);
+  const selectedDiscipline = disciplines.find(
+    (item) => item.label.toLowerCase() === discipline.trim().toLowerCase(),
+  );
+  const createKind =
+    selectedRequest && isRunnableKind(selectedRequest.kind)
+      ? selectedRequest.kind
+      : selectedDiscipline && isRunnableKind(selectedDiscipline.request_kind)
+      ? selectedDiscipline.request_kind
+      : "trade_rft";
   const activeKind = selectedRequest?.kind ?? createKind;
 
   useEffect(() => {
@@ -229,11 +252,11 @@ export function ProcurementRequestPanel({
       .filter((request) => isRunnableKind(request.kind))
       .map((request) => request.target_name);
     return mergeDisciplineOptions(
-      pmpDisciplines,
-      [...DEFAULT_CONSULTANT_DISCIPLINES, ...DEFAULT_TRADE_PACKAGES],
+      disciplines.map((item) => item.label),
+      [],
       existingTargets,
     );
-  }, [pmpDisciplines, requests]);
+  }, [disciplines, requests]);
   const disciplineBadges = useMemo(() => {
     const badges: Record<string, string> = {};
     for (const name of disciplineOptions) {
@@ -254,11 +277,13 @@ export function ProcurementRequestPanel({
   function submitCreate() {
     const target = discipline.trim();
     if (!target || !createSupported) return;
+    setView("request");
     onCreate(createKind, target);
   }
 
   function submitUpdate() {
     if (!selectedRequest || !updateSupported) return;
+    setView("request");
     onUpdate?.(
       isRunnableKind(selectedRequest.kind) ? selectedRequest.kind : createKind,
       selectedRequest.target_name,
@@ -293,17 +318,98 @@ export function ProcurementRequestPanel({
     }
   }
 
+  async function openStrategy() {
+    setView("strategy");
+    setStrategyError(null);
+    if (strategy) return;
+    setStrategyOpening(true);
+    try {
+      const next = await queryClient.fetchQuery({
+        queryKey: workbenchKeys.procurementStrategy(project.id),
+        queryFn: () => api.ensureProcurementStrategy(project.id),
+      });
+      queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
+      setStrategyReady(true);
+    } catch (nextError) {
+      setView("request");
+      setStrategyError(
+        nextError instanceof ApiError
+          ? nextError.message
+          : "Could not open Procurement Strategy.",
+      );
+    } finally {
+      setStrategyOpening(false);
+    }
+  }
+
+  async function applyStrategyOperations(
+    operations: ProcurementStrategyOperation[],
+  ) {
+    if (!strategy) return;
+    setStrategySaving(true);
+    setStrategyError(null);
+    try {
+      const next = await api.applyProcurementStrategyOperations(
+        project.id,
+        strategy.revision,
+        operations,
+      );
+      queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
+    } catch (nextError) {
+      setStrategyError(
+        nextError instanceof ApiError
+          ? nextError.message
+          : "Could not save the Procurement Strategy change.",
+      );
+      if (nextError instanceof ApiError && nextError.status === 409) {
+        await queryClient.invalidateQueries({
+          queryKey: workbenchKeys.procurementStrategy(project.id),
+          exact: true,
+        });
+        try {
+          const current = await api.getProcurementStrategy(project.id);
+          queryClient.setQueryData(
+            workbenchKeys.procurementStrategy(project.id),
+            current,
+          );
+        } catch {
+          // Preserve the last readable snapshot when conflict recovery also fails.
+        }
+      }
+    } finally {
+      setStrategySaving(false);
+    }
+  }
+
+  async function refreshStrategy() {
+    if (!strategy) return;
+    setStrategySaving(true);
+    setStrategyError(null);
+    try {
+      const next = await api.refreshProcurementStrategy(project.id);
+      queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
+    } catch (nextError) {
+      setStrategyError(
+        nextError instanceof ApiError
+          ? nextError.message
+          : "Could not refresh the discipline roster.",
+      );
+    } finally {
+      setStrategySaving(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
-      {error || loadError ? (
+      {error || loadError || strategyError ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error ?? loadError}
+          {error ?? loadError ?? strategyError}
         </p>
       ) : null}
 
-      {renderGate(activeKind)}
+      {view === "request" ? renderGate(activeKind) : null}
 
-      {!supported ? (
+      {view === "request" && !supported ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {capability?.reasons.join(" ") || "This request is not supported yet."}
         </p>
@@ -323,7 +429,7 @@ export function ProcurementRequestPanel({
           />
           <Button onClick={submitCreate} disabled={!discipline.trim() || !createSupported}>
             <Play className="size-4" aria-hidden />
-            Create RFT
+            Generate RFT
           </Button>
           <Button
             variant="outline"
@@ -333,8 +439,18 @@ export function ProcurementRequestPanel({
             <RefreshCw className="size-4" aria-hidden />
             Update RFT
           </Button>
+          <Button
+            type="button"
+            variant={view === "strategy" ? "secondary" : "outline"}
+            aria-pressed={view === "strategy"}
+            disabled={strategyLoading}
+            onClick={() => void openStrategy()}
+          >
+            <Table2 className="size-4" aria-hidden />
+            {strategyLoading ? "Opening…" : "Strategy"}
+          </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        {view === "request" ? <div className="flex flex-wrap items-center gap-1.5">
           {draftExportError ? (
             <span className="self-center text-xs text-destructive" role="alert">
               {draftExportError}
@@ -397,16 +513,25 @@ export function ProcurementRequestPanel({
             size="icon"
             className="size-10"
           />
-        </div>
+        </div> : null}
       </div>
 
-      {hasGeneratedRequests ? null : (
+      {view === "request" && !hasGeneratedRequests ? (
         <p className="text-sm text-muted-foreground">
           No requests yet. Create the first one above.
         </p>
-      )}
+      ) : null}
 
-      {selectedRequest?.current_draft ? (
+      {view === "strategy" && strategy ? (
+        <ProcurementStrategyGrid
+          strategy={strategy}
+          disciplines={disciplines}
+          saving={strategySaving}
+          onApply={applyStrategyOperations}
+          onRefresh={refreshStrategy}
+          onEditWithAi={onEditStrategyRowWithAi}
+        />
+      ) : view === "request" && selectedRequest?.current_draft ? (
         <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
           <DraftReviewPanel
             projectId={project.id}
@@ -421,7 +546,7 @@ export function ProcurementRequestPanel({
             onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
           />
         </Suspense>
-      ) : selectedRequest ? (
+      ) : view === "request" && selectedRequest ? (
         <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           The current document will appear here when it is ready.
         </p>

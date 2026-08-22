@@ -34,6 +34,10 @@ body {
   font-size: 17px;
   font-weight: 300;
   line-height: 1.58;
+  transition:
+    background-color var(--sw-dur-state) var(--sw-ease-state),
+    color var(--sw-dur-state) var(--sw-ease-state),
+    border-color var(--sw-dur-state) var(--sw-ease-state);
 }
 
 a { color: inherit; }
@@ -165,6 +169,24 @@ button, a { -webkit-tap-highlight-color: transparent; }
   padding: 9px 15px;
   font-size: 13px;
 }
+
+.lp-theme {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lp-secondary);
+  cursor: pointer;
+}
+
+.lp-theme:hover { color: var(--lp-bone); }
+.lp-theme .lp-theme__moon { display: none; }
+html[data-theme="light"] .lp-theme .lp-theme__sun { display: none; }
+html[data-theme="light"] .lp-theme .lp-theme__moon { display: block; }
 
 .lp-actions {
   display: flex;
@@ -481,7 +503,7 @@ h2 {
 .lp-source-rail {
   padding: 17px 14px;
   border-right: 1px solid var(--lp-edge);
-  background: #0c0d10;
+  background: var(--lp-bg);
 }
 
 .lp-source-rail > p:first-child,
@@ -818,7 +840,7 @@ h2 {
 @media (max-width: 760px) {
   .lp-nav { display: none; }
   .lp-header__inner { gap: 14px; }
-  .lp-header .lp-button { margin-left: auto; }
+  .lp-theme { margin-left: auto; }
   .lp-hero { padding-block: 64px 88px; }
   .lp-beat { padding-block: 88px; }
   .lp-workspace__body { grid-template-columns: minmax(0, 1fr); }
@@ -886,4 +908,21 @@ h2 {
   html { scroll-behavior: auto; }
   .lp-proofline::after { animation: none; }
   *, *::before, *::after { transition-duration: 0.001ms !important; }
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --lp-bg: #f7f7f4;
+  --lp-panel: #ffffff;
+  --lp-panel-raised: #ffffff;
+  --lp-panel-soft: #f0f0eb;
+  --lp-edge: #b8b8b0;
+  --lp-edge-soft: #d0d0c8;
+  --lp-bone: #121418;
+  --lp-secondary: #1c2026;
+  --lp-tertiary: #2c3037;
+  --lp-blue: #2f72c4;
+  --lp-blue-deep: #2f72c4;
+  --lp-blue-surface: color-mix(in srgb, #2f72c4 12%, #f7f7f4);
+  --lp-amber-surface: color-mix(in srgb, #c48a20 16%, #f7f7f4);
 }

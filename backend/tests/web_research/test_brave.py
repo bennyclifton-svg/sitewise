@@ -46,3 +46,23 @@ def test_brave_search_maps_the_external_response_to_web_results() -> None:
     assert len(results) == 1
     assert results[0].title == "State Environmental Planning Policy (Housing) 2021"
     assert results[0].snippet == "Current legislation text."
+
+
+def test_brave_search_can_run_without_the_government_site_filter() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["q"] == "structural engineer Sydney"
+        return httpx.Response(200, json={"web": {"results": []}})
+
+    async def run_search():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            provider = BraveSearchProvider(
+                api_key="brave-test-key", client=client, site_filter=None
+            )
+            return await provider.search(
+                "structural engineer Sydney",
+                country="AU",
+                search_lang="en",
+                max_results=4,
+            )
+
+    assert run_async(run_search()) == []

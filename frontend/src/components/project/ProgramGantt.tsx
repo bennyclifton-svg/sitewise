@@ -33,9 +33,17 @@ import {
 import { cn } from "@/lib/utils";
 
 const ROW_HEIGHT = 24;
-const BAR_HEIGHT = 10;
-const BAR_TOP = 7;
+const BAR_HEIGHT = 16;
+const BAR_TOP = 4;
 const LINK_Y = 12;
+const HANDLE_FILL =
+  "bg-[color-mix(in_oklch,var(--sw-void)_62%,var(--sw-text-primary))]";
+const GRID_MINOR =
+  "bg-[color-mix(in_oklch,var(--sw-text-tertiary)_11%,transparent)]";
+const GRID_MAJOR =
+  "bg-[color-mix(in_oklch,var(--sw-text-tertiary)_20%,transparent)]";
+const GRID_ROW =
+  "border-[color-mix(in_oklch,var(--sw-text-tertiary)_12%,transparent)]";
 const NAME_WIDTH = 220;
 const DATE_WIDTH = 88;
 const DURATION_WIDTH = 48;
@@ -340,6 +348,16 @@ export function ProgramGantt({
           selectedCount={mode === "edit" ? visibleSelected.size : 0}
           onDeleteSelected={mode === "edit" ? removeSelected : undefined}
         />
+        <GanttGrid
+          start={span.start}
+          days={spanDays}
+          scale={state.view_scale}
+          leftPane={leftPane}
+          headerHeight={headerHeight}
+          fitted={fitted}
+          pxPerDay={pxPerDay}
+          rowCount={state.activities.length}
+        />
         <GanttLinks
           activities={state.activities}
           spanStart={span.start}
@@ -376,6 +394,9 @@ export function ProgramGantt({
             onRename={(name) => update(activity, { name })}
             onMove={(start) => update(activity, { start_date: start })}
             onResize={(days) => update(activity, { duration_days: days })}
+            onResizeStart={(start, days) =>
+              update(activity, { start_date: start, duration_days: days })
+            }
             onDelete={() => remove(activity)}
             onAddActivity={() => addActivityBelow(activity)}
             onToggleLink={() => toggleLink(activity)}
@@ -471,27 +492,35 @@ function GanttAxis({
   const { major, minor } = programmeHeaderLayers(start, end, scale, pxPerDay);
   return (
     <div
-      className="absolute inset-x-0 top-0 border-b text-[10px] leading-none text-[var(--sw-text-tertiary)]"
+      data-gantt-header=""
+      className="program-gantt-header absolute inset-x-0 top-0 z-[1] border-b text-[10px] leading-none text-[var(--sw-text-tertiary)]"
       style={{ height: headerHeight }}
     >
-      <span className="absolute left-2 top-2">Activity</span>
-      {onAddStage ? (
-        <button
-          type="button"
-          aria-label="Add stage"
-          className="absolute top-1 flex size-5 items-center justify-center text-[var(--sw-text-tertiary)] hover:text-[var(--sw-text-primary)]"
-          style={{ left: 54 }}
-          onClick={onAddStage}
-        >
-          <Plus className="size-3.5" aria-hidden />
-        </button>
-      ) : null}
+      <div className="absolute bottom-1 left-2 flex items-center gap-0.5">
+        <span className="program-gantt-header-label">Activity</span>
+        {onAddStage ? (
+          <button
+            type="button"
+            aria-label="Add stage"
+            className="flex size-5 items-center justify-center text-[var(--sw-text-tertiary)] hover:text-[var(--sw-text-primary)]"
+            onClick={onAddStage}
+          >
+            <Plus className="size-3.5" aria-hidden />
+          </button>
+        ) : null}
+      </div>
       {showScheduleColumns ? (
         <>
-          <span className="absolute top-2" style={{ left: NAME_WIDTH }}>
+          <span
+            className="program-gantt-header-label absolute bottom-1.5"
+            style={{ left: NAME_WIDTH }}
+          >
             Start
           </span>
-          <span className="absolute top-2" style={{ left: NAME_WIDTH + DATE_WIDTH }}>
+          <span
+            className="program-gantt-header-label absolute bottom-1.5 text-center"
+            style={{ left: NAME_WIDTH + DATE_WIDTH, width: DURATION_WIDTH - 6 }}
+          >
             Days
           </span>
           {(selectedCount ?? 0) > 1 && onDeleteSelected ? (
@@ -499,7 +528,7 @@ function GanttAxis({
               type="button"
               aria-label={`Delete ${selectedCount} selected activities`}
               title={`Delete ${selectedCount} selected`}
-              className="absolute top-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+              className="absolute bottom-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
               style={{
                 left: NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH + LINK_WIDTH + PLUS_WIDTH,
               }}
@@ -581,6 +610,62 @@ function AxisLabel({
   );
 }
 
+function GanttGrid({
+  start,
+  days,
+  scale,
+  leftPane,
+  headerHeight,
+  fitted,
+  pxPerDay,
+  rowCount,
+}: {
+  start: string;
+  days: number;
+  scale: ProgrammeScale;
+  leftPane: number;
+  headerHeight: number;
+  fitted: boolean;
+  pxPerDay: number;
+  rowCount: number;
+}) {
+  const end = addDays(start, days);
+  const { major, minor } = programmeHeaderLayers(start, end, scale, pxPerDay);
+  const height = headerHeight + ROW_HEIGHT * Math.max(rowCount, 1);
+  const seen = new Set<string>();
+  const lines: { key: string; offset: number; weight: "major" | "minor" }[] = [];
+  for (const [weight, bands] of [
+    ["major", major],
+    ["minor", minor],
+  ] as const) {
+    for (const band of bands) {
+      if (seen.has(band.start)) continue;
+      const offset = daysBetween(start, band.start);
+      if (offset <= 0 || offset >= days) continue;
+      seen.add(band.start);
+      lines.push({ key: `${weight}-${band.start}`, offset, weight });
+    }
+  }
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0"
+      data-gantt-grid=""
+      style={{ height }}
+    >
+      {lines.map((line) => (
+        <span
+          key={line.key}
+          data-gantt-grid-x={line.key}
+          className={cn("absolute top-0 h-full w-px", line.weight === "major" ? GRID_MAJOR : GRID_MINOR)}
+          style={{
+            left: chartBoxStyle(fitted, leftPane, line.offset, 0, days, pxPerDay).left,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 const GanttRow = memo(function GanttRow({
   activity,
   index,
@@ -600,6 +685,7 @@ const GanttRow = memo(function GanttRow({
   onRename,
   onMove,
   onResize,
+  onResizeStart,
   onDelete,
   onAddActivity,
   onToggleLink,
@@ -623,31 +709,48 @@ const GanttRow = memo(function GanttRow({
   onRename: (name: string) => void;
   onMove: (start: string) => void;
   onResize: (days: number) => void;
+  onResizeStart: (start: string, days: number) => void;
   onDelete: () => void;
   onAddActivity: () => void;
   onToggleLink: () => void;
   onReorder: (event: ReactPointerEvent) => void;
 }) {
-  const [drag, setDrag] = useState<{ kind: "move" | "resize"; delta: number } | null>(
-    null,
-  );
-  const offset = daysBetween(spanStart, activity.start_date) + (drag?.kind === "move" ? drag.delta : 0);
+  const [drag, setDrag] = useState<{
+    kind: "move" | "resize" | "resize-start";
+    delta: number;
+  } | null>(null);
+  const minDuration = activity.kind === "milestone" ? 0 : 1;
+  const startDelta =
+    drag?.kind === "move"
+      ? drag.delta
+      : drag?.kind === "resize-start"
+        ? Math.min(drag.delta, activity.duration_days - minDuration)
+        : 0;
+  const offset = daysBetween(spanStart, activity.start_date) + startDelta;
   const duration = Math.max(
-    activity.duration_days + (drag?.kind === "resize" ? drag.delta : 0),
-    activity.kind === "milestone" ? 0 : 1,
+    activity.duration_days +
+      (drag?.kind === "resize"
+        ? drag.delta
+        : drag?.kind === "resize-start"
+          ? -startDelta
+          : 0),
+    minDuration,
   );
   const top = headerHeight + index * ROW_HEIGHT;
   const barFill =
     activity.kind === "stage"
-      ? "bg-[color-mix(in_oklch,var(--sw-beam)_70%,transparent)]"
+      ? "bg-[color-mix(in_oklch,var(--sw-text-tertiary)_70%,transparent)]"
       : "bg-[color-mix(in_oklch,var(--sw-beam)_45%,transparent)]";
 
-  function beginDrag(event: ReactPointerEvent, kind: "move" | "resize") {
+  function beginDrag(
+    event: ReactPointerEvent,
+    kind: "move" | "resize" | "resize-start",
+  ) {
     if (!interactive) return;
     event.preventDefault();
     event.stopPropagation();
     const originX = event.clientX;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
     const onMovePointer = (moveEvent: PointerEvent) => {
       setDrag({
         kind,
@@ -657,11 +760,20 @@ const GanttRow = memo(function GanttRow({
     const onUp = (upEvent: PointerEvent) => {
       window.removeEventListener("pointermove", onMovePointer);
       window.removeEventListener("pointerup", onUp);
-      const delta = Math.round((upEvent.clientX - originX) / Math.max(pxPerDay, 0.25));
+      const raw = Math.round((upEvent.clientX - originX) / Math.max(pxPerDay, 0.25));
       setDrag(null);
-      if (delta === 0) return;
-      if (kind === "move") onMove(addDays(activity.start_date, delta));
-      else onResize(Math.max(activity.kind === "milestone" ? 0 : 1, activity.duration_days + delta));
+      if (raw === 0) return;
+      if (kind === "move") {
+        onMove(addDays(activity.start_date, raw));
+        return;
+      }
+      if (kind === "resize-start") {
+        const delta = Math.min(raw, activity.duration_days - minDuration);
+        if (delta === 0) return;
+        onResizeStart(addDays(activity.start_date, delta), activity.duration_days - delta);
+        return;
+      }
+      onResize(Math.max(minDuration, activity.duration_days + raw));
     };
     window.addEventListener("pointermove", onMovePointer);
     window.addEventListener("pointerup", onUp);
@@ -670,7 +782,8 @@ const GanttRow = memo(function GanttRow({
   return (
     <div
       className={cn(
-        "group/row absolute inset-x-0 select-none",
+        "group/row absolute inset-x-0 select-none border-b",
+        GRID_ROW,
         (selected || focused) && "bg-[color-mix(in_oklch,var(--sw-beam)_8%,transparent)]",
         selected && "bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)]",
         dragging && "opacity-60",
@@ -703,7 +816,10 @@ const GanttRow = memo(function GanttRow({
         <FigureFields activity={activity} />
       )}
       <div
-        className="absolute"
+        className={cn(
+          "absolute overflow-hidden rounded",
+          activity.kind !== "milestone" && barFill,
+        )}
         data-gantt-bar={activity.activity_key}
         style={{
           ...chartBoxStyle(fitted, leftPane, offset, duration, spanDays, pxPerDay, 8),
@@ -716,7 +832,7 @@ const GanttRow = memo(function GanttRow({
             <button
               type="button"
               aria-label={`Move ${activity.name}`}
-              className="size-2.5 rotate-45 bg-[var(--sw-beam)]"
+              className="size-2.5 rotate-45 bg-[var(--sw-beam)] p-0 leading-none"
               onPointerDown={(event) => beginDrag(event, "move")}
               data-interactive="true"
             />
@@ -727,21 +843,46 @@ const GanttRow = memo(function GanttRow({
           <button
             type="button"
             aria-label={`Move ${activity.name}`}
-            className={cn("h-full w-full rounded-sm", barFill)}
+            className="block h-full w-full bg-transparent p-0 leading-none"
             onPointerDown={(event) => beginDrag(event, "move")}
             data-interactive="true"
           />
         ) : (
-          <span className={cn("block h-full w-full rounded-sm", barFill)} aria-hidden />
+          <span className="block h-full w-full" aria-hidden />
         )}
         {interactive && activity.kind !== "milestone" ? (
-          <span
-            role="separator"
-            aria-label={`Resize ${activity.name}`}
-            data-interactive="true"
-            className="absolute inset-y-0 right-0 w-2 cursor-ew-resize"
-            onPointerDown={(event) => beginDrag(event, "resize")}
-          />
+          <>
+            <span
+              aria-hidden
+              data-gantt-handle="start"
+              className={cn(
+                "pointer-events-none absolute top-1/2 left-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
+                HANDLE_FILL,
+              )}
+            />
+            <span
+              aria-hidden
+              data-gantt-handle="end"
+              className={cn(
+                "pointer-events-none absolute top-1/2 right-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
+                HANDLE_FILL,
+              )}
+            />
+            <span
+              role="separator"
+              aria-label={`Resize start of ${activity.name}`}
+              data-interactive="true"
+              className="absolute inset-y-0 left-0 z-10 w-2.5 cursor-ew-resize"
+              onPointerDown={(event) => beginDrag(event, "resize-start")}
+            />
+            <span
+              role="separator"
+              aria-label={`Resize ${activity.name}`}
+              data-interactive="true"
+              className="absolute inset-y-0 right-0 z-10 w-2.5 cursor-ew-resize"
+              onPointerDown={(event) => beginDrag(event, "resize")}
+            />
+          </>
         ) : null}
       </div>
     </div>
@@ -770,6 +911,7 @@ function GanttLinks({
   const links = programmeLinks(activities, spanStart);
   if (!links.length) return null;
   const xScale = fitted ? 1 : pxPerDay;
+  const stubX = fitted ? Math.max(2, spanDays * 0.012) : 8;
   return (
     <svg
       className="pointer-events-none absolute"
@@ -787,7 +929,7 @@ function GanttLinks({
         <path
           key={link.key}
           data-gantt-link={link.key}
-          d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale)}
+          d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
           fill="none"
           stroke="var(--sw-beam)"
           strokeOpacity="0.55"

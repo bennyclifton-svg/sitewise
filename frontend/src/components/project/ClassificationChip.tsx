@@ -26,15 +26,25 @@ type ClassificationChipProps = {
   onChange: (next: ClassificationChange) => Promise<void> | void;
 };
 
-const CLASS_OPTIONS = DOCUMENT_CLASSES.map((value) => ({
-  value,
-  label: classificationLabel(value),
-}));
+const OPTION_LABEL_COLLATOR = new Intl.Collator("en-AU", {
+  numeric: true,
+  sensitivity: "base",
+});
 
-const CATEGORY_OPTIONS = DOCUMENT_CATEGORIES.map((value) => ({
-  value,
-  label: classificationLabel(value),
-}));
+function classificationOptions(values: ReadonlyArray<string>) {
+  return values
+    .map((value) => ({
+      value,
+      label: classificationLabel(value),
+    }))
+    .sort((left, right) => OPTION_LABEL_COLLATOR.compare(left.label, right.label));
+}
+
+const CLASS_OPTIONS = classificationOptions(DOCUMENT_CLASSES);
+const CATEGORY_OPTIONS = classificationOptions(DOCUMENT_CATEGORIES);
+
+const CLASSIFICATION_SELECT_CLASS_NAME =
+  "h-7 w-[11.5rem] max-w-full px-2 text-xs";
 
 export function ClassificationChip({
   documentClass,
@@ -86,7 +96,7 @@ export function ClassificationChip({
         value={classValue}
         options={CLASS_OPTIONS}
         disabled={disabled}
-        className="h-7 w-auto min-w-[7.5rem] px-2 text-xs"
+        className={CLASSIFICATION_SELECT_CLASS_NAME}
         onChange={(value) => {
           void commit(value, categoryValue);
         }}
@@ -96,7 +106,7 @@ export function ClassificationChip({
         value={categoryValue}
         options={CATEGORY_OPTIONS}
         disabled={disabled}
-        className="h-7 w-auto min-w-[7.5rem] px-2 text-xs"
+        className={CLASSIFICATION_SELECT_CLASS_NAME}
         onChange={(value) => {
           void commit(classValue, value);
         }}

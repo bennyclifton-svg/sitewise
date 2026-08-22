@@ -184,3 +184,12 @@
     animation: none;
   }
 }
+
+html[data-theme="light"] .sw-light-vignette {
+  background: radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(25, 28, 33, 0.07) 100%);
+}
+
+html[data-theme="light"] .sw-light-sun {
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+}

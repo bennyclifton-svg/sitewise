@@ -8,6 +8,7 @@ import pytest
 
 from app.agent.pi_process import (
     PiTurnError,
+    PiTurnTimeout,
     _default_spawn,
     _build_argv,
     _build_env,
@@ -20,6 +21,7 @@ from app.agent.pi_process import (
     stream_pi_turn,
     text_delta_from_pi_event,
 )
+from app.agent.sse_relay import relay_agent_turn
 from tests.conftest import run_async
 
 
@@ -275,6 +277,56 @@ def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(
     assert all("\n" not in part for part in seen["argv"])
     assert seen["prompt_text"] == prompt
     assert not seen["prompt_path"].exists()
+
+
+def test_stream_pi_turn_timeout_survives_relay_chunk_task_changes(
+    monkeypatch, tmp_path: Path
+) -> None:
+    class DelayedStream:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        async def readline(self) -> bytes:
+            self.calls += 1
+            if self.calls == 1:
+                return (
+                    b'{"type":"message_update","assistantMessageEvent":'
+                    b'{"type":"text_delta","delta":"started"}}\n'
+                )
+            await asyncio.sleep(0.1)
+            return b""
+
+    process = _FakeProcess(stdout=[])
+    process.stdout = DelayedStream()
+
+    async def spawn(**_kwargs: Any) -> _FakeProcess:
+        return process
+
+    async def consume() -> None:
+        chunks = stream_pi_turn(
+            prompt="set up the project profile",
+            mcp_url="http://test/mcp",
+            turn_token="turn-token",
+            cwd=tmp_path,
+            provider="openai",
+            model="gpt-5.6-luna",
+            spawn=spawn,
+        )
+        _ = [event async for event in relay_agent_turn(chunks)]
+
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.agent_turn_timeout_seconds",
+        0.02,
+    )
+
+    with pytest.raises(PiTurnTimeout):
+        run_async(consume())
+
+    assert process.killed is True
 
 
 def test_pi_uses_only_the_explicit_mcp_adapter_in_production(monkeypatch) -> None:

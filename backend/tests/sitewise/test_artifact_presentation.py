@@ -404,8 +404,9 @@ def test_prepare_issue_markdown_normalises_programme_risks_and_actions_citation_
 
     prepared = prepare_issue_markdown(source)
 
-    assert "| Sub-milestone | Control requirement |  |" in prepared
-    assert "| DA submission | Lodgement package issued | [4] |" in prepared
+    assert "## Programme" in prepared
+    assert "Sub-milestone" not in prepared
+    assert "DA submission" not in prepared
     assert "| Risk | Owner | Mitigation / escalation |  |" in prepared
     assert (
         "| Planning pathway changes scope | Owner / planner | "

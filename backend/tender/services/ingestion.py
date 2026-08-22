@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import subprocess
-import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +14,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import fitz
 
 from app.config import settings
+from app.sitewise.office_pdf import (
+    OfficeConversionError as OfficeConversionError,
+    convert_office_to_pdf,
+)
 from tender.models import (
     TenderComparison,
     TenderDocument,
@@ -47,10 +49,6 @@ Downloader = Callable[..., bytes]
 Uploader = Callable[..., str]
 Extractor = Callable[[bytes], list[PageExtract]]
 Converter = Callable[..., bytes]
-
-
-class OfficeConversionError(RuntimeError):
-    pass
 
 
 async def ingest_document(
@@ -399,36 +397,7 @@ def _default_office_converter(
     source_name = Path(filename).name or f"source{_office_suffix_for_mime(mime_type)}"
     if Path(source_name).suffix.lower() not in {".docx", ".xlsx"}:
         source_name = f"{source_name}{_office_suffix_for_mime(mime_type)}"
-
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        tmp_path = Path(tmp_dir)
-        source_path = tmp_path / source_name
-        source_path.write_bytes(source_bytes)
-        try:
-            subprocess.run(
-                [
-                    "soffice",
-                    "--headless",
-                    "--convert-to",
-                    "pdf",
-                    "--outdir",
-                    str(tmp_path),
-                    str(source_path),
-                ],
-                check=True,
-                capture_output=True,
-                timeout=120,
-            )
-        except (FileNotFoundError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-            raise OfficeConversionError("LibreOffice conversion failed") from exc
-
-        output_path = source_path.with_suffix(".pdf")
-        if not output_path.exists():
-            candidates = list(tmp_path.glob("*.pdf"))
-            if not candidates:
-                raise OfficeConversionError("LibreOffice produced no PDF")
-            output_path = candidates[0]
-        return output_path.read_bytes()
+    return convert_office_to_pdf(source_bytes=source_bytes, filename=source_name)
 
 
 def _office_suffix_for_mime(mime_type: str) -> str:

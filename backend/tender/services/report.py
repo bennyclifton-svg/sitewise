@@ -15,7 +15,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.project import Project
-from app.storage.project_files import upload_project_file
+from app.sitewise.office_pdf import (
+    OfficeConversionError,
+    convert_html_to_pdf,
+    html_to_pdf_bytes,
+)
+from app.storage.project_files import download_project_file, upload_project_file
 from tender.models import (
     ReportLanguageEntry,
     TaxonomyCell,
@@ -152,6 +157,54 @@ async def get_report_state(
     status = "delivered" if record.delivered_at else "approved" if record.approved_at else "draft"
     lifecycle = _lifecycle_result(record, status=status)
     return lifecycle, draft_payload
+
+
+async def load_report_pdf(
+    session: AsyncSession,
+    *,
+    comparison_id: uuid.UUID,
+    version: int | None = None,
+) -> tuple[bytes, str]:
+    """Return stored PDF bytes, generating from HTML when the draft skipped GTK."""
+    if version is None:
+        record = await _latest_report(session, comparison_id=comparison_id)
+    else:
+        record = (
+            await session.execute(
+                select(TenderReport).where(
+                    TenderReport.comparison_id == comparison_id,
+                    TenderReport.version == version,
+                )
+            )
+        ).scalar_one_or_none()
+    if record is None:
+        raise ReportLifecycleError(f"report has not been built: {comparison_id}")
+    filename = f"Tender_Comparison_Report_v{record.version:02d}.pdf"
+    if record.pdf_path:
+        content = await asyncio.to_thread(
+            download_project_file,
+            storage_key=record.pdf_path,
+        )
+        return content, filename
+    if not record.html_path:
+        raise ReportLifecycleError(f"report PDF is not available: {comparison_id}")
+    html = (
+        await asyncio.to_thread(
+            download_project_file,
+            storage_key=record.html_path,
+        )
+    ).decode("utf-8")
+    content = await asyncio.to_thread(render_pdf_bytes, html)
+    pdf_path = record.html_path.rsplit(".", 1)[0] + ".pdf"
+    await asyncio.to_thread(
+        upload_project_file,
+        storage_key=pdf_path,
+        content=content,
+        filename=filename,
+    )
+    record.pdf_path = pdf_path
+    await session.flush()
+    return content, filename
 
 
 async def assemble_report_draft(session: AsyncSession, job: TenderJob) -> None:
@@ -378,11 +431,18 @@ def assemble_report_artifacts(
 def render_pdf_bytes(html: str) -> bytes:
     try:
         from weasyprint import HTML
-    except Exception as exc:  # pragma: no cover - depends on host native libraries
-        raise WeasyPrintUnavailable(
-            f"WeasyPrint native dependencies are unavailable: {exc}"
-        ) from exc
-    return HTML(string=html).write_pdf()
+
+        return HTML(string=html).write_pdf()
+    except Exception:
+        try:
+            return convert_html_to_pdf(html=html, filename="tender-report.html")
+        except OfficeConversionError:
+            try:
+                return html_to_pdf_bytes(html)
+            except Exception as exc:
+                raise WeasyPrintUnavailable(
+                    f"Tender PDF generation is unavailable: {exc}"
+                ) from exc
 
 
 def default_narratives(language: Mapping[str, Any]) -> dict[str, str]:

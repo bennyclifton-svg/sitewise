@@ -13,6 +13,7 @@ import {
   applyProgrammeOperationsLocally,
   coalesceProgrammeOperations,
   insertAfterProgrammeHeading,
+  stripProgrammeSectionBody,
   isLinked,
   previousProgrammeKey,
   programmeActivitySpan,
@@ -345,22 +346,22 @@ describe("programme helpers", () => {
     ]);
     expect(programmeActivitySpan("2026-08-16", sequential[0]).end).toBe(seq[0]?.fromOffset);
     expect(programmeActivitySpan("2026-08-16", sequential[1]).start).toBe(seq[0]?.toOffset);
-    expect(ganttLinkPath(seq[0]!, 24, 12, 1)).toBe("M 90 12 L 90 36");
-    expect(ganttLinkPath(seq[0]!, 24, 12, 2)).toBe("M 180 12 L 180 36");
+    expect(ganttLinkPath(seq[0]!, 24, 12, 1)).toBe("M 90 12 V 36");
+    expect(ganttLinkPath(seq[0]!, 24, 12, 2)).toBe("M 180 12 V 36");
 
     const gap = programmeLinks(gapped, "2026-08-16");
     expect(gap[0]).toMatchObject({ fromOffset: 30, toOffset: 61, fromIndex: 0, toIndex: 1 });
-    expect(ganttLinkPath(gap[0]!, 24, 12, 1)).toBe("M 30 12 L 61 36");
+    expect(ganttLinkPath(gap[0]!, 24, 12, 1)).toBe("M 30 12 H 38 V 36 H 61");
 
     const overlap = programmeLinks(overlapping, "2026-08-16");
     expect(overlap[0]?.fromOffset).toBeGreaterThan(overlap[0]!.toOffset);
     expect(ganttLinkPath(overlap[0]!, 24, 12, 1)).toBe(
-      `M ${overlap[0]!.fromOffset} 12 L ${overlap[0]!.toOffset} 36`,
+      `M ${overlap[0]!.fromOffset} 12 H ${overlap[0]!.fromOffset + 8} V 36 H ${overlap[0]!.toOffset}`,
     );
 
     const skip = programmeLinks(skipped, "2026-08-16");
     expect(skip[0]).toMatchObject({ fromIndex: 0, toIndex: 2 });
-    expect(ganttLinkPath(skip[0]!, 24, 12, 1)).toBe("M 14 12 L 14 60");
+    expect(ganttLinkPath(skip[0]!, 24, 12, 1)).toBe("M 14 12 V 60");
 
     expect(programmeLinks(milestone, "2026-08-16")[0]).toMatchObject({
       fromOffset: 0,
@@ -373,6 +374,37 @@ describe("programme helpers", () => {
     const markdown = "# Plan\n\n## Programme\n\nDates TBC.\n";
     expect(insertAfterProgrammeHeading(markdown, "<svg></svg>")).toContain(
       "## Programme\n\n<svg></svg>\n\nDates TBC.",
+    );
+  });
+
+  it("strips leftover Programme section prose and tables", () => {
+    const markdown = [
+      "# Plan",
+      "",
+      "## Programme",
+      "",
+      "The project is currently in brief planning.",
+      "",
+      "| Sub-milestone | Status |",
+      "| --- | --- |",
+      "| Setup | Active |",
+      "",
+      "## Cost Planning",
+      "",
+      "Budget follows.",
+      "",
+    ].join("\n");
+    expect(stripProgrammeSectionBody(markdown)).toBe(
+      [
+        "# Plan",
+        "",
+        "## Programme",
+        "",
+        "## Cost Planning",
+        "",
+        "Budget follows.",
+        "",
+      ].join("\n"),
     );
   });
 

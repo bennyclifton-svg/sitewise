@@ -7,6 +7,7 @@ import {
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { ColorThemeButton } from "@/components/ColorThemeButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -95,11 +96,14 @@ export function BillingPage() {
               </h1>
             </div>
           </div>
-          {status ? (
-            <Badge variant={status.read_only ? "outline" : "secondary"}>
-              {status.subscription_status}
-            </Badge>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {status ? (
+              <Badge variant={status.read_only ? "outline" : "secondary"}>
+                {status.subscription_status}
+              </Badge>
+            ) : null}
+            <ColorThemeButton />
+          </div>
         </div>
       </header>
 

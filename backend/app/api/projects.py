@@ -129,6 +129,10 @@ from app.schemas.projects import (
     ProcurementRequestListResponse,
     ProcurementRequestStatusUpdate,
     ProcurementRequestView,
+    ApplyProcurementStrategyOperationsRequest,
+    ProcurementStrategyView,
+    ProjectDisciplineListResponse,
+    ProjectDisciplineView,
     ProjectActivityEvent,
     ProjectActivityReferences,
     ProjectActivityResponse,
@@ -219,6 +223,7 @@ from app.projects.artefact_adapters import (
     revise_workflow_artefact,
 )
 from app.projects.artefact_blocks import (
+    BlockMutationResult,
     apply_block_operations,
     markdown_blocks,
     materialize_block_identity,
@@ -269,6 +274,17 @@ from app.procurement.requests import (
     request_kind_for_workflow,
     transition_procurement_request,
 )
+from app.procurement.strategy import (
+    ProcurementStrategyConflict,
+    ProcurementStrategyNotFound,
+    ProcurementStrategyValidationError,
+    apply_procurement_strategy_operations,
+    ensure_procurement_strategy,
+    get_procurement_strategy,
+    refresh_procurement_strategy,
+    strategy_snapshot,
+)
+from app.sitewise.discipline_catalog import discipline_catalog
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectNextAction, ProjectSnapshot
 from app.schemas.workflow_capabilities import WorkflowCapabilityMatrix
@@ -304,7 +320,9 @@ from app.inbox.paths import build_storage_key, is_inbox_workspace_path
 from app.sitewise.artifact_exports import (
     EXPORT_RENDERER_VERSION,
     render_artifact_export,
+    render_workbook_pdf,
 )
+from app.sitewise.office_pdf import OfficeConversionError
 from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
 from app.sitewise.taxonomy import (
     derive_risk_flags,
@@ -356,7 +374,13 @@ PROCUREMENT_DRAFT_PREFIXES = (
 )
 
 ISSUE_EXPORT_WORKFLOWS = frozenset({"create_pmp", "update_pmp"})
-ISSUE_EXPORT_PREFIXES = ("consultant_procurement_", "trade_rft_", "trade_rfq_")
+ISSUE_EXPORT_PREFIXES = (
+    "consultant_procurement_",
+    "contractor_eoi_",
+    "trade_rft_",
+    "trade_rfq_",
+)
+COST_PLAN_EXPORT_WORKFLOWS = frozenset({"create_cost_plan"})
 
 
 @router.get(
@@ -517,6 +541,35 @@ def _is_cost_plan_workbook_path(workspace_path: str) -> bool:
     normalized = workspace_path.replace("\\", "/")
     filename = normalized.rsplit("/", 1)[-1].lower()
     return filename.startswith("cost_plan_v") and filename.endswith(".xlsx")
+
+
+async def _cost_plan_workbook_bytes(
+    session: AsyncSession,
+    *,
+    project,
+    draft,
+) -> tuple[bytes, str]:
+    await flush_cost_plan_workbook_rebuild(project.id)
+    provenance = draft.provenance_metadata if isinstance(draft.provenance_metadata, dict) else {}
+    workbook = provenance.get("workbook") if isinstance(provenance.get("workbook"), dict) else {}
+    workspace_path = str(workbook.get("workspace_path") or "").strip() or (
+        cost_plan_workbook_workspace_path(project, draft.version)
+    )
+    record = await get_workspace_file_by_path(
+        session,
+        project_id=project.id,
+        workspace_path=workspace_path,
+    )
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cost workbook is not available for download.",
+        )
+    content = await asyncio.to_thread(
+        download_project_file,
+        storage_key=record.storage_key,
+    )
+    return content, record.filename or PurePosixPath(workspace_path).name
 
 
 async def _resolve_workspace_file_for_read(
@@ -818,6 +871,8 @@ async def _procurement_request_view(
             "kind": request.kind,
             "target_name": request.target_name,
             "target_slug": request.target_slug,
+            "discipline_code": request.discipline_code,
+            "strategy_row_id": request.strategy_row_id,
             "status": request.status,
             "current_draft_artifact_id": request.current_draft_artifact_id,
             "current_draft": (
@@ -831,6 +886,14 @@ async def _procurement_request_view(
             "created_at": request.created_at,
             "updated_at": request.updated_at,
         }
+    )
+
+
+async def _procurement_strategy_view(
+    session: AsyncSession, *, strategy, project
+) -> ProcurementStrategyView:
+    return ProcurementStrategyView.model_validate(
+        await strategy_snapshot(session, strategy=strategy, project=project)
     )
 
 
@@ -2387,21 +2450,36 @@ async def export_project_draft(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Draft not found",
         )
-    if not (
-        draft.workflow_type in ISSUE_EXPORT_WORKFLOWS
-        or draft.workflow_type.startswith(ISSUE_EXPORT_PREFIXES)
-    ):
+    supports_issue_export = draft.workflow_type in ISSUE_EXPORT_WORKFLOWS or (
+        draft.workflow_type.startswith(ISSUE_EXPORT_PREFIXES)
+    )
+    supports_cost_plan_pdf = (
+        draft.workflow_type in COST_PLAN_EXPORT_WORKFLOWS and format == "pdf"
+    )
+    if not supports_issue_export and not supports_cost_plan_pdf:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="This artefact does not support Word or PDF export.",
         )
 
-    source_fingerprint = bytes_content_hash(
-        (
-            f"{EXPORT_RENDERER_VERSION}\0{draft.title}\0{draft.version}\0"
-            f"{draft.content_markdown}"
-        ).encode("utf-8")
-    )
+    if supports_cost_plan_pdf:
+        source_bytes, source_label = await _cost_plan_workbook_bytes(
+            session,
+            project=project,
+            draft=draft,
+        )
+        source_fingerprint = bytes_content_hash(
+            f"{EXPORT_RENDERER_VERSION}\0".encode("utf-8") + source_bytes
+        )
+    else:
+        source_bytes = b""
+        source_label = draft.title
+        source_fingerprint = bytes_content_hash(
+            (
+                f"{EXPORT_RENDERER_VERSION}\0{draft.title}\0{draft.version}\0"
+                f"{draft.content_markdown}"
+            ).encode("utf-8")
+        )
     filename_stem = re.sub(r"[^A-Za-z0-9]+", "_", draft.title).strip("_") or "Artefact"
     filename = f"{filename_stem}_v{draft.version:02d}.{format}"
     parent = PurePosixPath(draft.workspace_path).parent
@@ -2426,16 +2504,34 @@ async def export_project_draft(
         )
     else:
         try:
-            content = await asyncio.to_thread(
-                render_artifact_export,
-                draft.content_markdown,
-                export_format=format,
-                project_title=project.title,
-                artifact_title=draft.title,
-                version=draft.version,
-                workflow_type=draft.workflow_type,
+            if supports_cost_plan_pdf:
+                content = await asyncio.to_thread(
+                    render_workbook_pdf,
+                    source_bytes,
+                    filename=source_label,
+                    project_title=project.title,
+                    version=draft.version,
+                )
+            else:
+                content = await asyncio.to_thread(
+                    render_artifact_export,
+                    draft.content_markdown,
+                    export_format=format,
+                    project_title=project.title,
+                    artifact_title=draft.title,
+                    version=draft.version,
+                    workflow_type=draft.workflow_type,
+                )
+        except (ImportError, OSError, RuntimeError, OfficeConversionError) as exc:
+            log.exception(
+                "artefact_export_failed",
+                extra={
+                    "draft_id": str(draft.id),
+                    "export_type": format,
+                    "workflow_type": draft.workflow_type,
+                    "error_type": type(exc).__name__,
+                },
             )
-        except (ImportError, OSError, RuntimeError) as exc:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=(
@@ -3398,6 +3494,93 @@ async def post_accept_project_draft(
     return DraftArtifactResponse.model_validate(accepted)
 
 
+@router.get("/{project_id}/disciplines")
+async def get_project_disciplines(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProjectDisciplineListResponse:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    return ProjectDisciplineListResponse(
+        disciplines=[
+            ProjectDisciplineView(
+                code=entry.code,
+                label=entry.label,
+                participant_type=entry.participant_type,
+                request_kind=entry.request_kind,
+                workspace_slug=entry.workspace_slug,
+            )
+            for entry in discipline_catalog()
+        ]
+    )
+
+
+@router.get("/{project_id}/procurement-strategy")
+async def get_project_procurement_strategy(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementStrategyView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    try:
+        strategy = await get_procurement_strategy(session, project_id=project.id)
+    except ProcurementStrategyNotFound as exc:
+        raise HTTPException(status_code=404, detail="Procurement strategy not found") from exc
+    return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
+@router.post("/{project_id}/procurement-strategy/ensure")
+async def post_ensure_project_procurement_strategy(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementStrategyView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    strategy = await ensure_procurement_strategy(session, project=project)
+    return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
+@router.post("/{project_id}/procurement-strategy/refresh")
+async def post_refresh_project_procurement_strategy(
+    project_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementStrategyView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        strategy = await refresh_procurement_strategy(session, project=project)
+    except ProcurementStrategyNotFound as exc:
+        raise HTTPException(status_code=404, detail="Procurement strategy not found") from exc
+    return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
+@router.post("/{project_id}/procurement-strategy/operations")
+async def post_project_procurement_strategy_operations(
+    project_id: uuid.UUID,
+    body: ApplyProcurementStrategyOperationsRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> ProcurementStrategyView:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        strategy = await apply_procurement_strategy_operations(
+            session,
+            project_id=project.id,
+            expected_revision=body.expected_revision,
+            operations=[operation.model_dump(exclude_none=True) for operation in body.operations],
+        )
+    except ProcurementStrategyNotFound as exc:
+        raise HTTPException(status_code=404, detail="Procurement strategy not found") from exc
+    except ProcurementStrategyConflict as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ProcurementStrategyValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
 @router.get("/{project_id}/procurement-requests")
 async def get_project_procurement_requests(
     project_id: uuid.UUID,
@@ -3425,12 +3608,18 @@ async def post_project_procurement_request(
 ) -> ProcurementRequestView:
     project = _require_project_owner(await get_project(session, project_id), user.id)
     await require_active_entitlement(session, user)
+    linkage = {}
+    if body.discipline_code is not None:
+        linkage["discipline_code"] = body.discipline_code
+    if body.strategy_row_id is not None:
+        linkage["strategy_row_id"] = body.strategy_row_id
     request = await create_procurement_request(
         session,
         project_id=project.id,
         created_by_user_id=user.id,
         kind=body.kind,
         target_name=body.target_name,
+        **linkage,
     )
     return await _procurement_request_view(session, request)
 

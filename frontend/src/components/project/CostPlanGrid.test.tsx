@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CostPlanGrid } from "@/components/project/CostPlanGrid";
 import { api } from "@/lib/api";
+import { resetInvoiceEditQueues } from "@/lib/invoice-edit-queue";
 import {
   calculateCostPlanTotals,
   type CostPlanDelta,
@@ -90,7 +91,9 @@ describe("CostPlanGrid", () => {
 
   afterEach(() => {
     cleanup();
+    resetInvoiceEditQueues();
     window.localStorage.clear();
+    window.sessionStorage.clear();
     vi.clearAllMocks();
     vi.restoreAllMocks();
   });

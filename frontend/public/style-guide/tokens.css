@@ -2,6 +2,57 @@
    Single source of truth. tokens.json mirrors this file exactly.
    Import once at the app root, before any component styles. */
 
+@property --sw-void {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(12% 0.006 265);
+}
+@property --sw-panel {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(18% 0.008 265);
+}
+@property --sw-edge {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(26% 0.010 265);
+}
+@property --sw-void-hex {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #060608;
+}
+@property --sw-panel-hex {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #131418;
+}
+@property --sw-edge-hex {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #24262b;
+}
+@property --sw-text-primary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #e8e8e4;
+}
+@property --sw-text-secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #b6b9bf;
+}
+@property --sw-text-tertiary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8f939b;
+}
+@property --sw-text-quiet {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #5c5f66;
+}
+
 :root {
   /* ---------------------------------------------------------------
      PALETTE
@@ -157,3 +208,65 @@ body {
 a { color: var(--sw-beam); text-decoration: none; }
 a:hover { color: color-mix(in oklch, var(--sw-beam), white 25%); }
 ::selection { background: var(--sw-facet-blue); color: #fff; }
+
+html {
+  transition:
+    --sw-void var(--sw-dur-state) var(--sw-ease-state),
+    --sw-panel var(--sw-dur-state) var(--sw-ease-state),
+    --sw-edge var(--sw-dur-state) var(--sw-ease-state),
+    --sw-void-hex var(--sw-dur-state) var(--sw-ease-state),
+    --sw-panel-hex var(--sw-dur-state) var(--sw-ease-state),
+    --sw-edge-hex var(--sw-dur-state) var(--sw-ease-state),
+    --sw-text-primary var(--sw-dur-state) var(--sw-ease-state),
+    --sw-text-secondary var(--sw-dur-state) var(--sw-ease-state),
+    --sw-text-tertiary var(--sw-dur-state) var(--sw-ease-state),
+    --sw-text-quiet var(--sw-dur-state) var(--sw-ease-state),
+    background-color var(--sw-dur-state) var(--sw-ease-state),
+    color var(--sw-dur-state) var(--sw-ease-state),
+    border-color var(--sw-dur-state) var(--sw-ease-state);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    transition: none;
+  }
+}
+
+/* Light invert — same lighting roles, flipped luminance.
+   Sky blue (#7FB0E4) stays a wash only. Text on paper uses action blue
+   or carbon so body copy clears WCAG AA 4.5:1. */
+html[data-theme="light"] {
+  color-scheme: light;
+  --sw-void:        #f7f7f4;               /* page                   */
+  --sw-panel:       #ffffff;               /* paper / artefacts      */
+  --sw-edge:        #b8b8b0;               /* rules                 */
+  --sw-void-hex:    #f7f7f4;
+  --sw-panel-hex:   #ffffff;
+  --sw-edge-hex:    #b8b8b0;
+  --sw-text-primary:   #121418;
+  --sw-text-secondary: #1c2026;
+  --sw-text-tertiary:  #2c3037;
+  --sw-text-quiet:     #3d424a;
+  --sw-beam:        #2f72c4;               /* same as action on paper */
+  --sw-beam-hex:    #2f72c4;
+  --sw-positive: oklch(42% 0.130 155);
+  --sw-caution:  oklch(50% 0.140  75);
+  --sw-critical: oklch(46% 0.170  27);
+  --sw-edge-lit:     rgba(255, 255, 255, 0.78);
+  --sw-edge-lit-raised: rgba(255, 255, 255, 0.94);
+  --sw-edge-side:    rgba(0, 0, 0, 0.10);
+  --sw-edge-shade:   rgba(0, 0, 0, 0.14);
+  --sw-surface-raised: linear-gradient(168deg, #ffffff, #f7f7f4);
+  --sw-key-tint: rgba(47, 114, 196, 0.06);
+  --sw-grain-opacity: 0.03;
+  --sw-contact: 0 40px 60px -50px rgba(0, 0, 0, 0.22);
+  --sw-contact-deep: 0 60px 90px -60px rgba(0, 0, 0, 0.2);
+}
+
+html[data-theme="light"] a {
+  color: var(--sw-facet-blue);
+}
+
+html[data-theme="light"] a:hover {
+  color: color-mix(in oklch, var(--sw-facet-blue), black 16%);
+}

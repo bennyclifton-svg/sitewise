@@ -9,9 +9,14 @@ from typing import Literal
 
 from app.projects.artefact_blocks import strip_block_markers
 from app.sitewise.artifact_presentation import issue_export_markdown
+from app.sitewise.office_pdf import (
+    OfficeConversionError,
+    convert_office_to_pdf,
+    html_to_pdf_bytes,
+)
 
 ExportFormat = Literal["pdf", "docx"]
-EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v2"
+EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v4"
 
 # Citation column must fit [n] chips; Status gets the narrative width.
 _CONSULTANTS_TABLE_WEIGHTS = (14, 24, 8, 26, 28)
@@ -38,15 +43,12 @@ def render_artifact_export(
         )
     )
     html_body = _markdown_html(issue_markdown)
-    if export_format == "pdf":
-        return _pdf_bytes(
-            _document_html(
-                html_body,
-                project_title=project_title,
-                artifact_title=artifact_title,
-                version=version,
-            )
-        )
+    document_html = _document_html(
+        html_body,
+        project_title=project_title,
+        artifact_title=artifact_title,
+        version=version,
+    )
     if export_format == "docx":
         return _docx_bytes(
             html_body,
@@ -54,7 +56,43 @@ def render_artifact_export(
             artifact_title=artifact_title,
             version=version,
         )
+    if export_format == "pdf":
+        try:
+            docx = _docx_bytes(
+                html_body,
+                project_title=project_title,
+                artifact_title=artifact_title,
+                version=version,
+            )
+        except Exception:
+            return _pdf_bytes(document_html)
+        return _pdf_from_office(
+            docx,
+            filename=f"{_safe_export_stem(artifact_title)}.docx",
+            html_fallback=document_html,
+        )
     raise ValueError(f"unsupported export format: {export_format}")
+
+
+def render_workbook_pdf(
+    workbook_bytes: bytes,
+    *,
+    filename: str,
+    project_title: str = "Cost Plan",
+    version: int = 1,
+) -> bytes:
+    """Issue the cost-plan workbook as PDF so it matches the Excel download."""
+    source_name = filename if filename.lower().endswith(".xlsx") else f"{filename}.xlsx"
+    try:
+        return convert_office_to_pdf(source_bytes=workbook_bytes, filename=source_name)
+    except OfficeConversionError:
+        return _pdf_bytes(
+            _workbook_preview_html(
+                workbook_bytes,
+                project_title=project_title,
+                version=version,
+            )
+        )
 
 
 _THEAD_ROW_RE = re.compile(
@@ -157,11 +195,11 @@ def _document_html(
 * {{ box-sizing: border-box; }}
 body {{ margin: 0; color: #191C21; background: #fff; font-family: "Hanken Grotesk", Helvetica, Arial, sans-serif; font-size: 9.5pt; line-height: 1.45; }}
 .sheet {{ background: #fff; min-height: 100%; padding: 0; }}
-.issue-meta {{ align-items: end; border-bottom: 2px solid #2F72C4; display: grid; gap: 6mm; grid-template-columns: 1fr auto; margin-bottom: 9mm; padding-bottom: 4mm; }}
+.issue-meta {{ align-items: end; border-bottom: 2px solid #000; display: grid; gap: 6mm; grid-template-columns: 1fr auto; margin-bottom: 9mm; padding-bottom: 4mm; }}
 .issue-project {{ color: #5C5F66; font-size: 8pt; letter-spacing: .08em; margin: 0 0 1mm; text-transform: uppercase; }}
-.issue-version {{ color: #2F72C4; font-family: "IBM Plex Mono", monospace; font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; }}
+.issue-version {{ color: #000; font-family: "IBM Plex Mono", monospace; font-size: 8pt; letter-spacing: .08em; text-transform: uppercase; }}
 h1 {{ color: #191C21; font-size: 21pt; font-weight: 500; letter-spacing: -.02em; line-height: 1.08; margin: 0 0 8mm; }}
-h2 {{ border-bottom: 1px solid #D6D6D0; color: #2F72C4; font-size: 13pt; font-weight: 600; break-after: avoid; margin: 8mm 0 3mm; padding-bottom: 1.5mm; }}
+h2 {{ border-bottom: 1px solid #D6D6D0; color: #000; font-size: 13pt; font-weight: 600; break-after: avoid; margin: 8mm 0 3mm; padding-bottom: 1.5mm; }}
 h3 {{ color: #191C21; font-size: 10.5pt; font-weight: 600; break-after: avoid; margin: 5mm 0 2mm; }}
 p {{ margin: 0 0 3mm; max-width: 52ch; }}
 ul, ol {{ margin: 1.5mm 0 3.5mm; padding-left: 6mm; }}
@@ -169,12 +207,12 @@ li {{ margin: 0 0 1.2mm; }}
 table {{ border-collapse: collapse; font-size: 8.2pt; margin: 3mm 0 5mm; width: 100%; }}
 thead {{ display: table-header-group; }}
 tr {{ break-inside: avoid; }}
-th {{ background: #2C3037; color: #fff; font-weight: 600; }}
-th, td {{ border: 1px solid #D6D6D0; padding: 1.8mm 2mm; text-align: left; vertical-align: top; }}
-tbody tr:nth-child(even) td {{ background: #F4F4F1; }}
-blockquote {{ border-left: 1px solid #2F72C4; color: #5C5F66; margin: 3mm 0; padding-left: 4mm; }}
+th {{ background: #E8E8E4; color: #000; font-weight: 600; }}
+th, td {{ border: 1px solid #D6D6D0; padding: 1.8mm 2mm; text-align: left; vertical-align: middle; }}
+td {{ background: #fff; }}
+blockquote {{ border-left: 1px solid #000; color: #5C5F66; margin: 3mm 0; padding-left: 4mm; }}
 code {{ font-family: "IBM Plex Mono", monospace; font-size: .9em; }}
-a {{ color: #2F72C4; text-decoration: underline; }}
+a {{ color: #000; text-decoration: underline; }}
 strong {{ font-weight: 600; }}
 </style>
 </head>
@@ -193,10 +231,66 @@ def _html_escape(value: str) -> str:
     )
 
 
-def _pdf_bytes(html: str) -> bytes:
-    from weasyprint import HTML
+def _pdf_from_office(
+    office_bytes: bytes,
+    *,
+    filename: str,
+    html_fallback: str | None = None,
+) -> bytes:
+    try:
+        return convert_office_to_pdf(source_bytes=office_bytes, filename=filename)
+    except (OfficeConversionError, OSError, RuntimeError):
+        if html_fallback is None:
+            raise
+    return _pdf_bytes(html_fallback)
 
-    return HTML(string=html).write_pdf()
+
+def _pdf_bytes(html: str) -> bytes:
+    try:
+        from weasyprint import HTML
+
+        return HTML(string=html).write_pdf()
+    except Exception:
+        return html_to_pdf_bytes(_story_safe_html(html))
+
+
+def _safe_export_stem(value: str) -> str:
+    stem = re.sub(r"[^A-Za-z0-9]+", "_", value).strip("_")
+    return stem or "Artefact"
+
+
+def _story_safe_html(html: str) -> str:
+    """Drop WeasyPrint-only @page rules that MuPDF treats as fatal CSS."""
+    return re.sub(r"@page\s*\{.*?\}\s*", "", html, count=1, flags=re.DOTALL)
+
+
+def _workbook_preview_html(
+    workbook_bytes: bytes,
+    *,
+    project_title: str,
+    version: int,
+) -> str:
+    from app.sitewise.cost_plan_workbook import workbook_preview_from_bytes
+
+    preview = workbook_preview_from_bytes(workbook_bytes)
+    sections: list[str] = []
+    for sheet in preview.sheets:
+        rows: list[str] = []
+        for row_index, row in enumerate(sheet.rows):
+            cell_tag = "th" if row_index == 0 else "td"
+            cells = "".join(
+                f"<{cell_tag}>{_html_escape(cell)}</{cell_tag}>" for cell in row
+            )
+            rows.append(f"<tr>{cells}</tr>")
+        sections.append(
+            f"<h2>{_html_escape(sheet.name)}</h2><table>{''.join(rows)}</table>"
+        )
+    return _document_html(
+        "".join(sections),
+        project_title=project_title,
+        artifact_title="Cost Plan",
+        version=version,
+    )
 
 
 def _consultants_table_weights(rows: list, column_count: int) -> list[int] | None:
@@ -252,7 +346,7 @@ def _docx_bytes(
     normal._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:hAnsi"), "Arial")
     for name, size, color, before, after in (
         ("Title", 21, RGBColor(0x19, 0x1C, 0x21), 0, 22),
-        ("Heading 1", 13, RGBColor(0x2F, 0x72, 0xC4), 18, 7),
+        ("Heading 1", 13, RGBColor(0x00, 0x00, 0x00), 18, 7),
         ("Heading 2", 10.5, RGBColor(0x19, 0x1C, 0x21), 11, 5),
         ("Heading 3", 9.5, RGBColor(0x19, 0x1C, 0x21), 8, 4),
     ):
@@ -285,12 +379,12 @@ def _docx_bytes(
     header_run = header.runs[0]
     header_run.font.name = "Arial"
     header_run.font.size = Pt(8)
-    header_run.font.color.rgb = RGBColor(0x2F, 0x72, 0xC4)
+    header_run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
     header_border = OxmlElement("w:pBdr")
     header_bottom = OxmlElement("w:bottom")
     header_bottom.set(qn("w:val"), "single")
     header_bottom.set(qn("w:sz"), "8")
-    header_bottom.set(qn("w:color"), "2F72C4")
+    header_bottom.set(qn("w:color"), "000000")
     header_border.append(header_bottom)
     header._p.get_or_add_pPr().append(header_border)
     footer = section.footer.paragraphs[0]
@@ -329,7 +423,7 @@ def _docx_bytes(
             elif node.name == "code":
                 run.font.name = "Courier New"
             elif node.name == "a":
-                run.font.color.rgb = RGBColor(0x2F, 0x72, 0xC4)
+                run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
                 run.underline = True
 
     def add_list(tag: Tag, *, ordered: bool) -> None:
@@ -385,6 +479,16 @@ def _docx_bytes(
             border.set(qn("w:val"), "single")
             border.set(qn("w:sz"), "4")
             border.set(qn("w:color"), "D6D6D0")
+        tbl_look = tbl_pr.first_child_found_in("w:tblLook")
+        if tbl_look is None:
+            tbl_look = OxmlElement("w:tblLook")
+            tbl_pr.append(tbl_look)
+        tbl_look.set(qn("w:firstRow"), "1")
+        tbl_look.set(qn("w:lastRow"), "0")
+        tbl_look.set(qn("w:firstColumn"), "0")
+        tbl_look.set(qn("w:lastColumn"), "0")
+        tbl_look.set(qn("w:noHBand"), "1")
+        tbl_look.set(qn("w:noVBand"), "1")
         for grid_column, width in zip(
             table._tbl.tblGrid.gridCol_lst, widths, strict=True
         ):
@@ -435,24 +539,25 @@ def _docx_bytes(
             cells = row_tag.find_all(["th", "td"], recursive=False)
             for column_index, cell_tag in enumerate(cells):
                 cell = row.cells[column_index]
-                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.TOP
+                cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
                 paragraph = cell.paragraphs[0]
+                paragraph.paragraph_format.space_before = Pt(0)
+                paragraph.paragraph_format.space_after = Pt(0)
                 for child in cell_tag.children:
                     add_inline(paragraph, child)
+                shading = OxmlElement("w:shd")
                 if cell_tag.name == "th" or row_index == 0:
-                    shading = OxmlElement("w:shd")
-                    shading.set(qn("w:fill"), "2C3037")
+                    shading.set(qn("w:fill"), "E8E8E4")
                     cell._tc.get_or_add_tcPr().append(shading)
                     for run in paragraph.runs:
                         run.bold = True
-                        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-                elif row_index % 2 == 0:
-                    shading = OxmlElement("w:shd")
-                    shading.set(qn("w:fill"), "F4F4F1")
+                else:
+                    shading.set(qn("w:fill"), "FFFFFF")
                     cell._tc.get_or_add_tcPr().append(shading)
                 for run in paragraph.runs:
                     run.font.name = "Arial"
                     run.font.size = Pt(8.2)
+                    run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             if row_index == 0:
                 header_property = OxmlElement("w:tblHeader")
                 header_property.set(qn("w:val"), "true")

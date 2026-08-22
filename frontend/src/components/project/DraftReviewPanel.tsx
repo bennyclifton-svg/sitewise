@@ -1227,6 +1227,8 @@ export function DraftReviewPanel({
             <MarkdownContent
               markdown={source}
               version={displayDraft.version}
+              hideLeadingHeading={isProcurementDraft(displayDraft.workflow_type)}
+              hideProgrammeSectionBody={isPmpDraft(displayDraft.workflow_type)}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
               projectTitle={projectTitle}
@@ -1307,7 +1309,7 @@ export function DraftReviewPanel({
               transmittalSaveError={transmittalSaveError}
             />
             {isPmpDraft(displayDraft.workflow_type) ? (
-              <PmpProgrammeFigure host={programmeHost} />
+              <PmpProgrammeFigure host={programmeHost} contentKey={source} />
             ) : null}
           </div>
           </PmpProgrammeProvider>
@@ -1472,6 +1474,14 @@ export function DraftReviewPanel({
 
 function isPmpDraft(workflowType: string): boolean {
   return workflowType === "create_pmp" || workflowType === "update_pmp";
+}
+
+function isProcurementDraft(workflowType: string): boolean {
+  return (
+    workflowType.startsWith("consultant_procurement_") ||
+    workflowType.startsWith("trade_rft_") ||
+    workflowType.startsWith("trade_rfq_")
+  );
 }
 
 function metadataStringList(value: unknown): string[] {

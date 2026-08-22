@@ -25,3 +25,16 @@ export type ProjectEmailMessage = {
   sent_at: string | null;
   message_category?: string | null;
 };
+
+export type ProjectEmailRegisterRow = {
+  id: string;
+  kind: "inbound" | "outbound";
+  direction: "in" | "out";
+  subject: string;
+  party: string;
+  sent_at: string | null;
+  message_category: string | null;
+  status: string | null;
+  email_id: string | null;
+  draft_id: string | null;
+};

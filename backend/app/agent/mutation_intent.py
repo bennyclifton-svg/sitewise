@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Any, Mapping
 
 PROFILE_MUTATION_SCOPE = "profile_mutation"
+PROCUREMENT_STRATEGY_MUTATION_SCOPE = "procurement_strategy_mutation"
 PROFILE_ENRICHMENT_REASON = "profile_enrichment_authority"
 
 _DIRECT_IMPERATIVE = re.compile(r"\b(?:set|change|make)\b", re.IGNORECASE)
@@ -35,6 +36,21 @@ _PROFILE_ENRICHMENT_VERBS = (
     "correct",
     "fix",
     "audit",
+)
+_PROFILE_SETUP_REQUEST = re.compile(
+    r"^(?:(?:please|can you|could you|would you)\s+)*"
+    r"(?:set\s+up|setup|establish)\b.*\bprofile\b",
+    re.IGNORECASE,
+)
+_PROCUREMENT_STRATEGY_CONTEXT = re.compile(
+    r"\b(?:procurement\s+strategy|tenderer(?:s)?|quote\s+candidate(?:s)?|"
+    r"(?:procurement|tenderer)\s+(?:table|grid)|this\s+table)\b",
+    re.IGNORECASE,
+)
+_PROCUREMENT_STRATEGY_WRITE = re.compile(
+    r"\b(?:add|apply|clear|delete|fill|lock|move|populate|refresh|remove|save|"
+    r"set|shortlist|unlock|update)\b",
+    re.IGNORECASE,
 )
 
 _BUILDING_CLASSES = {
@@ -187,13 +203,18 @@ def materialize_profile_patch(
 def is_profile_enrichment_text(user_text: str) -> bool:
     """True when the user asks for a best-effort profile fill without exact values."""
     normalized = " ".join(user_text.lower().split())
-    return "profile" in normalized and any(
-        re.search(rf"\b{verb}\b", normalized) for verb in _PROFILE_ENRICHMENT_VERBS
+    return "profile" in normalized and (
+        bool(_PROFILE_SETUP_REQUEST.search(normalized))
+        or any(
+            re.search(rf"\b{verb}\b", normalized)
+            for verb in _PROFILE_ENRICHMENT_VERBS
+        )
     )
 
 
 def classify_mutation_intent(user_text: str) -> MutationIntent:
     message_hash = hash_user_message(user_text)
+    procurement_scope = _has_procurement_strategy_mutation(user_text)
     targets = _profile_targets(user_text)
     imperative = bool(_DIRECT_IMPERATIVE.search(user_text)) or bool(
         _SAVE_IMPERATIVE.search(user_text) and _PROFILE_CONTEXT.search(user_text)
@@ -209,9 +230,12 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
         and not hedged
     )
     if explicit:
+        scopes = [PROFILE_MUTATION_SCOPE]
+        if procurement_scope:
+            scopes.append(PROCUREMENT_STRATEGY_MUTATION_SCOPE)
         return MutationIntent(
             user_message_hash=message_hash,
-            scopes=(PROFILE_MUTATION_SCOPE,),
+            scopes=tuple(scopes),
             profile_patch=MappingProxyType(targets),
             requires_confirmation=False,
             reason="explicit_profile_imperative",
@@ -222,9 +246,12 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
         and not quoted_instruction
         and not hedged
     ):
+        scopes = [PROFILE_MUTATION_SCOPE]
+        if procurement_scope:
+            scopes.append(PROCUREMENT_STRATEGY_MUTATION_SCOPE)
         return MutationIntent(
             user_message_hash=message_hash,
-            scopes=(PROFILE_MUTATION_SCOPE,),
+            scopes=tuple(scopes),
             profile_patch=MappingProxyType({}),
             requires_confirmation=False,
             reason=PROFILE_ENRICHMENT_REASON,
@@ -237,10 +264,19 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
     )
     return MutationIntent(
         user_message_hash=message_hash,
-        scopes=(),
+        scopes=(PROCUREMENT_STRATEGY_MUTATION_SCOPE,) if procurement_scope else (),
         profile_patch=MappingProxyType(targets),
         requires_confirmation=requires_confirmation,
-        reason=reason,
+        reason=("explicit_procurement_strategy_imperative" if procurement_scope else reason),
+    )
+
+
+def _has_procurement_strategy_mutation(user_text: str) -> bool:
+    if _is_quoted_instruction(user_text) or _EVIDENCE_ASSERTION.search(user_text):
+        return False
+    return bool(
+        _PROCUREMENT_STRATEGY_CONTEXT.search(user_text)
+        and _PROCUREMENT_STRATEGY_WRITE.search(user_text)
     )
 
 

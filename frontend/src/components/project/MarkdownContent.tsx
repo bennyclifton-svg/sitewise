@@ -12,8 +12,8 @@ import {
   type ReactNode,
 } from "react";
 import {
-  BetweenVerticalEnd,
-  BetweenVerticalStart,
+  ArrowDownToLine,
+  ArrowUpToLine,
   ChevronRight,
   Copy,
   LoaderCircle,
@@ -86,6 +86,7 @@ import type {
   DraftArtifact,
   ProjectDecision,
 } from "@/lib/types/project";
+import { PROGRAMME_HEADINGS } from "@/lib/programme";
 import { cn } from "@/lib/utils";
 
 const BLOCK_ID_RE = /<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->/i;
@@ -239,6 +240,7 @@ type InlineEditOptions = {
 type MarkdownRenderState = {
   version?: number;
   hideLeadingHeading?: boolean;
+  hideProgrammeSectionBody?: boolean;
   changedRanges: readonly MarkdownRange[];
   projectTitle?: string;
   projectId?: string;
@@ -260,6 +262,23 @@ const MarkdownRenderContext =
 
 function useMarkdownRender(): MarkdownRenderState {
   return useContext(MarkdownRenderContext);
+}
+
+function isProgrammeSectionBody(
+  node: { position?: { start?: { offset?: number } } } | undefined,
+  state: MarkdownRenderState,
+): boolean {
+  if (!state.hideProgrammeSectionBody) return false;
+  const start = node?.position?.start?.offset;
+  if (typeof start !== "number" || !state.renderedMarkdown) return false;
+  const section = splitMarkdownSections(state.renderedMarkdown).find(
+    (item) => item.start <= start && start < item.end,
+  );
+  if (!section || !PROGRAMME_HEADINGS.has(section.heading.toLowerCase())) {
+    return false;
+  }
+  const headingEnd = state.renderedMarkdown.indexOf("\n", section.start);
+  return headingEnd !== -1 && start > headingEnd;
 }
 
 function markdownBlockTarget(
@@ -487,6 +506,54 @@ function composerForTarget(
 const BLOCK_ACTIONS_SLOT_CLASS =
   "flex h-6 w-6 shrink-0 items-center justify-end print:hidden";
 
+/** Trailing citation column, left of the ⋯ menu, matching PMP table registers. */
+const BLOCK_CITATION_SLOT_CLASS =
+  "flex min-h-6 min-w-[3.25rem] shrink-0 flex-wrap items-start justify-end gap-1";
+
+function isCitationKeyEntry(text: string): boolean {
+  return /^\s*\[\d+\]\s+\S/.test(text);
+}
+
+function blockCitationTokens(text: string): string {
+  if (!text || isCitationKeyEntry(text)) return "";
+  return extractCitationTokens(text);
+}
+
+function stripCitationNodes(node: ReactNode): ReactNode {
+  const stripped = stripCitationNodesInner(node);
+  return typeof stripped === "string" ? stripped.trim() : stripped;
+}
+
+function stripCitationNodesInner(node: ReactNode): ReactNode {
+  if (node == null || typeof node === "boolean") return node;
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node).replace(/\[\d+\]/g, "").replace(/[ \t]+/g, " ");
+  }
+  if (Array.isArray(node)) {
+    return node.map((child) => stripCitationNodesInner(child));
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return cloneElement(
+      node,
+      undefined,
+      stripCitationNodes(node.props.children),
+    );
+  }
+  return node;
+}
+
+function BlockCitationSlot({ tokens }: { tokens: string }) {
+  return (
+    <div
+      data-testid="block-citation-slot"
+      data-block-citation=""
+      className={BLOCK_CITATION_SLOT_CLASS}
+    >
+      {tokens ? renderEvidenceCell(tokens) : null}
+    </div>
+  );
+}
+
 /**
  * Resting: muted grey icons, no black chip. Hover keeps outline beam treatment.
  * Opacity is instant so the trigger is clickable as soon as the pointer hits the row.
@@ -644,7 +711,7 @@ function BlockHoverActions({
                       options.onMutateBlock?.("ADD", target, "before")
                     }
                   >
-                    <BetweenVerticalStart
+                    <ArrowUpToLine
                       className={MENU_ICON_CLASS}
                       aria-hidden
                     />
@@ -655,7 +722,7 @@ function BlockHoverActions({
                       options.onMutateBlock?.("ADD", target, "after")
                     }
                   >
-                    <BetweenVerticalEnd
+                    <ArrowDownToLine
                       className={MENU_ICON_CLASS}
                       aria-hidden
                     />
@@ -797,7 +864,9 @@ function baseComponents(): Components {
       );
     },
     h3: function MarkdownH3({ children, node }) {
-      const { changedRanges } = useMarkdownRender();
+      const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
+      const { changedRanges } = options;
       return flattenText(children).trim().toLowerCase() === "critical current position" ? null : (
         <h3 className="mt-5 text-base font-semibold" {...mdPosition(node, changedRanges)}>
           {children}
@@ -805,7 +874,9 @@ function baseComponents(): Components {
       );
     },
     h4: function MarkdownH4({ children, node }) {
-      const { changedRanges } = useMarkdownRender();
+      const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
+      const { changedRanges } = options;
       return (
         <h4 className="mt-4 text-sm font-semibold" {...mdPosition(node, changedRanges)}>
           {children}
@@ -814,6 +885,7 @@ function baseComponents(): Components {
     },
     p: function MarkdownParagraph({ children, node }) {
       const editOptions = useMarkdownRender();
+      if (isProgrammeSectionBody(node, editOptions)) return null;
       const position = (item: unknown) => mdPosition(item, editOptions.changedRanges);
       const text = flattenText(children);
       if (isPmpGovernanceDisclaimer(text)) return null;
@@ -865,6 +937,15 @@ function baseComponents(): Components {
         ) &&
         !editOptions?.blockComposer &&
         (!editOptions?.editingRange || isEditing);
+      const displayText = visibleText === text ? text : visibleText;
+      const citationTokens = blockCitationTokens(displayText);
+      const paragraphBody = citationTokens
+        ? visibleText === text
+          ? stripCitationNodes(children)
+          : stripCitationTokens(displayText)
+        : visibleText === text
+          ? children
+          : visibleText;
 
       if (
         isEditing &&
@@ -897,6 +978,7 @@ function baseComponents(): Components {
             >
               {children}
             </InlineMarkdownEditor>
+            <BlockCitationSlot tokens={citationTokens} />
             {/* Keep the actions slot reserved so edit mode does not widen text. */}
             {reserveActions ? (
               <div className={BLOCK_ACTIONS_SLOT_CLASS} aria-hidden />
@@ -921,17 +1003,25 @@ function baseComponents(): Components {
                 });
               }}
             >
-              {children}
+              {paragraphBody}
             </p>
+            <BlockCitationSlot tokens={citationTokens} />
             <BlockHoverActions target={paragraphTarget} options={editOptions} />
           </div>,
           editOptions,
         );
       }
 
-      const staticParagraph = (
+      const staticParagraph = citationTokens ? (
+        <div className="group/block relative my-3 flex items-start gap-2">
+          <p className="min-w-0 flex-1 leading-relaxed" {...attributes}>
+            {paragraphBody}
+          </p>
+          <BlockCitationSlot tokens={citationTokens} />
+        </div>
+      ) : (
         <p className="my-3 leading-relaxed" {...attributes}>
-          {visibleText === text ? children : visibleText}
+          {paragraphBody}
         </p>
       );
       return paragraphTarget
@@ -944,7 +1034,9 @@ function baseComponents(): Components {
       </a>
     ),
     blockquote: function MarkdownBlockquote({ children, node }) {
-      const { changedRanges } = useMarkdownRender();
+      const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
+      const { changedRanges } = options;
       return (
         <blockquote
           className="my-4 border-l-2 pl-4 text-muted-foreground"
@@ -955,12 +1047,20 @@ function baseComponents(): Components {
       );
     },
     hr: () => <hr className="my-6 border-border" />,
-    ul: ({ children }) => (
-      <ul className="my-3 list-disc space-y-1.5 pl-5 leading-relaxed">{children}</ul>
-    ),
-    ol: ({ children }) => (
-      <ol className="my-3 list-decimal space-y-1.5 pl-5 leading-relaxed">{children}</ol>
-    ),
+    ul: function MarkdownUl({ children, node }) {
+      const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
+      return (
+        <ul className="my-3 list-disc space-y-1.5 pl-5 leading-relaxed">{children}</ul>
+      );
+    },
+    ol: function MarkdownOl({ children, node }) {
+      const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
+      return (
+        <ol className="my-3 list-decimal space-y-1.5 pl-5 leading-relaxed">{children}</ol>
+      );
+    },
     li: function MarkdownListItem({ children, node }) {
       const editOptions = useMarkdownRender();
       const position = (item: unknown) => mdPosition(item, editOptions.changedRanges);
@@ -1005,6 +1105,15 @@ function baseComponents(): Components {
         ) &&
         !editOptions?.editingRange &&
         !editOptions?.blockComposer;
+      const displayText = visibleText === text ? text : visibleText;
+      const citationTokens = blockCitationTokens(displayText);
+      const listBody = citationTokens
+        ? visibleText === text
+          ? stripCitationNodes(children)
+          : stripCitationTokens(displayText)
+        : visibleText === text
+          ? children
+          : visibleText;
       const form = composerForTarget(target, editOptions);
       const placement = composerPlacement(editOptions);
       const item = (
@@ -1025,8 +1134,11 @@ function baseComponents(): Components {
         >
           <span className="flex items-start gap-2">
             <span className="min-w-0 flex-1">
-              {visibleText === text ? children : visibleText}
+              {listBody}
             </span>
+            {citationTokens || (target && !isCitationKeyEntry(displayText)) ? (
+              <BlockCitationSlot tokens={citationTokens} />
+            ) : null}
             {target ? (
               <BlockHoverActions target={target} options={editOptions} />
             ) : null}
@@ -1054,8 +1166,9 @@ function baseComponents(): Components {
         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>
       );
     },
-    table: function MarkdownTable({ children }) {
+    table: function MarkdownTable({ children, node }) {
       const editOptions = useMarkdownRender();
+      if (isProgrammeSectionBody(node, editOptions)) return null;
       const projectTitle = editOptions.projectTitle;
       const isInformationRegister = informationRegisterTable(children);
       const headers = headerLabelsFromTable(children);
@@ -1381,8 +1494,9 @@ function MarkdownTableRow({
 function markdownComponents(): Components {
   return {
     ...baseComponents(),
-    pre: function MarkdownPre({ children }) {
+    pre: function MarkdownPre({ children, node }) {
       const options = useMarkdownRender();
+      if (isProgrammeSectionBody(node, options)) return null;
       const child = Array.isArray(children) ? children[0] : children;
       if (
         typeof child === "object" &&
@@ -2235,6 +2349,7 @@ export function MarkdownContent({
   markdown,
   version,
   hideLeadingHeading = false,
+  hideProgrammeSectionBody = false,
   projectId,
   decisions,
   projectTitle,
@@ -2275,6 +2390,7 @@ export function MarkdownContent({
   markdown: string;
   version?: number;
   hideLeadingHeading?: boolean;
+  hideProgrammeSectionBody?: boolean;
   projectId?: string;
   decisions?: ProjectDecision[];
   projectTitle?: string;
@@ -2340,6 +2456,7 @@ export function MarkdownContent({
     () => ({
       version,
       hideLeadingHeading,
+      hideProgrammeSectionBody,
       changedRanges: activeRanges,
       projectTitle,
       projectId,
@@ -2389,6 +2506,7 @@ export function MarkdownContent({
     [
       version,
       hideLeadingHeading,
+      hideProgrammeSectionBody,
       activeRanges,
       projectTitle,
       projectId,

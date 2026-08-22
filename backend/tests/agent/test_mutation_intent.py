@@ -1,5 +1,6 @@
 from app.agent.mutation_intent import (
     PROFILE_MUTATION_SCOPE,
+    PROCUREMENT_STRATEGY_MUTATION_SCOPE,
     classify_mutation_intent,
     hash_user_message,
     is_profile_proposal_confirmation,
@@ -51,6 +52,30 @@ def test_non_profile_message_has_no_scope_or_confirmation() -> None:
     assert intent.requires_confirmation is False
 
 
+def test_procurement_strategy_population_grants_narrow_scope() -> None:
+    intent = classify_mutation_intent(
+        "Research three structural engineers and populate them in this table."
+    )
+
+    assert intent.scopes == (PROCUREMENT_STRATEGY_MUTATION_SCOPE,)
+    assert intent.profile_patch == {}
+    assert intent.requires_confirmation is False
+
+
+def test_procurement_strategy_research_alone_is_read_only() -> None:
+    intent = classify_mutation_intent(
+        "Research three structural engineers for the procurement strategy."
+    )
+
+    assert intent.scopes == ()
+
+
+def test_reading_procurement_strategy_does_not_grant_mutation_scope() -> None:
+    intent = classify_mutation_intent("Show me the procurement strategy table.")
+
+    assert intent.scopes == ()
+
+
 def test_broad_profile_completion_request_grants_unbound_enrichment_mutation_scope() -> None:
     from app.agent.mutation_intent import PROFILE_ENRICHMENT_REASON
 
@@ -71,6 +96,17 @@ def test_available_facts_profile_update_grants_enrichment_mutation_scope() -> No
 
     assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
     assert dict(intent.profile_patch) == {}
+    assert intent.reason == PROFILE_ENRICHMENT_REASON
+
+
+def test_set_up_project_profile_grants_enrichment_mutation_scope() -> None:
+    from app.agent.mutation_intent import PROFILE_ENRICHMENT_REASON
+
+    intent = classify_mutation_intent("set up the project profile")
+
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert dict(intent.profile_patch) == {}
+    assert intent.requires_confirmation is False
     assert intent.reason == PROFILE_ENRICHMENT_REASON
 
 

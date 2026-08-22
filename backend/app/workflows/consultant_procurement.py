@@ -70,6 +70,7 @@ RFP_NARRATIVE_MAX_ATTEMPTS = 3
 
 @dataclass(frozen=True, slots=True)
 class DisciplineProfile:
+    discipline_code: str | None
     name: str
     slug: str
     benchmark_terms: tuple[str, ...]
@@ -100,6 +101,7 @@ def _slugify(value: str) -> str:
 def _profile(
     name: str,
     *,
+    discipline_code: str | None = None,
     slug: str | None = None,
     benchmark_terms: tuple[str, ...] = (),
     requested_services: tuple[str, ...],
@@ -110,6 +112,7 @@ def _profile(
     fee_stages: tuple[tuple[str, str], ...] = (),
 ) -> DisciplineProfile:
     return DisciplineProfile(
+        discipline_code=discipline_code,
         name=name,
         slug=_slugify(slug or name),
         benchmark_terms=benchmark_terms,
@@ -125,6 +128,7 @@ def _profile(
 DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     _normalise_key("architect"): _profile(
         "Architect",
+        discipline_code="consultant.architect",
         requested_services=(
             "Review the project brief, planning pathway, design status, and client objectives.",
             "Define architectural design scope, consultant coordination role, and approval support.",
@@ -138,6 +142,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("structural engineer"): _profile(
         "Structural engineer",
+        discipline_code="consultant.structural",
         benchmark_terms=("structural",),
         knowledge_paths=("seed/as-standards-reference.md",),
         knowledge_query_terms=(
@@ -167,6 +172,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("hydraulic engineer"): _profile(
         "Hydraulic engineer",
+        discipline_code="consultant.hydraulic",
         benchmark_terms=("hydraulic", "wastewater"),
         knowledge_paths=("seed/hydraulic-services-guide.md",),
         knowledge_query_terms=(
@@ -204,6 +210,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("electrical services engineer"): _profile(
         "Electrical Services Engineer",
+        discipline_code="consultant.electrical",
         slug="electrical_engineer",
         benchmark_terms=("electrical", "lighting", "power"),
         knowledge_paths=("seed/electrical-services-guide.md",),
@@ -238,6 +245,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("mechanical services engineer"): _profile(
         "Mechanical Services Engineer",
+        discipline_code="consultant.mechanical",
         slug="mechanical_engineer",
         benchmark_terms=("mechanical", "hvac", "mechanical services"),
         knowledge_paths=("seed/mechanical-services-guide.md",),
@@ -277,6 +285,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("geotechnical engineer"): _profile(
         "Geotechnical engineer",
+        discipline_code="consultant.geotechnical",
         benchmark_terms=("geotechnical", "geotech"),
         requested_services=(
             "Review project location, site constraints, proposed works, and available design information.",
@@ -291,6 +300,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("surveyor"): _profile(
         "Surveyor",
+        discipline_code="consultant.surveyor",
         benchmark_terms=("surveyor", "survey"),
         requested_services=(
             "Review site address, title/boundary information, planning pathway, and design requirements.",
@@ -305,6 +315,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("BASIX / energy assessor"): _profile(
         "BASIX / energy assessor",
+        discipline_code="consultant.basix",
         benchmark_terms=("basix", "energy", "nathers"),
         knowledge_paths=("seed/sustainability-energy-guide.md",),
         requested_services=(
@@ -320,6 +331,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("certifier"): _profile(
         "Certifier",
+        discipline_code="consultant.certifier",
         benchmark_terms=("certifier", "principal certifier", "pca"),
         knowledge_paths=("seed/setup-and-commission-guide.md",),
         knowledge_query_terms=(
@@ -388,6 +400,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("town planner"): _profile(
         "Town planner",
+        discipline_code="consultant.town_planner",
         benchmark_terms=("town planning", "planning"),
         requested_services=(
             "Review the project brief, site constraints, zoning (LEP/DCP), and proposed works.",
@@ -402,6 +415,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("heritage consultant"): _profile(
         "Heritage consultant",
+        discipline_code="consultant.heritage",
         benchmark_terms=("heritage",),
         requested_services=(
             "Review heritage listing / conservation area status, existing fabric, and proposed works.",
@@ -416,6 +430,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("fire engineer"): _profile(
         "Fire engineer",
+        discipline_code="consultant.fire_engineer",
         benchmark_terms=("fire engineering", "fire safety"),
         knowledge_paths=("seed/fire-life-safety-guide.md",),
         requested_services=(
@@ -435,6 +450,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("sustainability consultant"): _profile(
         "Sustainability Consultant",
+        discipline_code="consultant.esd",
         benchmark_terms=("sustainability", "energy", "section j"),
         knowledge_paths=("seed/non-residential-sustainability-energy-guide.md",),
         knowledge_query_terms=(
@@ -466,6 +482,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("ICT / AV / security consultant"): _profile(
         "ICT / AV / Security Consultant",
+        discipline_code="consultant.ict",
         slug="ict_av_security_consultant",
         benchmark_terms=("ict", "av", "security"),
         knowledge_paths=("seed/ict-av-security-guide.md",),
@@ -499,6 +516,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("acoustic consultant"): _profile(
         "Acoustic consultant",
+        discipline_code="consultant.acoustic",
         benchmark_terms=("acoustic", "noise"),
         requested_services=(
             "Review the project brief, site context, planning conditions, and proposed building fabric.",
@@ -513,6 +531,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("landscape architect"): _profile(
         "Landscape architect",
+        discipline_code="consultant.landscape",
         requested_services=(
             "Review the project brief, planning controls, site constraints, and architectural design intent.",
             "Price landscape concept, approval documentation, planting, finishes, and coordination services.",
@@ -526,6 +545,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("arborist"): _profile(
         "Arborist",
+        discipline_code="consultant.arborist",
         requested_services=(
             "Review site information, tree constraints, planning pathway, and proposed works near trees.",
             "Price arboricultural assessment, impact report, protection specification, and site advice.",
@@ -539,6 +559,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("bushfire consultant"): _profile(
         "Bushfire consultant",
+        discipline_code="consultant.bushfire",
         requested_services=(
             "Review site location, planning pathway, bushfire overlays, building use, and design documents.",
             "Price bushfire assessment, BAL advice, planning report, and design coordination.",
@@ -552,6 +573,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("traffic consultant"): _profile(
         "Traffic consultant",
+        discipline_code="consultant.traffic",
         requested_services=(
             "Review project brief, site access, parking/loading needs, planning pathway, and design documents.",
             "Price traffic, parking, access, swept-path, and authority-response advice as required.",
@@ -565,6 +587,7 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
     ),
     _normalise_key("civil / stormwater engineer"): _profile(
         "Civil / stormwater engineer",
+        discipline_code="consultant.civil",
         requested_services=(
             "Review site levels, planning pathway, civil interfaces, architectural documents, and authority constraints.",
             "Price civil, stormwater, drainage, driveway, erosion/sediment, and external works advice as required.",

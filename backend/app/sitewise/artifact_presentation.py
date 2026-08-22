@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import re
 from typing import TypedDict
-from typing import TypedDict
 
 from app.projects.artefact_blocks import detach_block_marker, strip_block_markers
 from app.sitewise.taxonomy import DESIGN_LEAD_UNCONFIRMED_LABEL
 
 _H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
+_PROGRAMME_HEADINGS = frozenset(
+    {
+        "programme",
+        "program",
+        "programme of services",
+        "programme and staging regime",
+    }
+)
 _INTERNAL_PREFIXES = (
     "scaffold status:",
     "profile emphasis:",
@@ -222,6 +229,9 @@ def prepare_issue_markdown(markdown: str, *, project_title: str | None = None) -
             continue
         if _is_coverage_register_heading(normalized_heading):
             continue
+        if _is_programme_heading(normalized_heading):
+            primary_parts.append(f"## {heading.strip()}")
+            continue
         cleaned, internal, unresolved = _clean_primary_section(
             section,
             project_title=project_title,
@@ -277,6 +287,9 @@ def issue_export_markdown(
             continue
         if _is_coverage_register_heading(normalized_heading):
             continue
+        if _is_programme_heading(normalized_heading):
+            kept.append(f"## {heading.strip()}")
+            continue
         if normalized_heading == "project summary":
             section, _, _ = _clean_primary_section(
                 section,
@@ -288,6 +301,10 @@ def issue_export_markdown(
             section = _normalise_register_citation_columns(section)
         kept.append(section)
     return "\n\n".join(section.strip() for section in kept if section.strip()).rstrip() + "\n"
+
+
+def _is_programme_heading(heading: str) -> bool:
+    return heading.casefold() in _PROGRAMME_HEADINGS
 
 
 def _is_coverage_register_heading(heading: str) -> bool:

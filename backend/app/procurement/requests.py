@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.draft_artifact import DraftArtifact
 from app.database.procurement_request import ProcurementRequest
+from app.procurement.strategy import (
+    advance_strategy_status,
+    link_request_to_strategy_row,
+)
 
 ProcurementRequestKind = Literal[
     "consultant_rfp", "contractor_eoi", "trade_rft", "trade_rfq"
@@ -79,6 +83,8 @@ async def create_procurement_request(
     created_by_user_id: uuid.UUID,
     kind: ProcurementRequestKind,
     target_name: str,
+    discipline_code: str | None = None,
+    strategy_row_id: uuid.UUID | None = None,
 ) -> ProcurementRequest:
     if kind not in REQUEST_KINDS:
         raise ValueError("invalid procurement request kind")
@@ -93,6 +99,13 @@ async def create_procurement_request(
         revision=1,
     )
     session.add(request)
+    if discipline_code is not None or strategy_row_id is not None:
+        await link_request_to_strategy_row(
+            session,
+            request=request,
+            discipline_code=discipline_code,
+            strategy_row_id=strategy_row_id,
+        )
     await session.flush()
     await session.refresh(request)
     return request
@@ -156,6 +169,10 @@ async def transition_procurement_request(
     elif status == "closed":
         request.closed_at = datetime.now(UTC)
     request.revision += 1
+    if status == "issued":
+        await advance_strategy_status(session, request=request, status="issued")
+    elif status == "cancelled":
+        await advance_strategy_status(session, request=request, status="cancelled")
     await session.flush()
     await session.refresh(request)
     return request
@@ -178,6 +195,9 @@ async def attach_current_draft(
         )
     request.current_draft_artifact_id = draft.id
     request.revision += 1
+    await advance_strategy_status(
+        session, request=request, status="request_drafted"
+    )
     await session.flush()
     await session.refresh(request)
     return request
@@ -192,6 +212,8 @@ async def attach_generated_draft(
     target_name: str,
     kind: ProcurementRequestKind,
     request_id: uuid.UUID | None = None,
+    discipline_code: str | None = None,
+    strategy_row_id: uuid.UUID | None = None,
 ) -> ProcurementRequest:
     """Attach a workflow result, reusing an open matching draft request when possible."""
     if request_id is not None:
@@ -223,5 +245,14 @@ async def attach_generated_draft(
                 created_by_user_id=created_by_user_id,
                 kind=kind,
                 target_name=target_name,
+                discipline_code=discipline_code,
+                strategy_row_id=strategy_row_id,
             )
+    if request.strategy_row_id is None:
+        await link_request_to_strategy_row(
+            session,
+            request=request,
+            discipline_code=discipline_code,
+            strategy_row_id=strategy_row_id,
+        )
     return await attach_current_draft(session, request=request, draft=draft)

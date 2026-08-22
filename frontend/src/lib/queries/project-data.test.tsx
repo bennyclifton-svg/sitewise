@@ -10,6 +10,7 @@ import {
   setProjectDetail,
   useProjectEventCursor,
 } from "@/lib/queries/project-data";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import type { ProjectDetail, ProjectEvent } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -80,6 +81,21 @@ describe("project event reconciliation", () => {
     });
     expect(invalidate).toHaveBeenCalledWith({
       queryKey: projectKeys.evidence("project-1"),
+      exact: true,
+    });
+  });
+
+  it("invalidates the strategy grid after an agent table edit", () => {
+    const queryClient = client();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+
+    applyDurableProjectEvent(
+      queryClient,
+      event({ resource_type: "procurement_strategy" }),
+    );
+
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: workbenchKeys.procurementStrategy("project-1"),
       exact: true,
     });
   });

@@ -34,6 +34,8 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "apply_cost_plan_operations" in WORKSPACE_AGENTS_MD
     assert "get_programme" in WORKSPACE_AGENTS_MD
     assert "apply_programme_operations" in WORKSPACE_AGENTS_MD
+    assert "only schedule source of truth" in WORKSPACE_AGENTS_MD
+    assert "delay activity" in WORKSPACE_AGENTS_MD
     assert '"target_type": "activity"' in WORKSPACE_AGENTS_MD
     assert '"parent_key": "planning"' in WORKSPACE_AGENTS_MD
     assert "predecessor_key to the previous" in WORKSPACE_AGENTS_MD
@@ -54,6 +56,12 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "appoint_consultant" in WORKSPACE_AGENTS_MD
     assert "Approved Contract" in WORKSPACE_AGENTS_MD
     assert "do not call refresh_cost_plan" in WORKSPACE_AGENTS_MD
+    assert "get_procurement_strategy" in WORKSPACE_AGENTS_MD
+    assert "apply_procurement_strategy_operations" in WORKSPACE_AGENTS_MD
+    assert "search_procurement_candidates" in WORKSPACE_AGENTS_MD
+    assert "leads, not endorsements" in WORKSPACE_AGENTS_MD
+    compact = " ".join(WORKSPACE_AGENTS_MD.split())
+    assert "A failed research tool does not mean Tenderer slots are unavailable" in compact
 
 
 def test_rewrite_is_skipped_when_content_is_current(tmp_path: Path) -> None:

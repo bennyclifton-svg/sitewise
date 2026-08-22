@@ -2026,4 +2026,76 @@ Beta changed
       screen.getByRole("button", { name: "Show programme in PMP" }),
     ).toBeInTheDocument();
   });
+
+  it("hides leftover Programme prose and tables under the Gantt", async () => {
+    vi.mocked(api.getProgrammeState).mockResolvedValue({
+      id: "prog-1",
+      project_id: PROJECT_ID,
+      version: 1,
+      status: "proposed",
+      view_scale: "month",
+      pmp_embed_visible: true,
+      activities: [
+        {
+          activity_key: "planning",
+          kind: "stage",
+          parent_key: null,
+          name: "Planning",
+          display_order: 0,
+          start_date: "2026-08-16",
+          duration_days: 90,
+          finish_date: "2026-11-14",
+          predecessor_key: null,
+          lag_days: 0,
+          assumption: true,
+          notes: "",
+        },
+      ],
+    });
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          content_markdown: `## Programme
+
+The project is currently in brief planning.
+
+\`\`\`pmp-decision
+{
+  "id": "staging-strategy",
+  "label": "Staging strategy",
+  "section": "Programme",
+  "options": [
+    {"value": "single_stage", "label": "Single stage delivery"},
+    {"value": "staged_oc", "label": "Staged OC / partial handover"}
+  ],
+  "selected": "single_stage"
+}
+\`\`\`
+
+| Sub-milestone | Status |
+| --- | --- |
+| Setup / brief confirmation | Active |
+
+## Cost Planning
+
+Budget follows.
+`,
+        })}
+        workflowType="create_pmp"
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+    await waitForPmpDecisions();
+    await screen.findByRole("heading", { name: "Programme" });
+    expect(document.querySelector("[data-programme-figure]")).toBeTruthy();
+    expect(
+      screen.queryByText("The project is currently in brief planning."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Staging strategy")).not.toBeInTheDocument();
+    expect(screen.queryByText("Single stage delivery")).not.toBeInTheDocument();
+    expect(screen.queryByText("Setup / brief confirmation")).not.toBeInTheDocument();
+    expect(screen.getByText("Budget follows.")).toBeInTheDocument();
+  });
 });

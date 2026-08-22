@@ -22,7 +22,11 @@ import {
 } from "@/lib/http";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type { PulseFeed } from "@/lib/types/pulse";
-import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
+import type {
+  ProjectEmailDraft,
+  ProjectEmailMessage,
+  ProjectEmailRegisterRow,
+} from "@/lib/types/email";
 import type {
   BillingPlansResponse,
   BillingStatus,
@@ -77,6 +81,9 @@ import type {
   ProcurementRequest,
   ProcurementRequestKind,
   ProcurementRequestListResponse,
+  ProcurementStrategy,
+  ProcurementStrategyOperation,
+  ProjectDiscipline,
   ProjectActivityResponse,
   ProjectCockpitBootstrap,
   ProjectChatBootstrap,
@@ -575,6 +582,11 @@ export const api = {
       { subject_key: subjectKey },
     ),
 
+  listProjectEmails: async (
+    projectId: string,
+  ): Promise<ProjectEmailRegisterRow[]> =>
+    api.get<ProjectEmailRegisterRow[]>(`/projects/${projectId}/emails`),
+
   replyProjectEmailDraft: async (
     projectId: string,
     emailId: string,
@@ -638,9 +650,7 @@ export const api = {
       billing_month?: string;
     },
   ): Promise<InvoiceLedger> =>
-    api.patch<InvoiceLedger>(`/projects/${projectId}/invoices/${invoiceId}`, input, {
-      timeoutMs: WORKFLOW_TIMEOUT_MS,
-    }),
+    api.patch<InvoiceLedger>(`/projects/${projectId}/invoices/${invoiceId}`, input),
 
   updateInvoiceAllocation: async (
     projectId: string,
@@ -654,7 +664,6 @@ export const api = {
     api.patch<InvoiceLedger>(
       `/projects/${projectId}/invoice-allocations/${allocationId}`,
       input,
-      { timeoutMs: WORKFLOW_TIMEOUT_MS },
     ),
 
   getInvoiceReview: async (
@@ -965,6 +974,18 @@ export const api = {
   ): Promise<Blob> =>
     apiBlobRequest(
       `/projects/${projectId}/drafts/${draftId}/export?format=${format}`,
+      120_000,
+    ),
+
+  downloadTenderReportPdf: async (
+    comparisonId: string,
+    revision?: number,
+  ): Promise<Blob> =>
+    apiBlobRequest(
+      `/api/tender/comparisons/${comparisonId}/report/pdf${
+        revision ? `?revision=${revision}` : ""
+      }`,
+      120_000,
     ),
 
   listProcurementRequests: async (
@@ -976,9 +997,54 @@ export const api = {
     return response.requests;
   },
 
+  listProjectDisciplines: async (
+    projectId: string,
+  ): Promise<ProjectDiscipline[]> => {
+    const response = await api.get<{ disciplines: ProjectDiscipline[] }>(
+      `/projects/${projectId}/disciplines`,
+    );
+    return response.disciplines;
+  },
+
+  getProcurementStrategy: async (
+    projectId: string,
+  ): Promise<ProcurementStrategy> =>
+    api.get<ProcurementStrategy>(`/projects/${projectId}/procurement-strategy`),
+
+  ensureProcurementStrategy: async (
+    projectId: string,
+  ): Promise<ProcurementStrategy> =>
+    api.post<ProcurementStrategy>(
+      `/projects/${projectId}/procurement-strategy/ensure`,
+      {},
+    ),
+
+  refreshProcurementStrategy: async (
+    projectId: string,
+  ): Promise<ProcurementStrategy> =>
+    api.post<ProcurementStrategy>(
+      `/projects/${projectId}/procurement-strategy/refresh`,
+      {},
+    ),
+
+  applyProcurementStrategyOperations: async (
+    projectId: string,
+    expectedRevision: number,
+    operations: ProcurementStrategyOperation[],
+  ): Promise<ProcurementStrategy> =>
+    api.post<ProcurementStrategy>(
+      `/projects/${projectId}/procurement-strategy/operations`,
+      { expected_revision: expectedRevision, operations },
+    ),
+
   createProcurementRequest: async (
     projectId: string,
-    input: { kind: ProcurementRequestKind; target_name: string },
+    input: {
+      kind: ProcurementRequestKind;
+      target_name: string;
+      discipline_code?: string;
+      strategy_row_id?: string;
+    },
   ): Promise<ProcurementRequest> =>
     api.post<ProcurementRequest>(
       `/projects/${projectId}/procurement-requests`,

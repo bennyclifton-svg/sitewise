@@ -12,6 +12,7 @@ from app.api import chat as chat_api
 from app.agent.mutation_intent import classify_mutation_intent
 from app.agent.turn_context import (
     _DOCUMENT_ACCESS_GUIDANCE,
+    _PROCUREMENT_STRATEGY_GUIDANCE,
     _ROLE_GUIDANCE,
     _WEB_RESEARCH_GUIDANCE,
 )
@@ -441,8 +442,9 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
         "client: (not declared)\n"
             "</project-context>\n"
             "\n" + _DOCUMENT_ACCESS_GUIDANCE + "\n"
-            "\n" + _WEB_RESEARCH_GUIDANCE + "\n"
-            "\n"
+                "\n" + _WEB_RESEARCH_GUIDANCE + "\n"
+                "\n" + _PROCUREMENT_STRATEGY_GUIDANCE + "\n"
+                "\n"
         '<project-snapshot schema-version="1">\n'
         "content_fingerprint: snapshot-fingerprint\n"
         "profile_revision: 1\n"
@@ -925,17 +927,14 @@ def test_agent_stream_uses_pi_for_profile_enrichment(
     monkeypatch.setattr(settings, "agent_mcp_url", "http://testserver/mcp")
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
     monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
-    monkeypatch.setattr(
-        chat_api,
-        "reserve_agent_turn",
-        AsyncMock(
-            return_value=(
-                SimpleNamespace(id=uuid.uuid4()),
-                SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
-                True,
-            )
-        ),
+    reserve = AsyncMock(
+        return_value=(
+            SimpleNamespace(id=uuid.uuid4()),
+            SimpleNamespace(used_turns=1, quota=100, percent=1, warning=False),
+            True,
+        )
     )
+    monkeypatch.setattr(chat_api, "reserve_agent_turn", reserve)
     monkeypatch.setattr(chat_api, "complete_agent_turn", AsyncMock())
     monkeypatch.setattr(
         chat_api,
@@ -977,7 +976,7 @@ def test_agent_stream_uses_pi_for_profile_enrichment(
                 "parts": [
                     {
                         "type": "text",
-                        "text": "update the project profile to reflect avaliable facts",
+                        "text": "set up the project profile",
                     }
                 ],
             }
@@ -990,6 +989,10 @@ def test_agent_stream_uses_pi_for_profile_enrichment(
     assert response.status_code == 200
     assert seen_runtimes == ["pi"]
     assert "Proposed evidence-backed profile updates." in stream_body
+    assert reserve.await_args.kwargs["mutation_scopes"] == ["profile_mutation"]
+    assert reserve.await_args.kwargs["mutation_intent"]["reason"] == (
+        "profile_enrichment_authority"
+    )
     assert (
         chat_api.create_message.await_args_list[1].kwargs["message_data"]["agent"][
             "runtime"

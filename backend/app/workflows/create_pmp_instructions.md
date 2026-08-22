@@ -118,7 +118,7 @@ the legacy role/archetype scaffold:
 
 When the prompt includes a **Greenfield content contract** (Create PMP), you must:
 - Include every bullet under each section in that contract — use tables and checklists, not single generic paragraphs
-- Use the programme sub-milestone table from the contract
+- Leave the Programme section as the heading only — no programme prose, staging-strategy decision, or milestone table. Dates live on the typed Program Gantt.
 - Include the archetype due diligence checklist under the planning/approvals section named in the prompt (adapt NSW-specific rows for non-NSW states)
 - Include the authority tracker table from the contract appendix
 - Surface archetype-specific due diligence, approvals, consultants, risks, and procurement posture from the loaded seeds
@@ -209,11 +209,7 @@ review/governance disclaimer in the issued body.
   eligible residential work; do not create a commercial-fit-out
   "non-applicability" task merely to preserve a residential checklist.
 - Do not imply Superintendent or Certifier roles without appointment evidence
-- Include the baseline programme/staging regime unless project evidence defines a better one:
-  - Stage 1 — concept and schematic design to DA submission
-  - Stage 2 — design development
-  - Stage 3 — construction documentation and delivery
-- Include the sub-milestone table through DLP (slab, frame, lockup, fixing, PC, OC, DLP)
+- Leave the Programme heading empty of prose and tables. Do not emit a staging-strategy decision or a milestone table; the Program Gantt is the schedule.
 - Communications protocol must include the five-part owner escalation format:
   1. What this means for you
   2. What we need from you (with due date)
@@ -224,7 +220,7 @@ review/governance disclaimer in the issued body.
   `platform_seeded` drafts. In an evidence-grounded draft, state a builder count as project
   fact only when the adjacent project citation supports it.
 - Give a clear recommendation in escalations — not an option bundle without a view
-- For `archetype: multi-dwelling` or D&C-signalled staged OC projects, ratchet to a detailed staged regime
+- For `archetype: multi-dwelling` or D&C-signalled staged OC projects, schedule staging on the Program Gantt rather than in PMP prose
 - Apply archetype-specific risks and due diligence from the loaded archetype seed
 - For non-NSW `state`, flag state-coverage gaps inline — do not silently extend NSW guidance
 
@@ -246,7 +242,7 @@ Trace & QA. Never use `TBC` or `Confirm`; name the missing input plainly.
 
 ## Interactive decision blocks
 
-Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
+Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
 
 ```pmp-decision
 {
@@ -265,7 +261,7 @@ Where the draft chooses among taxonomy-defined options (procurement route, contr
 ```
 
 Rules:
-- Use kebab-case stable ids (`procurement-route`, `approval-pathway`, `contract-form`, `staging-strategy`, or the complexity dimension key with underscores replaced by hyphens).
+- Use kebab-case stable ids (`procurement-route`, `approval-pathway`, `contract-form`, or the complexity dimension key with underscores replaced by hyphens).
 - Never invent option values outside the taxonomy lists supplied in the prompt.
 - Treat procurement route and contract form as dependent but distinct decisions:
   `design_construct` route uses an AS 4902 or reviewed bespoke D&C form; AS 4000 is

@@ -11,6 +11,7 @@ from app.database.procurement_request import ProcurementRequest
 from app.database.procurement_request_submission import ProcurementRequestSubmission
 from app.database.source_document import SourceDocument
 from app.email.models import ProjectEmail, ProjectEmailAttachment, ProjectEmailDraft
+from app.procurement.strategy import advance_strategy_status
 
 
 def _header_message_ids(email: ProjectEmail) -> set[str]:
@@ -142,4 +143,7 @@ async def link_submission_to_request(
             )
         )
         await session.flush()
+    await advance_strategy_status(
+        session, request=matched, status="responses_received"
+    )
     return matched

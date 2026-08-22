@@ -14,12 +14,14 @@ class BraveSearchProvider:
         api_key: str,
         client: httpx.AsyncClient | None = None,
         timeout_seconds: float = 10.0,
+        site_filter: str | None = "gov.au",
     ) -> None:
         if not api_key.strip():
             raise ValueError("Brave Search API key must not be blank")
         self._api_key = api_key
         self._client = client
         self._timeout = httpx.Timeout(timeout_seconds)
+        self._site_filter = site_filter.strip() if site_filter else None
 
     async def search(
         self,
@@ -59,7 +61,11 @@ class BraveSearchProvider:
             response = await client.get(
                 self._URL,
                 params={
-                    "q": f"{query} site:gov.au",
+                    "q": (
+                        f"{query} site:{self._site_filter}"
+                        if self._site_filter
+                        else query
+                    ),
                     "country": country,
                     "search_lang": search_lang,
                     "count": max_results,

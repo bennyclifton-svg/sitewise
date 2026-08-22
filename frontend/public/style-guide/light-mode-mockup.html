@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SiteWise — light invert mock-up</title>
+    <style>
+      :root {
+        --dark-void: #060608;
+        --dark-panel: #131418;
+        --dark-edge: #24262b;
+        --dark-ink: #e8e8e4;
+        --dark-body: #b6b9bf;
+        --dark-quiet: #5c5f66;
+        --light-void: #e8e8e4;
+        --light-panel: #f4f4f1;
+        --light-edge: #d6d6d0;
+        --light-ink: #191c21;
+        --light-body: #2c3037;
+        --light-quiet: #5c5f66;
+        --action: #2f72c4;
+        --highlight: #7fb0e4;
+      }
+
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; }
+      body {
+        font-family: "Hanken Grotesk", "Söhne", Helvetica, Arial, sans-serif;
+        background: #111214;
+        color: #e8e8e4;
+      }
+
+      .page {
+        min-height: 100%;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 16px;
+        padding: 20px 24px 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-weight: 300;
+        letter-spacing: -0.04em;
+        font-size: 22px;
+      }
+
+      .lede {
+        margin: 6px 0 0;
+        color: #8f939b;
+        font-size: 13px;
+      }
+
+      .boards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        min-height: 0;
+      }
+
+      .board {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        border: 1px solid #24262b;
+      }
+
+      .board-label {
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        padding: 8px 10px;
+        color: #8f939b;
+        background: #0b0c0f;
+        border-bottom: 1px solid #24262b;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: 196px 1fr;
+        min-height: 420px;
+      }
+
+      .nav, .main { min-height: 0; }
+      .nav {
+        display: flex;
+        flex-direction: column;
+        border-right: 1px solid var(--edge);
+      }
+
+      .mark {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr 1fr;
+      }
+      .mark span { display: block; }
+      .mark .a { background: transparent; }
+      .mark .b { background: var(--action); }
+      .mark .c { background: var(--ink); }
+      .mark .d { background: #2c3037; }
+
+      .ribbon {
+        height: 56px;
+        display: flex;
+        align-items: center;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--edge);
+      }
+
+      .nav-list { padding: 10px 8px; display: grid; gap: 2px; }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 8px;
+        font-size: 13px;
+        color: var(--body);
+      }
+      .nav-item.selected {
+        background: color-mix(in srgb, var(--action) 14%, transparent);
+        color: var(--action);
+        box-shadow: inset 2px 0 0 var(--action);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border: 1px solid var(--highlight);
+      }
+
+      .chats {
+        margin-top: auto;
+        padding: 10px 12px 8px;
+        font-size: 12px;
+        color: var(--quiet);
+      }
+      .chats strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--body);
+        font-weight: 500;
+      }
+
+      .account {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-top: 1px solid var(--edge);
+        font-size: 12px;
+      }
+      .avatar {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 8px;
+        letter-spacing: 0.04em;
+        background: var(--edge);
+        color: var(--ink);
+      }
+      .cog {
+        margin-left: auto;
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid var(--quiet);
+        border-radius: 50%;
+        position: relative;
+      }
+      .cog::after {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border: 1.5px solid var(--quiet);
+        border-radius: 50%;
+      }
+
+      .menu {
+        position: absolute;
+        left: 10px;
+        bottom: 42px;
+        width: 168px;
+        background: var(--panel);
+        border: 1px solid var(--edge);
+        padding: 4px 0;
+        z-index: 2;
+      }
+      .menu div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        font-size: 12px;
+        color: var(--body);
+      }
+      .menu .accent { color: var(--action); }
+
+      .main { display: flex; flex-direction: column; }
+      .title {
+        padding: 14px 18px 10px;
+        border-bottom: 1px solid var(--edge);
+      }
+      .title h2 {
+        margin: 0;
+        font-weight: 300;
+        letter-spacing: -0.035em;
+        font-size: 22px;
+        color: var(--ink);
+      }
+      .title p {
+        margin: 4px 0 0;
+        font-size: 11px;
+        color: var(--quiet);
+      }
+
+      .cards {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px;
+        padding: 12px;
+      }
+      .card {
+        border: 1px solid var(--edge);
+        background: var(--panel);
+        padding: 12px;
+      }
+      .eyebrow {
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--quiet);
+      }
+      .metric {
+        margin: 10px 0 0;
+        font-size: 18px;
+        letter-spacing: -0.03em;
+        color: var(--ink);
+      }
+      .bar {
+        margin-top: 16px;
+        height: 8px;
+        background: var(--edge);
+      }
+      .bar i {
+        display: block;
+        width: 58%;
+        height: 100%;
+        background: var(--action);
+      }
+      .btn {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 5px 10px;
+        background: var(--action);
+        color: #fff;
+        font-size: 11px;
+      }
+      .link { color: var(--action); }
+
+      .dark {
+        --void: var(--dark-void);
+        --panel: var(--dark-panel);
+        --edge: var(--dark-edge);
+        --ink: var(--dark-ink);
+        --body: var(--dark-body);
+        --quiet: var(--dark-quiet);
+        background: var(--void);
+        color: var(--ink);
+      }
+      .light {
+        --void: var(--light-void);
+        --panel: var(--light-panel);
+        --edge: var(--light-edge);
+        --ink: var(--light-ink);
+        --body: var(--light-body);
+        --quiet: var(--light-quiet);
+        background: var(--void);
+        color: var(--ink);
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+      }
+      .swatch { border: 1px solid #24262b; }
+      .chip { height: 42px; }
+      .swatch span {
+        display: block;
+        padding: 6px 8px 8px;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 10px;
+        color: #8f939b;
+        background: #0b0c0f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Light invert — painted, not coded</h1>
+        <p class="lede">Same chrome. Ground, surface, rule and ink flip. The two blues do not move.</p>
+      </header>
+
+      <section class="boards">
+        <article class="board">
+          <div class="board-label">Current dark</div>
+          <div class="shell dark">
+            <aside class="nav" style="background: var(--panel)">
+              <div class="ribbon">
+                <div class="mark" aria-hidden="true">
+                  <span class="a"></span><span class="b"></span>
+                  <span class="c"></span><span class="d"></span>
+                </div>
+              </div>
+              <div class="nav-list">
+                <div class="nav-item"><i class="dot"></i>Programme</div>
+                <div class="nav-item"><i class="dot"></i>Cost plan</div>
+                <div class="nav-item selected"><i class="dot"></i>Procurement</div>
+                <div class="nav-item"><i class="dot"></i>Documents</div>
+                <div class="nav-item"><i class="dot"></i>Pulse</div>
+              </div>
+              <div class="chats">
+                <strong>Chats</strong>
+                Site leadership<br />Trade contractor group
+              </div>
+              <div class="account">
+                <div class="avatar">OW</div>
+                orlando
+                <div class="cog" aria-hidden="true"></div>
+              </div>
+            </aside>
+            <section class="main">
+              <div class="title">
+                <h2>Harbour Residences</h2>
+                <p>12 Harbour Street, Sydney</p>
+              </div>
+              <div class="cards">
+                <div class="card">
+                  <div class="eyebrow">Procurement</div>
+                  <div class="metric">Trade packages 12</div>
+                  <div class="btn">Open</div>
+                </div>
+                <div class="card">
+                  <div class="eyebrow">Programme</div>
+                  <div class="metric">Week 14</div>
+                  <div class="bar"><i></i></div>
+                </div>
+                <div class="card">
+                  <div class="eyebrow">Pulse</div>
+                  <div class="metric">RFI-014 <span class="link">overdue</span></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="board">
+          <div class="board-label">Proposed light</div>
+          <div class="shell light">
+            <aside class="nav" style="background: var(--panel)">
+              <div class="ribbon">
+                <div class="mark" aria-hidden="true">
+                  <span class="a"></span><span class="b"></span>
+                  <span class="c"></span><span class="d"></span>
+                </div>
+              </div>
+              <div class="nav-list">
+                <div class="nav-item"><i class="dot"></i>Programme</div>
+                <div class="nav-item"><i class="dot"></i>Cost plan</div>
+                <div class="nav-item selected"><i class="dot"></i>Procurement</div>
+                <div class="nav-item"><i class="dot"></i>Documents</div>
+                <div class="nav-item"><i class="dot"></i>Pulse</div>
+              </div>
+              <div class="chats">
+                <strong>Chats</strong>
+                Site leadership<br />Trade contractor group
+              </div>
+              <div class="account">
+                <div class="menu">
+                  <div>Billing</div>
+                  <div>Landing page</div>
+                  <div class="accent">☾ Dark</div>
+                  <div>Sign out</div>
+                </div>
+                <div class="avatar">OW</div>
+                orlando
+                <div class="cog" aria-hidden="true"></div>
+              </div>
+            </aside>
+            <section class="main">
+              <div class="title">
+                <h2>Harbour Residences</h2>
+                <p>12 Harbour Street, Sydney</p>
+              </div>
+              <div class="cards">
+                <div class="card">
+                  <div class="eyebrow">Procurement</div>
+                  <div class="metric">Trade packages 12</div>
+                  <div class="btn">Open</div>
+                </div>
+                <div class="card">
+                  <div class="eyebrow">Programme</div>
+                  <div class="metric">Week 14</div>
+                  <div class="bar"><i></i></div>
+                </div>
+                <div class="card">
+                  <div class="eyebrow">Pulse</div>
+                  <div class="metric">RFI-014 <span class="link">overdue</span></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+      </section>
+
+      <section class="swatches" aria-label="Painted tokens">
+        <div class="swatch"><div class="chip" style="background:#060608"></div><span>Dark ground</span></div>
+        <div class="swatch"><div class="chip" style="background:#e8e8e4"></div><span>Light ground</span></div>
+        <div class="swatch"><div class="chip" style="background:#131418"></div><span>Dark surface</span></div>
+        <div class="swatch"><div class="chip" style="background:#f4f4f1"></div><span>Light surface</span></div>
+        <div class="swatch"><div class="chip" style="background:#191c21"></div><span>Light ink</span></div>
+        <div class="swatch"><div class="chip" style="background:#d6d6d0"></div><span>Light rule</span></div>
+        <div class="swatch"><div class="chip" style="background:#2f72c4"></div><span>Action blue</span></div>
+        <div class="swatch"><div class="chip" style="background:#7fb0e4"></div><span>Highlight blue</span></div>
+      </section>
+    </div>
+  </body>
+</html>

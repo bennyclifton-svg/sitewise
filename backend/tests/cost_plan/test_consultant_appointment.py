@@ -391,11 +391,15 @@ def test_appoint_consultant_writes_approved_contract_without_schema_hunt() -> No
             "app.cost_plan.consultant_appointment.get_latest_draft_artifact",
             new=AsyncMock(return_value=pmp),
         ),
-        patch(
-            "app.cost_plan.consultant_appointment.revise_workflow_artefact",
-            new=AsyncMock(return_value=revised),
-        ) as revise,
-    ):
+            patch(
+                "app.cost_plan.consultant_appointment.revise_workflow_artefact",
+                new=AsyncMock(return_value=revised),
+            ) as revise,
+            patch(
+                "app.cost_plan.consultant_appointment.record_consultant_appointment",
+                new=AsyncMock(return_value=True),
+            ),
+        ):
         result = asyncio.run(
             appoint_consultant(
                 session,

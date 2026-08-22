@@ -24,8 +24,6 @@ from app.sitewise.taxonomy import (
 # Cross-cutting markers every architect-PM greenfield draft must contain.
 ARCHITECT_PM_COMMON_MARKERS: tuple[str, ...] = (
     "what this means",
-    "slab",
-    "lockup",
     "invited",
     "recommendation",
 )
@@ -105,28 +103,6 @@ Include this table under **Approvals and compliance** (every row status = Assump
 """,
 }
 
-ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE = """
-Include this sub-milestone table under **Programme and staging regime** (status Assumption; durations TBC):
-
-| Sub-milestone | Maps to stage | Status | Note |  |
-| --- | --- | --- | --- | --- |
-| Site due diligence complete | Stage 1 | Assumption | Per archetype checklist |
-| Planning pathway confirmed | Stage 1 | Assumption | CDC / DA / exempt |
-| DA/CDC lodged and determined | Stage 1 | Assumption | Authority gate |
-| CC issued (LSL receipt prerequisite) | Stage 1→2 | Assumption | CC-blocking items |
-| Builder procured / contract executed | Stage 2→3 | Assumption | 2–3 invited builders |
-| Construction start / site possession | Stage 3 | Assumption | Mobilisation gate |
-| Slab / substructure | Stage 3 | Assumption | Inspection gate |
-| Frame | Stage 3 | Assumption | Inspection gate |
-| Lockup | Stage 3 | Assumption | Envelope sealed |
-| Fixing | Stage 3 | Assumption | Internal trades |
-| Practical completion (PC) | Stage 3 | Assumption | Defects schedule |
-| OC issued | Stage 3 | Assumption | Occupation gate |
-| Defects liability period (DLP) | Post-OC | Assumption | Per contract |
-"""
-
-PROGRAMME_SUBMILESTONE_TABLE = ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
-
 AUTHORITY_TRACKER_TABLE = """
 Include this authority tracker table under the planning/approvals section (status Assumption):
 
@@ -184,7 +160,7 @@ ARCHETYPE_OVERLAYS: dict[str, str] = {
     "multi-dwelling": """
 ### Archetype overlay — multi-dwelling
 - Classification gate first: Class 1a attached townhouses vs Class 2 apartments — do not assume; certifier confirmation required.
-- Use a detailed staged regime (not only the 3-stage baseline): design/approvals, procurement, enabling, structure, envelope/services/finishes, commissioning, OC, handover, DLP — map back to baseline stages.
+- If staging is required, schedule it on the typed Program Gantt rather than as PMP prose or a milestone table.
 - Extra approval evidence: consent conditions register, subdivision/strata pathway, infrastructure contributions, OSD/stormwater, waste/collection strategy, separate metering if applicable.
 - Consent conditions are live delivery obligations — extract before procurement/site start.
 - Staged OC / partial handover may apply — programme and defects registers must reflect staging.
@@ -280,10 +256,8 @@ ARCHITECT_PM_SECTION_BRIEFS: dict[str, str] = {
 - For non-NSW state: inline gap callout for BASIX/HOW/LSL equivalents — do not extend NSW silently.
 """,
     "Programme and staging regime": """
-- State the baseline 3-stage regime: Stage 1 (concept/schematic to DA/CDC), Stage 2 (design development), Stage 3 (construction documentation and delivery).
-- Include the sub-milestone table (MANDATORY — see contract appendix).
-- For multi-dwelling: detailed staged regime per archetype overlay, mapped back to baseline stages.
-- **Assumption**: durations TBC — use seed typical ranges as Judgement only, labelled.
+- Leave this section as the heading only. Do not write programme prose, a staging-strategy decision, or a milestone table.
+- The typed Program Gantt is the source of truth for dates, activities, and milestones.
 """,
     "Cost, programme and procurement posture": """
 - HIA elemental / residential cost plan posture: contingency 5–10%, PC sums (kitchen/bath), owner-supplied items tracked separately.
@@ -381,10 +355,8 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 - File due diligence under `03-design/01-due-diligence/`; authority tracker under `00-brief-pmp/` or `04-authority/`.
 """,
     "Programme and staging regime": """
-- State the baseline 3-stage regime: Stage 1 (concept/schematic to DA/CDC), Stage 2 (design development), Stage 3 (construction documentation and delivery).
-- Include the sub-milestone table (MANDATORY — see contract appendix).
-- Surface engagement letter programme targets (e.g. target DA lodgement date) when in Sources.
-- **Assumption**: durations TBC unless evidenced — use seed typical ranges as Judgement only, labelled.
+- Leave this section as the heading only. Do not write programme prose, a staging-strategy decision, or a milestone table.
+- The typed Program Gantt is the source of truth for dates, activities, and milestones.
 """,
     "Cost, programme and procurement posture": """
 - HIA elemental / residential cost plan posture: contingency 5–10%, PC sums, owner-supplied items tracked separately.
@@ -417,10 +389,6 @@ ARCHITECT_PM_EVIDENCE_GROUNDED_SECTION_BRIEFS: dict[str, str] = {
 - Repeat mandatory seed paths under "Mandatory seeds consulted".
 """,
 }
-
-
-def programme_submilestone_table() -> str:
-    return ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
 
 
 def _archetype_overlay(archetype: str, *, state: str) -> str:
@@ -519,8 +487,6 @@ def _architect_pm_greenfield_brief(
         parts.extend(["", due_diligence])
     parts.extend(
         [
-            "",
-            programme_submilestone_table().strip(),
             "",
             AUTHORITY_TRACKER_TABLE.strip(),
             "",
@@ -726,9 +692,8 @@ def _contract_focus_line(
         return focus
     if section_id == "programme":
         return (
-            "cover key milestones, authority lead times, procurement gates, and staging "
-            "assumptions; keep the milestone table with a trailing unlabelled citation cell "
-            "and put [n] there, not inside the control-requirement text"
+            "leave the section as the heading only — no prose, staging-strategy decision, "
+            "or milestone table; dates live on the typed Program Gantt"
         )
     if section_id == "cost-budget":
         return "cover budget status, cost risks, contingency, allowances, and benchmark/seed limits"

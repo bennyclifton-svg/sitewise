@@ -988,8 +988,8 @@ def _role_drafting_note(
 
     role_note = (
         "Produce the Architect PMP facet: owner-side governance plan with two-brief "
-        "discipline, role declaration placeholders, builder evidence verification, and "
-        "the baseline 3-stage programme regime unless evidence requires more detail."
+        "discipline, role declaration placeholders, and builder evidence verification. "
+        "Leave the Programme section as the heading only."
     )
 
     return "\n".join([evidence_note, state_note, role_note])

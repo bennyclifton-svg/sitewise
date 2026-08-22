@@ -14,6 +14,11 @@ from app.database.project_event import ProjectEvent
 from app.database.project_profile_proposal import ProjectProfileProposal
 from app.database.procurement_request import ProcurementRequest
 from app.database.procurement_request_submission import ProcurementRequestSubmission
+from app.database.procurement_strategy import (
+    ProcurementStrategy,
+    ProcurementStrategyCandidate,
+    ProcurementStrategyRow,
+)
 from app.database.project_document_selection import (
     ProjectDocumentSelection,
     ProjectDocumentSelectionGroup,
@@ -62,6 +67,9 @@ __all__ = [
     "ProjectProfileProposal",
     "ProcurementRequest",
     "ProcurementRequestSubmission",
+    "ProcurementStrategy",
+    "ProcurementStrategyCandidate",
+    "ProcurementStrategyRow",
     "ProjectDocumentSelection",
     "ProjectDocumentSelectionRevision",
     "ProjectDocumentSelectionGroup",

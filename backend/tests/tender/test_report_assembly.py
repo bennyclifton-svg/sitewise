@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import uuid
 from copy import deepcopy
 from pathlib import Path
@@ -147,6 +148,22 @@ def test_flat_report_language_rows_rebuild_nested_sections_and_lists() -> None:
     }
     assert report.language_value(language, "report.labels.builder") == "Builder"
     assert language["forbidden_terms"] == ["ripoff", "dodgy"]
+
+
+def test_render_pdf_bytes_falls_back_to_libreoffice(monkeypatch) -> None:
+    class BoomHTML:
+        def __init__(self, string: str) -> None:
+            raise OSError("GTK missing")
+
+    monkeypatch.setitem(sys.modules, "weasyprint", type("mod", (), {"HTML": BoomHTML}))
+    monkeypatch.setattr(
+        report,
+        "convert_html_to_pdf",
+        lambda *, html, filename: b"%PDF-libreoffice",
+    )
+
+    pdf = report.render_pdf_bytes("<html><body><p>PDF smoke test</p></body></html>")
+    assert pdf == b"%PDF-libreoffice"
 
 
 def test_weasyprint_renderer_produces_nonzero_pdf_when_native_libs_available() -> None:

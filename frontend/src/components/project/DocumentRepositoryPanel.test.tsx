@@ -645,36 +645,69 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
   });
 });
 
-describe("DocumentRepositoryPanel transmittal curation", () => {
-  it("toggles rows additively without Ctrl while curating a transmittal", () => {
-    const onSelectedEvidenceIdsChange = vi.fn();
-    render(
-      <DocumentRepositoryPanel
-        projectId="project-1"
-        evidence={[
-          evidenceRow({ id: "doc-1", title: "Brief" }),
-          evidenceRow({ id: "doc-2", title: "Drawing" }),
-        ]}
-        selectedEvidenceId={null}
-        selectedEvidenceIds={new Set(["doc-1"])}
-        workspaceTree={[]}
-        selectedWorkspacePath={null}
-        onSelectEvidence={vi.fn()}
-        onSelectedEvidenceIdsChange={onSelectedEvidenceIdsChange}
-        onSelectWorkspacePath={vi.fn()}
-        onOpenWorkflow={vi.fn()}
-        onViewWorkbench={vi.fn()}
-        onViewFolder={vi.fn()}
-        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
-        transmittalCuration
-      />,
-    );
+function renderScheduleSelection({
+  selectedEvidenceId = null,
+  selectedEvidenceIds,
+}: {
+  selectedEvidenceId?: string | null;
+  selectedEvidenceIds: Set<string>;
+}) {
+  const onSelectedEvidenceIdsChange = vi.fn();
+  render(
+    <DocumentRepositoryPanel
+      projectId="project-1"
+      evidence={[
+        evidenceRow({ id: "doc-1", title: "Brief" }),
+        evidenceRow({ id: "doc-2", title: "Drawing" }),
+        evidenceRow({ id: "doc-3", title: "Spec" }),
+      ]}
+      selectedEvidenceId={selectedEvidenceId}
+      selectedEvidenceIds={selectedEvidenceIds}
+      workspaceTree={[]}
+      selectedWorkspacePath={null}
+      onSelectEvidence={vi.fn()}
+      onSelectedEvidenceIdsChange={onSelectedEvidenceIdsChange}
+      onSelectWorkspacePath={vi.fn()}
+      onOpenWorkflow={vi.fn()}
+      onViewWorkbench={vi.fn()}
+      onViewFolder={vi.fn()}
+      onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+    />,
+  );
+  return { onSelectedEvidenceIdsChange };
+}
 
-    fireEvent.click(screen.getByText("Drawing"));
+describe("DocumentRepositoryPanel schedule selection", () => {
+  it("replaces a loaded transmittal selection on a plain click", () => {
+    const { onSelectedEvidenceIdsChange } = renderScheduleSelection({
+      selectedEvidenceIds: new Set(["doc-1", "doc-2"]),
+    });
+
+    fireEvent.click(screen.getByText("Spec"));
+    expect(onSelectedEvidenceIdsChange).toHaveBeenCalledWith(new Set(["doc-3"]));
+  });
+
+  it("appends with Ctrl after a loaded transmittal", () => {
+    const { onSelectedEvidenceIdsChange } = renderScheduleSelection({
+      selectedEvidenceIds: new Set(["doc-1", "doc-2"]),
+    });
+
+    fireEvent.click(screen.getByText("Spec"), { ctrlKey: true });
     expect(onSelectedEvidenceIdsChange).toHaveBeenCalledWith(
-      new Set(["doc-1", "doc-2"]),
+      new Set(["doc-1", "doc-2", "doc-3"]),
     );
-    expect(screen.queryByRole("button", { name: "Save Transmittal" })).not.toBeInTheDocument();
+  });
+
+  it("ranges with Shift from the current document after a loaded transmittal", () => {
+    const { onSelectedEvidenceIdsChange } = renderScheduleSelection({
+      selectedEvidenceId: "doc-1",
+      selectedEvidenceIds: new Set(["doc-1", "doc-2"]),
+    });
+
+    fireEvent.click(screen.getByText("Spec"), { shiftKey: true });
+    expect(onSelectedEvidenceIdsChange).toHaveBeenCalledWith(
+      new Set(["doc-1", "doc-2", "doc-3"]),
+    );
   });
 });
 
@@ -727,7 +760,7 @@ describe("DocumentRepositoryPanel project pulse", () => {
   it("keeps pulse collapsed and document rows visible by default", () => {
     renderWithPulse();
 
-    expect(screen.getByRole("button", { name: /project pulse/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /correspondence/i })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -738,14 +771,16 @@ describe("DocumentRepositoryPanel project pulse", () => {
   it("shows attention items above the document list when pulse is opened", () => {
     renderWithPulse();
 
-    fireEvent.click(screen.getByRole("button", { name: /project pulse/i }));
+    fireEvent.click(screen.getByRole("button", { name: /correspondence/i }));
 
     const pulse = screen.getByTestId("project-pulse");
-    const list = screen.getByRole("table");
-    expect(pulse.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const tables = screen.getAllByRole("table");
+    const list = tables[tables.length - 1];
+    expect(list).toBeDefined();
+    expect(pulse.compareDocumentPosition(list!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("S203 Rev C supersedes Rev B")).toBeInTheDocument();
     expect(screen.getByText("Owner Brief")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /project pulse/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /correspondence/i })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -753,7 +788,7 @@ describe("DocumentRepositoryPanel project pulse", () => {
 
   it("hides pulse items again when the icon is toggled off", () => {
     renderWithPulse();
-    const pulseButton = screen.getByRole("button", { name: /project pulse/i });
+    const pulseButton = screen.getByRole("button", { name: /correspondence/i });
 
     fireEvent.click(pulseButton);
     fireEvent.click(pulseButton);

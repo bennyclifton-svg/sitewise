@@ -37,6 +37,11 @@ class ProcurementRequest(Base):
     kind: Mapped[str] = mapped_column(String(32), nullable=False)
     target_name: Mapped[str] = mapped_column(String(512), nullable=False)
     target_slug: Mapped[str] = mapped_column(String(255), nullable=False)
+    discipline_code: Mapped[str | None] = mapped_column(String(128))
+    strategy_row_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("procurement_strategy_rows.id", ondelete="SET NULL"),
+    )
     status: Mapped[str] = mapped_column(
         String(24), nullable=False, default="draft", server_default="draft"
     )
@@ -87,4 +92,6 @@ class ProcurementRequest(Base):
             "ix_procurement_requests_current_draft",
             "current_draft_artifact_id",
         ),
+        Index("ix_procurement_requests_strategy_row", "strategy_row_id"),
+        Index("ix_procurement_requests_discipline", "discipline_code"),
     )

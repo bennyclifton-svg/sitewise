@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { ColorThemeButton } from "@/components/ColorThemeButton";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { ChatSessionList } from "@/components/chat/ChatSessionList";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
@@ -133,9 +134,12 @@ export function ChatPage() {
             </h1>
           )}
         </div>
-        <Button asChild variant="outline">
-          <Link to="/">Back home</Link>
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <ColorThemeButton />
+          <Button asChild variant="outline">
+            <Link to="/">Back home</Link>
+          </Button>
+        </div>
       </div>
 
       <ChatSessionList

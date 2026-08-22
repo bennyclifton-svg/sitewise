@@ -5,7 +5,7 @@ import hashlib
 import mimetypes
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -987,6 +987,46 @@ async def get_report_state(
         comparison_id=comparison_id,
         report=ReportLifecycleResponse.model_validate(lifecycle) if lifecycle else None,
         draft=draft,
+    )
+
+
+@router.get("/comparisons/{comparison_id}/report/pdf")
+async def get_report_pdf(
+    comparison_id: uuid.UUID,
+    revision: int | None = Query(default=None, ge=1),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    await require_comparison_owner(session, comparison_id=comparison_id, user_id=user.id)
+    try:
+        content, filename = await report.load_report_pdf(
+            session,
+            comparison_id=comparison_id,
+            version=revision,
+        )
+    except report.ReportLifecycleError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tender report PDF is not available.",
+        ) from exc
+    except report.WeasyPrintUnavailable as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Tender PDF generation is temporarily unavailable. Please try again."
+            ),
+        ) from exc
+    safe_filename = filename.replace('"', "")
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{safe_filename}"; '
+                f"filename*=UTF-8''{safe_filename}"
+            ),
+            "Cache-Control": "private, no-cache",
+        },
     )
 
 

@@ -72,6 +72,83 @@ describe("MarkdownContent", () => {
     expect(screen.getByText("Sections")).toBeInTheDocument();
   });
 
+  it("hides the leading document title when asked", () => {
+    render(
+      <MarkdownContent
+        markdown={[
+          "# Request for Proposal - Structural engineer",
+          "",
+          "## Services and deliverables",
+          "",
+          "Structural design.",
+        ].join("\n")}
+        version={1}
+        hideLeadingHeading
+      />,
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Request for Proposal - Structural engineer",
+        level: 1,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("v1")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Services and deliverables", level: 2 }),
+    ).toBeInTheDocument();
+  });
+
+  it("lifts inline paragraph and list citations into a trailing column", () => {
+    const onMutateBlock = vi.fn();
+    render(
+      <MarkdownContent
+        markdown={[
+          "## Services and deliverables",
+          "",
+          "Provide a concise return brief identifying amendments. [2] [4]",
+          "",
+          "- Design the extension structure to the approved DA drawings [3]",
+          "",
+          "## Citation key",
+          "",
+          "- [2] Geotech report.pdf",
+        ].join("\n")}
+        onMutateBlock={onMutateBlock}
+      />,
+    );
+
+    const paragraph = screen.getByText(
+      "Provide a concise return brief identifying amendments.",
+    );
+    expect(paragraph.textContent).not.toMatch(/\[\d+\]/);
+    const paragraphRow =
+      paragraph.closest<HTMLElement>(".group\\/block") ?? paragraph.parentElement;
+    expect(paragraphRow).not.toBeNull();
+    const paragraphCitations = within(paragraphRow!).getByTestId("block-citation-slot");
+    expect(paragraphCitations).toHaveTextContent("[2]");
+    expect(paragraphCitations).toHaveTextContent("[4]");
+    expect(paragraphRow).toContainElement(
+      within(paragraphRow!).getByRole("button", { name: "paragraph actions" }),
+    );
+
+    const listItem = screen.getByText(
+      "Design the extension structure to the approved DA drawings",
+    );
+    expect(listItem.textContent).not.toMatch(/\[\d+\]/);
+    const listRow = listItem.closest("li");
+    expect(listRow).not.toBeNull();
+    const listCitations = within(listRow!).getByTestId("block-citation-slot");
+    expect(listCitations).toHaveTextContent("[3]");
+
+    expect(screen.getByText("[2] Geotech report.pdf")).toBeInTheDocument();
+    expect(
+      screen.getByText("[2] Geotech report.pdf").closest("li")?.querySelector(
+        "[data-testid='block-citation-slot']",
+      ),
+    ).toBeNull();
+  });
+
   it("renders provenance-stamped PMP summary rows as a table without exposing markers", () => {
     const stamped = `## Project Summary
 

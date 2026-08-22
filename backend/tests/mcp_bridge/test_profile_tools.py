@@ -311,6 +311,32 @@ def test_evidence_derived_identity_is_applied_without_confirmation(monkeypatch) 
     assert publish.await_args.kwargs["changedFields"] == ["client"]
 
 
+def test_profile_options_can_return_only_current_work_scope_catalogue(
+    monkeypatch,
+) -> None:
+    project = _project(
+        building_class="residential",
+        work_type="new",
+        project_metadata={"taxonomy": {"subclasses": ["townhouses"]}},
+    )
+    session = _Session(project)
+    server, _, _ = _install(monkeypatch, session)
+
+    result = _call(
+        server,
+        "get_project_profile_options",
+        {
+            "project_id": str(PROJECT_ID),
+            "section": "work_scopes",
+            "work_type": "new",
+        },
+    )
+
+    assert set(result) == {"work_scopes"}
+    assert set(result["work_scopes"]) == {"new"}
+    assert len(json.dumps(result)) < 10_000
+
+
 def test_profile_tools_accept_stringified_json_object_args(monkeypatch) -> None:
     project = _project()
     session = _Session(project)

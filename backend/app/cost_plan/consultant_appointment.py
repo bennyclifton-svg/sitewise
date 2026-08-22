@@ -41,6 +41,7 @@ from app.projects.project_knowledge import (
     write_shared_project_object,
 )
 from app.projects.snapshot import get_project_snapshot
+from app.procurement.strategy import record_consultant_appointment
 from app.sitewise.consultant_register import apply_consultant_register_facts
 from ingest.consultant_firm import extract_issuing_firm_from_text, is_noise_firm_candidate
 
@@ -430,6 +431,13 @@ async def appoint_consultant(
             pmp_version = updated_draft.version
         else:
             pmp_version = draft.version
+
+    await record_consultant_appointment(
+        session,
+        project_id=project.id,
+        discipline=proposal.discipline,
+        firm=proposal.firm,
+    )
 
     return ConsultantAppointmentResult(
         discipline=proposal.discipline,

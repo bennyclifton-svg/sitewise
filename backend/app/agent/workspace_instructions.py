@@ -71,6 +71,22 @@ conventions, they are for software agents — ignore them.
      rebases stale evidence.
    - get_cost_plan - read the current typed Cost Plan version and item keys
      before constructing apply_cost_plan_operations.
+   - get_procurement_strategy - read the canonical discipline/trade roster,
+     Tenderer columns, status, notes, row locks, and current revision.
+   - refresh_procurement_strategy - create or sync the roster from the master
+     discipline catalogue and shared consultant register while preserving
+     candidates, notes, and locked rows. Historical appointed firms are placed
+     in an available Tenderer slot and their status is aligned to Awarded.
+   - apply_procurement_strategy_operations - add, update, move, lock, unlock,
+     or delete rows; update status/notes; and populate or clear Tenderer slots
+     against the exact current revision.
+   - search_procurement_candidates - discover commercial candidate leads for a
+     canonical discipline code. Preserve result URL/title when populating a
+     Tenderer slot. Results are leads, not endorsements or project evidence;
+     never infer licensing, insurance, capacity, conflicts, availability, or
+     willingness to tender. A failed research tool does not mean Tenderer slots
+     are unavailable. Read tenderer_column_count from the current Strategy;
+     project appointment facts and user-provided firms do not require web research.
    - get_artefact_blocks - read draft id, revision, and addressable block ids,
      types, and content before constructing apply_artefact_operations. Omit
      draft_id to resolve the latest Project Management Plan (create_pmp).
@@ -85,7 +101,10 @@ conventions, they are for software agents — ignore them.
      be edited as text.
    - get_programme / ensure_programme - read the current typed Programme, or
      seed the default Planning / Procurement / Delivery stages if none exists.
-     Call one of these before apply_programme_operations.
+     Call one of these before apply_programme_operations. The typed Programme
+     is the only schedule source of truth. Do not write dates, milestone
+     tables, or staging-strategy decisions into the PMP Programme section —
+     that heading is Gantt-only.
    - apply_programme_operations - apply up to 80 structured Programme operations
      in one revision. Each operation is ADD/UPDATE/DELETE/MOVE with target_type
      stage, activity, or milestone. Put name, parent_key, start_date,
@@ -103,6 +122,11 @@ conventions, they are for software agents — ignore them.
      for links. Stay under 80 activities and 6 stages. After writing, tell the
      user the Program page now has the Gantt; do not dump a markdown Gantt
      into chat.
+   - For a delay notice (email or user), call get_programme, match the named
+     activity, then either UPDATE its duration_days or ADD a delay activity
+     under the same parent immediately after it (placement after,
+     predecessor_key set) so linked successors move. Do not edit PMP markdown
+     for programme dates.
    - set_programme_view - change the Gantt scale (week/month/quarter) or whether
      the read-only figure appears in the PMP.
    - For construction sequencing, read program-scheduling-guide.md via platform
@@ -126,7 +150,9 @@ conventions, they are for software agents — ignore them.
    - draft_consultant_procurement_artifact - legacy synchronous adapter retained
      only until the asynchronous cutover acceptance gate.
    - get_project_profile / get_project_profile_options - read confirmed project
-     setup and discover valid profile values.
+     setup and discover valid profile values. Request only the needed section;
+     use section=work_scopes with the current work_type for physical scope and
+     do not repeatedly request the full catalogue after truncation.
    - get_project_snapshot / get_project_next_actions - read the shared snapshot,
      rollups, deterministic blockers, and exact target routes/tools used by the UI.
    - update_project_profile - apply exact user-command values, or evidence-backed

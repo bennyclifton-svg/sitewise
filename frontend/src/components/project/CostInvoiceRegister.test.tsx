@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CostInvoiceRegister } from "@/components/project/CostInvoiceRegister";
 import { api } from "@/lib/api";
+import { resetInvoiceEditQueues } from "@/lib/invoice-edit-queue";
 import { ApiError } from "@/lib/http";
 import { queryClient } from "@/lib/query-client";
 import { workbenchKeys } from "@/lib/queries/workbench";
@@ -63,6 +64,9 @@ describe("CostInvoiceRegister", () => {
 
   afterEach(() => {
     cleanup();
+    resetInvoiceEditQueues();
+    queryClient.clear();
+    window.sessionStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -153,6 +157,184 @@ describe("CostInvoiceRegister", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps remaining allocations queued when one invoice save fails", async () => {
+    const user = userEvent.setup();
+    const twoRows = ledger({
+      rows: [
+        ledger().rows[0]!,
+        {
+          ...ledger().rows[0]!,
+          allocation_id: "alloc-2",
+          invoice_id: "inv-2",
+          invoice_number: "INV-AS-2612",
+        },
+      ],
+      cost_items: [
+        ...ledger().cost_items,
+        {
+          item_key: "architect",
+          cost_code: "1",
+          category: "Consultants",
+          item: "Architect",
+          budget: "20000",
+        },
+      ],
+    });
+    queryClient.setQueryData(workbenchKeys.invoiceLedger("project-1"), twoRows);
+    let rejectFirst: (error: ApiError) => void = () => undefined;
+    vi.mocked(api.updateInvoiceAllocation)
+      .mockImplementationOnce(
+        () =>
+          new Promise<InvoiceLedger>((_resolve, reject) => {
+            rejectFirst = reject;
+          }),
+      )
+      .mockResolvedValueOnce(
+        ledger({
+          ...twoRows,
+          rows: [
+            twoRows.rows[0]!,
+            {
+              ...twoRows.rows[1]!,
+              invoice_revision: 2,
+              cost_item_key: "architect",
+              cost_item_label: "Architect",
+              review_status: "mapped",
+              mapping_method: "manual",
+            },
+          ],
+        }),
+      );
+
+    render(<CostInvoiceRegister projectId="project-1" />);
+    const first = await screen.findByLabelText(
+      /cost item for invoice INV-AS-2611/i,
+    );
+    const second = screen.getByLabelText(/cost item for invoice INV-AS-2612/i);
+    await user.selectOptions(first, "6");
+    await user.selectOptions(second, "architect");
+    expect(api.updateInvoiceAllocation).toHaveBeenCalledTimes(1);
+
+    rejectFirst(
+      new ApiError("Invoice change could not be saved.", {
+        kind: "http",
+        status: 500,
+      }),
+    );
+
+    await waitFor(() =>
+      expect(api.updateInvoiceAllocation).toHaveBeenCalledTimes(2),
+    );
+    expect(api.updateInvoiceAllocation).toHaveBeenLastCalledWith(
+      "project-1",
+      "alloc-2",
+      {
+        expected_revision: 1,
+        expected_cost_plan_version: 11,
+        cost_item_key: "architect",
+      },
+    );
+    expect(second).toHaveValue("architect");
+  });
+
+  it("finishes queued allocations after the register unmounts", async () => {
+    const user = userEvent.setup();
+    let resolveFirst: (value: InvoiceLedger) => void = () => undefined;
+    vi.mocked(api.updateInvoiceAllocation)
+      .mockImplementationOnce(
+        () =>
+          new Promise<InvoiceLedger>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(
+        ledger({
+          rows: [
+            {
+              ...ledger().rows[0]!,
+              allocation_id: "alloc-2",
+              invoice_id: "inv-2",
+              invoice_revision: 2,
+              cost_item_key: "architect",
+              cost_item_label: "Architect",
+              review_status: "mapped",
+              mapping_method: "manual",
+            },
+          ],
+        }),
+      );
+    queryClient.setQueryData(
+      workbenchKeys.invoiceLedger("project-1"),
+      ledger({
+        rows: [
+          ledger().rows[0]!,
+          {
+            ...ledger().rows[0]!,
+            allocation_id: "alloc-2",
+            invoice_id: "inv-2",
+            invoice_number: "INV-AS-2612",
+          },
+        ],
+        cost_items: [
+          ...ledger().cost_items,
+          {
+            item_key: "architect",
+            cost_code: "1",
+            category: "Consultants",
+            item: "Architect",
+            budget: "20000",
+          },
+        ],
+      }),
+    );
+
+    const { unmount } = render(<CostInvoiceRegister projectId="project-1" />);
+    await user.selectOptions(
+      await screen.findByLabelText(/cost item for invoice INV-AS-2611/i),
+      "6",
+    );
+    await user.selectOptions(
+      screen.getByLabelText(/cost item for invoice INV-AS-2612/i),
+      "architect",
+    );
+    unmount();
+
+    resolveFirst(
+      ledger({
+        rows: [
+          {
+            ...ledger().rows[0]!,
+            invoice_revision: 2,
+            cost_item_key: "6",
+            cost_item_label: "Structural engineer",
+            review_status: "mapped",
+            mapping_method: "manual",
+          },
+          {
+            ...ledger().rows[0]!,
+            allocation_id: "alloc-2",
+            invoice_id: "inv-2",
+            invoice_number: "INV-AS-2612",
+          },
+        ],
+      }),
+    );
+
+    await waitFor(() =>
+      expect(api.updateInvoiceAllocation).toHaveBeenCalledTimes(2),
+    );
+    expect(api.updateInvoiceAllocation).toHaveBeenNthCalledWith(
+      2,
+      "project-1",
+      "alloc-2",
+      {
+        expected_revision: 1,
+        expected_cost_plan_version: 11,
+        cost_item_key: "architect",
+      },
+    );
+  });
+
   it("keeps an in-flight mapping when the Cost Plan revision prop changes", async () => {
     const user = userEvent.setup();
     let resolveSave: (value: InvoiceLedger) => void = () => undefined;
@@ -174,7 +356,6 @@ describe("CostInvoiceRegister", () => {
 
     rerender(<CostInvoiceRegister projectId="project-1" revision={12} />);
     expect(select).toHaveValue("6");
-    expect(api.getInvoiceLedger).toHaveBeenCalledTimes(1);
 
     resolveSave(
       ledger({

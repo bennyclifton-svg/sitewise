@@ -224,7 +224,7 @@ function paintCube(dots: HTMLElement[], orientation: Quat, bloom = 1) {
     const rotated = rotateByQuat(CUBE_VERTICES[index], orientation);
     const point = projectPoint(rotated);
     const depthT = (point.depth + 1.7) / 3.4;
-    const opacity = (0.55 + depthT * 0.45) * lerp(0.92, 1, bloom);
+    const opacity = (0.90 + depthT * 0.10) * lerp(0.98, 1, bloom);
     const scale = (0.82 + depthT * 0.4) * bloom;
     const x = half + point.x * PROJECTION_SCALE - DOT_SIZE / 2;
     const y = half - point.y * PROJECTION_SCALE - DOT_SIZE / 2;
@@ -459,7 +459,7 @@ export function CubeTumbleMark() {
           key={index}
           data-cube="primary"
           data-vertex
-          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-[var(--sw-beam-hex,#7fb0e4)] will-change-transform"
+          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-[var(--sw-facet-blue-hex,#2f72c4)] will-change-transform"
           style={{
             width: DOT_SIZE,
             height: DOT_SIZE,

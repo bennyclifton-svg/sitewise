@@ -13,7 +13,15 @@ from app.sitewise.section_contracts import (
 )
 
 HIGH_WEIGHT_THRESHOLD = 0.12
-_REGISTER_SECTIONS = frozenset({"snapshot", "accommodation-schedule", "ffe-schedule", "citation-key"})
+_REGISTER_SECTIONS = frozenset(
+    {
+        "snapshot",
+        "accommodation-schedule",
+        "ffe-schedule",
+        "citation-key",
+        "programme",
+    }
+)
 
 _WORD_RE = re.compile(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*")
 _FENCE_RE = re.compile(r"^\s*(```|~~~)\s*([A-Za-z0-9_-]*)")
@@ -114,6 +122,12 @@ def length_retry_instruction(
     """Turn an under-length draft into retry instructions with per-section budgets."""
     budget_lines: list[str] = []
     for section_id, weight in weights.items():
+        if section_id == "programme":
+            budget_lines.append(
+                f"- {heading_for_section_id(section_id, work_type=work_type)} "
+                "(heading only; dates live on the Program Gantt)"
+            )
+            continue
         heading = heading_for_section_id(section_id, work_type=work_type)
         line = f"- {heading} (~{int(weight * target_words)} words)"
         if is_high_weight_section(section_id, weight):

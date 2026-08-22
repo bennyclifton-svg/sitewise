@@ -17,6 +17,8 @@ from typing import Any
 from app.config import settings
 from app.agent.mutation_intent import (
     PROFILE_ENRICHMENT_REASON,
+    PROFILE_MUTATION_SCOPE,
+    PROCUREMENT_STRATEGY_MUTATION_SCOPE,
     MutationIntent,
     is_profile_enrichment_text,
     is_profile_proposal_confirmation,
@@ -94,7 +96,9 @@ apply_programme_operations. Each ADD/UPDATE puts name, parent_key, start_date,
 duration_days, and optional predecessor_key inside values. Sequential
 activities in a stage must set predecessor_key to the previous activity;
 omit the link only when work is genuinely concurrent. Python schedules
-finishes and linked starts.
+finishes and linked starts. The typed Programme is the only schedule; do
+not write milestone tables into the PMP. For a delay, UPDATE duration_days
+or ADD a delay activity after the matching row so linked successors move.
 For missing consultant-fee estimates, call forecast_consultant_fees before
 answering. Only call apply_consultant_fee_forecast when the user asks to apply,
 write, update, or save the forecast into the cost plan.
@@ -183,6 +187,27 @@ Use instrument names and short topic terms in searches. You may include a public
 local-government-area name when it is needed to identify an LEP, but never the
 project's exact address.
 </web-research>"""
+_PROCUREMENT_STRATEGY_GUIDANCE = """<procurement-strategy>
+Procurement Strategy is the canonical project table of required disciplines and
+trades, tenderer candidates, status and notes. Read it with
+get_procurement_strategy. If it has not been created, or the user asks to sync
+the roster, call refresh_procurement_strategy. To edit it, read the current
+revision then call apply_procurement_strategy_operations with narrow structured
+operations. Never overwrite locked rows or claim an update unless the tool
+succeeds.
+
+When asked to research possible tenderers, call search_procurement_candidates
+for each canonical discipline code. Results are commercial discovery leads, not
+project evidence or endorsements. Preserve a result URL and title when placing a
+company in a Tenderer slot. Do not infer licensing, insurance, capacity,
+availability, conflicts, suitability or willingness to tender from a search
+result. Research alone is read-only; populate the table only when the user asks
+to add, save, shortlist or populate candidates. A failed research tool does not
+mean Tenderer slots are unavailable. Read tenderer_column_count from the current
+strategy; project appointment facts and user-provided firms can be populated
+without commercial web research. Refresh also reconciles historical appointed
+firms and their Awarded status from the shared consultant register.
+</procurement-strategy>"""
 _ROLE_GUIDANCE = """<persona>
 You are Pi, a construction management intelligence agent working for the
 owner of the construction project described in <project-context>. When the
@@ -278,7 +303,10 @@ Ground every answer in project evidence and platform knowledge:
   start_contractor_eoi) with a new idempotency key so the next draft includes
   it. Never invent an address or client name.
 - Read project setup with get_project_profile and discover valid values with
-  get_project_profile_options. When this turn has profile_mutation authority,
+  get_project_profile_options. Request only the option section needed; for
+  physical scope use section=work_scopes with the current work_type. Do not
+  repeatedly request the full option catalogue when a result is truncated.
+  When this turn has profile_mutation authority,
   call update_project_profile for evidence-backed values. Quoted, hedged, or
   single-document claims without enrichment authority must use
   propose_project_profile_change. A proposal that only fills fields still empty
@@ -509,19 +537,21 @@ def build_agent_prompt(
     )
     blocks.append(_DOCUMENT_ACCESS_GUIDANCE)
     blocks.append(_WEB_RESEARCH_GUIDANCE)
+    blocks.append(_PROCUREMENT_STRATEGY_GUIDANCE)
     if selected_documents:
         blocks.append(_selected_document_context_block(selected_documents))
     if snapshot is not None:
         blocks.append(_snapshot_context_block(snapshot))
 
     if mutation_intent is not None and (
-        mutation_intent.scopes or mutation_intent.requires_confirmation
+        PROFILE_MUTATION_SCOPE in mutation_intent.scopes
+        or mutation_intent.requires_confirmation
     ):
         blocks.append(_mutation_policy_block(mutation_intent))
     elif (
         mutation_intent is not None
         and mutation_intent.profile_patch
-        and not mutation_intent.scopes
+        and PROFILE_MUTATION_SCOPE not in mutation_intent.scopes
     ):
         blocks.append(_inferred_profile_block(mutation_intent))
     if _is_profile_enrichment_request(user_text, mutation_intent):
@@ -596,7 +626,10 @@ def _is_profile_enrichment_request(
         and mutation_intent.reason == PROFILE_ENRICHMENT_REASON
     ):
         return True
-    if mutation_intent is not None and mutation_intent.scopes:
+    if (
+        mutation_intent is not None
+        and PROFILE_MUTATION_SCOPE in mutation_intent.scopes
+    ):
         return False
     return is_profile_enrichment_text(user_text)
 
@@ -613,7 +646,10 @@ def _is_profile_proposal_confirmation_request(
     mutation_intent: MutationIntent | None,
 ) -> bool:
     """Recognize confirmation of a profile proposal without an exact direct patch."""
-    if mutation_intent is not None and mutation_intent.scopes:
+    if (
+        mutation_intent is not None
+        and PROFILE_MUTATION_SCOPE in mutation_intent.scopes
+    ):
         return False
     return is_profile_proposal_confirmation(user_text)
 
@@ -630,7 +666,10 @@ def turn_needs_profile_mutation_tools(
     mutation_intent: MutationIntent | None,
 ) -> bool:
     """True when the turn may call profile proposal or update MCP tools."""
-    if mutation_intent is not None and mutation_intent.scopes:
+    if (
+        mutation_intent is not None
+        and PROFILE_MUTATION_SCOPE in mutation_intent.scopes
+    ):
         return True
     return is_profile_enrichment_request(
         user_text, mutation_intent
@@ -715,6 +754,10 @@ def turn_needs_mutation_tools(
     """True when the turn may call any MCP tool that requires mutation auth."""
     return (
         turn_needs_profile_mutation_tools(user_text, mutation_intent)
+        or (
+            mutation_intent is not None
+            and PROCUREMENT_STRATEGY_MUTATION_SCOPE in mutation_intent.scopes
+        )
         or is_adopted_cost_plan_budget_request(user_text)
         or is_consultant_appointment_request(user_text)
         or is_workflow_mutation_request(user_text)
@@ -806,7 +849,8 @@ def _inferred_profile_block(intent: MutationIntent) -> str:
 
 
 def _mutation_policy_block(intent: MutationIntent) -> str:
-    if intent.scopes and intent.reason == PROFILE_ENRICHMENT_REASON:
+    has_profile_scope = PROFILE_MUTATION_SCOPE in intent.scopes
+    if has_profile_scope and intent.reason == PROFILE_ENRICHMENT_REASON:
         instruction = (
             "This turn has unbound profile_mutation authority for evidence-backed "
             "enrichment. Call the direct tool update_project_profile with the live "
@@ -814,7 +858,7 @@ def _mutation_policy_block(intent: MutationIntent) -> str:
             "not use the mcp gateway proxy for this write. Skip materially "
             "conflicted fields and summarize them instead of guessing."
         )
-    elif intent.scopes:
+    elif has_profile_scope:
         patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
         instruction = (
             "This turn has a server-bound profile_mutation scope. Call "

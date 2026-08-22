@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
+import { ColorThemeButton } from "@/components/ColorThemeButton";
 import { SitewiseWordmark } from "@/components/SitewiseMark";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,6 +95,7 @@ export function LoginPage() {
 
   return (
     <div className="relative z-[3] flex min-h-svh items-center justify-center px-4">
+      <ColorThemeButton className="absolute right-4 top-4" />
       <Card className="sw-surface w-full max-w-md sw-enter">
         <CardHeader className="gap-3">
           <SitewiseWordmark markSize={56} />

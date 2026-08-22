@@ -103,7 +103,21 @@ from app.mcp_bridge.auth import (
     authorize_project_access_with_claims,
     authorize_project_mutation_with_claims,
 )
-from app.agent.mutation_intent import PROFILE_MUTATION_SCOPE
+from app.agent.mutation_intent import (
+    PROFILE_MUTATION_SCOPE,
+    PROCUREMENT_STRATEGY_MUTATION_SCOPE,
+)
+from app.procurement.candidate_research import get_procurement_candidate_research
+from app.procurement.strategy import (
+    ProcurementStrategyConflict,
+    ProcurementStrategyNotFound,
+    ProcurementStrategyValidationError,
+    apply_procurement_strategy_operations as persist_procurement_strategy_operations,
+    ensure_procurement_strategy as persist_ensure_procurement_strategy,
+    get_procurement_strategy as read_procurement_strategy,
+    refresh_procurement_strategy as persist_refresh_procurement_strategy,
+    strategy_snapshot as procurement_strategy_snapshot,
+)
 from app.projects.profile import (
     ProfileDependencyConflict,
     ProfileRevisionConflict,
@@ -176,7 +190,7 @@ from app.programme.service import (
 )
 from app.mcp_bridge.tender_cost_handoff import map_tender_handoff
 from app.schemas.profile_proposals import ProfileEvidenceReference
-from app.schemas.projects import ProjectProfilePatch
+from app.schemas.projects import ProcurementStrategyOperation, ProjectProfilePatch
 from app.schemas.workflow_runs import WorkflowRunStartRequest, WorkflowRunView
 from app.retrieval.retriever import DocumentRetriever
 from app.retrieval.schemas import RetrievalFilters
@@ -1157,8 +1171,16 @@ async def get_project_profile(project_id: str) -> dict:
 
 
 @mcp.tool
-async def get_project_profile_options(project_id: str) -> dict:
-    """Return valid Project Profile taxonomy and setup options."""
+async def get_project_profile_options(
+    project_id: str,
+    section: str | None = None,
+    work_type: str | None = None,
+) -> dict:
+    """Return valid Project Profile options, optionally as one bounded section.
+
+    Use section=work_scopes and the current work_type when selecting physical
+    scope. This avoids transferring the complete taxonomy for a narrow edit.
+    """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
@@ -1169,7 +1191,21 @@ async def get_project_profile_options(project_id: str) -> dict:
             )
         except ToolAuthError as exc:
             raise ToolError(str(exc)) from exc
-        return profile_options()
+        options = profile_options()
+        if section is None:
+            if work_type is not None:
+                raise ToolError("work_type requires an option section")
+            return options
+        if section not in options:
+            raise ToolError(f"unknown profile option section: {section}")
+        selected = options[section]
+        if work_type is not None:
+            if section not in {"work_scopes", "asset_register"}:
+                raise ToolError(f"work_type cannot filter option section: {section}")
+            if not isinstance(selected, dict) or work_type not in selected:
+                raise ToolError(f"unknown work_type for {section}: {work_type}")
+            selected = {work_type: selected[work_type]}
+        return {section: selected}
 
 
 @mcp.tool
@@ -1760,6 +1796,172 @@ async def get_cost_plan(project_id: str, version: int | None = None) -> dict:
 
 
 @mcp.tool
+async def get_procurement_strategy(project_id: str) -> dict:
+    """Read the canonical Procurement Strategy table and current revision."""
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+            strategy = await read_procurement_strategy(session, project_id=pid)
+            return await procurement_strategy_snapshot(
+                session, strategy=strategy, project=authorization.project
+            )
+        except (ToolAuthError, ProcurementStrategyNotFound, ValueError) as exc:
+            raise ToolError(str(exc)) from exc
+
+
+@mcp.tool
+async def refresh_procurement_strategy(project_id: str) -> dict:
+    """Create or sync the strategy roster from canonical project disciplines.
+
+    Existing rows, candidates, notes and locks are preserved. Newly required
+    disciplines are appended and removed requirements are only flagged.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+                required_scope=PROCUREMENT_STRATEGY_MUTATION_SCOPE,
+            )
+            try:
+                await read_procurement_strategy(session, project_id=pid)
+            except ProcurementStrategyNotFound:
+                strategy = await persist_ensure_procurement_strategy(
+                    session, project=authorization.project
+                )
+            else:
+                strategy = await persist_refresh_procurement_strategy(
+                    session, project=authorization.project
+                )
+            await session.commit()
+            snapshot = await procurement_strategy_snapshot(
+                session, strategy=strategy, project=authorization.project
+            )
+            await agent_turn_status_bus.publish(
+                _turn_id(authorization),
+                kind="resource",
+                message="Refreshed Procurement Strategy",
+                projectId=str(pid),
+                resourceType="procurement_strategy",
+                resourceId=str(strategy.id),
+                action="updated",
+                revision=strategy.revision,
+            )
+            return snapshot
+        except (
+            ToolAuthError,
+            ProcurementStrategyConflict,
+            ProcurementStrategyValidationError,
+            ValueError,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+
+
+@mcp.tool
+async def apply_procurement_strategy_operations(
+    project_id: str,
+    expected_revision: int,
+    operations: list[dict],
+) -> dict:
+    """Apply narrow table operations against the current strategy revision.
+
+    Supports ADD_ROW, UPDATE_ROW, MOVE_ROW, DELETE_ROW, LOCK_ROW, UNLOCK_ROW,
+    UPSERT_CANDIDATE, CLEAR_CANDIDATE and SET_TENDERER_COLUMN_COUNT. Candidate
+    research provenance belongs in source_url and source_title.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session,
+                authorization_header=_auth_header(),
+                project_id=pid,
+                required_scope=PROCUREMENT_STRATEGY_MUTATION_SCOPE,
+            )
+            parsed = [
+                ProcurementStrategyOperation.model_validate(operation).model_dump(
+                    exclude_none=True
+                )
+                for operation in operations
+            ]
+            strategy = await persist_procurement_strategy_operations(
+                session,
+                project_id=pid,
+                expected_revision=expected_revision,
+                operations=parsed,
+            )
+            await session.commit()
+            snapshot = await procurement_strategy_snapshot(
+                session, strategy=strategy, project=authorization.project
+            )
+            await agent_turn_status_bus.publish(
+                _turn_id(authorization),
+                kind="resource",
+                message="Updated Procurement Strategy",
+                projectId=str(pid),
+                resourceType="procurement_strategy",
+                resourceId=str(strategy.id),
+                action="updated",
+                revision=strategy.revision,
+            )
+            return snapshot
+        except (
+            ToolAuthError,
+            ValidationError,
+            ProcurementStrategyConflict,
+            ProcurementStrategyNotFound,
+            ProcurementStrategyValidationError,
+            ValueError,
+        ) as exc:
+            raise ToolError(str(exc)) from exc
+
+
+@mcp.tool
+async def search_procurement_candidates(
+    project_id: str,
+    discipline_code: str,
+    location: str | None = None,
+    max_results: int = 8,
+) -> dict:
+    """Find sourced commercial discovery leads for one canonical discipline.
+
+    Results are not endorsements or project evidence. Verify capability,
+    capacity, conflicts, licensing and insurance before issuing any request.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_access_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid
+            )
+        except ToolAuthError as exc:
+            raise ToolError(str(exc)) from exc
+        async with _tool_status(
+            _turn_id(authorization),
+            tool="search_procurement_candidates",
+            running="Researching procurement candidates",
+            done="Researched procurement candidates",
+            error="Candidate research failed",
+        ) as extra:
+            try:
+                results = await get_procurement_candidate_research().search(
+                    discipline_code=discipline_code,
+                    location=location,
+                    max_results=max_results,
+                )
+            except (ValueError, WebResearchDisabled, WebSearchProviderError) as exc:
+                raise ToolError(str(exc)) from exc
+            extra["discipline_code"] = discipline_code
+            extra["result_count"] = len(results["results"])
+            return results
+
+
+@mcp.tool
 async def get_programme(project_id: str) -> dict:
     """Read the current typed Programme version for the authorized project."""
     pid = uuid.UUID(project_id)
@@ -2108,6 +2310,15 @@ async def appoint_consultant(
                     selected_source_document_ids=selected_ids or None,
                 )
                 await session.commit()
+                await agent_turn_status_bus.publish(
+                    _turn_id(authorization),
+                    kind="resource",
+                    message="Updated consultant appointment",
+                    projectId=str(pid),
+                    resourceType="procurement_strategy",
+                    resourceId=str(pid),
+                    action="updated",
+                )
         except ToolError:
             raise
         except (

@@ -23,6 +23,10 @@ export const workbenchKeys = {
     ["project", projectId, "workbench", "programme"] as const,
   procurementRequests: (projectId: string) =>
     ["project", projectId, "workbench", "procurement-requests"] as const,
+  procurementStrategy: (projectId: string) =>
+    ["project", projectId, "workbench", "procurement-strategy"] as const,
+  disciplines: (projectId: string) =>
+    ["project", projectId, "workbench", "disciplines"] as const,
 };
 
 export function prefetchWorkbench(

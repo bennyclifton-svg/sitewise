@@ -32,7 +32,6 @@ from app.cost_plan.service import (
     get_cost_plan,
 )
 from app.cost_plan.workbook_rebuild import schedule_cost_plan_workbook_rebuild
-from app.database.draft_artifact import DraftArtifact
 from app.database.project import Project
 from app.database.projects import get_project
 from app.database.session import get_db
@@ -71,32 +70,13 @@ async def _publish_edit(
     *,
     project: Project,
     state: CostPlanState,
-    edit_kind: str,
-    invoice_id: uuid.UUID,
-    allocation_id: uuid.UUID | None = None,
-    details: dict[str, object] | None = None,
 ) -> InvoiceLedgerResponse:
-    """Commit the ledger mutation without republishing the Cost Plan.
+    """Commit the invoice mutation, then refresh the workbook in the background.
 
-    A dropdown change is already canonical on cost_invoices. Republishing a
-    new Cost Plan revision in the same transaction made the save take tens of
-    seconds and rolled the mapping back if the user left the page.
+    The register row is already canonical on cost_invoices. Touching the Cost
+    Plan draft in this request contended with workbook rebuilds and made a
+    dropdown change take long enough that leaving the page rolled it back.
     """
-    edit_id = uuid.uuid4()
-    if state.artefact_revision_id is not None:
-        draft = await session.get(DraftArtifact, state.artefact_revision_id)
-        if draft is not None:
-            draft.provenance_metadata = {
-                **(draft.provenance_metadata or {}),
-                "invoice_operator_edit": {
-                    "edit_id": str(edit_id),
-                    "kind": edit_kind,
-                    "invoice_id": str(invoice_id),
-                    "allocation_id": str(allocation_id) if allocation_id else None,
-                    "details": details or {},
-                },
-                "workbook": {"status": "pending", "version": state.version},
-            }
     await session.flush()
     await session.commit()
     schedule_cost_plan_workbook_rebuild(project.id, state.version)
@@ -137,16 +117,8 @@ async def patch_invoice(
         session, project_id=project_id, user_id=user.id
     )
     await require_active_entitlement(session, user)
-    if state.version != body.expected_cost_plan_version:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"Expected Cost Plan v{body.expected_cost_plan_version}, "
-                f"current version is v{state.version}"
-            ),
-        )
     try:
-        invoice = await update_invoice_fields(
+        await update_invoice_fields(
             session,
             project_id=project.id,
             invoice_id=invoice_id,
@@ -165,19 +137,7 @@ async def patch_invoice(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
-    return await _publish_edit(
-        session,
-        project=project,
-        state=state,
-        edit_kind="invoice_fields",
-        invoice_id=invoice.id,
-        details={
-            "paid": body.paid,
-            "billing_month": (
-                body.billing_month.isoformat() if body.billing_month else None
-            ),
-        },
-    )
+    return await _publish_edit(session, project=project, state=state)
 
 
 @router.patch(
@@ -195,14 +155,6 @@ async def patch_invoice_allocation(
         session, project_id=project_id, user_id=user.id
     )
     await require_active_entitlement(session, user)
-    if state.version != body.expected_cost_plan_version:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                f"Expected Cost Plan v{body.expected_cost_plan_version}, "
-                f"current version is v{state.version}"
-            ),
-        )
     target = next(
         (item for item in state.items if item.item_key == body.cost_item_key),
         None,
@@ -213,7 +165,7 @@ async def patch_invoice_allocation(
             detail="Selected cost item does not exist in the current Cost Plan",
         )
     try:
-        invoice = await update_invoice_allocation(
+        await update_invoice_allocation(
             session,
             project_id=project.id,
             user_id=user.id,
@@ -231,18 +183,7 @@ async def patch_invoice_allocation(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=str(exc)
         ) from exc
-    return await _publish_edit(
-        session,
-        project=project,
-        state=state,
-        edit_kind="allocation_mapping",
-        invoice_id=invoice.id,
-        allocation_id=allocation_id,
-        details={
-            "cost_item_key": target.item_key,
-            "cost_item_label": target.item,
-        },
-    )
+    return await _publish_edit(session, project=project, state=state)
 
 
 @router.get(

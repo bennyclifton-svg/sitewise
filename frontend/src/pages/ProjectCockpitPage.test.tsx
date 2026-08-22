@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => ({
     listProcurementRequests: vi.fn(),
     getProjectPulse: vi.fn(),
     dismissProjectPulse: vi.fn(),
+    listProjectEmails: vi.fn(),
     replyProjectEmailDraft: vi.fn(),
     sendProjectEmailDraft: vi.fn(),
     getProjectEmailThread: vi.fn(),
@@ -276,6 +277,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       generated_at: "2026-08-19T00:00:00Z",
       since: "2026-08-12T00:00:00Z",
     });
+    mocks.api.listProjectEmails.mockResolvedValue([]);
     mocks.api.startWorkflowRun.mockResolvedValue({
       id: "run-1",
       project_id: project.id,

@@ -37,8 +37,15 @@ export type ProgrammeOperation = {
 
 export const DEFAULT_PROGRAMME_SCALE: ProgrammeScale = "month";
 
+export const PROGRAMME_HEADINGS = new Set([
+  "programme",
+  "program",
+  "programme of services",
+  "programme and staging regime",
+]);
+
 export const PROGRAMME_HEADING_RE =
-  /^##\s+(Programme(?: of services)?|Programme and staging regime)\s*$/im;
+  /^##\s+(Programme(?: of services)?|Programme and staging regime|Program)\s*$/im;
 
 export function programmeRowMove(
   activities: ProgrammeActivity[],
@@ -501,12 +508,15 @@ export function ganttLinkPath(
   rowHeight: number,
   linkY: number,
   xScale: number,
+  stubX = 8,
 ): string {
   const x1 = link.fromOffset * xScale;
   const x2 = link.toOffset * xScale;
   const y1 = link.fromIndex * rowHeight + linkY;
   const y2 = link.toIndex * rowHeight + linkY;
-  return `M ${x1} ${y1} L ${x2} ${y2}`;
+  if (x1 === x2) return `M ${x1} ${y1} V ${y2}`;
+  if (y1 === y2) return `M ${x1} ${y1} H ${x2}`;
+  return `M ${x1} ${y1} H ${x1 + stubX} V ${y2} H ${x2}`;
 }
 
 export function addDays(iso: string, days: number): string {
@@ -916,6 +926,20 @@ export function programmeSpan(activities: ProgrammeActivity[]): {
   const start = starts.reduce((min, value) => (value < min ? value : min));
   const end = ends.reduce((max, value) => (value > max ? value : max));
   return { start, end: end <= start ? addDays(start, 1) : end };
+}
+
+export function stripProgrammeSectionBody(markdown: string): string {
+  const parts = markdown.split(/(?=^## )/m);
+  return parts
+    .map((part) => {
+      const match = /^##\s+(.+?)\s*$/m.exec(part);
+      if (!match) return part;
+      const heading = match[1].trim();
+      if (!PROGRAMME_HEADINGS.has(heading.toLowerCase())) return part;
+      return `## ${heading}\n\n`;
+    })
+    .join("")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 export function insertAfterProgrammeHeading(

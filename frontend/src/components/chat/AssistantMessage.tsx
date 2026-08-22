@@ -90,14 +90,14 @@ export function AssistantMessage({
   return (
     <article
       aria-label="Assistant message"
-      className="group relative mr-8 max-w-[92%] self-start rounded-lg border border-white/6 bg-black/20 px-3 py-2 text-sm"
+      className="group relative mr-8 max-w-[92%] self-start rounded-lg border border-border bg-card px-3 py-2 text-sm"
     >
       {hasText ? (
         <div className="absolute top-1.5 right-1.5 z-10 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <CopyContentButton
             content={text}
             label="Copy response"
-            className="bg-black/40 hover:bg-black/55"
+            className="bg-card hover:bg-muted"
           />
         </div>
       ) : null}

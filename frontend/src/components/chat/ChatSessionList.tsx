@@ -200,13 +200,11 @@ export function ChatSessionList({
             ? cn(
                 "flex w-full min-w-0 items-center gap-1 rounded-sm px-1.5 py-0.5 transition-colors",
                 thread.id === activeThreadId
-                  ? isLive
-                    ? "text-foreground"
-                    : "bg-muted/40 text-foreground"
+                  ? "bg-[var(--brand-subtle)] text-foreground"
                   : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
               )
             : "grid gap-2 rounded-md border p-2",
-          !isNav && thread.id === activeThreadId && "border-primary/50 bg-muted/40",
+          !isNav && thread.id === activeThreadId && "border-primary/50 bg-[var(--brand-subtle)]",
           isPopover && "border-transparent p-1.5",
         )}
       >

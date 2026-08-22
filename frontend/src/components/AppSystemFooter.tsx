@@ -1,5 +1,5 @@
-import { CreditCard, Globe, LogOut, Settings, User } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CreditCard, Globe, LogOut, Moon, Settings, Sun, User } from "lucide-react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { readStoredTheme, subscribeTheme, toggleTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 function userDisplayName(email: string | null): string {
@@ -30,7 +31,10 @@ function userInitials(email: string | null): string | null {
 
 export function AppSystemFooter({ className }: { className?: string }) {
   const [email, setEmail] = useState<string | null>(null);
+  const theme = useSyncExternalStore(subscribeTheme, readStoredTheme, () => "dark");
   const initials = userInitials(email);
+  const nextThemeLabel = theme === "light" ? "Dark" : "Light";
+  const NextThemeIcon = theme === "light" ? Moon : Sun;
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +102,14 @@ export function AppSystemFooter({ className }: { className?: string }) {
               <Globe className="size-3.5" aria-hidden />
               Landing page
             </a>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              toggleTheme();
+            }}
+          >
+            <NextThemeIcon className="size-3.5" aria-hidden />
+            {nextThemeLabel}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {

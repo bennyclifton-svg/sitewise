@@ -36,21 +36,28 @@ def _project(*, owner_user_id: uuid.UUID = USER_ID) -> Project:
 
 
 def _draft(
-    *, draft_id: uuid.UUID = DRAFT_ID, version: int, content: str
+    *,
+    draft_id: uuid.UUID = DRAFT_ID,
+    version: int,
+    content: str,
+    workflow_type: str = "create_pmp",
+    title: str = "Project Management Plan",
+    workspace_path: str = "04-projects/demo/00-brief-pmp/PMP.md",
+    provenance_metadata: dict | None = None,
 ) -> DraftArtifact:
     return DraftArtifact(
         id=draft_id,
         project_id=PROJECT_ID,
-        workflow_type="create_pmp",
+        workflow_type=workflow_type,
         version=version,
         status="draft",
-        title="Project Management Plan",
-        workspace_path="04-projects/demo/00-brief-pmp/PMP.md",
+        title=title,
+        workspace_path=workspace_path,
         author_user_id=USER_ID,
         content_markdown=content,
         model="gpt-5.6-luna",
         runtime="clerk-sitewise-create-pmp",
-        provenance_metadata={"draft_mode": "evidence_grounded"},
+        provenance_metadata=provenance_metadata or {"draft_mode": "evidence_grounded"},
         created_at=NOW,
         updated_at=NOW,
     )
@@ -229,3 +236,101 @@ def test_export_project_draft_reuses_cached_bytes(client: TestClient) -> None:
     assert response.content == b"%PDF-1.7 cached"
     download.assert_called_once_with(storage_key="cached/export.pdf")
     render_export.assert_not_called()
+
+
+def test_export_cost_plan_draft_renders_pdf_from_workbook(client: TestClient) -> None:
+    draft = _draft(
+        version=2,
+        content="# Cost Plan",
+        workflow_type="create_cost_plan",
+        title="Cost Plan",
+        workspace_path="04-projects/demo/01-cost/cost_plan_v02.md",
+        provenance_metadata={
+            "workbook": {
+                "file_name": "Cost_Plan_v02.draft.xlsx",
+                "workspace_path": "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
+            }
+        },
+    )
+    workbook = MagicMock(
+        storage_key="workbook-key",
+        filename="Cost_Plan_v02.draft.xlsx",
+    )
+    render_pdf = MagicMock(return_value=b"%PDF-cost-plan")
+    upload = MagicMock(return_value="storage-key")
+    upsert = AsyncMock()
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch("app.api.projects.get_artefact_export", new=AsyncMock(return_value=None)),
+        patch(
+            "app.api.projects.flush_cost_plan_workbook_rebuild",
+            new=AsyncMock(return_value=False),
+        ),
+        patch(
+            "app.api.projects.get_workspace_file_by_path",
+            new=AsyncMock(return_value=workbook),
+        ),
+        patch(
+            "app.api.projects.download_project_file",
+            new=MagicMock(return_value=b"xlsx-bytes"),
+        ),
+        patch("app.api.projects.render_workbook_pdf", new=render_pdf),
+        patch("app.api.projects.upload_project_file", new=upload),
+        patch("app.api.projects.cache_ready_artefact_export", new=upsert),
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}/export",
+            params={"format": "pdf"},
+        )
+
+    assert response.status_code == 200
+    assert response.content.startswith(b"%PDF")
+    assert (
+        'filename="Cost_Plan_v02.pdf"' in response.headers["content-disposition"]
+    )
+    render_pdf.assert_called_once_with(
+        b"xlsx-bytes",
+        filename="Cost_Plan_v02.draft.xlsx",
+        project_title="Demo Project",
+        version=2,
+    )
+    upload.assert_called_once()
+    upsert.assert_awaited_once()
+
+
+def test_export_contractor_eoi_draft_renders_pdf(client: TestClient) -> None:
+    draft = _draft(
+        version=1,
+        content="# Expression of Interest",
+        workflow_type="contractor_eoi_main_works",
+        title="Expression of Interest",
+        workspace_path="04-projects/demo/02-procurement/contractor_eoi_main_works_v01.draft.md",
+    )
+    render_export = MagicMock(return_value=b"%PDF-eoi")
+
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.api.projects.get_draft_artifact", new=AsyncMock(return_value=draft)),
+        patch("app.api.projects.get_artefact_export", new=AsyncMock(return_value=None)),
+        patch("app.api.projects.render_artifact_export", new=render_export),
+        patch("app.api.projects.upload_project_file", new=MagicMock()),
+        patch("app.api.projects.cache_ready_artefact_export", new=AsyncMock()),
+    ):
+        response = client.get(
+            f"/projects/{PROJECT_ID}/drafts/{DRAFT_ID}/export",
+            params={"format": "pdf"},
+        )
+
+    assert response.status_code == 200
+    render_export.assert_called_once_with(
+        draft.content_markdown,
+        export_format="pdf",
+        project_title="Demo Project",
+        artifact_title="Expression of Interest",
+        version=1,
+        workflow_type="contractor_eoi_main_works",
+    )

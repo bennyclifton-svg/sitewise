@@ -144,6 +144,49 @@ def test_reply_draft_creates_draft_without_sending(client: TestClient) -> None:
     send.assert_not_called()
 
 
+def test_list_email_register_is_owner_scoped(client: TestClient) -> None:
+    register = [
+        {
+            "id": str(uuid.uuid4()),
+            "kind": "inbound",
+            "direction": "in",
+            "subject": "RFI-12",
+            "party": "qs@consultant.com",
+            "sent_at": "2026-08-14T00:00:00+00:00",
+            "message_category": "rfi",
+            "status": None,
+            "email_id": str(uuid.uuid4()),
+            "draft_id": None,
+        }
+    ]
+    with (
+        patch(
+            "app.api.project_emails.get_project",
+            new=AsyncMock(return_value=_project()),
+        ),
+        patch("app.api.project_emails.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.project_emails.list_project_email_register",
+            new=AsyncMock(return_value=register),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/emails")
+
+    assert response.status_code == 200
+    assert response.json()[0]["subject"] == "RFI-12"
+    assert response.json()[0]["direction"] == "in"
+
+
+def test_list_email_register_by_non_owner_returns_404(client: TestClient) -> None:
+    with patch(
+        "app.api.project_emails.get_project",
+        new=AsyncMock(return_value=_project(owner=OTHER_USER)),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/emails")
+    assert response.status_code == 404
+    assert response.status_code != 403
+
+
 def test_read_email_thread_returns_messages(client: TestClient) -> None:
     email_id = uuid.uuid4()
     thread = [

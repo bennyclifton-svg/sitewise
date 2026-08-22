@@ -76,6 +76,11 @@ def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     assert "Search results are discovery candidates" in prompt
     assert "Never put project-confidential details into a web search query" in prompt
     assert "external reference, not project evidence" in prompt
+    compact_prompt = " ".join(prompt.split())
+    assert (
+        "A failed research tool does not mean Tenderer slots are unavailable"
+        in compact_prompt
+    )
     assert "run shell commands" in prompt
     assert "user: Any update on the quotes?" in prompt
     assert "assistant: Two received, one pending." in prompt
@@ -121,6 +126,30 @@ def test_broad_profile_update_runs_document_enrichment_before_replying() -> None
     assert "update_project_profile" in prompt
     assert "profile is already up to date" in prompt
     assert "profile_mutation authority" in prompt
+
+
+def test_set_up_profile_uses_direct_enrichment_write_and_bounded_options() -> None:
+    user_text = "set up the project profile"
+    intent = classify_mutation_intent(user_text)
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Seven Hills Townhouse",
+        archetype=None,
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="new",
+        history=[],
+        mutation_intent=intent,
+    )
+
+    assert "<profile-enrichment-request>" in prompt
+    assert "Call the direct tool update_project_profile" in prompt
+    assert "section=work_scopes" in prompt
+    assert "Do not repeatedly request the full option catalogue" in " ".join(
+        prompt.split()
+    )
 
 
 def test_available_facts_profile_update_needs_mutation_tools() -> None:

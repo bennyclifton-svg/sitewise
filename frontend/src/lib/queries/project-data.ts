@@ -8,7 +8,9 @@ import { useCallback, useEffect, useRef } from "react";
 
 import { api } from "@/lib/api";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
+import { emailKeys } from "@/lib/queries/emails";
 import { pulseKeys } from "@/lib/queries/pulse";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import type { ResourceEvent } from "@/lib/chat-events";
 import type {
   EvidencePreview,
@@ -352,8 +354,12 @@ function invalidationKeys(projectId: string, resourceType: string) {
         projectActivityKeys.root(projectId),
         pulseKeys.feed(projectId),
       ];
+    case "email":
+      return [emailKeys.register(projectId), pulseKeys.feed(projectId)];
     case "tender_job":
       return [projectActivityKeys.root(projectId)];
+    case "procurement_strategy":
+      return [workbenchKeys.procurementStrategy(projectId)];
     default:
       return [];
   }

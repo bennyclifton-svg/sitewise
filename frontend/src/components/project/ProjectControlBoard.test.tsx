@@ -548,7 +548,7 @@ describe("ProjectControlBoard project profile", () => {
 
     await screen.findByText("No requests yet. Create the first one above.");
     await user.type(screen.getByLabelText("Discipline"), "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    await user.click(screen.getByRole("button", { name: "Generate RFT" }));
 
     expect(onRunProcurement).toHaveBeenCalledWith(
       "trade_rft",
@@ -1126,6 +1126,17 @@ describe("ProjectControlBoard project profile", () => {
       expect(api.downloadWorkspaceFile).toHaveBeenCalledWith(
         "project-1",
         "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
+      );
+    });
+
+    vi.mocked(api.downloadDraftExport).mockResolvedValue(new Blob(["pdf"]));
+    await user.click(screen.getByRole("button", { name: "Download cost plan" }));
+    await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
+    await waitFor(() => {
+      expect(api.downloadDraftExport).toHaveBeenCalledWith(
+        "project-1",
+        "draft-1",
+        "pdf",
       );
     });
     expect(screen.getByRole("button", { name: "Copy cost plan" })).toBeInTheDocument();

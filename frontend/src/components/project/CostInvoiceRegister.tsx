@@ -3,6 +3,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { InvoiceReviewPane } from "@/components/project/InvoiceReviewPane";
 import { api } from "@/lib/api";
+import {
+  enqueueInvoiceEdit,
+  hydrateInvoiceLedger,
+  subscribeInvoiceEdits,
+  type InvoiceEditSnapshot,
+} from "@/lib/invoice-edit-queue";
 import { ApiError } from "@/lib/http";
 import { queryClient } from "@/lib/query-client";
 import { pulseKeys } from "@/lib/queries/pulse";
@@ -10,23 +16,12 @@ import { workbenchKeys } from "@/lib/queries/workbench";
 import type { InvoiceLedger, InvoiceReview } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
-type InvoiceEdit =
-  | {
-      kind: "allocation";
-      allocationId: string;
-      costItemKey: string;
-    }
-  | {
-      kind: "invoice";
-      invoiceId: string;
-      changes: { paid?: boolean; billing_month?: string };
-    };
-
 export function CostInvoiceRegister({
   projectId,
   revision = null,
   reviewInvoiceId = null,
   ledger,
+  onLedgerChange,
 }: {
   projectId: string;
   /** When the published Cost Plan revision changes, reload the register. */
@@ -34,6 +29,7 @@ export function CostInvoiceRegister({
   reviewInvoiceId?: string | null;
   /** Parent-owned ledger. Omit to load from the workbench cache. */
   ledger?: InvoiceLedger | null;
+  onLedgerChange?: (ledger: InvoiceLedger) => void;
 }) {
   return (
     <CostInvoiceRegisterState
@@ -41,20 +37,9 @@ export function CostInvoiceRegister({
       revision={revision}
       reviewInvoiceId={reviewInvoiceId}
       ledger={ledger}
+      onLedgerChange={onLedgerChange}
     />
   );
-}
-
-function readCachedInvoiceLedger(projectId: string): InvoiceLedger | null {
-  return (
-    queryClient.getQueryData<InvoiceLedger>(
-      workbenchKeys.invoiceLedger(projectId),
-    ) ?? null
-  );
-}
-
-function rememberInvoiceLedger(projectId: string, ledger: InvoiceLedger): void {
-  queryClient.setQueryData(workbenchKeys.invoiceLedger(projectId), ledger);
 }
 
 function CostInvoiceRegisterState({
@@ -62,49 +47,49 @@ function CostInvoiceRegisterState({
   revision,
   reviewInvoiceId,
   ledger: ledgerProp,
+  onLedgerChange,
 }: {
   projectId: string;
   revision: number | null;
   reviewInvoiceId?: string | null;
   ledger?: InvoiceLedger | null;
+  onLedgerChange?: (ledger: InvoiceLedger) => void;
 }) {
-  const [ledger, setLedger] = useState<InvoiceLedger | null>(
-    () => ledgerProp ?? readCachedInvoiceLedger(projectId),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
+  const [snapshot, setSnapshot] = useState<InvoiceEditSnapshot>(() => ({
+    ledger:
+      ledgerProp ??
+      queryClient.getQueryData<InvoiceLedger>(
+        workbenchKeys.invoiceLedger(projectId),
+      ) ??
+      null,
+    pendingCount: 0,
+    error: null,
+    saveMessage: null,
+  }));
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [review, setReview] = useState<InvoiceReview | null>(null);
-  const confirmedLedgerRef = useRef<InvoiceLedger | null>(
-    ledgerProp ?? readCachedInvoiceLedger(projectId),
-  );
-  const queueRef = useRef<InvoiceEdit[]>([]);
-  const drainingRef = useRef(false);
-  const projectIdRef = useRef<string | null>(projectId);
+  const onLedgerChangeRef = useRef(onLedgerChange);
   const loadedRevisionRef = useRef(revision);
 
   useEffect(() => {
-    return () => {
-      projectIdRef.current = null;
-    };
-  }, []);
+    onLedgerChangeRef.current = onLedgerChange;
+  }, [onLedgerChange]);
+
+  useEffect(() => {
+    return subscribeInvoiceEdits(projectId, (next) => {
+      setSnapshot(next);
+      if (next.ledger) onLedgerChangeRef.current?.(next.ledger);
+    });
+  }, [projectId]);
 
   useEffect(() => {
     if (!ledgerProp) return;
-    if (queueRef.current.length > 0 || drainingRef.current) return;
-    confirmedLedgerRef.current = ledgerProp;
-    setLedger(replayEdits(ledgerProp, queueRef.current));
-    setError(null);
-  }, [ledgerProp]);
+    hydrateInvoiceLedger(projectId, ledgerProp);
+  }, [projectId, ledgerProp]);
 
   useEffect(() => {
     if (ledgerProp) return;
     let cancelled = false;
-    if (queueRef.current.length > 0 || drainingRef.current) {
-      return () => {
-        cancelled = true;
-      };
-    }
     const fresh = loadedRevisionRef.current !== revision;
     loadedRevisionRef.current = revision;
 
@@ -120,14 +105,13 @@ function CostInvoiceRegisterState({
           queryFn: () => api.getInvoiceLedger(projectId),
         });
         if (cancelled) return;
-        confirmedLedgerRef.current = data;
-        setLedger(replayEdits(data, queueRef.current));
-        setError(null);
-      } catch (loadError) {
+        hydrateInvoiceLedger(projectId, data);
+        setLoadError(null);
+      } catch (error) {
         if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
+          setLoadError(
+            error instanceof ApiError
+              ? error.message
               : "Invoice register could not load.",
           );
         }
@@ -139,92 +123,14 @@ function CostInvoiceRegisterState({
     };
   }, [projectId, revision, ledgerProp]);
 
-  function enqueue(edit: InvoiceEdit) {
-    const confirmed = confirmedLedgerRef.current;
-    if (!confirmed) return;
-    mergeQueuedEdit(queueRef.current, edit);
-    setLedger(replayEdits(confirmed, queueRef.current));
-    setPendingCount(queueRef.current.length + (drainingRef.current ? 1 : 0));
-    setError(null);
-    setSaveMessage(null);
-    void drainQueue();
-  }
-
-  async function drainQueue() {
-    if (drainingRef.current) return;
-    const editingProjectId = projectIdRef.current;
-    if (!editingProjectId) return;
-    drainingRef.current = true;
-    let latestSaved: InvoiceLedger | null = null;
-    let conflictRetries = 0;
-
-    try {
-      while (queueRef.current.length > 0) {
-        const edit = queueRef.current[0];
-        if (!edit) break;
-        setPendingCount(queueRef.current.length);
-        const confirmed = confirmedLedgerRef.current;
-        if (!confirmed) throw new Error("Invoice register is not ready.");
-        try {
-          const updated = await commitEdit(editingProjectId, confirmed, edit);
-          if (projectIdRef.current !== editingProjectId) return;
-          queueRef.current.shift();
-          conflictRetries = 0;
-          latestSaved = updated;
-          confirmedLedgerRef.current = updated;
-          setLedger(replayEdits(updated, queueRef.current));
-        } catch (saveError) {
-          if (
-            saveError instanceof ApiError &&
-            saveError.status === 409 &&
-            projectIdRef.current === editingProjectId
-          ) {
-            const latest = await api.getInvoiceLedger(editingProjectId);
-            if (projectIdRef.current !== editingProjectId) return;
-            latestSaved = latest;
-            confirmedLedgerRef.current = latest;
-            rememberInvoiceLedger(editingProjectId, latest);
-            setLedger(replayEdits(latest, queueRef.current));
-            setError(
-              "An invoice changed elsewhere. Remaining edits will use the latest values.",
-            );
-            conflictRetries += 1;
-            if (conflictRetries > 1) queueRef.current.shift();
-            continue;
-          }
-          queueRef.current = [];
-          if (projectIdRef.current === editingProjectId) {
-            setLedger(confirmedLedgerRef.current);
-            setError(
-              saveError instanceof ApiError
-                ? saveError.message
-                : "Invoice change could not be saved.",
-            );
-          }
-          return;
-        }
-      }
-      if (latestSaved && projectIdRef.current === editingProjectId) {
-        rememberInvoiceLedger(editingProjectId, latestSaved);
-        setSaveMessage(`Saved against Cost Plan v${latestSaved.cost_plan_version}`);
-      }
-    } finally {
-      drainingRef.current = false;
-      if (projectIdRef.current === editingProjectId) {
-        setPendingCount(queueRef.current.length);
-      }
-      if (projectIdRef.current && queueRef.current.length > 0) void drainQueue();
-    }
-  }
-
   async function openReview(invoiceId: string) {
     try {
       setReview(await api.getInvoiceReview(projectId, invoiceId));
-      setError(null);
-    } catch (loadError) {
-      setError(
-        loadError instanceof ApiError
-          ? loadError.message
+      setLoadError(null);
+    } catch (error) {
+      setLoadError(
+        error instanceof ApiError
+          ? error.message
           : "Invoice review could not load.",
       );
     }
@@ -237,14 +143,14 @@ function CostInvoiceRegisterState({
       (data) => {
         if (!cancelled) {
           setReview(data);
-          setError(null);
+          setLoadError(null);
         }
       },
-      (loadError) => {
+      (error) => {
         if (!cancelled) {
-          setError(
-            loadError instanceof ApiError
-              ? loadError.message
+          setLoadError(
+            error instanceof ApiError
+              ? error.message
               : "Invoice review could not load.",
           );
         }
@@ -259,16 +165,19 @@ function CostInvoiceRegisterState({
     if (!review) return;
     try {
       setReview(await api.decideInvoice(projectId, review.invoice_id, { decision }));
-      setError(null);
+      setLoadError(null);
       void queryClient.invalidateQueries({ queryKey: pulseKeys.feed(projectId) });
-    } catch (decideError) {
-      setError(
-        decideError instanceof ApiError
-          ? decideError.message
+    } catch (error) {
+      setLoadError(
+        error instanceof ApiError
+          ? error.message
           : "Invoice decision could not be saved.",
       );
     }
   }
+
+  const ledger = snapshot.ledger;
+  const error = snapshot.error ?? loadError;
 
   if (!ledger && !error) {
     return (
@@ -289,15 +198,16 @@ function CostInvoiceRegisterState({
           {error}
         </p>
       ) : null}
-      {saveMessage || pendingCount > 0 ? (
+      {snapshot.saveMessage || snapshot.pendingCount > 0 ? (
         <p className="flex items-center gap-1 border-b px-3 py-2 text-xs text-muted-foreground">
-          {pendingCount > 0 ? (
+          {snapshot.pendingCount > 0 ? (
             <>
               <Loader2 className="size-3 animate-spin" aria-hidden />
-              Saving {pendingCount} invoice change{pendingCount === 1 ? "" : "s"}…
+              Saving {snapshot.pendingCount} invoice change
+              {snapshot.pendingCount === 1 ? "" : "s"}…
             </>
           ) : (
-            saveMessage
+            snapshot.saveMessage
           )}
         </p>
       ) : null}
@@ -364,7 +274,7 @@ function CostInvoiceRegisterState({
                       aria-label={`Cost item for invoice ${row.invoice_number}: ${row.description}`}
                       onChange={(event) => {
                         if (event.target.value) {
-                          enqueue({
+                          enqueueInvoiceEdit(projectId, {
                             kind: "allocation",
                             allocationId: row.allocation_id,
                             costItemKey: event.target.value,
@@ -398,7 +308,7 @@ function CostInvoiceRegisterState({
                       aria-label={`Billing month for invoice ${row.invoice_number}`}
                       onChange={(event) => {
                         if (event.target.value) {
-                          enqueue({
+                          enqueueInvoiceEdit(projectId, {
                             kind: "invoice",
                             invoiceId: row.invoice_id,
                             changes: {
@@ -421,7 +331,7 @@ function CostInvoiceRegisterState({
                         row.paid ? "unpaid" : "paid"
                       }`}
                       onClick={() =>
-                        enqueue({
+                        enqueueInvoiceEdit(projectId, {
                           kind: "invoice",
                           invoiceId: row.invoice_id,
                           changes: { paid: !row.paid },
@@ -462,82 +372,4 @@ function costItemGroups(
     groups.set(item.category, group);
   }
   return [...groups.entries()];
-}
-
-function mergeQueuedEdit(queue: InvoiceEdit[], next: InvoiceEdit) {
-  const last = queue.at(-1);
-  if (
-    last?.kind === "invoice" &&
-    next.kind === "invoice" &&
-    last.invoiceId === next.invoiceId
-  ) {
-    last.changes = { ...last.changes, ...next.changes };
-    return;
-  }
-  if (
-    last?.kind === "allocation" &&
-    next.kind === "allocation" &&
-    last.allocationId === next.allocationId
-  ) {
-    last.costItemKey = next.costItemKey;
-    return;
-  }
-  queue.push(next);
-}
-
-function replayEdits(ledger: InvoiceLedger, edits: InvoiceEdit[]): InvoiceLedger {
-  return edits.reduce((current, edit) => applyEdit(current, edit), ledger);
-}
-
-function applyEdit(ledger: InvoiceLedger, edit: InvoiceEdit): InvoiceLedger {
-  if (edit.kind === "allocation") {
-    const option = ledger.cost_items.find((item) => item.item_key === edit.costItemKey);
-    return {
-      ...ledger,
-      rows: ledger.rows.map((row) =>
-        row.allocation_id === edit.allocationId
-          ? {
-              ...row,
-              cost_item_key: edit.costItemKey,
-              cost_item_label: option?.item ?? row.cost_item_label,
-              review_status: "mapped",
-              mapping_method: "manual",
-            }
-          : row,
-      ),
-    };
-  }
-  return {
-    ...ledger,
-    rows: ledger.rows.map((row) =>
-      row.invoice_id === edit.invoiceId ? { ...row, ...edit.changes } : row,
-    ),
-  };
-}
-
-async function commitEdit(
-  projectId: string,
-  confirmed: InvoiceLedger,
-  edit: InvoiceEdit,
-): Promise<InvoiceLedger> {
-  if (edit.kind === "allocation") {
-    const row = confirmed.rows.find(
-      (candidate) => candidate.allocation_id === edit.allocationId,
-    );
-    if (!row) throw new Error("The invoice allocation is no longer available.");
-    return api.updateInvoiceAllocation(projectId, edit.allocationId, {
-      expected_revision: row.invoice_revision,
-      expected_cost_plan_version: confirmed.cost_plan_version,
-      cost_item_key: edit.costItemKey,
-    });
-  }
-  const row = confirmed.rows.find(
-    (candidate) => candidate.invoice_id === edit.invoiceId,
-  );
-  if (!row) throw new Error("The invoice is no longer available.");
-  return api.updateInvoice(projectId, edit.invoiceId, {
-    expected_revision: row.invoice_revision,
-    expected_cost_plan_version: confirmed.cost_plan_version,
-    ...edit.changes,
-  });
 }

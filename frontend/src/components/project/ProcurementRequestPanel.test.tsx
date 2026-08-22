@@ -1,18 +1,26 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProcurementRequestPanel } from "@/components/project/ProcurementRequestPanel";
 import { api } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
 import type {
   DraftArtifactSummary,
   ProcurementRequest,
+  ProcurementStrategy,
   ProjectDetail,
 } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
   api: {
     listProcurementRequests: vi.fn(),
+    listProjectDisciplines: vi.fn(),
+    ensureProcurementStrategy: vi.fn(),
+    getProcurementStrategy: vi.fn(),
+    refreshProcurementStrategy: vi.fn(),
+    applyProcurementStrategyOperations: vi.fn(),
     getLatestDraft: vi.fn(),
     getProjectDraft: vi.fn(),
     downloadDraftExport: vi.fn(),
@@ -120,6 +128,33 @@ const supplier = request({
   updated_at: "2026-08-13T00:00:00Z",
 });
 
+const strategy: ProcurementStrategy = {
+  id: "strategy-1",
+  project_id: "mosaic",
+  revision: 1,
+  tenderer_column_count: 3,
+  source_fingerprint: "abc",
+  created_at: "2026-08-22T00:00:00Z",
+  updated_at: "2026-08-22T00:00:00Z",
+  rows: [
+    {
+      id: "row-1",
+      discipline_code: "consultant.architect",
+      discipline_label: "Architect",
+      participant_type: "consultant",
+      request_kind: "consultant_rfp",
+      status: "not_started",
+      notes: "",
+      display_order: 100,
+      origin: "derived",
+      locked: false,
+      candidates: [],
+      linked_request_ids: [],
+      no_longer_required: false,
+    },
+  ],
+};
+
 function renderPanel(
   requests: ProcurementRequest[],
   onDraftSelected: (draft: DraftArtifactSummary) => void = vi.fn(),
@@ -132,17 +167,19 @@ function renderPanel(
     onCreate,
     onUpdate,
     ...render(
-      <ProcurementRequestPanel
-        project={{ id: "mosaic", title: "Mosaic Apartments" } as ProjectDetail}
-        activeRun={null}
-        isRunning={false}
-        error={null}
-        refreshToken={0}
-        renderGate={() => null}
-        onCreate={onCreate}
-        onUpdate={onUpdate}
-        onDraftSelected={onDraftSelected}
-      />,
+      <QueryClientProvider client={queryClient}>
+        <ProcurementRequestPanel
+          project={{ id: "mosaic", title: "Mosaic Apartments" } as ProjectDetail}
+          activeRun={null}
+          isRunning={false}
+          error={null}
+          refreshToken={0}
+          renderGate={() => null}
+          onCreate={onCreate}
+          onUpdate={onUpdate}
+          onDraftSelected={onDraftSelected}
+        />
+      </QueryClientProvider>,
     ),
   };
 }
@@ -150,7 +187,24 @@ function renderPanel(
 describe("ProcurementRequestPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     vi.mocked(api.getLatestDraft).mockResolvedValue(null);
+    vi.mocked(api.listProjectDisciplines).mockResolvedValue([
+      {
+        code: "consultant.architect",
+        label: "Architect",
+        participant_type: "consultant",
+        request_kind: "consultant_rfp",
+        workspace_slug: "architect",
+      },
+      {
+        code: "trade.electrical",
+        label: "Electrical Services",
+        participant_type: "trade",
+        request_kind: "trade_rft",
+        workspace_slug: "electrical-services",
+      },
+    ]);
   });
 
   async function openDisciplineMenu() {
@@ -202,12 +256,12 @@ describe("ProcurementRequestPanel", () => {
 
     expect(await screen.findByLabelText("Discipline")).toHaveValue("Architect");
     expect(screen.queryByRole("tablist")).toBeNull();
-    expect(screen.getByRole("button", { name: "Create RFT" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Generate RFT" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Update RFT" })).toBeEnabled();
 
     await userEvent.click(screen.getByRole("button", { name: "Discipline suggestions" }));
     expect(screen.getByRole("option", { name: "Architect 1" })).toBeTruthy();
-    expect(screen.getByRole("option", { name: "Electrical services" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Electrical Services" })).toBeTruthy();
   });
 
   it("creates a consultant RFP or trade RFT from the combined list", async () => {
@@ -217,13 +271,30 @@ describe("ProcurementRequestPanel", () => {
     await screen.findByText("No requests yet. Create the first one above.");
     const field = screen.getByLabelText("Discipline");
     await user.type(field, "Architect");
-    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    await user.click(screen.getByRole("button", { name: "Generate RFT" }));
     expect(onCreate).toHaveBeenCalledWith("consultant_rfp", "Architect");
 
     await user.clear(field);
     await user.type(field, "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    await user.click(screen.getByRole("button", { name: "Generate RFT" }));
     expect(onCreate).toHaveBeenCalledWith("trade_rft", "Electrical services");
+  });
+
+  it("opens Strategy beside the RFT controls and hides document exports", async () => {
+    vi.mocked(api.ensureProcurementStrategy).mockResolvedValue(strategy);
+    renderPanel([architect]);
+
+    const strategyButton = await screen.findByRole("button", { name: "Strategy" });
+    await userEvent.click(strategyButton);
+
+    expect(await screen.findByRole("columnheader", { name: "Tenderer 1" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Tenderer 3" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Strategy" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByRole("button", { name: /Download request/ })).toBeNull();
+    expect(api.ensureProcurementStrategy).toHaveBeenCalledWith("mosaic");
   });
 
   it("updates the selected package", async () => {

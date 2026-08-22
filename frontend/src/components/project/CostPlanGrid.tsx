@@ -383,6 +383,7 @@ export function CostPlanGrid({
           revision={state.version}
           reviewInvoiceId={reviewInvoiceId}
           ledger={ledger}
+          onLedgerChange={setLedger}
         />
       </CostPlanTabPane>
       <CostPlanTabPane id="variations" active={tab === "variations"}>

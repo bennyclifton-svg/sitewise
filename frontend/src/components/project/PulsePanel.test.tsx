@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PulsePanel } from "@/components/project/PulsePanel";
 import { api } from "@/lib/api";
-import type { PulseFeed, PulseItem, PulseSincePreset } from "@/lib/types/pulse";
+import type { ProjectEmailRegisterRow } from "@/lib/types/email";
+import type { PulseFeed, PulseItem } from "@/lib/types/pulse";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -36,24 +37,7 @@ function item(overrides: Partial<PulseItem> = {}): PulseItem {
 }
 
 function feed(overrides: Partial<PulseFeed> = {}): PulseFeed {
-  const attention = overrides.attention ?? [
-    item(),
-    item({
-      id: "potential_cost_change:cost_invoice:inv-1:ready_for_review",
-      signal_type: "potential_cost_change",
-      title: "Builder Invoice 009 includes $8,400 against an unapproved variation",
-      body: "Builder Invoice 009 includes $8,400 against an unapproved variation",
-      domain: "COMMERCIAL",
-      evidence: [
-        {
-          reference_type: "cost_invoice",
-          reference_id: "inv-1",
-          label: "Builder 009",
-        },
-      ],
-      actions: ["review_invoice", "dismiss"],
-    }),
-  ];
+  const attention = overrides.attention ?? [item()];
   return {
     attention,
     other: [
@@ -76,76 +60,71 @@ function feed(overrides: Partial<PulseFeed> = {}): PulseFeed {
   };
 }
 
+function emailRow(
+  overrides: Partial<ProjectEmailRegisterRow> = {},
+): ProjectEmailRegisterRow {
+  return {
+    id: "mail-1",
+    kind: "inbound",
+    direction: "in",
+    subject: "RFI-12 slab thickness",
+    party: "qs@consultant.com",
+    sent_at: "2026-08-14T00:00:00Z",
+    message_category: "rfi",
+    status: null,
+    email_id: "mail-1",
+    draft_id: null,
+    ...overrides,
+  };
+}
+
 describe("PulsePanel", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
   });
 
-  it("test_pulse_does_not_headline_raw_event_counts", () => {
-    render(<PulsePanel feed={feed({ attention_count: 3 })} />);
-    const heading = screen.getByRole("heading", { level: 2 });
-    expect(heading).toHaveTextContent("3 items need attention");
-    expect(heading).not.toHaveTextContent("48");
-    expect(heading).not.toHaveTextContent("26 documents");
-    expect(heading).not.toHaveTextContent("12 events");
-    expect(screen.getByTestId("pulse-other-activity")).toHaveTextContent(
-      "48 emails · 26 documents · 12 events",
-    );
-  });
-
-  it("labels the since window in product language", async () => {
-    const user = userEvent.setup();
-    const onSinceChange = vi.fn();
+  it("renders the correspondence register instead of a time-window headline", () => {
     render(
       <PulsePanel
-        feed={feed()}
-        sincePreset={"7d" as PulseSincePreset}
-        onSinceChange={onSinceChange}
+        feed={feed({ attention: [], attention_count: 0 })}
+        emails={[
+          emailRow(),
+          emailRow({
+            id: "draft-1",
+            kind: "outbound",
+            direction: "out",
+            subject: "Re: RFI-12 slab thickness",
+            party: "qs@consultant.com",
+            sent_at: "2026-08-15T09:00:00Z",
+            message_category: null,
+            status: "sent",
+            email_id: "mail-1",
+            draft_id: "draft-1",
+          }),
+        ]}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Last 7 days" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    await user.click(screen.getByRole("button", { name: "Since yesterday" }));
-    expect(onSinceChange).toHaveBeenCalledWith("yesterday");
-    await user.click(screen.getByRole("button", { name: "Last 30 days" }));
-    expect(onSinceChange).toHaveBeenCalledWith("30d");
+    expect(screen.getByRole("columnheader", { name: "Date" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Subject" })).toBeInTheDocument();
+    expect(screen.getByText("RFI-12 slab thickness")).toBeInTheDocument();
+    expect(screen.getByText("Re: RFI-12 slab thickness")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Direction" })).toBeInTheDocument();
+    expect(screen.getByText("In")).toBeInTheDocument();
+    expect(screen.getByText("Out")).toBeInTheDocument();
+    expect(screen.getByText("RFI")).toBeInTheDocument();
+    expect(screen.queryByText("Nothing needs attention")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Last 7 days" })).not.toBeInTheDocument();
+    expect(screen.queryByText("48 emails · 26 documents · 12 events")).not.toBeInTheDocument();
   });
 
-  it("test_review_invoice_action_is_a_button_not_inline_logic", async () => {
-    const user = userEvent.setup();
-    const onAction = vi.fn();
-    render(<PulsePanel feed={feed()} onAction={onAction} />);
-
-    await user.click(screen.getByRole("button", { name: "Review invoice" }));
-
-    expect(onAction).toHaveBeenCalledTimes(1);
-    expect(onAction.mock.calls[0]?.[1]).toBe("review_invoice");
-    expect(onAction.mock.calls[0]?.[0].evidence[0]?.reference_id).toBe("inv-1");
-    expect(api.decideInvoice).not.toHaveBeenCalled();
+  it("shows an empty register when there is no mail", () => {
+    render(<PulsePanel feed={feed({ attention: [], attention_count: 0 })} emails={[]} />);
+    expect(screen.getByText("No correspondence")).toBeInTheDocument();
   });
 
-  it("clicking Review invoice selects the invoice id and does not fire hold/reject/approve", async () => {
-    const user = userEvent.setup();
-    const onAction = vi.fn();
-    render(<PulsePanel feed={feed()} onAction={onAction} />);
-    await user.click(screen.getByRole("button", { name: "Review invoice" }));
-    expect(onAction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        actions: expect.arrayContaining(["review_invoice"]),
-      }),
-      "review_invoice",
-    );
-    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Hold" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
-    expect(api.decideInvoice).not.toHaveBeenCalled();
-  });
-
-  it("test_draft_reply_action_does_not_send", async () => {
+  it("slots non-email attention into the same register", async () => {
     const user = userEvent.setup();
     const onAction = vi.fn();
     render(
@@ -153,35 +132,62 @@ describe("PulsePanel", () => {
         feed={feed({
           attention: [
             item({
-              id: "unanswered_correspondence:email:mail-1",
-              signal_type: "unanswered_correspondence",
-              title: "Unanswered RFI: slab thickness",
-              body: "Unanswered RFI: slab thickness",
-              domain: "CORRESPONDENCE",
+              id: "potential_cost_change:cost_invoice:inv-1:ready_for_review",
+              signal_type: "potential_cost_change",
+              title: "Builder Invoice 009 includes $8,400 against an unapproved variation",
+              domain: "COMMERCIAL",
               evidence: [
                 {
-                  reference_type: "email",
-                  reference_id: "mail-1",
-                  label: "RFI-12",
+                  reference_type: "cost_invoice",
+                  reference_id: "inv-1",
+                  label: "Builder 009",
                 },
               ],
-              actions: ["draft_reply", "view_thread", "dismiss"],
+              actions: ["review_invoice", "dismiss"],
             }),
           ],
         })}
+        emails={[emailRow()]}
         onAction={onAction}
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Draft reply" }));
+    expect(
+      screen.getByText(
+        "Builder Invoice 009 includes $8,400 against an unapproved variation",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("COMMERCIAL")).toBeInTheDocument();
 
+    await user.click(
+      screen.getByText(
+        "Builder Invoice 009 includes $8,400 against an unapproved variation",
+      ),
+    );
     expect(onAction).toHaveBeenCalledWith(
       expect.objectContaining({
-        actions: expect.arrayContaining(["draft_reply"]),
+        actions: expect.arrayContaining(["review_invoice"]),
       }),
-      "draft_reply",
+      "review_invoice",
+    );
+    expect(api.decideInvoice).not.toHaveBeenCalled();
+  });
+
+  it("selects a mail row without sending", async () => {
+    const user = userEvent.setup();
+    const onSelectEmail = vi.fn();
+    render(
+      <PulsePanel
+        feed={feed({ attention: [], attention_count: 0 })}
+        emails={[emailRow()]}
+        onSelectEmail={onSelectEmail}
+      />,
+    );
+
+    await user.click(screen.getByText("RFI-12 slab thickness"));
+    expect(onSelectEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ email_id: "mail-1", direction: "in" }),
     );
     expect(api.sendProjectEmailDraft).not.toHaveBeenCalled();
-    expect(screen.queryByRole("button", { name: "Send" })).not.toBeInTheDocument();
   });
 });

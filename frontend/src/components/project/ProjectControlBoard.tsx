@@ -58,6 +58,7 @@ import type {
   EvidencePreview,
   OverlayIssue,
   ProcessInvoicesResult,
+  ProcurementStrategyRow,
   ProjectDetail,
   ProjectProfileProposal,
   SortFilesResponse,
@@ -131,6 +132,7 @@ export function ProjectControlBoard({
   onCancelCostPlan,
   onCancelProcurement,
   onRunProcurement,
+  onEditProcurementStrategyRow,
   onCancelSortFiles,
   onOpenTenderComparison,
   inboxCount,
@@ -189,6 +191,7 @@ export function ProjectControlBoard({
     targetName: string,
     action?: "create" | "update",
   ) => void;
+  onEditProcurementStrategyRow?: (row: ProcurementStrategyRow) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -273,6 +276,7 @@ export function ProjectControlBoard({
     onCancelCostPlan,
     onCancelProcurement,
     onRunProcurement,
+    onEditProcurementStrategyRow,
     onCancelSortFiles,
     onOpenTenderComparison,
     inboxCount,
@@ -957,6 +961,7 @@ function WorkflowDetail({
   onRunProcessInvoices,
   onRunSortFiles,
   onRunProcurement,
+  onEditProcurementStrategyRow,
   onCancelSortFiles,
   onOpenTenderComparison,
   inboxCount,
@@ -1008,6 +1013,7 @@ function WorkflowDetail({
     targetName: string,
     action?: "create" | "update",
   ) => void;
+  onEditProcurementStrategyRow?: (row: ProcurementStrategyRow) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -1091,6 +1097,31 @@ function WorkflowDetail({
           : error instanceof Error
             ? error.message
             : "Could not download the Excel workbook.",
+      );
+    } finally {
+      setDraftExportAction(null);
+    }
+  }
+
+  async function downloadCostPlanPdf() {
+    if (!latestCostPlanDraft) return;
+    setDraftExportAction("pdf");
+    setDraftExportError(null);
+    try {
+      const blob = await api.downloadDraftExport(
+        project.id,
+        latestCostPlanDraft.id,
+        "pdf",
+      );
+      downloadBlob(
+        blob,
+        `${safeFilename(latestCostPlanDraft.title)}_v${String(latestCostPlanDraft.version).padStart(2, "0")}.pdf`,
+      );
+    } catch (error) {
+      setDraftExportError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not export PDF.",
       );
     } finally {
       setDraftExportAction(null);
@@ -1210,16 +1241,15 @@ function WorkflowDetail({
                         project.id,
                         latestDraft.id,
                       );
-                      const markdown = stripArtifactBlockMarkers(
-                        fullDraft.content_markdown,
+                      const { insertAfterProgrammeHeading, stripProgrammeSectionBody } =
+                        await import("@/lib/programme");
+                      const markdown = stripProgrammeSectionBody(
+                        stripArtifactBlockMarkers(fullDraft.content_markdown),
                       );
                       try {
                         const programme = await api.getProgrammeState(project.id);
                         if (!programme.pmp_embed_visible) return markdown;
                         const svg = await api.getProgrammeFigureSvg(project.id);
-                        const { insertAfterProgrammeHeading } = await import(
-                          "@/lib/programme"
-                        );
                         return insertAfterProgrammeHeading(markdown, svg);
                       } catch {
                         return markdown;
@@ -1338,7 +1368,7 @@ function WorkflowDetail({
                       <Download
                         className={cn(
                           "size-5",
-                          draftExportAction === "xlsx" && "animate-pulse",
+                          draftExportAction !== null && "animate-pulse",
                         )}
                         aria-hidden
                       />
@@ -1354,6 +1384,16 @@ function WorkflowDetail({
                     >
                       <ExcelFileIcon className="size-6" />
                       <span>Excel</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gap-2.5 py-2"
+                      disabled={draftExportAction !== null}
+                      onSelect={() => {
+                        void downloadCostPlanPdf();
+                      }}
+                    >
+                      <PdfFileIcon className="size-6" />
+                      <span>PDF</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -1451,6 +1491,7 @@ function WorkflowDetail({
             onUpdate={(kind, targetName) =>
               onRunProcurement?.(kind, targetName, "update")
             }
+            onEditStrategyRowWithAi={onEditProcurementStrategyRow}
             onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
             repositoryEvidence={repositoryEvidence}
