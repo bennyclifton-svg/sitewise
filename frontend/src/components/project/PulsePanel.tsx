@@ -22,7 +22,7 @@ const SINCE_PRESETS: { id: PulseSincePreset; label: string }[] = [
   { id: "30d", label: "Last 30 days" },
 ];
 
-function attentionHeadline(count: number): string {
+export function attentionHeadline(count: number): string {
   if (count === 0) return "Nothing needs attention";
   if (count === 1) return "1 item needs attention";
   return `${count} items need attention`;
@@ -46,18 +46,17 @@ export function PulsePanel({
   return (
     <section
       aria-label="Project pulse"
-      className="border-b border-[var(--border-hair)] bg-[var(--bg-surface)] px-4 py-3 lg:px-6"
+      className="border-b border-[var(--border-hair)] px-1.5 py-2"
       data-testid="project-pulse"
     >
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="cockpit-eyebrow text-[var(--sw-text-quiet)]">Project Pulse</p>
-        <h1 className="font-display text-base font-medium tracking-tight text-[var(--sw-text-primary)]">
+      <header className="flex items-baseline justify-between gap-2">
+        <h2 className="text-[0.7rem] font-medium text-[var(--sw-text-primary)]">
           {attentionHeadline(feed.attention_count)}
-        </h1>
+        </h2>
       </header>
 
       <div
-        className="mt-2 flex flex-wrap gap-1"
+        className="mt-1.5 flex flex-wrap gap-0.5"
         role="group"
         aria-label="Pulse time window"
       >
@@ -67,6 +66,7 @@ export function PulsePanel({
             type="button"
             size="xs"
             variant={sincePreset === preset.id ? "outline" : "ghost"}
+            className="h-5 px-1.5 text-[0.65rem]"
             aria-pressed={sincePreset === preset.id}
             onClick={() => onSinceChange?.(preset.id)}
           >
@@ -76,33 +76,42 @@ export function PulsePanel({
       </div>
 
       {feed.attention.length > 0 ? (
-        <ol className="mt-3 grid gap-2">
+        <ol className="mt-2">
           {feed.attention.map((item, index) => (
             <li
               key={item.id}
-              className="grid gap-1 border border-[var(--border-hair)] px-3 py-2"
+              className="border-t border-[var(--border-hair)] py-1.5"
             >
-              <div className="flex min-w-0 items-baseline gap-2">
-                <span className="font-mono text-[0.65rem] text-[var(--sw-text-quiet)]">
+              <div className="flex min-w-0 items-baseline gap-1.5">
+                <span className="shrink-0 font-mono text-[0.6rem] text-[var(--sw-text-quiet)]">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                <span className="font-mono text-[0.65rem] uppercase tracking-[0.14em] text-[var(--sw-text-secondary)]">
+                <span className="shrink-0 font-mono text-[0.6rem] uppercase tracking-[0.12em] text-[var(--sw-text-secondary)]">
                   {item.domain}
                 </span>
-                <p className="min-w-0 flex-1 text-sm text-[var(--sw-text-primary)]">
+                <p
+                  className="min-w-0 flex-1 truncate text-[0.7rem] text-[var(--sw-text-primary)]"
+                  title={item.title}
+                >
                   {item.title}
                 </p>
               </div>
               {item.body !== item.title ? (
-                <p className="pl-7 text-xs text-[var(--sw-text-secondary)]">{item.body}</p>
+                <p
+                  className="mt-0.5 truncate pl-6 text-[0.65rem] text-[var(--sw-text-secondary)]"
+                  title={item.body}
+                >
+                  {item.body}
+                </p>
               ) : null}
-              <div className="flex flex-wrap gap-1 pl-7">
+              <div className="mt-1 flex flex-wrap gap-0.5 pl-6">
                 {item.actions.filter(isPulseAction).map((action) => (
                   <Button
                     key={action}
                     type="button"
                     size="xs"
                     variant={action === "dismiss" ? "ghost" : "outline"}
+                    className="h-5 px-1.5 text-[0.65rem]"
                     onClick={() => onAction?.(item, action)}
                   >
                     {ACTION_LABEL[action]}
@@ -117,13 +126,16 @@ export function PulsePanel({
       {feed.other.map((item) => (
         <p
           key={item.id}
-          className={cn("mt-3 text-xs text-[var(--sw-text-secondary)]")}
+          className={cn(
+            "mt-2 truncate text-[0.65rem] text-[var(--sw-text-secondary)]",
+          )}
           data-testid="pulse-other-activity"
+          title={item.body}
         >
-          <span className="font-mono uppercase tracking-[0.14em] text-[var(--sw-text-quiet)]">
+          <span className="font-mono uppercase tracking-[0.12em] text-[var(--sw-text-quiet)]">
             Other activity
           </span>
-          <span className="mx-2 text-[var(--sw-text-quiet)]">·</span>
+          <span className="mx-1.5 text-[var(--sw-text-quiet)]">·</span>
           {item.body}
         </p>
       ))}

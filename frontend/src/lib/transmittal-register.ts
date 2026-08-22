@@ -54,6 +54,85 @@ function parseTableRows(sectionBody: string): TransmittalDocumentRow[] {
   return rows;
 }
 
+function tableValue(value: string | null | undefined): string {
+  const trimmed = (value ?? "").trim().replaceAll("|", "\\|");
+  return trimmed || "—";
+}
+
+function evidencePath(item: EvidencePreview): string {
+  return (item.relative_path || item.filename || "").trim();
+}
+
+function evidenceTitle(item: EvidencePreview): string {
+  const title = (item.title ?? "").trim();
+  if (title) return title;
+  const filename = item.filename || item.relative_path.split("/").pop() || "";
+  return filename.replace(/\.[^.]+$/, "") || "—";
+}
+
+function transmittalHeading(count: number): string {
+  const noun = count === 1 ? "document" : "documents";
+  return `## Transmittal (${count} ${noun})`;
+}
+
+function renderTransmittalTable(evidence: EvidencePreview[]): string {
+  const seen = new Set<string>();
+  const rows: string[][] = [];
+  for (const item of evidence) {
+    const path = evidencePath(item);
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    rows.push([
+      tableValue(item.document_number),
+      tableValue(evidenceTitle(item)),
+      tableValue(item.revision),
+      tableValue(item.category),
+    ]);
+  }
+  rows.sort(
+    (left, right) =>
+      left[0].localeCompare(right[0], undefined, { numeric: true }) ||
+      left[1].localeCompare(right[1], undefined, { sensitivity: "accent" }),
+  );
+  const lines = [
+    "| Document number | Title | Rev | Category |",
+    "| --- | --- | --- | --- |",
+  ];
+  if (rows.length === 0) {
+    lines.push("| — | No source documents currently issued | — | — |");
+  } else {
+    lines.push(...rows.map((row) => `| ${row.join(" | ")} |`));
+  }
+  return lines.join("\n");
+}
+
+const TRANSMITTAL_SECTION_RE =
+  /^##\s+(?:Transmittal|Project Documents|Information to review)\b[^\n]*$/im;
+
+export function replaceTransmittalSection(
+  markdown: string,
+  evidence: EvidencePreview[],
+): string {
+  const count = new Set(
+    evidence.map(evidencePath).filter((path) => path.length > 0),
+  ).size;
+  const replacement = `${transmittalHeading(count)}\n${renderTransmittalTable(evidence)}`;
+  const match = TRANSMITTAL_SECTION_RE.exec(markdown);
+  if (!match || match.index === undefined) {
+    throw new Error("Draft has no Transmittal / Project Documents section");
+  }
+  const start = match.index;
+  const afterHeading = match.index + match[0].length;
+  const rest = markdown.slice(afterHeading);
+  const nextHeading = /^##\s+/m.exec(rest);
+  const end = nextHeading ? afterHeading + nextHeading.index : markdown.length;
+  const suffix = markdown.slice(end).replace(/^\n+/, "");
+  if (suffix) {
+    return `${markdown.slice(0, start)}${replacement}\n\n${suffix}`;
+  }
+  return `${markdown.slice(0, start)}${replacement}\n`;
+}
+
 export function parseTransmittalRows(markdown: string): TransmittalDocumentRow[] {
   const section = splitMarkdownSections(markdown).find((entry) =>
     isTransmittalHeading(entry.heading),

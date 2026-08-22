@@ -11,8 +11,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-_STATUS = "To be confirmed"
-_NOTES = "Typical"
 _CONSTRUCTION_TYPES = frozenset({"new", "extend", "refurb", "remediation"})
 _NEW_OR_EXTEND = frozenset({"new", "extend"})
 
@@ -146,11 +144,48 @@ _LOCATION_BAND: dict[str, int] = {
 }
 
 _SUBCLASS_PACKS: dict[str, tuple[str, ...]] = {
-    "house": ("envelope", "roofing", "paving", "wet_areas", "kitchen"),
-    "townhouses": ("envelope", "roofing", "paving", "wet_areas", "kitchen"),
-    "apartments": ("envelope", "roofing", "wet_areas", "kitchen"),
-    "btr": ("envelope", "roofing", "wet_areas", "kitchen"),
-    "student_housing": ("envelope", "roofing", "wet_areas", "kitchen"),
+    "house": (
+        "envelope",
+        "roofing",
+        "glazing",
+        "flooring",
+        "paving",
+        "wet_areas",
+        "kitchen",
+    ),
+    "townhouses": (
+        "envelope",
+        "roofing",
+        "glazing",
+        "flooring",
+        "paving",
+        "wet_areas",
+        "kitchen",
+    ),
+    "apartments": (
+        "envelope",
+        "roofing",
+        "glazing",
+        "flooring",
+        "wet_areas",
+        "kitchen",
+    ),
+    "btr": (
+        "envelope",
+        "roofing",
+        "glazing",
+        "flooring",
+        "wet_areas",
+        "kitchen",
+    ),
+    "student_housing": (
+        "envelope",
+        "roofing",
+        "glazing",
+        "flooring",
+        "wet_areas",
+        "kitchen",
+    ),
     "rail_metro": ("station_finishes",),
     "energy_renewables": ("solar_pv",),
     "warehouse": ("envelope", "roofing", "paving"),
@@ -215,6 +250,8 @@ def typical_ffe_rows(
         if work_type in _NEW_OR_EXTEND:
             _add_pack("envelope")
             _add_pack("roofing")
+            _add_pack("glazing")
+            _add_pack("flooring")
             _add_pack("paving")
         elif work_type == "remediation":
             _add_pack("envelope")
@@ -235,10 +272,8 @@ def typical_ffe_rows(
                 {
                     "item": item,
                     "location": location,
-                    "quantity": "TBC",
                     "finish": "TBC",
-                    "status": _STATUS,
-                    "notes": _NOTES,
+                    "notes": "",
                 }
             )
     rows.sort(key=ffe_sequence_key)

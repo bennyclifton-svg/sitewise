@@ -50,8 +50,9 @@ interior and exterior finishes, fixtures, and equipment the user wants in the
 PMP FFE schedule), call
 list_shared_project_knowledge with kind ffe_item, then
 upsert_shared_project_knowledge with a stable object id slug and fields such as
-item, location, quantity, finish, model, dimensions, supplier, status, package,
-and notes (use TBC when unspecified). If a create_pmp artefact exists, also call
+item, location, finish, and notes (use TBC when unspecified; never Not
+evidenced). The PMP table is Item, Location, Finish, Comment. If a create_pmp
+artefact exists, also call
 get_artefact_blocks and apply_artefact_operations to ADD or UPDATE the matching
 row in the PMP FFE Schedule section (after the Accommodation Schedule, or after
 Consultants when that section is absent). Do not ask the user to select

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database.project import Project
 from app.email import service as email_service
+from app.email.alias_names import is_reserved_inbound_local_part
 from app.email.project_matching import ProjectMatch
 from app.email.schemas import RawProviderAttachment, RawProviderMessage
 from app.inbox.service import InboxUploadItem, validate_upload_item
@@ -60,7 +61,7 @@ def project_code_from_alias(address: str) -> str | None:
     if domain.lower() != settings.email_inbound_domain.lower():
         return None
     code = local.strip().lower()
-    if not _SLUG_RE.fullmatch(code):
+    if not _SLUG_RE.fullmatch(code) or is_reserved_inbound_local_part(code):
         return None
     return code
 

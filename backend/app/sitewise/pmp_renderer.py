@@ -635,17 +635,17 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
         else "Confirm pathway"
     )
     rows = [
-        "| Authority / instrument | Status | Responsible party | Next action |",
-        "| --- | --- | --- | --- |",
+        "| Authority / instrument | Status | Responsible party | Next action |  |",
+        "| --- | --- | --- | --- | --- |",
     ]
     if state == "NSW":
         rows.append(
-            "| BASIX (commitment) | Assumption | Owner / Architect | Appoint assessor; align with DA |"
+            "| BASIX (commitment) | Assumption | Owner / Architect | Appoint assessor; align with DA |  |"
         )
     if pack.heritage_approval_advice:
         rows.append(
             "| Heritage impact statement | Partial | Architect / heritage consultant | "
-            "Prepare at schematic stage; allow 6-8 weeks council assessment |"
+            "Prepare at schematic stage; allow 6-8 weeks council assessment |  |"
         )
     certifier_status = (
         "Partial" if not pack_has_gap(pack, GAP_CERTIFIER) else "Assumption"
@@ -657,12 +657,12 @@ def _nsw_authority_tracker_table(state: str, pack: MobilisationEvidencePack) -> 
     )
     rows.extend(
         [
-            f"| Principal certifier | {certifier_status} | Owner | {certifier_action} |",
-            f"| DA / planning permit | {da_status} | Owner / Architect | {da_action} |",
-            "| Construction Certificate | Assumption | Certifier | Issue before site start |",
-            "| LSL receipt | Assumption | Builder | CC-blocking prerequisite |",
-            f"| Utility connections ({state}) | Assumption | Owner / builder | Confirm capacity |",
-            "| Occupation Certificate | Assumption | Certifier | Issue at handover |",
+            f"| Principal certifier | {certifier_status} | Owner | {certifier_action} |  |",
+            f"| DA / planning permit | {da_status} | Owner / Architect | {da_action} |  |",
+            "| Construction Certificate | Assumption | Certifier | Issue before site start |  |",
+            "| LSL receipt | Assumption | Builder | CC-blocking prerequisite |  |",
+            f"| Utility connections ({state}) | Assumption | Owner / builder | Confirm capacity |  |",
+            "| Occupation Certificate | Assumption | Certifier | Issue at handover |  |",
         ]
     )
     return "\n".join(rows)
@@ -1477,6 +1477,7 @@ def _asset_ffe_items(project: Project) -> list[dict[str, str]]:
         notes = "; ".join(
             part
             for part in (
+                f"{asset.count} units" if asset.count is not None else None,
                 f"{asset.age_years} years old" if asset.age_years is not None else None,
                 f"Replace with {asset.replacement_spec}"
                 if asset.replacement_spec
@@ -1489,10 +1490,9 @@ def _asset_ffe_items(project: Project) -> list[dict[str, str]]:
             {
                 "item": asset.type,
                 "location": asset.location or "—",
-                "quantity": str(asset.count) if asset.count is not None else "—",
-                "finish": asset.capacity or asset.make_model or "—",
-                "status": action or condition or "User provided",
-                "notes": notes or "—",
+                "finish": asset.capacity or asset.make_model or "",
+                "status": action or condition or "",
+                "notes": notes,
             }
         )
     return items
@@ -1503,15 +1503,48 @@ def _asset_schedule_rows(project: Project) -> list[str]:
     return [_ffe_markdown_row(item) for item in _asset_ffe_items(project)]
 
 
+_FFE_PLACEHOLDERS = frozenset(
+    {
+        "",
+        "—",
+        "-",
+        "tbc",
+        "to be confirmed",
+        "not evidenced",
+        "typical",
+        "user provided",
+        "assumption",
+        "assumption / not evidenced",
+        "profile",
+    }
+)
+
+
+def _ffe_placeholder(value: str) -> bool:
+    return value.strip().casefold() in _FFE_PLACEHOLDERS
+
+
+def _ffe_finish_cell(item: dict[str, str]) -> str:
+    finish = str(item.get("finish") or "").strip()
+    return "TBC" if _ffe_placeholder(finish) else finish
+
+
+def _ffe_comment_cell(item: dict[str, str]) -> str:
+    parts: list[str] = []
+    for key in ("status", "notes"):
+        raw = str(item.get(key) or "").strip()
+        if raw and not _ffe_placeholder(raw):
+            parts.append(raw)
+    return "; ".join(parts)
+
+
 def _ffe_markdown_row(item: dict[str, str]) -> str:
     return (
-        "| {item} | {location} | {quantity} | {finish} | {status} | {notes} |".format(
+        "| {item} | {location} | {finish} | {comment} |  |".format(
             item=item["item"],
             location=item.get("location") or "—",
-            quantity=item.get("quantity") or "—",
-            finish=item.get("finish") or "TBC",
-            status=item.get("status") or "To be confirmed",
-            notes=item.get("notes") or "—",
+            finish=_ffe_finish_cell(item),
+            comment=_ffe_comment_cell(item),
         )
     )
 
@@ -1596,14 +1629,14 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
     display_items = _merge_ffe_items(explicit_items, asset_items, typical_items)
     display_items.sort(key=ffe_sequence_key)
     table = [
-        "| Item | Location | Qty | Finish | Status | Notes |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Item | Location | Finish | Comment |  |",
+        "| --- | --- | --- | --- | --- |",
     ]
     table.extend(_ffe_markdown_row(item) for item in display_items)
     if not display_items:
         table.append(
-            "| — | — | — | — | To be confirmed | No finishes, fixtures or "
-            "equipment recorded yet — add items in chat |"
+            "| — | — | TBC | No finishes, fixtures or equipment recorded yet "
+            "— add items in chat |  |"
         )
     return "\n".join(
         [
@@ -1611,7 +1644,7 @@ def _render_taxonomy_ffe_schedule(project: Project) -> str:
             "",
             "Unified Finishes, Fixtures and Equipment register for interior and "
             "exterior finishes, fixtures, and plant. Add or tidy rows in chat. "
-            "Missing selections stay TBC.",
+            "Missing finishes stay TBC.",
             _emphasis_note(project, "ffe-schedule"),
             "",
             "\n".join(table),
@@ -1794,17 +1827,17 @@ def _render_taxonomy_compliance(
         seed_section_refs.get("compliance-approvals", ()) if seed_section_refs else ()
     )
     rows = [
-        "| Approval / compliance item | Status | Basis | Next action |",
-        "| --- | --- | --- | --- |",
-        "| NCC pathway | Assumption | Taxonomy and loaded seed doctrine | Confirm DtS/performance pathway with certifier |",
-        "| Authority approvals | Not evidenced | No current approval records used | Upload planning/approval records |",
-        "| Essential safety measures | Assumption | Seed doctrine | Confirm ESM schedule where applicable |",
+        "| Approval / compliance item | Status | Basis | Next action |  |",
+        "| --- | --- | --- | --- | --- |",
+        "| NCC pathway | Assumption | Taxonomy and loaded seed doctrine | Confirm DtS/performance pathway with certifier |  |",
+        "| Authority approvals | Not evidenced | No current approval records used | Upload planning/approval records |  |",
+        "| Essential safety measures | Assumption | Seed doctrine | Confirm ESM schedule where applicable |  |",
     ]
     if "fire_services" in context.work_scope:
         rows.extend(
             [
-                "| Fire hydrant systems | Assumption | AS 2419.1 seed reference | Confirm hydrant scope and authority requirements |",
-                "| Fire pumpsets | Assumption | AS 2941 seed reference | Confirm pumpset duty, redundancy, and commissioning pathway |",
+                "| Fire hydrant systems | Assumption | AS 2419.1 seed reference | Confirm hydrant scope and authority requirements |  |",
+                "| Fire pumpsets | Assumption | AS 2941 seed reference | Confirm pumpset duty, redundancy, and commissioning pathway |  |",
             ]
         )
     ref_line = (
@@ -1847,12 +1880,12 @@ def _render_taxonomy_programme(project: Project) -> str:
         [
             f"## {heading_for_section_id('programme', work_type=context.work_type)}",
             "",
-            "| Milestone | Status | Basis | Next action |",
-            "| --- | --- | --- | --- |",
-            "| Setup / brief confirmation | Active | Current project profile | Confirm scope and budget lock |",
-            "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |",
-            "| Procurement / services start | Assumption | Work type and role | Confirm procurement or advisory deliverables programme |",
-            "| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |",
+            "| Milestone | Status | Basis | Next action |  |",
+            "| --- | --- | --- | --- | --- |",
+            "| Setup / brief confirmation | Active | Current project profile | Confirm scope and budget lock |  |",
+            "| Authority pathway | Assumption | Seed doctrine | Confirm approval route and lead times |  |",
+            "| Procurement / services start | Assumption | Work type and role | Confirm procurement or advisory deliverables programme |  |",
+            "| Delivery / reporting cadence | Not evidenced | No programme document used | Upload programme or agree reporting cadence |  |",
             "",
             "Programme logic should stay milestone-based until a current programme is uploaded. "
             "Authority lead times, live-environment staging, shutdown windows, and client "
@@ -1926,8 +1959,8 @@ def _render_taxonomy_risks(project: Project) -> str:
     if context is None:
         raise ValueError("taxonomy scaffold requires building_class")
     rows = [
-        "| Risk | Owner | Status | Next action | Due |",
-        "| --- | --- | --- | --- | --- |",
+        "| Risk | Owner | Status | Next action | Due |  |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for risk, owner, status, action, due in _taxonomy_risk_rows(project):
         rows.append(f"| {risk} | {owner} | {status} | {action} | {due} |")
@@ -1980,12 +2013,12 @@ def _render_taxonomy_actions(project: Project) -> str:
     lead = design_lead_discipline(context.work_type, context.work_scope)
     owner = "TBC" if lead == DESIGN_LEAD_UNCONFIRMED else lead
     actions = [
-        "| Item | Owner | Status | Next |",
-        "| --- | --- | --- | --- |",
-        "| Scope boundary | Owner | Assumption | Lock brief |",
-        f"| Approval pathway | {owner} | Assumption | Certifier |",
-        "| Budget basis | Owner | Assumption | Cost evidence |",
-        f"| Consultant roster | {owner} | Assumption | Appoint |",
+        "| Item | Owner | Status | Next |  |",
+        "| --- | --- | --- | --- | --- |",
+        "| Scope boundary | Owner | Assumption | Lock brief |  |",
+        f"| Approval pathway | {owner} | Assumption | Certifier |  |",
+        "| Budget basis | Owner | Assumption | Cost evidence |  |",
+        f"| Consultant roster | {owner} | Assumption | Appoint |  |",
     ]
     emphasis = _emphasis_note(project, "actions-decisions")
     depth = ""

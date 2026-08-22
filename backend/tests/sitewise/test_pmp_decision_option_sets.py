@@ -4,6 +4,7 @@ from app.sitewise.pmp_decisions import (
     PMP_CORE_DECISIONS,
     SPARSE_BRIEF_DECISION_BAND,
     decision_option_sets_for_project,
+    format_decision_option_sets,
     required_decision_ids_for_project,
 )
 
@@ -34,8 +35,9 @@ def test_required_decision_ids_stay_within_sparse_band() -> None:
     required = required_decision_ids_for_project(project)
     assert required[:3] == list(PMP_CORE_DECISIONS)
     assert len(required) <= SPARSE_BRIEF_DECISION_BAND
-    assert len(required) >= 8
-    assert "flooring-finish" in required
+    assert len(required) >= 6
+    assert "flooring-finish" not in required
+    assert "external-cladding" not in required
 
 
 def test_format_includes_cost_only_when_requested() -> None:

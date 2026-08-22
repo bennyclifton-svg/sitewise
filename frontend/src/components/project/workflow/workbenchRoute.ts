@@ -2,6 +2,7 @@ const WORKBENCH_WORKFLOW_IDS = new Set([
   "project-profile",
   "create-pmp",
   "cost-plan",
+  "program",
   "procurement-requests",
 ]);
 

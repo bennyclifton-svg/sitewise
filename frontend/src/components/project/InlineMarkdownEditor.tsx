@@ -33,6 +33,7 @@ export function InlineMarkdownEditor({
   onCancel: () => void;
   onSave: (markdown: string) => Promise<void>;
 }) {
+  const unmountingRef = useRef(false);
   const hostRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLParagraphElement | null>(null);
   const dirtyRef = useRef(false);
@@ -56,6 +57,13 @@ export function InlineMarkdownEditor({
   }, [isSaving, onCancel, onSave]);
 
   useLayoutEffect(() => {
+    unmountingRef.current = false;
+    return () => {
+      unmountingRef.current = true;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host || editorRef.current) return;
 
@@ -65,7 +73,9 @@ export function InlineMarkdownEditor({
     editor.setAttribute("aria-multiline", "true");
     editor.setAttribute("aria-busy", isSavingRef.current ? "true" : "false");
     editor.tabIndex = 0;
-    editor.contentEditable = isSavingRef.current ? "false" : "true";
+    // Editable throughout a save (plan §7). The blur handler serialises
+    // commits, so an in-flight save must not freeze the caret mid-sentence.
+    editor.setAttribute("contenteditable", "true");
     editor.spellcheck = true;
     editor.dataset.instructionUi = "";
     editor.dataset.mdStart = String(initialEditor.sourceStart);
@@ -86,6 +96,7 @@ export function InlineMarkdownEditor({
       }
     };
     const onBlur = (event: FocusEvent) => {
+      if (unmountingRef.current || !editor.isConnected) return;
       const next = event.relatedTarget;
       if (next instanceof Node && editor.contains(next)) return;
       if (!dirtyRef.current) {
@@ -93,7 +104,10 @@ export function InlineMarkdownEditor({
         return;
       }
       void (async () => {
-        if (!dirtyRef.current || isSavingRef.current || savingRef.current) return;
+        // Only `savingRef` may short-circuit: it means *this* editor is
+        // already committing. Bailing out on the parent's `isSaving` here
+        // dropped the user's text with no error (plan §8).
+        if (!dirtyRef.current || savingRef.current) return;
         savingRef.current = true;
         try {
           await onSaveRef.current(serializeInlineMarkdown(editor));
@@ -134,7 +148,6 @@ export function InlineMarkdownEditor({
   useLayoutEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    editor.contentEditable = isSaving ? "false" : "true";
     editor.setAttribute("aria-busy", isSaving ? "true" : "false");
   }, [isSaving]);
 

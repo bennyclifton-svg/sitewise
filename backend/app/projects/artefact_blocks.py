@@ -46,6 +46,13 @@ _VISIBLE_END_MARKER_RE = re.compile(
 _LIST_RE = re.compile(r"^(?P<indent>\s*)(?:[-*+]|\d+[.)])\s+\S")
 _TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?(?:\s*:?-{3,}:?\s*\|)+\s*$")
 
+# A client stamps one id per logical edit and reuses it on every retry. The
+# apply route keeps the resulting delta here so a replay returns the original
+# answer instead of applying the operation a second time. Bounded because a
+# revision inherits its base revision's provenance.
+BLOCK_OPERATION_RECEIPTS_KEY = "block_operation_receipts"
+BLOCK_OPERATION_RECEIPT_LIMIT = 20
+
 
 class ArtefactBlockTarget(BaseModel):
     id: str | None = Field(default=None, pattern=r"^blk_[a-f0-9]{32}$")
@@ -456,6 +463,44 @@ def apply_block_operations(
             changed.append(target.id)
 
     return BlockMutationResult(current, metadata, tuple(dict.fromkeys(changed)))
+
+
+def find_block_operation_receipt(
+    provenance: dict[str, Any] | None, client_operation_id: str
+) -> dict[str, Any] | None:
+    """Return the delta an earlier apply recorded for this operation id."""
+    for receipt in _block_operation_receipts(provenance):
+        if receipt.get("client_operation_id") != client_operation_id:
+            continue
+        delta = receipt.get("delta")
+        return delta if isinstance(delta, dict) else None
+    return None
+
+
+def record_block_operation_receipt(
+    provenance: dict[str, Any] | None,
+    *,
+    client_operation_id: str,
+    delta: dict[str, Any],
+    limit: int = BLOCK_OPERATION_RECEIPT_LIMIT,
+) -> list[dict[str, Any]]:
+    """Append to the bounded receipt ring, newest last, oldest evicted."""
+    ring = [
+        receipt
+        for receipt in _block_operation_receipts(provenance)
+        if receipt.get("client_operation_id") != client_operation_id
+    ]
+    ring.append({"client_operation_id": client_operation_id, "delta": delta})
+    return ring[-limit:]
+
+
+def _block_operation_receipts(
+    provenance: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+    ring = (provenance or {}).get(BLOCK_OPERATION_RECEIPTS_KEY)
+    if not isinstance(ring, list):
+        return []
+    return [receipt for receipt in ring if isinstance(receipt, dict)]
 
 
 def materialize_block_identity(

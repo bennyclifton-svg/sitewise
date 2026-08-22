@@ -451,6 +451,64 @@ export function isLinked(activity: ProgrammeActivity): boolean {
   return Boolean(activity.predecessor_key);
 }
 
+export type ProgrammeLink = {
+  key: string;
+  fromOffset: number;
+  toOffset: number;
+  fromIndex: number;
+  toIndex: number;
+};
+
+export function programmeActivitySpan(
+  spanStart: string,
+  activity: ProgrammeActivity,
+): { start: number; end: number } {
+  const start = daysBetween(spanStart, activity.start_date);
+  const duration = Math.max(
+    activity.duration_days,
+    activity.kind === "milestone" ? 0 : 1,
+  );
+  return { start, end: start + duration };
+}
+
+export function programmeLinks(
+  activities: ProgrammeActivity[],
+  spanStart: string,
+): ProgrammeLink[] {
+  const links: ProgrammeLink[] = [];
+  activities.forEach((activity, toIndex) => {
+    if (!activity.predecessor_key) return;
+    const fromIndex = activities.findIndex(
+      (item) => item.activity_key === activity.predecessor_key,
+    );
+    const predecessor = activities[fromIndex];
+    if (!predecessor) return;
+    const from = programmeActivitySpan(spanStart, predecessor);
+    const to = programmeActivitySpan(spanStart, activity);
+    links.push({
+      key: `${predecessor.activity_key}->${activity.activity_key}`,
+      fromOffset: from.end,
+      toOffset: to.start,
+      fromIndex,
+      toIndex,
+    });
+  });
+  return links;
+}
+
+export function ganttLinkPath(
+  link: ProgrammeLink,
+  rowHeight: number,
+  linkY: number,
+  xScale: number,
+): string {
+  const x1 = link.fromOffset * xScale;
+  const x2 = link.toOffset * xScale;
+  const y1 = link.fromIndex * rowHeight + linkY;
+  const y2 = link.toIndex * rowHeight + linkY;
+  return `M ${x1} ${y1} L ${x2} ${y2}`;
+}
+
 export function addDays(iso: string, days: number): string {
   const date = parseIsoDate(iso);
   date.setUTCDate(date.getUTCDate() + days);
@@ -486,7 +544,32 @@ export type ProgrammeAxisBand = {
   start: string;
   days: number;
   label: string;
+  title?: string;
 };
+
+export type ProgrammeHeaderLayers = {
+  major: ProgrammeAxisBand[];
+  minor: ProgrammeAxisBand[];
+};
+
+const HEADER_CHAR_PX = 6;
+const HEADER_PAD_PX = 2;
+const MONTH_LETTERS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"] as const;
+const MONTH_ABBREV2 = ["Ja", "Fe", "Mr", "Ap", "My", "Jn", "Jl", "Au", "Se", "Oc", "No", "De"] as const;
+const MONTH_ABBREV3 = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
 
 export function startOfMonth(iso: string): string {
   const date = parseIsoDate(iso);
@@ -506,6 +589,11 @@ export function startOfQuarter(iso: string): string {
   return toIsoDate(new Date(Date.UTC(date.getUTCFullYear(), month, 1)));
 }
 
+export function startOfYear(iso: string): string {
+  const date = parseIsoDate(iso);
+  return toIsoDate(new Date(Date.UTC(date.getUTCFullYear(), 0, 1)));
+}
+
 export function formatMonthYear(iso: string): string {
   return MONTH_YEAR.format(parseIsoDate(iso));
 }
@@ -517,6 +605,31 @@ export function formatDayMonth(iso: string): string {
 export function formatQuarterLabel(iso: string): string {
   const date = parseIsoDate(iso);
   return `Q${Math.floor(date.getUTCMonth() / 3) + 1} ${date.getUTCFullYear()}`;
+}
+
+export function formatYear(iso: string): string {
+  return String(parseIsoDate(iso).getUTCFullYear());
+}
+
+function formatYearShort(iso: string): string {
+  return `'${String(parseIsoDate(iso).getUTCFullYear()).slice(2)}`;
+}
+
+export function formatMonthLetter(iso: string): string {
+  return MONTH_LETTERS[parseIsoDate(iso).getUTCMonth()];
+}
+
+export function formatWeekOfMonth(iso: string): string {
+  return String(Math.floor((parseIsoDate(iso).getUTCDate() - 1) / 7) + 1);
+}
+
+export function formatCompactDate(iso: string): string {
+  const date = parseIsoDate(iso);
+  return `${date.getUTCDate()} ${MONTH_ABBREV3[date.getUTCMonth()]} ${String(date.getUTCFullYear()).slice(2)}`;
+}
+
+function headerLabelFits(text: string, widthPx: number): boolean {
+  return text.length * HEADER_CHAR_PX + HEADER_PAD_PX <= widthPx;
 }
 
 export function programmeScaleBands(
@@ -546,6 +659,226 @@ export function programmeWeekTicks(start: string, end: string): ProgrammeAxisBan
     cursor = tickEnd;
   }
   return ticks;
+}
+
+export function programmeHeaderLayers(
+  start: string,
+  end: string,
+  scale: ProgrammeScale,
+  pxPerDay: number,
+): ProgrammeHeaderLayers {
+  if (end <= start) return { major: [], minor: [] };
+  if (scale === "week") return weekHeaderLayers(start, end, pxPerDay);
+  if (scale === "quarter") return quarterHeaderLayers(start, end, pxPerDay);
+  return monthHeaderLayers(start, end, pxPerDay);
+}
+
+function weekHeaderLayers(
+  start: string,
+  end: string,
+  pxPerDay: number,
+): ProgrammeHeaderLayers {
+  const months = collectBands(
+    start,
+    end,
+    startOfMonth,
+    (cursor) => addMonths(startOfMonth(cursor), 1),
+    formatMonthYear,
+  );
+  const avgMonthPx =
+    months.reduce((sum, band) => sum + band.days * pxPerDay, 0) / Math.max(months.length, 1);
+  const monthMajors = compactMonthMajors(months, pxPerDay);
+  const yearVisible = monthMajors.some((band) => /\d/.test(band.label));
+  const major =
+    avgMonthPx >= 10 && (yearVisible || avgMonthPx >= 20)
+      ? titled(monthMajors, formatMonthYear)
+      : titled(
+          compactBands(quarterBands(start, end), pxPerDay, quarterMajorCandidates),
+          formatQuarterLabel,
+        );
+  const ticks = programmeWeekTicks(start, end).map((tick) => ({
+    ...tick,
+    title: `${formatDayMonth(tick.start)} ${parseIsoDate(tick.start).getUTCFullYear()}`,
+  }));
+  return {
+    major,
+    minor: compactBands(ticks, pxPerDay, weekMinorCandidates),
+  };
+}
+
+function monthHeaderLayers(
+  start: string,
+  end: string,
+  pxPerDay: number,
+): ProgrammeHeaderLayers {
+  return {
+    major: titled(
+      compactBands(yearBands(start, end), pxPerDay, yearCandidates),
+      formatYear,
+    ),
+    minor: titled(
+      compactBands(monthBands(start, end), pxPerDay, monthMinorCandidates),
+      formatMonthYear,
+    ),
+  };
+}
+
+function quarterHeaderLayers(
+  start: string,
+  end: string,
+  pxPerDay: number,
+): ProgrammeHeaderLayers {
+  return {
+    major: titled(
+      compactBands(yearBands(start, end), pxPerDay, yearCandidates),
+      formatYear,
+    ),
+    minor: titled(
+      compactBands(quarterBands(start, end), pxPerDay, quarterMinorCandidates),
+      formatQuarterLabel,
+    ),
+  };
+}
+
+function monthBands(start: string, end: string): ProgrammeAxisBand[] {
+  return collectBands(
+    start,
+    end,
+    startOfMonth,
+    (cursor) => addMonths(startOfMonth(cursor), 1),
+    formatMonthYear,
+  );
+}
+
+function quarterBands(start: string, end: string): ProgrammeAxisBand[] {
+  return collectBands(
+    start,
+    end,
+    startOfQuarter,
+    (cursor) => addMonths(startOfQuarter(cursor), 3),
+    formatQuarterLabel,
+  );
+}
+
+function yearBands(start: string, end: string): ProgrammeAxisBand[] {
+  return collectBands(
+    start,
+    end,
+    startOfYear,
+    (cursor) => addMonths(startOfYear(cursor), 12),
+    formatYear,
+  );
+}
+
+function monthMinorCandidates(band: ProgrammeAxisBand): string[] {
+  const month = parseIsoDate(band.start).getUTCMonth();
+  return [MONTH_ABBREV3[month], MONTH_ABBREV2[month], MONTH_LETTERS[month]];
+}
+
+function quarterMinorCandidates(band: ProgrammeAxisBand): string[] {
+  const quarter = Math.floor(parseIsoDate(band.start).getUTCMonth() / 3) + 1;
+  return [`Q${quarter}`, String(quarter)];
+}
+
+function quarterMajorCandidates(band: ProgrammeAxisBand): string[] {
+  const date = parseIsoDate(band.start);
+  const quarter = Math.floor(date.getUTCMonth() / 3) + 1;
+  const year = date.getUTCFullYear();
+  return [`Q${quarter} ${year}`, `Q${quarter} '${String(year).slice(2)}`, `Q${quarter}`, String(quarter)];
+}
+
+function yearCandidates(band: ProgrammeAxisBand): string[] {
+  return [formatYear(band.start), formatYearShort(band.start)];
+}
+
+function weekMinorCandidates(band: ProgrammeAxisBand): string[] {
+  const day = String(parseIsoDate(band.start).getUTCDate());
+  return [formatDayMonth(band.start), day, formatWeekOfMonth(band.start)];
+}
+
+function monthMajorCandidates(band: ProgrammeAxisBand, includeYear: boolean): string[] {
+  const date = parseIsoDate(band.start);
+  const month = date.getUTCMonth();
+  const year = date.getUTCFullYear();
+  const letter = MONTH_LETTERS[month];
+  const two = MONTH_ABBREV2[month];
+  const three = MONTH_ABBREV3[month];
+  if (!includeYear) return [three, two, letter];
+  return [
+    `${three} ${year}`,
+    `${three} '${String(year).slice(2)}`,
+    `${letter}${String(year).slice(2)}`,
+    three,
+    two,
+    letter,
+  ];
+}
+
+function compactMonthMajors(
+  months: ProgrammeAxisBand[],
+  pxPerDay: number,
+): ProgrammeAxisBand[] {
+  const visible = compactBands(months, pxPerDay, (band) => monthMajorCandidates(band, false));
+  const seenYears = new Set<number>();
+  return visible.map((band) => {
+    const year = parseIsoDate(band.start).getUTCFullYear();
+    if (seenYears.has(year)) return band;
+    const widthPx = band.days * pxPerDay;
+    const withYear = pickFittingLabel(monthMajorCandidates(band, true), widthPx);
+    if (withYear && /\d/.test(withYear)) {
+      seenYears.add(year);
+      return { ...band, label: withYear };
+    }
+    return band;
+  });
+}
+
+function titled(
+  bands: ProgrammeAxisBand[],
+  titleFor: (iso: string) => string,
+): ProgrammeAxisBand[] {
+  return bands.map((band) => ({
+    ...band,
+    title: band.title ?? titleFor(band.start),
+  }));
+}
+
+function pickFittingLabel(candidates: string[], widthPx: number): string | null {
+  return candidates.find((text) => headerLabelFits(text, widthPx)) ?? null;
+}
+
+function labelStride(widthPx: number, minLabelPx: number): number {
+  return Math.max(1, Math.ceil(minLabelPx / Math.max(widthPx, 1)));
+}
+
+function compactBands(
+  bands: ProgrammeAxisBand[],
+  pxPerDay: number,
+  candidatesFor: (band: ProgrammeAxisBand) => string[],
+): ProgrammeAxisBand[] {
+  const resolved = bands.map((band) => {
+    const widthPx = band.days * pxPerDay;
+    return { band, widthPx, label: pickFittingLabel(candidatesFor(band), widthPx) };
+  });
+  const fitted = resolved.filter((item) => item.label);
+  if (fitted.length >= Math.ceil(bands.length / 2) || bands.length <= 2) {
+    return fitted.map((item) => ({ ...item.band, label: item.label! }));
+  }
+  const shortestPx = Math.min(
+    ...bands.map((band) => {
+      const shortest = candidatesFor(band).at(-1) ?? "1";
+      return shortest.length * HEADER_CHAR_PX + HEADER_PAD_PX;
+    }),
+  );
+  const avgWidth =
+    resolved.reduce((sum, item) => sum + item.widthPx, 0) / Math.max(bands.length, 1);
+  const stride = labelStride(avgWidth, shortestPx);
+  return bands.flatMap((band, index) => {
+    if (index % stride !== 0) return [];
+    const widthPx = band.days * pxPerDay * stride;
+    const label = pickFittingLabel(candidatesFor(band), widthPx);
+    return label ? [{ ...band, label }] : [];
+  });
 }
 
 function collectBands(

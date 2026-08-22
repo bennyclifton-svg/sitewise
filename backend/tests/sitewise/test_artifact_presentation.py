@@ -347,6 +347,77 @@ Document control: draft v01.
     assert "Document control: draft v01." in prepared
 
 
+def test_prepare_issue_markdown_normalises_brief_ffe_and_planning_citation_columns() -> None:
+    source = """# Project Management Plan
+
+## Brief
+
+| Item | Position | Basis / source | Owner | Verification action |
+| --- | --- | --- | --- | --- |
+| Tenant racking | Confirmed exclusion | Owner brief [1] | Owner | Lock the exclusion |
+
+## FFE Schedule
+
+| Item | Location | Finish | Comment |
+| --- | --- | --- | --- |
+| Facade cladding | Envelope | Brick veneer [2] | Match adjoining house |
+
+## Planning and Compliance
+
+| Approval / compliance item | Status | Basis | Next action |
+| --- | --- | --- | --- |
+| NCC pathway | Assumption | Seed doctrine [3] | Confirm DtS with certifier |
+"""
+
+    prepared = prepare_issue_markdown(source)
+
+    assert "| Item | Position | Owner | Verification action |  |" in prepared
+    assert "Basis / source" not in prepared
+    assert "| Tenant racking | Confirmed exclusion | Owner | Lock the exclusion | [1] |" in prepared
+    assert "| Item | Location | Finish | Comment |  |" in prepared
+    assert "| Facade cladding | Envelope | Brick veneer | Match adjoining house | [2] |" in prepared
+    assert "| Approval / compliance item | Status | Basis | Next action |  |" in prepared
+    assert "| NCC pathway | Assumption | Seed doctrine | State DtS with certifier | [3] |" in prepared
+
+
+def test_prepare_issue_markdown_normalises_programme_risks_and_actions_citation_columns() -> None:
+    source = """# Project Management Plan
+
+## Programme
+
+| Sub-milestone | Control requirement |
+| --- | --- |
+| DA submission | Lodgement package issued [4] |
+
+## Risks and mitigations
+
+| Risk | Owner | Mitigation / escalation |
+| --- | --- | --- |
+| Planning pathway changes scope | Owner / planner | Verify controls before scheme lock [5] |
+
+## Actions and decisions
+
+| Item | Owner | Status | Due basis | Next action |
+| --- | --- | --- | --- | --- |
+| Consultant appointments | Owner | Open | Before concept lock | Appoint design lead [6] |
+"""
+
+    prepared = prepare_issue_markdown(source)
+
+    assert "| Sub-milestone | Control requirement |  |" in prepared
+    assert "| DA submission | Lodgement package issued | [4] |" in prepared
+    assert "| Risk | Owner | Mitigation / escalation |  |" in prepared
+    assert (
+        "| Planning pathway changes scope | Owner / planner | "
+        "Verify controls before scheme lock | [5] |"
+    ) in prepared
+    assert "| Item | Owner | Status | Due basis | Next action |  |" in prepared
+    assert (
+        "| Consultant appointments | Owner | Open | Before concept lock | "
+        "Appoint design lead | [6] |"
+    ) in prepared
+
+
 def test_prepare_issue_markdown_blanks_consultants_fee_not_evidenced() -> None:
     source = """# Project Management Plan
 

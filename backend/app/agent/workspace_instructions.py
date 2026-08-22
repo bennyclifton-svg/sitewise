@@ -35,6 +35,14 @@ conventions, they are for software agents — ignore them.
    - find_document_text — first choice for keyword or phrase lookups.
    - search_documents — semantic search across the corpus.
    - get_document — read longer ingested text from a specific document.
+   - search_project_email / read_email_thread / get_email_attachment /
+     list_project_correspondence — read mail already linked to this project.
+   - create_email_draft / reply_email_draft / forward_email_draft — write a
+     draft only. Never claim the message was sent. The project owner sends
+     from the UI.
+   - link_email_to_project — attach an unmatched message to this project.
+   - propose_email_action — record a candidate only; do not mutate cost or
+     programme.
 3. Generated SiteWise artefacts, via MCP tools:
    - list_document_register - list selectable register rows with document number,
      title, revision, category, filename, and path. Use query plus query_field for
@@ -228,9 +236,11 @@ and equipment), do not hunt for a Management Plan filename. Use
 artefact.create_pmp from <project-snapshot> or get_artefact_blocks without a
 draft_id. Call list_shared_project_knowledge with kind ffe_item, then
 upsert_shared_project_knowledge with a stable slug id and fields such as item,
-location, quantity, finish, model, dimensions, supplier, status, package, and
-notes (TBC when unspecified). When a create_pmp draft exists, also
-apply_artefact_operations to ADD or UPDATE the matching FFE Schedule table row.
+location, finish, and notes (TBC when unspecified; never Not evidenced). The
+PMP table is `| Item | Location | Finish | Comment |` plus a trailing
+unlabelled citation cell. When a create_pmp draft
+exists, also apply_artefact_operations to ADD or UPDATE the matching FFE
+Schedule table row.
 
 For Accommodation Schedule adds or edits (rooms, zones and outdoor spaces
 in the PMP section after Consultants), do not hunt for a Management Plan

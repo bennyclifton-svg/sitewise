@@ -5,6 +5,7 @@ import {
   isTransmittalHeading,
   matchTransmittalEvidenceIds,
   parseTransmittalRows,
+  replaceTransmittalSection,
 } from "@/lib/transmittal-register";
 import type { EvidencePreview } from "@/lib/types/project";
 
@@ -83,5 +84,46 @@ describe("transmittal-register", () => {
     ]);
 
     expect(ids).toEqual(["ev-a", "ev-e"]);
+  });
+
+  it("replaces the transmittal table from a curated evidence selection", () => {
+    const updated = replaceTransmittalSection(
+      [
+        "# Request for Proposal",
+        "",
+        "## Transmittal (1 document)",
+        "",
+        "| Document number | Title | Rev | Category |",
+        "| --- | --- | --- | --- |",
+        "| — | owners-project-brief | Current | Project |",
+        "",
+        "## Citation key",
+      ].join("\n"),
+      [
+        evidence({
+          id: "ev-a",
+          title: "General arrangement",
+          document_number: "A001",
+          revision: "C",
+          category: "Architectural",
+        }),
+        evidence({
+          id: "ev-e",
+          title: "Electrical layout",
+          filename: "E001.pdf",
+          document_number: "E001",
+          revision: "B",
+          category: "Electrical",
+        }),
+      ],
+    );
+
+    expect(updated).toContain("## Transmittal (2 documents)");
+    expect(updated).toContain("| A001 | General arrangement | C | Architectural |");
+    expect(updated).toContain("| E001 | Electrical layout | B | Electrical |");
+    expect(updated).not.toContain("owners-project-brief");
+    expect(updated.indexOf("## Transmittal")).toBeLessThan(
+      updated.indexOf("## Citation key"),
+    );
   });
 });

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from typing import TypedDict
+from typing import TypedDict
 
 from app.projects.artefact_blocks import detach_block_marker, strip_block_markers
 from app.sitewise.taxonomy import DESIGN_LEAD_UNCONFIRMED_LABEL
@@ -89,13 +91,49 @@ _PROPOSAL_ADDRESSEE_RE = re.compile(
 _SUMMARY_IDENTITY_ORDER = ("project", "address", "owner", "description")
 
 
+def _split_row_cells(visible: str) -> list[str]:
+    """Split a GFM row on unescaped pipes.
+
+    ``\\|`` is a pipe inside a cell, not a column boundary, and ``\\\\`` is a
+    literal backslash. A plain ``split("|")`` turns a three-column row into
+    four and silently corrupts the table, so walk the characters instead.
+    Inverse of :func:`_escape_cell_text`.
+    """
+    cells: list[str] = []
+    current: list[str] = []
+    index = 0
+    while index < len(visible):
+        char = visible[index]
+        if char == "\\" and index + 1 < len(visible) and visible[index + 1] in "|\\":
+            current.append(visible[index + 1])
+            index += 2
+            continue
+        if char == "|":
+            cells.append("".join(current))
+            current = []
+            index += 1
+            continue
+        current.append(char)
+        index += 1
+    cells.append("".join(current))
+    return cells
+
+
+def _escape_cell_text(cell: str) -> str:
+    """Escape a cell so it survives as one column. Inverse of :func:`_split_row_cells`."""
+    return cell.replace("\\", "\\\\").replace("|", "\\|")
+
+
 def _split_table_row(line: str) -> tuple[list[str], str | None]:
     visible, marker = detach_block_marker(line)
-    return [cell.strip() for cell in visible.strip().strip("|").split("|")], marker
+    raw = [cell.strip() for cell in _split_row_cells(visible.strip())]
+    if len(raw) >= 2 and raw[0] == "" and raw[-1] == "":
+        return raw[1:-1], marker
+    return [cell for index, cell in enumerate(raw) if not (index == 0 and cell == "")], marker
 
 
 def _join_table_row(cells: list[str], marker: str | None = None) -> str:
-    row = "| " + " | ".join(cells) + " |"
+    row = "| " + " | ".join(_escape_cell_text(cell) for cell in cells) + " |"
     return f"{row}{marker or ''}"
 
 
@@ -246,6 +284,8 @@ def issue_export_markdown(
             )
         elif normalized_heading == "citation key":
             section = _clean_citation_key_section(section)
+        else:
+            section = _normalise_register_citation_columns(section)
         kept.append(section)
     return "\n\n".join(section.strip() for section in kept if section.strip()).rstrip() + "\n"
 
@@ -391,7 +431,484 @@ def _clean_primary_section(
         cleaned_section = _rebuild_summary_table_without_column_header(cleaned_section)
     cleaned_section = _drop_consultants_scope_column(cleaned_section)
     cleaned_section = _blank_consultants_fee_not_evidenced(cleaned_section)
+    cleaned_section = _normalise_register_citation_columns(cleaned_section)
     return cleaned_section, internal, unresolved
+
+
+_CITATION_TOKEN_RE = re.compile(r"\[(\d+)\]")
+
+
+def _extract_citation_tokens(text: str) -> str:
+    seen: set[str] = set()
+    tokens: list[str] = []
+    for match in _CITATION_TOKEN_RE.finditer(text):
+        token = f"[{match.group(1)}]"
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return " ".join(tokens)
+
+
+def _strip_citation_tokens(text: str) -> str:
+    return re.sub(r"\s+", " ", _CITATION_TOKEN_RE.sub(" ", text)).strip()
+
+
+def _citation_column_index(labels: list[str]) -> int | None:
+    for index, label in enumerate(labels):
+        if label in {"citation", "ref"}:
+            return index
+    if labels and labels[-1] == "":
+        return len(labels) - 1
+    return None
+
+
+class _RegisterCitationLayout(TypedDict):
+    drop: list[int]
+    citation_index: int | None
+    append: bool
+
+
+def _brief_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" not in labels or "position" not in labels:
+        return None
+    if "location" in labels and "finish" in labels:
+        return None
+    drop: list[int] = []
+    basis_index = next(
+        (
+            index
+            for index, label in enumerate(labels)
+            if label in {"basis / source", "basis/source", "source"}
+        ),
+        None,
+    )
+    has_owner = "owner" in labels
+    has_action = any("verification" in label or label == "next action" for label in labels)
+    if basis_index is not None and has_owner and has_action and len(labels) >= 5:
+        drop.append(basis_index)
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": drop,
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _ffe_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" not in labels or "finish" not in labels or "location" not in labels:
+        return None
+    drop = [
+        index
+        for index, label in enumerate(labels)
+        if label in {"qty", "quantity", "status"}
+    ]
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": drop,
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _planning_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "discipline" in labels and "firm" in labels:
+        return None
+    if "item" in labels and "position" in labels:
+        return None
+    if "item" in labels and "location" in labels and "finish" in labels:
+        return None
+    looks_named = (
+        any(
+            token in " ".join(labels)
+            for token in ("compliance", "approval", "authority")
+        )
+        and "status" in labels
+    )
+    looks_due_diligence = (
+        "item" in labels
+        and "status" in labels
+        and any("next" in label or "verification" in label for label in labels)
+    )
+    if not (looks_named or looks_due_diligence):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _programme_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if not any("milestone" in label for label in labels):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _risks_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "risk" not in labels:
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _actions_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" in labels and "position" in labels:
+        return None
+    if "item" in labels and "location" in labels and "finish" in labels:
+        return None
+    if "item" not in labels:
+        return None
+    has_owner_or_status = "owner" in labels or "status" in labels
+    has_action = any(
+        "next" in label or label in {"due", "due basis"} for label in labels
+    )
+    if not (has_owner_or_status and has_action):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _register_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    return (
+        _brief_citation_layout(labels)
+        or _ffe_citation_layout(labels)
+        or _planning_citation_layout(labels)
+        or _programme_citation_layout(labels)
+        or _risks_citation_layout(labels)
+        or _actions_citation_layout(labels)
+    )
+
+
+def _apply_register_citation_layout(
+    cells: list[str],
+    layout: _RegisterCitationLayout,
+    *,
+    is_header: bool,
+    is_separator: bool,
+) -> list[str]:
+    drop = set(layout["drop"])
+    citation_index = layout["citation_index"]
+    harvested = "" if is_header or is_separator else _extract_citation_tokens(" ".join(cells))
+    remaining = [cell for index, cell in enumerate(cells) if index not in drop]
+    remaining_indexes = [index for index, _ in enumerate(cells) if index not in drop]
+    out: list[str] = []
+    for display_index, cell in enumerate(remaining):
+        source_index = remaining_indexes[display_index]
+        if is_separator:
+            out.append(cell)
+            continue
+        if source_index == citation_index:
+            out.append("" if is_header else harvested)
+            continue
+        if is_header:
+            label = cell.casefold()
+            out.append("Comment" if label == "notes" else cell)
+            continue
+        out.append(_strip_citation_tokens(cell))
+    if layout["append"]:
+        if is_separator:
+            out.append("---")
+        elif is_header:
+            out.append("")
+        else:
+            out.append(harvested)
+    return out
+
+
+def _normalise_register_citation_columns(section: str) -> str:
+    """Give Brief, FFE, planning, programme, risks, and actions tables a trailing citation column.
+
+    Drops the Brief exclusions `Basis / source` column and lifts inline `[n]`
+    markers into the citation cell so registers match Project Summary / Consultants.
+    """
+
+    lines = section.splitlines()
+    out: list[str] = []
+    layout: _RegisterCitationLayout | None = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            layout = None
+            out.append(line)
+            continue
+        cells, marker = _split_table_row(stripped)
+        labels = [cell.casefold() for cell in cells]
+        if cells and cells[0] and set(cells[0]) != {"-"}:
+            detected = _register_citation_layout(labels)
+            if detected is not None:
+                layout = detected
+                cells = _apply_register_citation_layout(
+                    cells, layout, is_header=True, is_separator=False
+                )
+                out.append(_join_table_row(cells, marker))
+                continue
+        if layout is None:
+            out.append(line)
+            continue
+        if cells and set(cells[0]) == {"-"}:
+            cells = _apply_register_citation_layout(
+                cells, layout, is_header=False, is_separator=True
+            )
+            out.append(_join_table_row(cells, marker))
+            continue
+        cells = _apply_register_citation_layout(
+            cells, layout, is_header=False, is_separator=False
+        )
+        out.append(_join_table_row(cells, marker))
+    return "\n".join(out)
+
+
+_CITATION_TOKEN_RE = re.compile(r"\[(\d+)\]")
+
+
+def _extract_citation_tokens(text: str) -> str:
+    seen: set[str] = set()
+    tokens: list[str] = []
+    for match in _CITATION_TOKEN_RE.finditer(text):
+        token = f"[{match.group(1)}]"
+        if token in seen:
+            continue
+        seen.add(token)
+        tokens.append(token)
+    return " ".join(tokens)
+
+
+def _strip_citation_tokens(text: str) -> str:
+    return re.sub(r"\s+", " ", _CITATION_TOKEN_RE.sub(" ", text)).strip()
+
+
+def _citation_column_index(labels: list[str]) -> int | None:
+    for index, label in enumerate(labels):
+        if label in {"citation", "ref"}:
+            return index
+    if labels and labels[-1] == "":
+        return len(labels) - 1
+    return None
+
+
+class _RegisterCitationLayout(TypedDict):
+    drop: list[int]
+    citation_index: int | None
+    append: bool
+
+
+def _brief_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" not in labels or "position" not in labels:
+        return None
+    if "location" in labels and "finish" in labels:
+        return None
+    drop: list[int] = []
+    basis_index = next(
+        (
+            index
+            for index, label in enumerate(labels)
+            if label in {"basis / source", "basis/source", "source"}
+        ),
+        None,
+    )
+    has_owner = "owner" in labels
+    has_action = any("verification" in label or label == "next action" for label in labels)
+    if basis_index is not None and has_owner and has_action and len(labels) >= 5:
+        drop.append(basis_index)
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": drop,
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _ffe_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" not in labels or "finish" not in labels or "location" not in labels:
+        return None
+    drop = [
+        index
+        for index, label in enumerate(labels)
+        if label in {"qty", "quantity", "status"}
+    ]
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": drop,
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _planning_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "discipline" in labels and "firm" in labels:
+        return None
+    if "item" in labels and "position" in labels:
+        return None
+    if "item" in labels and "location" in labels and "finish" in labels:
+        return None
+    looks_named = (
+        any(
+            token in " ".join(labels)
+            for token in ("compliance", "approval", "authority")
+        )
+        and "status" in labels
+    )
+    looks_due_diligence = (
+        "item" in labels
+        and "status" in labels
+        and any("next" in label or "verification" in label for label in labels)
+    )
+    if not (looks_named or looks_due_diligence):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _programme_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if not any("milestone" in label for label in labels):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _risks_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "risk" not in labels:
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _actions_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    if "item" in labels and "position" in labels:
+        return None
+    if "item" in labels and "location" in labels and "finish" in labels:
+        return None
+    if "item" not in labels:
+        return None
+    has_owner_or_status = "owner" in labels or "status" in labels
+    has_action = any(
+        "next" in label or label in {"due", "due basis"} for label in labels
+    )
+    if not (has_owner_or_status and has_action):
+        return None
+    citation_index = _citation_column_index(labels)
+    return {
+        "drop": [],
+        "citation_index": citation_index,
+        "append": citation_index is None,
+    }
+
+
+def _register_citation_layout(labels: list[str]) -> _RegisterCitationLayout | None:
+    return (
+        _brief_citation_layout(labels)
+        or _ffe_citation_layout(labels)
+        or _planning_citation_layout(labels)
+        or _programme_citation_layout(labels)
+        or _risks_citation_layout(labels)
+        or _actions_citation_layout(labels)
+    )
+
+
+def _apply_register_citation_layout(
+    cells: list[str],
+    layout: _RegisterCitationLayout,
+    *,
+    is_header: bool,
+    is_separator: bool,
+) -> list[str]:
+    drop = set(layout["drop"])
+    citation_index = layout["citation_index"]
+    harvested = "" if is_header or is_separator else _extract_citation_tokens(" ".join(cells))
+    remaining = [cell for index, cell in enumerate(cells) if index not in drop]
+    remaining_indexes = [index for index, _ in enumerate(cells) if index not in drop]
+    out: list[str] = []
+    for display_index, cell in enumerate(remaining):
+        source_index = remaining_indexes[display_index]
+        if is_separator:
+            out.append(cell)
+            continue
+        if source_index == citation_index:
+            out.append("" if is_header else harvested)
+            continue
+        if is_header:
+            label = cell.casefold()
+            out.append("Comment" if label == "notes" else cell)
+            continue
+        out.append(_strip_citation_tokens(cell))
+    if layout["append"]:
+        if is_separator:
+            out.append("---")
+        elif is_header:
+            out.append("")
+        else:
+            out.append(harvested)
+    return out
+
+
+def _normalise_register_citation_columns(section: str) -> str:
+    """Give Brief, FFE, planning, programme, risks, and actions tables a trailing citation column.
+
+    Drops the Brief exclusions `Basis / source` column and lifts inline `[n]`
+    markers into the citation cell so registers match Project Summary / Consultants.
+    """
+
+    lines = section.splitlines()
+    out: list[str] = []
+    layout: _RegisterCitationLayout | None = None
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            layout = None
+            out.append(line)
+            continue
+        cells, marker = _split_table_row(stripped)
+        labels = [cell.casefold() for cell in cells]
+        if cells and cells[0] and set(cells[0]) != {"-"}:
+            detected = _register_citation_layout(labels)
+            if detected is not None:
+                layout = detected
+                cells = _apply_register_citation_layout(
+                    cells, layout, is_header=True, is_separator=False
+                )
+                out.append(_join_table_row(cells, marker))
+                continue
+        if layout is None:
+            out.append(line)
+            continue
+        if cells and set(cells[0]) == {"-"}:
+            cells = _apply_register_citation_layout(
+                cells, layout, is_header=False, is_separator=True
+            )
+            out.append(_join_table_row(cells, marker))
+            continue
+        cells = _apply_register_citation_layout(
+            cells, layout, is_header=False, is_separator=False
+        )
+        out.append(_join_table_row(cells, marker))
+    return "\n".join(out)
 
 
 def _drop_consultants_scope_column(section: str) -> str:

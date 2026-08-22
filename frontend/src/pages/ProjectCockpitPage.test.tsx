@@ -28,15 +28,22 @@ const mocks = vi.hoisted(() => ({
     getWorkflowResult: vi.fn(),
     cancelWorkflowRun: vi.fn(),
     createProcurementRequest: vi.fn(),
+    getCostPlanState: vi.fn(),
+    getInvoiceLedger: vi.fn(),
+    listDecisions: vi.fn(),
+    ensureProgramme: vi.fn(),
+    listProcurementRequests: vi.fn(),
     getProjectPulse: vi.fn(),
     dismissProjectPulse: vi.fn(),
     replyProjectEmailDraft: vi.fn(),
+    sendProjectEmailDraft: vi.fn(),
     getProjectEmailThread: vi.fn(),
   },
   reloadProjectWorkspaceTree: vi.fn(),
   seedProjectData: vi.fn(),
   setProjectDetail: vi.fn(),
   waitForWorkflowRun: vi.fn(),
+  workflowSelections: [] as string[],
 }));
 
 vi.mock("@/lib/api", () => ({
@@ -153,6 +160,7 @@ vi.mock("@/components/project/ProjectLeftNav", () => ({
 
 vi.mock("@/components/project/ProjectControlBoard", () => ({
   ProjectControlBoard: ({
+    selectedWorkflowId,
     onRunCreateCostPlan,
     onRunRefreshCostPlan,
     onRunProcessInvoices,
@@ -161,6 +169,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     onSelectWorkflow,
     onDraftSelected,
   }: {
+    selectedWorkflowId?: string;
     onRunCreateCostPlan: () => void;
     onRunRefreshCostPlan?: () => void;
     onRunProcessInvoices?: () => void;
@@ -168,8 +177,13 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     onRunProcurement?: (kind: string, targetName: string) => void;
     onSelectWorkflow?: (workflowId: string) => void;
     onDraftSelected?: (draft: DraftArtifactSummary) => void;
-  }) => (
+  }) => {
+    if (selectedWorkflowId) mocks.workflowSelections.push(selectedWorkflowId);
+    return (
     <div>
+      {selectedWorkflowId ? (
+        <div data-testid="selected-workflow">{selectedWorkflowId}</div>
+      ) : null}
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
@@ -177,6 +191,9 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
         <>
           <button type="button" onClick={() => onSelectWorkflow("cost-plan")}>
             Open Cost Plan panel
+          </button>
+          <button type="button" onClick={() => onSelectWorkflow("create-pmp")}>
+            Open Project Plan panel
           </button>
           <button
             type="button"
@@ -220,12 +237,14 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
         </button>
       ) : null}
     </div>
-  ),
+    );
+  },
 }));
 
 describe("ProjectCockpitPage cost plan workflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.workflowSelections.length = 0;
     mocks.api.getProjectCockpitBootstrap.mockResolvedValue({
       project,
       projects: [project],
@@ -286,6 +305,36 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       cancel_requested: true,
     });
     mocks.api.createProcurementRequest.mockResolvedValue({ id: "request-1" });
+    mocks.api.getCostPlanState.mockResolvedValue({
+      version: 1,
+      items: [],
+      totals: {
+        budget: "0.00",
+        committed: "0.00",
+        forecast: "0.00",
+        paid: "0.00",
+        variance: "0.00",
+        total_excluding_gst: "0.00",
+        total_including_gst: "0.00",
+      },
+    });
+    mocks.api.getInvoiceLedger.mockResolvedValue({
+      cost_plan_version: 1,
+      workbook_path: "cost-plan.xlsx",
+      rows: [],
+      cost_items: [],
+    });
+    mocks.api.listDecisions.mockResolvedValue({ decisions: [], set_revision: 0 });
+    mocks.api.ensureProgramme.mockResolvedValue({
+      id: "prog-1",
+      project_id: project.id,
+      version: 1,
+      status: "proposed",
+      view_scale: "month",
+      pmp_embed_visible: true,
+      activities: [],
+    });
+    mocks.api.listProcurementRequests.mockResolvedValue([]);
     mocks.waitForWorkflowRun.mockImplementation(
       async (_client, _projectId, run) => ({ ...run, state: "complete" }),
     );
@@ -429,6 +478,36 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       "Create cost plan",
     );
     expect(mocks.api.startWorkflowRun).not.toHaveBeenCalled();
+  });
+
+  it("does not revert the workbench tile while the URL catches up", async () => {
+    const user = userEvent.setup();
+    renderProjectCockpit({
+      initialEntry: "/projects/project-1?workflow=create-pmp",
+    });
+
+    expect(await screen.findByTestId("selected-workflow")).toHaveTextContent(
+      "create-pmp",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Open Cost Plan panel" }));
+    expect(await screen.findByTestId("selected-workflow")).toHaveTextContent(
+      "cost-plan",
+    );
+    const afterCostPlanClick = mocks.workflowSelections.slice(
+      mocks.workflowSelections.indexOf("cost-plan"),
+    );
+    expect(afterCostPlanClick.every((id) => id === "cost-plan")).toBe(true);
+
+    mocks.workflowSelections.length = 0;
+    await user.click(screen.getByRole("button", { name: "Open Project Plan panel" }));
+    expect(await screen.findByTestId("selected-workflow")).toHaveTextContent(
+      "create-pmp",
+    );
+    const afterProjectPlanClick = mocks.workflowSelections.slice(
+      mocks.workflowSelections.indexOf("create-pmp"),
+    );
+    expect(afterProjectPlanClick.every((id) => id === "create-pmp")).toBe(true);
   });
 
   it("keeps chat mounted when a post-turn message refresh times out", async () => {

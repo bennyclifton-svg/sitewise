@@ -7,9 +7,9 @@
     <meta name="theme-color" content="#060608" />
     <meta
       name="description"
-      content="SiteWise reads the title searches, surveys, planning advice, geotech reports and cost plans a project arrives in, works out what each document is, and pulls the facts that matter into one project you can read. You do the judgement."
+      content="SiteWise connects project evidence, tender comparisons, live project controls and correspondence while keeping every decision with the project team."
     />
-    <title>SiteWise — you do the judgement, SiteWise does the assembly</title>
+    <title>SiteWise — the evidence stays attached</title>
     <link rel="icon" type="image/svg+xml" href="/style-guide/logo/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -19,419 +19,311 @@
     />
     <link rel="stylesheet" href="/style-guide/tokens.css" />
     <link rel="stylesheet" href="/style-guide/satoshi-font.css" />
-    <link rel="stylesheet" href="/style-guide/light.css" />
-    <link rel="stylesheet" href="/style-guide/motion.css" />
-    <link rel="stylesheet" href="/landing-assets/landing-story.css" />
+    <link rel="stylesheet" href="/landing-assets/landing-story.css?v=20260821" />
   </head>
   <body>
-    <!--
-      THESIS: A project arrives as a pile of unrelated evidence. SiteWise reads all of it,
-              works out what each document is, keeps the lines that carry the project, and
-              lets those lines meet each other — so the constraint surfaces early.
-      OWN-WORLD: Near-black graphite ground, bone type, one blue reading pulse. Amber appears
-              exactly once, on the constraint, and nowhere else on the page.
-      STORY:  Hero — the evidence field is read. Then: it knows what each file is; it keeps
-              the line that matters; the facts meet each other and a constraint surfaces;
-              you get a document, not an answer.
-      MOTION: One authored moment — the pulse crossing the evidence field, once, on load.
-    -->
+    <!-- Seven Hills is a synthetic demonstration project. These UI states
+         show reviewed product behaviour, not an autonomous approval flow. -->
     <a class="lp-skip" href="#main">Skip to content</a>
 
-    <div class="sw-light-sun" aria-hidden="true"></div>
-    <div class="sw-light-key" aria-hidden="true"></div>
-    <div class="sw-light-vignette" aria-hidden="true"></div>
-    <div class="sw-grain" aria-hidden="true"></div>
-    <div class="sw-progress" aria-hidden="true"></div>
-
-    <header class="lp-nav">
-      <a class="lp-brand" href="/landing.html" aria-label="SiteWise home">
-        <img src="/style-guide/logo/mark.svg" alt="" width="30" height="30" />
-        <span>SiteWise</span>
-      </a>
-      <nav class="lp-nav__links" aria-label="Landing page">
-        <a href="#reads">How it reads</a>
-        <a href="#constraint">What it catches</a>
-        <a href="#builds">What it makes</a>
-      </nav>
-      <a class="lp-nav__cta sw-transition" href="/login">Sign in</a>
+    <header class="lp-header">
+      <div class="lp-header__inner">
+        <a class="lp-brand" href="/landing.html" aria-label="SiteWise home">
+          <img src="/style-guide/logo/mark-solid.svg" alt="" width="28" height="28" />
+          <span>SiteWise</span>
+        </a>
+        <nav class="lp-nav" aria-label="Story sections">
+          <a href="#project">Project</a>
+          <a href="#appointments">Appointments</a>
+          <a href="#tenders">Tenders</a>
+          <a href="#change">Change</a>
+        </nav>
+        <a class="lp-button lp-button--small" href="/login">Open SiteWise</a>
+      </div>
     </header>
 
     <main id="main">
-      <!-- ============================================================
-           HERO — the evidence field, and the pulse that reads it
-           ============================================================ -->
-      <section class="lp-shell lp-hero" aria-labelledby="hero-title">
-        <div class="lp-hero__copy sw-enter">
-          <h1 class="lp-display" id="hero-title">
-            <b>You do the judgement.</b>
-            <b><em>SiteWise</em> does the assembly.</b>
-          </h1>
+      <section class="lp-hero lp-shell" aria-labelledby="hero-title">
+        <div class="lp-hero__copy">
+          <h1 id="hero-title">The cheapest tender did not price the OSD tank.</h1>
           <p class="lp-lede">
-            A project arrives as a pile — a title search, a detail survey, planning
-            advice buried in a forwarded thread, a geotech report someone scanned as
-            <span class="lp-mono">scan004.pdf</span>. SiteWise reads all of it, works
-            out what each document is, and keeps the lines that carry the project.
-            Every one of them still points back at the file it came from.
+            SiteWise found the requirement in the project evidence and put the
+            bidder’s stated exclusion beside the comparison before the project
+            team made the call.
           </p>
           <div class="lp-actions">
-            <a class="lp-btn lp-btn--primary sw-transition" href="/login">
-              Open SiteWise
-              <svg viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M4 10h11M11 6l4 4-4 4" />
-              </svg>
-            </a>
-            <a class="lp-btn lp-btn--quiet sw-transition" href="#builds">
-              See what it makes
-            </a>
+            <a class="lp-button" href="/login">Open SiteWise</a>
+            <a class="lp-text-link" href="#project">Follow the evidence</a>
           </div>
-        </div>
-
-        <figure class="lp-stage sw-enter" style="animation-delay: 120ms" aria-labelledby="stage-caption">
-          <!-- Cadastral ground: the linework the evidence lands on -->
-          <svg class="lp-stage__ground" viewBox="0 0 800 610" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            <g fill="none" stroke="#4A4E57" stroke-width="1">
-              <path d="M42 78h300v190H42zM342 78h250v120H342zM342 198h250v70H342z" />
-              <path d="M42 268h300v240H42zM342 268h250v240H342zM592 78h180v430H592z" />
-              <path d="M0 540h800" stroke="#5C6069" stroke-width="1.5" />
-              <path d="M0 566h800" stroke-dasharray="16 12" />
-            </g>
-            <g fill="none" stroke="#3A3E46" stroke-width="1" stroke-dasharray="5 7">
-              <path d="M42 168h550M42 388h550M192 78v430M442 78v430" />
-            </g>
-          </svg>
-
-          <div class="lp-pulse" aria-hidden="true"></div>
-
-          <figcaption id="stage-caption" class="lp-sr">
-            Five project documents of different kinds, each reduced to the single
-            fact it contributes.
-          </figcaption>
-
-          <!-- Depth only: the rest of the pile, nothing extra to read -->
-          <article class="lp-ev lp-ev--ghost" style="--x: 61%; --y: 25%; --w: 29cqw; --r: -1.2deg; --d: 1.30s; z-index: 2" aria-hidden="true">
-            <div class="lp-ev__noise"><i></i><i></i><i></i></div>
-          </article>
-
-          <article class="lp-ev lp-ev--ghost" style="--x: 8%; --y: 72%; --w: 30cqw; --r: 1.7deg; --d: 0.60s; z-index: 3" aria-hidden="true">
-            <div class="lp-ev__noise"><i></i><i></i><i></i></div>
-          </article>
-
-          <!-- Read, in the order the pulse reaches them -->
-          <article class="lp-ev" style="--x: 1%; --y: 4%; --w: 38cqw; --r: -1.5deg; --d: 0.44s; z-index: 4">
-            <span class="lp-ev__name">Title search</span>
-            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <span class="lp-ev__fact"><b>Easement</b>Easement for drainage, 1.5m wide</span>
-          </article>
-
-          <article class="lp-ev" style="--x: 3%; --y: 40%; --w: 38cqw; --r: 1.2deg; --d: 0.49s; z-index: 5">
-            <span class="lp-ev__name">Detail survey rev C</span>
-            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <span class="lp-ev__fact"><b>Boundary</b>Easement centreline, western boundary</span>
-          </article>
-
-          <article class="lp-ev" style="--x: 41%; --y: 2%; --w: 37cqw; --r: 1.3deg; --d: 1.25s; z-index: 3">
-            <span class="lp-ev__name">FW: feasibility (email)</span>
-            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <span class="lp-ev__fact"><b>Yield</b>Yield potentially supportable — confirm easement</span>
-          </article>
-
-          <article class="lp-ev" style="--x: 58%; --y: 65%; --w: 38cqw; --r: 0.9deg; --d: 1.64s; z-index: 6">
-            <span class="lp-ev__name">Cost plan v3.xlsx</span>
-            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i></div>
-            <span class="lp-ev__fact"><b>Estimate</b>Feasibility estimate, 7.5% contingency</span>
-          </article>
-
-          <article class="lp-ev" style="--x: 33%; --y: 36%; --w: 41cqw; --r: -0.6deg; --d: 1.09s; z-index: 7">
-            <span class="lp-ev__name">scan004.pdf</span>
-            <div class="lp-ev__noise" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-            <span class="lp-ev__fact"><b>Geotechnical</b>Fill encountered to approx. 1.2m</span>
-          </article>
-
-        </figure>
-      </section>
-
-      <hr class="lp-rule" />
-
-      <!-- ============================================================
-           BEAT 1 — it knows what each file is
-           ============================================================ -->
-      <section class="lp-shell lp-beat" id="reads" aria-labelledby="reads-title">
-        <div class="lp-beat__copy">
-          <h2 class="lp-h2" id="reads-title">It knows what scan004.pdf is.</h2>
-          <p class="lp-body">
-            No renaming, no foldering, no chasing anyone for a tidier version. Send
-            the files exactly as they landed — phone photos, forwarded threads,
-            forty-page reports — and SiteWise opens each one, reads it, and files it
-            where that kind of document belongs.
-          </p>
-          <p class="lp-body">
-            The filing is <strong>ordinary software</strong>. Once SiteWise knows a
-            document is a geotechnical report, where it goes is not a judgement call.
+          <p class="lp-demo-note">
+            Synthetic demonstration · 14–18 Wianamatta Avenue, Seven Hills ·
+            11 townhouses
           </p>
         </div>
 
-        <div class="lp-beat__visual">
-          <div class="lp-register">
-            <table>
-              <caption class="lp-sr">
-                Documents as received, the class SiteWise reads them as, and where they are filed
+        <div class="lp-comparison" aria-label="Illustrative SiteWise tender comparison for the Seven Hills demonstration project">
+          <div class="lp-window-bar">
+            <span>Tender comparison</span>
+            <span class="lp-window-bar__project">Seven Hills</span>
+          </div>
+          <div class="lp-table-scroll" tabindex="0" aria-label="Tender comparison table, scroll horizontally on small screens">
+            <table class="lp-tender-table">
+              <caption class="lp-visually-hidden">
+                Three submitted builder tenders compared on an equivalent OSD scope
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">As received</th>
-                  <th scope="col">Read as</th>
-                  <th scope="col">Filed to</th>
+                  <th scope="col">Scope</th>
+                  <th scope="col">Redgum Constructions</th>
+                  <th scope="col">
+                    Ironbark Building Group
+                    <span class="lp-status lp-status--blue">Appointed</span>
+                  </th>
+                  <th scope="col">Calderline Projects</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td class="lp-register__file">scan004.pdf</td>
-                  <td class="lp-register__class">report · geotechnical</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>03-design/01-due-diligence</td>
+                  <th scope="row">Submitted tender</th>
+                  <td>$9.080m</td>
+                  <td>$9.340m</td>
+                  <td>$9.460m</td>
                 </tr>
                 <tr>
-                  <td class="lp-register__file">Detail Survey Rev C.pdf</td>
-                  <td class="lp-register__class">report · surveyor</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>03-design/01-due-diligence</td>
+                  <th scope="row">120 m³ OSD tank</th>
+                  <td class="lp-exclusion">
+                    <strong>Excluded</strong>
+                    <span>stated, RG-26031</span>
+                  </td>
+                  <td>Included</td>
+                  <td>Included</td>
                 </tr>
                 <tr>
-                  <td class="lp-register__file">10.7 cert.pdf</td>
-                  <td class="lp-register__class">certificate · town planner</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>04-planning-and-authorities</td>
+                  <th scope="row">Bidder clarification</th>
+                  <td>+$420k</td>
+                  <td>—</td>
+                  <td>—</td>
                 </tr>
-                <tr>
-                  <td class="lp-register__file">FW_ feasibility.msg</td>
-                  <td class="lp-register__class">correspondence</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>08-meetings-reporting</td>
-                </tr>
-                <tr>
-                  <td class="lp-register__file">IMG_8842.JPG</td>
-                  <td class="lp-register__class">photo</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>07-construction/photos</td>
-                </tr>
-                <tr>
-                  <td class="lp-register__file">Cost plan v3.xlsx</td>
-                  <td class="lp-register__class">commercial · cost</td>
-                  <td class="lp-register__route"><span class="lp-register__arrow" aria-hidden="true">→</span>01-cost</td>
+                <tr class="lp-tender-table__comparable">
+                  <th scope="row">Comparable tender</th>
+                  <td>$9.500m</td>
+                  <td>$9.340m</td>
+                  <td>$9.460m</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p class="lp-note">Classes and destinations are SiteWise's own filing routes</p>
+          <ol class="lp-proofline" aria-label="Evidence path for the OSD comparison">
+            <li><strong>C-201 Rev C</strong><span>120 m³ required</span></li>
+            <li><strong>RG-26031</strong><span>Explicit exclusion</span></li>
+            <li><strong>RG-26031-ADD-01</strong><span>+$420,000</span></li>
+          </ol>
+          <p class="lp-comparison__note">
+            Sources remain attached. SiteWise calculates the comparable basis;
+            it does not rank the builders or make the appointment.
+          </p>
         </div>
       </section>
 
-      <hr class="lp-rule" />
-
-      <!-- ============================================================
-           BEAT 2 — it keeps the line, and where the line came from
-           ============================================================ -->
-      <section class="lp-shell lp-beat lp-beat--flip" id="facts" aria-labelledby="facts-title">
+      <section id="project" class="lp-beat lp-shell" aria-labelledby="project-title">
         <div class="lp-beat__copy">
-          <h2 class="lp-h2" id="facts-title">One line out of forty pages.</h2>
-          <p class="lp-body">
-            The easement width off the title. The fill depth off the geotech. The
-            yield the planner actually agreed to. SiteWise keeps the lines that carry
-            the project and lets the rest go quiet.
+          <h2 id="project-title">The file pile becomes a live project.</h2>
+          <p>
+            Planning advice, drawings, reports and correspondence resolve into
+            a project management plan with the source beside each fact. If the
+            evidence is silent, SiteWise says so.
           </p>
-          <p class="lp-body">
-            Every line it keeps is marked with the file it came from, so
-            <strong>spot-checking the ones that matter costs you a click</strong>,
-            not an afternoon. That is the point of the citation — not auditing
-            everything, but checking cheaply.
+          <p class="lp-boundary">
+            The project manager can edit the plan inline. Later evidence can be
+            brought into a reviewed version while the prior version and its edits
+            remain visible.
           </p>
         </div>
 
-        <div class="lp-beat__visual">
-          <figure class="lp-shot">
-            <div class="lp-shot__window">
-              <img
-                src="/landing-assets/sitewise-app-workspace.png"
-                alt="A SiteWise project plan showing each field beside its current position and a numbered citation, including rows flagged as evidence conflicts."
-                width="1894"
-                height="962"
-                decoding="async"
-              />
+        <div class="lp-workspace" aria-label="Illustrative live project management plan">
+          <div class="lp-window-bar">
+            <span>Project management plan</span>
+            <span class="lp-status lp-status--blue">Live · v3</span>
+          </div>
+          <div class="lp-workspace__body">
+            <aside class="lp-source-rail" aria-label="Project evidence">
+              <p>Project evidence</p>
+              <ul>
+                <li><span>Planning advice</span><strong>PDF</strong></li>
+                <li><span>C-201 Rev C</span><strong>DWG</strong></li>
+                <li><span>S-202 Rev B</span><strong>PDF</strong></li>
+                <li><span>Geotechnical report</span><strong>PDF</strong></li>
+              </ul>
+              <p class="lp-source-rail__count">52 drawings · 13 reports</p>
+            </aside>
+            <div class="lp-pmp">
+              <div class="lp-pmp__row">
+                <span>Approved outcome</span>
+                <strong>11 townhouses</strong>
+                <a href="#tenders">Planning advice · p. 3</a>
+              </div>
+              <div class="lp-pmp__row">
+                <span>Stormwater detention</span>
+                <strong>120 m³ OSD tank</strong>
+                <a href="#tenders">C-201 Rev C · indexed OSD note</a>
+              </div>
+              <div class="lp-pmp__row lp-pmp__row--edited">
+                <span>Delivery strategy</span>
+                <strong>AS 4000 construct-only</strong>
+                <small>Inline edit · saved by project manager</small>
+              </div>
+              <div class="lp-pmp__row lp-pmp__row--missing">
+                <span>Authority for early works</span>
+                <strong>Not evidenced</strong>
+                <small>Source required</small>
+              </div>
             </div>
-            <figcaption class="lp-shot__caption">
-              <span>Project plan · current position by field</span>
-              <span>Citations at right</span>
-            </figcaption>
-          </figure>
+          </div>
         </div>
       </section>
 
-      <hr class="lp-rule" />
-
-      <!-- ============================================================
-           BEAT 3 — the facts meet each other. The one amber moment.
-           ============================================================ -->
-      <section class="lp-shell lp-constraint" id="constraint" aria-labelledby="constraint-title">
-        <div class="lp-constraint__head">
-          <h2 class="lp-h2" id="constraint-title">Then the facts meet each other.</h2>
-          <p class="lp-body" style="max-width: 62ch">
-            A 1.5m drainage easement on the title. A footprint on the concept sketch.
-            Separately, both are fine, and they sit in separate documents nobody reads
-            side by side. Overlaid, one is sitting on the other — and you find out
-            <strong>now</strong>, while it is still a sketch.
-          </p>
-        </div>
-
-        <div class="lp-overlay">
-          <svg viewBox="0 0 1200 620" role="img" aria-labelledby="overlay-title overlay-desc">
-            <title id="overlay-title">Concept footprints overlaid on the surveyed site</title>
-            <desc id="overlay-desc">
-              A drainage easement 1.5 metres wide crosses the western side of the site.
-              The rearmost concept footprint overlaps it; the overlap is highlighted.
-            </desc>
-
-            <defs>
-              <pattern id="lp-hatch" width="9" height="9" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-                <line x1="0" y1="0" x2="0" y2="9" stroke="#8F939B" stroke-width="1" stroke-opacity="0.45" />
-              </pattern>
-            </defs>
-
-            <g transform="rotate(-3.2 600 310)">
-              <!-- Site boundary -->
-              <path d="M96 96H1116V524H96Z" fill="none" stroke="#B6B9BF" stroke-width="1.6" />
-              <text class="lp-overlay__label" x="104" y="86" fill="#8F939B" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.6">
-                SITE BOUNDARY — DETAIL SURVEY
-              </text>
-
-              <!-- Drainage easement, 1.5m, crossing the western side -->
-              <rect x="178" y="96" width="48" height="428" fill="url(#lp-hatch)" />
-              <path d="M178 96V524M226 96V524" stroke="#8F939B" stroke-width="1.2" stroke-dasharray="10 6" />
-              <g class="lp-overlay__label" stroke="#8F939B" stroke-width="1.2">
-                <path d="M178 552h48" />
-                <path d="M178 546v12M226 546v12" />
-              </g>
-              <text class="lp-overlay__label" x="238" y="558" fill="#8F939B" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
-                EASEMENT FOR DRAINAGE — 1.5m
-              </text>
-
-              <!-- Concept footprints -->
-              <g fill="#2F72C4" fill-opacity="0.14" stroke="#7FB0E4" stroke-width="1.4">
-                <rect x="142" y="212" width="168" height="186" />
-                <rect x="334" y="212" width="168" height="186" />
-                <rect x="526" y="212" width="168" height="186" />
-                <rect x="718" y="212" width="168" height="186" />
-                <rect x="910" y="212" width="168" height="186" />
-              </g>
-              <text class="lp-overlay__label" x="910" y="426" fill="#7FB0E4" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
-                CONCEPT FOOTPRINT
-              </text>
-
-              <!-- The intersection: the only amber on the page -->
-              <rect x="178" y="212" width="48" height="186" fill="oklch(72% 0.14 75)" fill-opacity="0.34" />
-              <rect x="178" y="212" width="48" height="186" fill="none" stroke="oklch(72% 0.14 75)" stroke-width="2" />
-              <path class="lp-overlay__label" d="M202 398V452H330" fill="none" stroke="oklch(72% 0.14 75)" stroke-width="1.4" />
-              <text class="lp-overlay__label" x="340" y="457" fill="oklch(72% 0.14 75)" font-family="IBM Plex Mono, monospace" font-size="15" letter-spacing="1.4">
-                FOOTPRINT OVER EASEMENT
-              </text>
-            </g>
-          </svg>
-
-          <p class="lp-overlay__flag"><i aria-hidden="true"></i>Site constraint · title vs. concept</p>
-        </div>
-
-        <p class="lp-note">
-          Overlay illustrates the check. Every fact in it stays tied to its source document.
-        </p>
-      </section>
-
-      <hr class="lp-rule" />
-
-      <!-- ============================================================
-           BEAT 4 — you get a document
-           ============================================================ -->
-      <section class="lp-shell lp-beat" id="builds" aria-labelledby="builds-title">
+      <section id="appointments" class="lp-beat lp-beat--reverse lp-shell" aria-labelledby="appointments-title">
         <div class="lp-beat__copy">
-          <h2 class="lp-h2" id="builds-title">You get a document, not an answer.</h2>
-          <p class="lp-body">
-            A project plan, a cost plan, an RFT, a tender comparison — built from the
-            live project and issued with a citation key at the back. Not a chat log
-            you still have to turn into work yourself.
+          <h2 id="appointments-title">One appointment, carried through the project.</h2>
+          <p>
+            SiteWise compares the proposals, drafts the appointment record and
+            shows the places the selected fee will affect. Nothing moves until
+            the project manager reviews and authorises it.
           </p>
-          <p class="lp-body">
-            It comes out as an <strong>editable working draft</strong>, because the
-            last call on what the document says was always going to be yours.
+          <p class="lp-boundary">
+            Fifteen proposals become five controlled appointments. Twenty-five
+            invoices can then be checked against the same agreed fees.
           </p>
-          <ul class="lp-outputs">
-            <li>Project profile</li>
-            <li>Project plan</li>
-            <li>Cost plan</li>
-            <li>RFP / RFT</li>
-            <li>Tender comparison</li>
-          </ul>
         </div>
 
-        <div class="lp-beat__visual">
-          <figure class="lp-artefact">
-            <div class="lp-artefact__window">
-            <img
-              src="/landing-assets/sitewise-export-preview.png"
-              alt="An issued SiteWise Project Management Plan: project snapshot, ground-floor brief, coordination controls and a citation key referencing the public planning record it was built from."
-              width="1265"
-              height="1242"
-              loading="lazy"
-              decoding="async"
-            />
-            </div>
-            <figcaption class="lp-shot__caption">
-              <span>Issued PMP · citation key at the back</span>
-            </figcaption>
-          </figure>
+        <div class="lp-appointment-register" aria-label="Illustrative consultant appointment register">
+          <div class="lp-window-bar">
+            <span>Consultant register</span>
+            <span>15 proposals · 5 appointments · 25 invoices</span>
+          </div>
+          <div class="lp-table-scroll" tabindex="0" aria-label="Consultant appointment register, scroll horizontally on small screens">
+            <table class="lp-register-table">
+              <caption class="lp-visually-hidden">Five reviewed consultant appointments</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Discipline</th>
+                  <th scope="col">Appointed consultant</th>
+                  <th scope="col">Agreed fee</th>
+                  <th scope="col">Control</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">Architecture</th><td>Axis Studio</td><td>$286,000</td><td>Authorised</td></tr>
+                <tr><th scope="row">Town planning</th><td>Civic Pattern</td><td>$48,000</td><td>Authorised</td></tr>
+                <tr><th scope="row">Structural</th><td>Northline</td><td>$132,000</td><td>Authorised</td></tr>
+                <tr class="lp-register-table__focus">
+                  <th scope="row">Civil</th><td>Catchment Works</td><td>$96,000</td>
+                  <td><span class="lp-status lp-status--blue">Reviewed</span></td>
+                </tr>
+                <tr><th scope="row">Building services</th><td>Flux Services</td><td>$158,000</td><td>Authorised</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="lp-control-flow" aria-label="Authorised civil appointment update path">
+            <p><span>Source</span><strong>APPT-CIV-01</strong></p>
+            <p><span>Reviewed fact</span><strong>Fee · $96,000</strong></p>
+            <p><span>Authorised updates</span><strong>Register · Cost plan · PMP</strong></p>
+          </div>
         </div>
       </section>
 
-      <!-- ============================================================
-           CLOSE
-           ============================================================ -->
-      <section class="lp-shell lp-close" aria-labelledby="close-title">
-        <h2 class="lp-h2" id="close-title">You've still got the last word.</h2>
-        <p class="lp-body">
-          Bring the documents. Say what needs doing. Review what comes out.
-        </p>
-        <div class="lp-actions">
-          <a class="lp-btn lp-btn--primary sw-transition" href="/login">
-            Open SiteWise
-            <svg viewBox="0 0 20 20" aria-hidden="true">
-              <path d="M4 10h11M11 6l4 4-4 4" />
-            </svg>
-          </a>
+      <section id="tenders" class="lp-beat lp-shell" aria-labelledby="tenders-title">
+        <div class="lp-beat__copy">
+          <h2 id="tenders-title">Three tenders. One comparable basis.</h2>
+          <p>
+            The total alone is not the comparison. SiteWise follows the OSD
+            requirement from design source to bidder qualification to priced
+            clarification, with the arithmetic shown.
+          </p>
+          <p class="lp-boundary">
+            “Excluded” appears only where the tender states it. Silence is
+            recorded as “not explicitly itemised — confirm with builder”.
+          </p>
         </div>
+
+        <div class="lp-evidence-chain" aria-label="OSD tender evidence chain">
+          <div class="lp-window-bar"><span>Evidence chain</span><span>Scope · OSD tank</span></div>
+          <dl>
+            <div>
+              <dt><span>Civil design</span>C-201 Rev C</dt>
+              <dd><strong>120 m³ OSD storage required</strong><a href="#project">indexed OSD note</a></dd>
+            </div>
+            <div>
+              <dt><span>Submitted tender</span>RG-26031</dt>
+              <dd><strong>OSD tank excluded</strong><a href="#main">OSD tank scope</a></dd>
+            </div>
+            <div>
+              <dt><span>Bidder clarification</span>RG-26031-ADD-01</dt>
+              <dd><strong>Add $420,000 ex GST</strong><a href="#main">received 24 April 2026</a></dd>
+            </div>
+          </dl>
+          <div class="lp-calculation">
+            <p><span>Submitted</span><strong>$9,080,000</strong></p><i aria-hidden="true">+</i>
+            <p><span>Clarified OSD scope</span><strong>$420,000</strong></p><i aria-hidden="true">=</i>
+            <p><span>Comparable tender</span><strong>$9,500,000</strong></p>
+          </div>
+          <p class="lp-method-note">Arithmetic computed from the cited values · No ranking or recommendation</p>
+        </div>
+      </section>
+
+      <section id="change" class="lp-beat lp-beat--reverse lp-shell" aria-labelledby="change-title">
+        <div class="lp-beat__copy">
+          <h2 id="change-title">A revised drawing does not quietly rewrite the project.</h2>
+          <p>
+            Pulse surfaces the incoming email and revised drawing. With the linked
+            QS and programme advice, the project manager asks SiteWise to prepare
+            the plan, forecast and programme updates, reviews each result and
+            chooses Send.
+          </p>
+          <p class="lp-boundary">
+            When VO-007 later appears in a progress claim, SiteWise brings the
+            same $68,500 back for invoice review.
+          </p>
+        </div>
+
+        <div class="lp-change-ledger" aria-label="Illustrative reviewed change from incoming email">
+          <div class="lp-incoming">
+            <div><span>Pulse · incoming email</span><strong>OSD reinforcement revision and QS advice</strong></div>
+            <span class="lp-status lp-status--blue">Evidence filed</span>
+          </div>
+          <div class="lp-attachment-row">
+            <p><span>Drawing</span><strong>S-202 Rev C</strong></p>
+            <p><span>Supersedes</span><strong>S-202 Rev B</strong></p>
+            <p><span>Advice</span><strong>QS + programme note</strong></p>
+          </div>
+          <div class="lp-delta-table" role="table" aria-label="Reviewed downstream project updates">
+            <div class="lp-delta-table__head" role="row">
+              <span role="columnheader">Project control</span><span role="columnheader">Evidence delta</span><span role="columnheader">Decision state</span>
+            </div>
+            <div role="row"><strong role="cell">PMP</strong><span role="cell">v3 → v4</span><span role="cell">Reviewed update</span></div>
+            <div role="row"><strong role="cell">Cost forecast</strong><span role="cell">+$68,500 ex GST</span><span role="cell">User authorised</span></div>
+            <div role="row"><strong role="cell">Programme</strong><span role="cell">+10 calendar days</span><span role="cell">User authorised</span></div>
+            <div role="row"><strong role="cell">Reply email</strong><span role="cell">Draft prepared</span><span role="cell">Draft — not sent</span></div>
+          </div>
+          <p class="lp-change-ledger__foot">Pulse surfaces evidence · You authorise changes and Send</p>
+        </div>
+      </section>
+
+      <section class="lp-close lp-shell" aria-labelledby="close-title">
+        <h2 id="close-title">The evidence stays attached.<br />The decision stays yours.</h2>
+        <p>One connected project: brief, drawings, appointments, tenders, invoices, live controls and correspondence.</p>
+        <a class="lp-button" href="/login">Open SiteWise</a>
       </section>
     </main>
 
-    <hr class="lp-rule" />
-
     <footer class="lp-footer">
-      <span class="lp-footer__mark">
-        <img src="/style-guide/logo/mark-mono.svg" alt="" width="20" height="20" />
-        You keep the judgement.
-      </span>
-      <a href="#reads">How it reads</a>
-      <a href="#constraint">What it catches</a>
-      <a href="#builds">What it makes</a>
-      <a href="/login">Sign in</a>
+      <div class="lp-footer__inner">
+        <a class="lp-brand lp-brand--small" href="/landing.html" aria-label="SiteWise home">
+          <img src="/style-guide/logo/mark-solid.svg" alt="" width="22" height="22" /><span>SiteWise</span>
+        </a>
+        <p>Seven Hills is a fictional demonstration project.</p>
+        <a href="mailto:hello@sitewise.au">hello@sitewise.au</a>
+      </div>
     </footer>
-
-    <script>
-      /* The key light tracks the pointer with damped easing — see light.css. */
-      (function () {
-        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-        if (!window.matchMedia('(pointer: fine)').matches) return;
-        var root = document.documentElement;
-        var tx = innerWidth * 0.42, ty = innerHeight * 0.3, cx = tx, cy = ty;
-        addEventListener('pointermove', function (e) { tx = e.clientX; ty = e.clientY; }, { passive: true });
-        (function tick() {
-          cx += (tx - cx) * 0.055;
-          cy += (ty - cy) * 0.055;
-          root.style.setProperty('--sw-key-x', cx.toFixed(1) + 'px');
-          root.style.setProperty('--sw-key-y', cy.toFixed(1) + 'px');
-          requestAnimationFrame(tick);
-        })();
-      })();
-    </script>
   </body>
 </html>

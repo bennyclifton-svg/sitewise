@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -687,6 +687,87 @@ Scope.`}
     expect(onSaveSelectionEdit).toHaveBeenCalledWith(range, "| Budget | Partial |");
   });
 
+  it("keeps in-progress table cell text when MarkdownContent re-renders", () => {
+    const markdown = [
+      "## Consultants",
+      "",
+      "| Discipline | Firm | Fee | Status | Citation |",
+      "| --- | --- | --- | --- | --- |",
+      "| Surveyor | Acme Survey | $4,200 | Partial | [1] |",
+    ].join("\n");
+    const row = "| Surveyor | Acme Survey | $4,200 | Partial | [1] |";
+    const start = markdown.indexOf(row);
+    const range = { start, end: start + row.length };
+
+    const view = render(
+      <MarkdownContent
+        markdown={markdown}
+        editingRange={range}
+        editingFocusCellIndex={2}
+        onEditSelection={vi.fn()}
+        onCancelSelectionEdit={vi.fn()}
+        onSaveSelectionEdit={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    const feeCell = screen.getByRole("textbox", { name: "Edit table cell 3" });
+    expect(feeCell).toHaveTextContent("$4,200");
+    feeCell.textContent = "8500";
+    fireEvent.input(feeCell);
+
+    // Parent polls / pulse refreshes rebuild callback identities every render.
+    // Recreating react-markdown's `components` map used to remount the editor
+    // and wipe the in-progress fee (often saving empty → displayed as blank/0).
+    view.rerender(
+      <MarkdownContent
+        markdown={markdown}
+        editingRange={range}
+        editingFocusCellIndex={2}
+        onEditSelection={vi.fn()}
+        onCancelSelectionEdit={vi.fn()}
+        onSaveSelectionEdit={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Edit table cell 3" })).toHaveTextContent(
+      "8500",
+    );
+  });
+
+  it("keeps in-progress paragraph text when MarkdownContent re-renders", () => {
+    const markdown = "## Scope\n\nAlpha paragraph.";
+    const start = markdown.indexOf("Alpha");
+    const range = { start, end: markdown.length };
+
+    const view = render(
+      <MarkdownContent
+        markdown={markdown}
+        editingRange={range}
+        onEditSelection={vi.fn()}
+        onCancelSelectionEdit={vi.fn()}
+        onSaveSelectionEdit={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+    editor.textContent = "Halfway typed";
+    fireEvent.input(editor);
+
+    view.rerender(
+      <MarkdownContent
+        markdown={markdown}
+        editingRange={range}
+        onEditSelection={vi.fn()}
+        onCancelSelectionEdit={vi.fn()}
+        onSaveSelectionEdit={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Edit selected text" })).toHaveTextContent(
+      "Halfway typed",
+    );
+  });
+
   it("enters inline editing from a real double-click sequence", async () => {
     const user = userEvent.setup();
     const markdown = "## Brief\n\n**Physical brief:** new residential house and garage. [4]";
@@ -725,18 +806,19 @@ Scope.`}
     expect(range.start).toBe(markdown.indexOf("**Physical brief:**"));
   });
 
-  it("folds FFE Schedule decision fences into Finish-column dropdowns", () => {
+  it("shows one FFE list without dropdowns or Not evidenced chips", () => {
     const markdown = `## FFE Schedule
 
 | Item | Location | Qty | Finish | Status | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Filtered tap | Kitchen | 1 | Chrome | Confirmed | — |
+| External cladding | Extension | Not evidenced | Not evidenced | To be confirmed | Typical |
+| Filtered tap | Kitchen | 1 | Chrome | Confirmed | Owner selection |
 
 \`\`\`pmp-decision
-{"id":"flooring-finish","section":"FFE Schedule","label":"Primary flooring finish","options":[{"value":"engineered","label":"Engineered timber"},{"value":"tile","label":"Ceramic / porcelain tile"}],"selected":"tile","source":"agent"}
+{"id":"external-cladding","section":"FFE Schedule","label":"Primary external cladding","options":[{"value":"brick_veneer","label":"Brick veneer"},{"value":"fibre_cement","label":"Fibre cement sheet / weatherboard"}],"selected":"brick_veneer","source":"agent"}
 \`\`\`
 `;
-    render(
+    const { container } = render(
       <MarkdownContent
         markdown={markdown}
         projectId="project-1"
@@ -744,14 +826,17 @@ Scope.`}
           {
             id: "row-1",
             project_id: "project-1",
-            decision_id: "flooring-finish",
+            decision_id: "external-cladding",
             section: "FFE Schedule",
-            label: "Primary flooring finish",
+            label: "Primary external cladding",
             options: [
-              { value: "engineered", label: "Engineered timber" },
-              { value: "tile", label: "Ceramic / porcelain tile" },
+              { value: "brick_veneer", label: "Brick veneer" },
+              {
+                value: "fibre_cement",
+                label: "Fibre cement sheet / weatherboard",
+              },
             ],
-            selected: "tile",
+            selected: "brick_veneer",
             source: "agent",
             workflow_type: "create_pmp",
             revision: 1,
@@ -767,14 +852,155 @@ Scope.`}
       />,
     );
 
+    const table = container.querySelector("table.pmp-table-ffe");
+    expect(table).toBeTruthy();
+    const headers = within(table as HTMLElement)
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+    expect(headers).toEqual(["Item", "Location", "Finish", "Comment", ""]);
+    expect(screen.getByText("External cladding")).toBeInTheDocument();
+    expect(screen.getByText("Brick veneer")).toBeInTheDocument();
+    expect(screen.getByText("Filtered tap")).toBeInTheDocument();
+    expect(screen.getByText("Chrome")).toBeInTheDocument();
+    expect(screen.getByText("Owner selection")).toBeInTheDocument();
+    expect(screen.queryByText("Primary external cladding")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not evidenced")).not.toBeInTheDocument();
+    expect(screen.queryByText("Typical")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Primary external cladding" })).not.toBeInTheDocument();
     expect(screen.queryByTestId("decision-schedule")).not.toBeInTheDocument();
     expect(screen.queryByTestId("decision-control")).not.toBeInTheDocument();
-    expect(screen.getByText("Filtered tap")).toBeInTheDocument();
-    expect(screen.getByText("Primary flooring finish")).toBeInTheDocument();
+  });
+
+  it("simplifies the Brief exclusions table to four columns plus a citation chip", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "## Brief",
+          "",
+          "| Item | Position | Basis / source | Owner | Verification action |",
+          "| --- | --- | --- | --- | --- |",
+          "| Tenant racking | Confirmed exclusion | Owner brief [1] | Owner | Lock the exclusion in the signed brief |",
+          "| Solar PV | Design-development gap | No operational brief | Owner | Confirm with the client |",
+        ].join("\n")}
+      />,
+    );
+
+    const table = container.querySelector("table");
+    expect(table).toBeTruthy();
+    const headers = within(table as HTMLElement)
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+    expect(headers).toEqual(["Item", "Position", "Owner", "Verification action", ""]);
+    expect(screen.queryByText("Basis / source")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Owner brief/)).not.toBeInTheDocument();
+    expect(screen.getByText("Tenant racking")).toBeInTheDocument();
+    expect(screen.getByText("Lock the exclusion in the signed brief")).toBeInTheDocument();
+    const citation = screen.getByText("[1]");
+    expect(citation).toHaveClass("evidence-status-chip");
+    const citedRow = citation.closest("tr");
+    const citedCells = citedRow?.querySelectorAll("td") ?? [];
+    expect(citedCells).toHaveLength(5);
+    expect(citedCells[4]?.textContent?.trim()).toBe("[1]");
+  });
+
+  it("gives FFE and planning tables an independent citation column", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "## FFE Schedule",
+          "",
+          "| Item | Location | Finish | Comment |",
+          "| --- | --- | --- | --- |",
+          "| Facade cladding | Envelope | Brick veneer [2] | Match adjoining house |",
+          "",
+          "## Planning and Compliance",
+          "",
+          "| Approval / compliance item | Status | Basis | Next action |",
+          "| --- | --- | --- | --- |",
+          "| NCC pathway | Assumption | Taxonomy and loaded seed doctrine [3] | Confirm DtS with certifier |",
+        ].join("\n")}
+      />,
+    );
+
+    const tables = container.querySelectorAll("table");
+    expect(tables).toHaveLength(2);
+
+    const ffeHeaders = within(tables[0] as HTMLElement)
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+    expect(ffeHeaders).toEqual(["Item", "Location", "Finish", "Comment", ""]);
+    expect(screen.getByText("Brick veneer")).toBeInTheDocument();
+    expect(screen.queryByText("Brick veneer [2]")).not.toBeInTheDocument();
+    const ffeCitation = screen.getByText("[2]");
+    expect(ffeCitation).toHaveClass("evidence-status-chip");
+    expect(ffeCitation.closest("table")).toBe(tables[0]);
+
+    const planningHeaders = within(tables[1] as HTMLElement)
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+    expect(planningHeaders).toEqual([
+      "Approval / compliance item",
+      "Status",
+      "Basis",
+      "Next action",
+      "",
+    ]);
+    expect(screen.getByText("Taxonomy and loaded seed doctrine")).toBeInTheDocument();
+    const planningCitation = screen.getByText("[3]");
+    expect(planningCitation).toHaveClass("evidence-status-chip");
+    expect(planningCitation.closest("table")).toBe(tables[1]);
+  });
+
+  it("gives programme, risks, and actions tables an independent citation column", () => {
+    const { container } = render(
+      <MarkdownContent
+        markdown={[
+          "## Programme",
+          "",
+          "| Sub-milestone | Control requirement |",
+          "| --- | --- |",
+          "| DA submission | Lodgement package issued [4] |",
+          "",
+          "## Risks and mitigations",
+          "",
+          "| Risk | Owner | Mitigation / escalation |",
+          "| --- | --- | --- |",
+          "| Planning pathway changes scope | Owner / planner | Verify controls before scheme lock [5] |",
+          "",
+          "## Actions and decisions",
+          "",
+          "| Item | Owner | Status | Due basis | Next action |",
+          "| --- | --- | --- | --- | --- |",
+          "| Consultant appointments | Owner | Open | Before concept lock | Appoint design lead [6] |",
+        ].join("\n")}
+      />,
+    );
+
+    const tables = container.querySelectorAll("table");
+    expect(tables).toHaveLength(3);
+
     expect(
-      screen.getByRole("button", { name: "Primary flooring finish" }),
-    ).toHaveTextContent("Ceramic / porcelain tile");
-    expect(screen.getByText("[AI]")).toBeInTheDocument();
+      within(tables[0] as HTMLElement)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent?.trim()),
+    ).toEqual(["Sub-milestone", "Control requirement", ""]);
+    const programmeCitation = screen.getByText("[4]");
+    expect(programmeCitation).toHaveClass("evidence-status-chip");
+    expect(screen.getByText("Lodgement package issued")).toBeInTheDocument();
+
+    expect(
+      within(tables[1] as HTMLElement)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent?.trim()),
+    ).toEqual(["Risk", "Owner", "Mitigation / escalation", ""]);
+    expect(screen.getByText("[5]")).toHaveClass("evidence-status-chip");
+
+    expect(
+      within(tables[2] as HTMLElement)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent?.trim()),
+    ).toEqual(["Item", "Owner", "Status", "Due basis", "Next action", ""]);
+    expect(screen.getByText("[6]")).toHaveClass("evidence-status-chip");
   });
 
   it("maps an editable paragraph back to canonical offsets after decision grouping", () => {
@@ -835,21 +1061,14 @@ Editable after decisions.`;
     );
 
     expect(screen.queryByRole("button", { name: /Edit paragraph/i })).not.toBeInTheDocument();
-    const reserved = screen.getByText("First paragraph.").parentElement?.querySelector(
-      "[data-block-actions]",
-    );
+    const firstParagraph = screen.getByText("First paragraph.");
+    const row = firstParagraph.parentElement;
+    const reserved = row?.querySelector("[data-block-actions]");
     expect(reserved).not.toBeNull();
     expect(reserved).toHaveClass("w-6");
 
-    fireEvent.mouseEnter(
-      screen.getByText("First paragraph.").parentElement ??
-        screen.getByText("First paragraph."),
-    );
-
     expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
-    const firstParagraph = screen.getByText("First paragraph.");
-    const row = firstParagraph.parentElement;
-    const menuTrigger = screen.getByRole("button", { name: "paragraph actions" });
+    const menuTrigger = within(row!).getByRole("button", { name: "paragraph actions" });
     expect(row).toContainElement(menuTrigger);
     expect(row?.querySelector("[data-block-gutter]")).toBeNull();
     expect(row?.querySelector("[data-block-actions]")).toHaveClass("w-6");
@@ -873,11 +1092,7 @@ Editable after decisions.`;
       "before",
     );
 
-    fireEvent.mouseEnter(
-      screen.getByText("First paragraph.").parentElement ??
-        screen.getByText("First paragraph."),
-    );
-    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(within(row!).getByRole("button", { name: "paragraph actions" }));
     await user.click(
       await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
     );
@@ -901,6 +1116,27 @@ Editable after decisions.`;
         }),
       }),
     );
+  });
+
+  it("keeps list item action triggers mounted without a hover remount", () => {
+    render(
+      <MarkdownContent
+        markdown={"## Scope\n\n- First item\n- Second item\n"}
+        onEditWithAi={vi.fn()}
+        onMutateBlock={vi.fn()}
+      />,
+    );
+
+    const first = screen.getByText("First item").closest("li");
+    const second = screen.getByText("Second item").closest("li");
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(
+      within(first!).getByRole("button", { name: "list item actions" }),
+    ).toBeInTheDocument();
+    expect(
+      within(second!).getByRole("button", { name: "list item actions" }),
+    ).toBeInTheDocument();
   });
 
   it("renders a chrome-free add-paragraph editor below the target paragraph", () => {

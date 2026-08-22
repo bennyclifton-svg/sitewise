@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { queryClient } from "@/lib/query-client";
 import { pulseKeys } from "@/lib/queries/pulse";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import type { InvoiceLedger, InvoiceReview } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
 
@@ -25,39 +26,62 @@ export function CostInvoiceRegister({
   projectId,
   revision = null,
   reviewInvoiceId = null,
+  ledger,
 }: {
   projectId: string;
   /** When the published Cost Plan revision changes, reload the register. */
   revision?: number | null;
   reviewInvoiceId?: string | null;
+  /** Parent-owned ledger. Omit to load from the workbench cache. */
+  ledger?: InvoiceLedger | null;
 }) {
   return (
     <CostInvoiceRegisterState
       projectId={projectId}
       revision={revision}
       reviewInvoiceId={reviewInvoiceId}
+      ledger={ledger}
     />
   );
+}
+
+function readCachedInvoiceLedger(projectId: string): InvoiceLedger | null {
+  return (
+    queryClient.getQueryData<InvoiceLedger>(
+      workbenchKeys.invoiceLedger(projectId),
+    ) ?? null
+  );
+}
+
+function rememberInvoiceLedger(projectId: string, ledger: InvoiceLedger): void {
+  queryClient.setQueryData(workbenchKeys.invoiceLedger(projectId), ledger);
 }
 
 function CostInvoiceRegisterState({
   projectId,
   revision,
   reviewInvoiceId,
+  ledger: ledgerProp,
 }: {
   projectId: string;
   revision: number | null;
   reviewInvoiceId?: string | null;
+  ledger?: InvoiceLedger | null;
 }) {
-  const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
+  const [ledger, setLedger] = useState<InvoiceLedger | null>(
+    () => ledgerProp ?? readCachedInvoiceLedger(projectId),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [review, setReview] = useState<InvoiceReview | null>(null);
-  const confirmedLedgerRef = useRef<InvoiceLedger | null>(null);
+  const confirmedLedgerRef = useRef<InvoiceLedger | null>(
+    ledgerProp ?? readCachedInvoiceLedger(projectId),
+  );
   const queueRef = useRef<InvoiceEdit[]>([]);
   const drainingRef = useRef(false);
   const projectIdRef = useRef<string | null>(projectId);
+  const loadedRevisionRef = useRef(revision);
 
   useEffect(() => {
     return () => {
@@ -66,21 +90,40 @@ function CostInvoiceRegisterState({
   }, []);
 
   useEffect(() => {
+    if (!ledgerProp) return;
+    if (queueRef.current.length > 0 || drainingRef.current) return;
+    confirmedLedgerRef.current = ledgerProp;
+    setLedger(replayEdits(ledgerProp, queueRef.current));
+    setError(null);
+  }, [ledgerProp]);
+
+  useEffect(() => {
+    if (ledgerProp) return;
     let cancelled = false;
     if (queueRef.current.length > 0 || drainingRef.current) {
       return () => {
         cancelled = true;
       };
     }
+    const fresh = loadedRevisionRef.current !== revision;
+    loadedRevisionRef.current = revision;
 
-    void api.getInvoiceLedger(projectId).then(
-      (data) => {
+    void (async () => {
+      try {
+        if (fresh) {
+          await queryClient.invalidateQueries({
+            queryKey: workbenchKeys.invoiceLedger(projectId),
+          });
+        }
+        const data = await queryClient.fetchQuery({
+          queryKey: workbenchKeys.invoiceLedger(projectId),
+          queryFn: () => api.getInvoiceLedger(projectId),
+        });
         if (cancelled) return;
         confirmedLedgerRef.current = data;
         setLedger(replayEdits(data, queueRef.current));
         setError(null);
-      },
-      (loadError) => {
+      } catch (loadError) {
         if (!cancelled) {
           setError(
             loadError instanceof ApiError
@@ -88,13 +131,13 @@ function CostInvoiceRegisterState({
               : "Invoice register could not load.",
           );
         }
-      },
-    );
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [projectId, revision]);
+  }, [projectId, revision, ledgerProp]);
 
   function enqueue(edit: InvoiceEdit) {
     const confirmed = confirmedLedgerRef.current;
@@ -140,6 +183,7 @@ function CostInvoiceRegisterState({
             if (projectIdRef.current !== editingProjectId) return;
             latestSaved = latest;
             confirmedLedgerRef.current = latest;
+            rememberInvoiceLedger(editingProjectId, latest);
             setLedger(replayEdits(latest, queueRef.current));
             setError(
               "An invoice changed elsewhere. Remaining edits will use the latest values.",
@@ -161,6 +205,7 @@ function CostInvoiceRegisterState({
         }
       }
       if (latestSaved && projectIdRef.current === editingProjectId) {
+        rememberInvoiceLedger(editingProjectId, latestSaved);
         setSaveMessage(`Saved against Cost Plan v${latestSaved.cost_plan_version}`);
       }
     } finally {
@@ -257,27 +302,35 @@ function CostInvoiceRegisterState({
         </p>
       ) : null}
       <div className="max-h-[32rem] overflow-auto">
-        <table className="cost-invoice-table w-full min-w-[64rem] text-sm">
+        <table className="cost-invoice-table">
+          <colgroup>
+            <col className="cost-invoice-col-date" />
+            <col className="cost-invoice-col-company" />
+            <col className="cost-invoice-col-po" />
+            <col className="cost-invoice-col-number" />
+            <col className="cost-invoice-col-description" />
+            <col className="cost-invoice-col-item" />
+            <col className="cost-invoice-col-amount" />
+            <col className="cost-invoice-col-month" />
+            <col className="cost-invoice-col-paid" />
+          </colgroup>
           <thead className="sticky top-0 z-10 text-left">
             <tr>
-              <th className="px-3 py-2">Invoice Date</th>
-              <th className="px-3 py-2">Company</th>
-              <th className="px-3 py-2">PO</th>
-              <th className="px-3 py-2">Invoice #</th>
-              <th className="px-3 py-2">Description</th>
-              <th className="px-3 py-2">Cost Item</th>
-              <th className="px-3 py-2 text-right">Amount</th>
-              <th className="px-3 py-2">Billing Month</th>
-              <th className="px-3 py-2">Paid?</th>
+              <th>Invoice Date</th>
+              <th>Company</th>
+              <th>PO</th>
+              <th>Invoice #</th>
+              <th>Description</th>
+              <th>Cost Item</th>
+              <th className="text-right">Amount</th>
+              <th>Billing Month</th>
+              <th>Paid?</th>
             </tr>
           </thead>
           <tbody>
             {ledger.rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={9}
-                  className="px-3 py-8 text-center text-muted-foreground"
-                >
+                <td colSpan={9} className="cost-invoice-empty">
                   No invoices in the register yet. Upload invoice files, then
                   Process invoices to populate this list.
                 </td>
@@ -285,25 +338,28 @@ function CostInvoiceRegisterState({
             ) : (
               ledger.rows.map((row) => (
                 <tr key={row.allocation_id}>
-                  <td className="px-3 py-2 whitespace-nowrap">{row.invoice_date}</td>
-                  <td className="px-3 py-2">{row.company}</td>
-                  <td className="px-3 py-2">{row.po_number ?? ""}</td>
-                  <td className="px-3 py-2">
+                  <td title={row.invoice_date}>{row.invoice_date}</td>
+                  <td title={row.company}>{row.company}</td>
+                  <td title={row.po_number ?? undefined}>{row.po_number ?? ""}</td>
+                  <td title={row.invoice_number}>
                     <button
                       type="button"
-                      className="text-left underline-offset-2 hover:underline"
+                      className="cost-invoice-number-link"
                       onClick={() => void openReview(row.invoice_id)}
                     >
                       {row.invoice_number}
                     </button>
                   </td>
-                  <td className="px-3 py-2">{row.description}</td>
-                  <td className="cost-invoice-cell--editable px-3 py-1.5">
+                  <td title={row.description}>{row.description}</td>
+                  <td
+                    className={cn(
+                      "cost-invoice-cell--editable",
+                      row.review_status === "needs_review" &&
+                        "cost-invoice-cell--attention",
+                    )}
+                  >
                     <select
-                      className={cn(
-                        "cost-plan-field h-8 w-full min-w-40 px-2 text-xs",
-                        row.review_status === "needs_review" && "cost-plan-field--attention",
-                      )}
+                      className="cost-invoice-field"
                       value={row.cost_item_key ?? ""}
                       aria-label={`Cost item for invoice ${row.invoice_number}: ${row.description}`}
                       onChange={(event) => {
@@ -331,13 +387,13 @@ function CostInvoiceRegisterState({
                       ))}
                     </select>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <td className="cost-invoice-cell--amount">
                     ${Number(row.amount_ex_gst).toLocaleString()}
                   </td>
-                  <td className="cost-invoice-cell--editable px-3 py-1.5">
+                  <td className="cost-invoice-cell--editable">
                     <input
                       type="month"
-                      className="cost-plan-field h-8 px-2 text-xs"
+                      className="cost-invoice-field"
                       value={row.billing_month.slice(0, 7)}
                       aria-label={`Billing month for invoice ${row.invoice_number}`}
                       onChange={(event) => {
@@ -353,11 +409,11 @@ function CostInvoiceRegisterState({
                       }}
                     />
                   </td>
-                  <td className="px-3 py-1.5">
+                  <td className="cost-invoice-cell--editable">
                     <button
                       type="button"
                       className={cn(
-                        "cost-invoice-paid-toggle inline-flex h-8 min-w-14 items-center justify-center gap-1 px-2 text-xs",
+                        "cost-invoice-paid-toggle",
                         row.paid && "cost-invoice-paid-toggle--paid",
                       )}
                       aria-pressed={row.paid}

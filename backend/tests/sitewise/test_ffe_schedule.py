@@ -16,7 +16,7 @@ from app.sitewise.pmp_renderer import render_pmp_scaffold
 from app.workflows.create_pmp import markdown_section_headings
 
 _EMPTY_STUB = "TBC — record finishes, fixtures and equipment selections"
-_UNIFIED_HEADER = "| Item | Location | Qty | Finish | Status | Notes |"
+_UNIFIED_HEADER = "| Item | Location | Finish | Comment |  |"
 
 
 def _project() -> Project:
@@ -102,11 +102,11 @@ def test_taxonomy_scaffold_renders_shared_ffe_rows_after_brief() -> None:
     assert headings.index("Accommodation Schedule") + 1 == headings.index(
         "FFE Schedule"
     )
-    assert "| Freestanding bath | Ensuite | 1 | TBC | To be confirmed | Owner selection |" in (
-        markdown
-    )
+    assert "| Freestanding bath | Ensuite | TBC | Owner selection |  |" in markdown
     assert _UNIFIED_HEADER in markdown
     assert "Make / capacity" not in markdown
+    assert "| Qty |" not in _ffe_body(markdown)
+    assert "| Status |" not in _ffe_body(markdown)
 
 
 def _taxonomy_project(
@@ -183,6 +183,9 @@ def test_new_house_prepopulates_wet_area_and_envelope_items() -> None:
         "Shower screen",
         "Facade cladding",
         "Roof sheeting / covering",
+        "Windows / glazing",
+        "Floor finish",
+        "Kitchen joinery",
         "Paving",
     ):
         assert item in body, item
@@ -190,10 +193,15 @@ def test_new_house_prepopulates_wet_area_and_envelope_items() -> None:
     names = _ffe_item_names(body)
     assert names.index("Facade cladding") < names.index("Render / paint")
     assert names.index("Render / paint") < names.index("Bricks / masonry")
+    assert names.index("Windows / glazing") < names.index("Roof sheeting / covering")
     assert names.index("Roof sheeting / covering") < names.index("Wall and floor tiles")
+    assert names.index("Floor finish") < names.index("Wall and floor tiles")
     assert names.index("Wall and floor tiles") < names.index("Basin")
     assert names.index("Kitchen joinery") < names.index("Appliances")
     assert names[-1] == "Appliances"
+    assert "Not evidenced" not in body
+    assert "| To be confirmed |" not in body
+    assert "| Typical |" not in body
 
 
 def test_rail_station_prepopulates_exterior_finishes_not_an_empty_stub() -> None:

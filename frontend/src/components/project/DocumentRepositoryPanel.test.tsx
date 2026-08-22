@@ -677,3 +677,88 @@ describe("DocumentRepositoryPanel transmittal curation", () => {
     expect(screen.queryByRole("button", { name: "Save Transmittal" })).not.toBeInTheDocument();
   });
 });
+
+describe("DocumentRepositoryPanel project pulse", () => {
+  const pulseFeed = {
+    attention: [
+      {
+        id: "drawing_revision:source_document:doc-1",
+        kind: "attention" as const,
+        signal_type: "drawing_revision" as const,
+        title: "S203 Rev C supersedes Rev B",
+        body: "S203 Rev C supersedes Rev B",
+        domain: "STRUCTURE",
+        evidence: [
+          {
+            reference_type: "source_document",
+            reference_id: "doc-1",
+            label: "S203.pdf",
+          },
+        ],
+        actions: ["view_evidence", "dismiss"],
+        created_at: "2026-08-19T00:00:00Z",
+      },
+    ],
+    other: [],
+    attention_count: 1,
+    generated_at: "2026-08-19T00:00:00Z",
+    since: "2026-08-12T00:00:00Z",
+  };
+
+  function renderWithPulse() {
+    return render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[evidenceRow()]}
+        selectedEvidenceId={null}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        pulseFeed={pulseFeed}
+      />,
+    );
+  }
+
+  it("keeps pulse collapsed and document rows visible by default", () => {
+    renderWithPulse();
+
+    expect(screen.getByRole("button", { name: /project pulse/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.queryByTestId("project-pulse")).not.toBeInTheDocument();
+    expect(screen.getByText("Owner Brief")).toBeInTheDocument();
+  });
+
+  it("shows attention items above the document list when pulse is opened", () => {
+    renderWithPulse();
+
+    fireEvent.click(screen.getByRole("button", { name: /project pulse/i }));
+
+    const pulse = screen.getByTestId("project-pulse");
+    const list = screen.getByRole("table");
+    expect(pulse.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("S203 Rev C supersedes Rev B")).toBeInTheDocument();
+    expect(screen.getByText("Owner Brief")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /project pulse/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("hides pulse items again when the icon is toggled off", () => {
+    renderWithPulse();
+    const pulseButton = screen.getByRole("button", { name: /project pulse/i });
+
+    fireEvent.click(pulseButton);
+    fireEvent.click(pulseButton);
+
+    expect(screen.queryByTestId("project-pulse")).not.toBeInTheDocument();
+    expect(screen.getByText("Owner Brief")).toBeInTheDocument();
+  });
+});

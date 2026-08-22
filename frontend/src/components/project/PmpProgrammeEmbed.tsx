@@ -9,16 +9,17 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { GanttChart } from "lucide-react";
+import { Info } from "lucide-react";
 
 import { ProgramGantt } from "@/components/project/ProgramGantt";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
-import type { ProgrammeState } from "@/lib/programme";
+import type { ProgrammeScale, ProgrammeState } from "@/lib/programme";
 
 const PROGRAMME_HEADINGS = new Set([
   "programme",
+  "program",
   "programme of services",
   "programme and staging regime",
 ]);
@@ -26,6 +27,7 @@ const PROGRAMME_HEADINGS = new Set([
 type ProgrammeContextValue = {
   state: ProgrammeState | null;
   setVisible: (visible: boolean) => Promise<void>;
+  setScale: (scale: ProgrammeScale) => Promise<void>;
 };
 
 const ProgrammeContext = createContext<ProgrammeContextValue | null>(null);
@@ -67,6 +69,14 @@ export function PmpProgrammeProvider({
           }),
         );
       },
+      setScale: async (view_scale: ProgrammeScale) => {
+        if (!state) return;
+        setState(
+          await api.setProgrammeView(projectId, state.version, {
+            view_scale,
+          }),
+        );
+      },
     }),
     [projectId, state],
   );
@@ -76,62 +86,89 @@ export function PmpProgrammeProvider({
   );
 }
 
-export function PmpProgrammeToolbar() {
-  const context = useContext(ProgrammeContext);
-  if (!context?.state) return null;
-  const visible = context.state.pmp_embed_visible;
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon"
-      className="print:hidden size-10 text-muted-foreground hover:text-foreground"
-      aria-label={visible ? "Hide programme from PMP" : "Show programme in PMP"}
-      aria-pressed={visible}
-      onClick={() => void context.setVisible(!visible)}
-    >
-      <GanttChart className="size-5" aria-hidden />
-    </Button>
-  );
-}
-
-export function PmpProgrammeFigure({
-  host,
-  onOpenProgram,
-}: {
-  host: HTMLElement | null;
-  onOpenProgram?: () => void;
-}) {
+export function PmpProgrammeFigure({ host }: { host: HTMLElement | null }) {
   const context = useContext(ProgrammeContext);
   const state = context?.state ?? null;
-  const [mount, setMount] = useState<HTMLElement | null>(null);
+  const [figureMount, setFigureMount] = useState<HTMLElement | null>(null);
+  const [iconMount, setIconMount] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
-    if (!host || !state?.pmp_embed_visible) {
-      setMount(null);
+    if (!host || !state) {
+      setFigureMount(null);
+      setIconMount(null);
       return;
     }
     const heading = findProgrammeHeading(host);
     if (!heading) {
-      setMount(null);
+      setFigureMount(null);
+      setIconMount(null);
       return;
     }
-    const node = document.createElement("div");
-    node.dataset.programmeFigure = "true";
-    heading.after(node);
-    setMount(node);
-    return () => {
-      node.remove();
-      setMount(null);
-    };
-  }, [host, state?.pmp_embed_visible, state?.version, state?.view_scale]);
+    const section = programmeSectionRoot(heading);
+    const iconNode = document.createElement("div");
+    iconNode.dataset.programmeToggle = "true";
+    iconNode.className = "print:hidden shrink-0";
+    if (heading.parentElement === section) {
+      section.append(iconNode);
+    } else {
+      heading.after(iconNode);
+    }
+    setIconMount(iconNode);
 
-  if (!state?.pmp_embed_visible || !mount) return null;
-  return createPortal(
-    <div className="my-4">
-      <ProgramGantt state={state} mode="figure" onOpenProgram={onOpenProgram} />
-    </div>,
-    mount,
+    let figureNode: HTMLElement | null = null;
+    if (state.pmp_embed_visible) {
+      figureNode = document.createElement("div");
+      figureNode.dataset.programmeFigure = "true";
+      section.after(figureNode);
+      setFigureMount(figureNode);
+    } else {
+      setFigureMount(null);
+    }
+
+    return () => {
+      iconNode.remove();
+      figureNode?.remove();
+      setIconMount(null);
+      setFigureMount(null);
+    };
+  }, [host, state, state?.pmp_embed_visible, state?.version]);
+
+  if (!state) return null;
+  return (
+    <>
+      {iconMount
+        ? createPortal(
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground hover:text-foreground"
+              aria-label={
+                state.pmp_embed_visible
+                  ? "Hide programme from PMP"
+                  : "Show programme in PMP"
+              }
+              aria-pressed={state.pmp_embed_visible}
+              onClick={() => void context?.setVisible(!state.pmp_embed_visible)}
+            >
+              <Info className="size-3.5" aria-hidden />
+            </Button>,
+            iconMount,
+          )
+        : null}
+      {state.pmp_embed_visible && figureMount
+        ? createPortal(
+            <div className="my-4 min-w-0">
+              <ProgramGantt
+                state={state}
+                mode="figure"
+                onScaleChange={(scale) => void context?.setScale(scale)}
+              />
+            </div>,
+            figureMount,
+          )
+        : null}
+    </>
   );
 }
 
@@ -143,4 +180,16 @@ function findProgrammeHeading(host: HTMLElement): HTMLElement | null {
     }
   }
   return null;
+}
+
+function programmeSectionRoot(heading: HTMLElement): HTMLElement {
+  const parent = heading.parentElement;
+  if (
+    parent &&
+    parent.tagName === "DIV" &&
+    parent.querySelector(":scope > h2") === heading
+  ) {
+    return parent;
+  }
+  return heading;
 }

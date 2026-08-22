@@ -2834,23 +2834,50 @@ async def replace_project_draft_transmittal(
         }
         for preview in ordered
     ]
-    try:
+    latest = await get_latest_draft_artifact(
+        session, project_id=project.id, workflow_type=draft.workflow_type
+    )
+    base = latest if latest is not None else draft
+
+    async def rewrite(
+        base_draft: DraftArtifact,
+    ) -> tuple[DraftArtifact, BlockMutationResult]:
         replaced = replace_transmittal_section(
-            normalize_draft_markdown(draft.content_markdown),
+            normalize_draft_markdown(base_draft.content_markdown),
             evidence_rows,
         )
         stamped = materialize_block_identity(replaced, actor_source="user")
         updated = await revise_workflow_artefact(
             session,
             project=project,
-            draft=draft,
-            expected_base_version=body.expected_base_version,
+            draft=base_draft,
+            expected_base_version=base_draft.version,
             author_user_id=user.id,
             content_markdown=stamped.markdown,
             actor_source="user_transmittal",
         )
-    except ArtefactRevisionConflict as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return updated, stamped
+
+    try:
+        updated, stamped = await rewrite(base)
+    except ArtefactRevisionConflict:
+        latest = await get_latest_draft_artifact(
+            session, project_id=project.id, workflow_type=draft.workflow_type
+        )
+        if latest is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Expected {draft.workflow_type} v{body.expected_base_version}, current version is missing",
+            ) from None
+        try:
+            base = latest
+            updated, stamped = await rewrite(base)
+        except ArtefactRevisionConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except ArtefactPolicyViolation as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ArtefactPolicyViolation as exc:
@@ -2859,7 +2886,7 @@ async def replace_project_draft_transmittal(
     present_ids = {
         block.id for block in markdown_blocks(stamped.markdown) if block.id
     }
-    prior_blocks = (draft.provenance_metadata or {}).get("blocks")
+    prior_blocks = (base.provenance_metadata or {}).get("blocks")
     retained_blocks = (
         {
             block_id: value
@@ -2881,11 +2908,11 @@ async def replace_project_draft_transmittal(
         - present_ids
     )
     audit = carry_generation_audit(
-        draft.provenance_metadata,
+        base.provenance_metadata,
         mutation={
             "kind": "transmittal_replace",
             "actor_source": "user_transmittal",
-            "from_version": draft.version,
+            "from_version": base.version,
             "to_version": updated.version,
             "evidence_ids": [str(evidence_id) for evidence_id in body.evidence_ids],
             "changed_block_ids": list(stamped.changed_block_ids),

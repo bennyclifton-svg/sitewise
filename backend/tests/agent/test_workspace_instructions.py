@@ -15,6 +15,9 @@ def test_writes_agents_md_into_workspace(tmp_path: Path) -> None:
     assert "You are Pi" in WORKSPACE_AGENTS_MD
     assert "SiteWise software" in WORKSPACE_AGENTS_MD
     assert "repository" in WORKSPACE_AGENTS_MD
+    assert "search_project_email" in WORKSPACE_AGENTS_MD
+    assert "create_email_draft" in WORKSPACE_AGENTS_MD
+    assert "Never claim the message was sent" in WORKSPACE_AGENTS_MD
     assert "list_document_register" in WORKSPACE_AGENTS_MD
     assert "select_document_register_files" in WORKSPACE_AGENTS_MD
     assert "refresh_cost_plan with reconcile_evidence=true" in WORKSPACE_AGENTS_MD

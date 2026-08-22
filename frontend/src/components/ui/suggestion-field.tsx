@@ -11,6 +11,8 @@ type SuggestionFieldProps = {
   id?: string;
   value: string;
   suggestions: ReadonlyArray<string>;
+  /** Small revision (or other) marker shown on matching suggestions. */
+  badges?: Readonly<Record<string, string>>;
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
@@ -22,6 +24,7 @@ export function SuggestionField({
   id,
   value,
   suggestions,
+  badges,
   onChange,
   placeholder,
   disabled = false,
@@ -37,6 +40,10 @@ export function SuggestionField({
   const filtered = useMemo(() => {
     const query = value.trim().toLowerCase();
     if (!query) return [...suggestions];
+    const exactMatch = suggestions.some(
+      (suggestion) => suggestion.toLowerCase() === query,
+    );
+    if (exactMatch) return [...suggestions];
     const matched = suggestions.filter((suggestion) =>
       suggestion.toLowerCase().includes(query),
     );
@@ -136,10 +143,21 @@ export function SuggestionField({
         >
           {filtered.map((suggestion) => {
             const isSelected = suggestion === value;
+            const badge = badges?.[suggestion];
             return (
-              <li key={suggestion} role="option" aria-selected={isSelected}>
+              <li
+                key={suggestion}
+                role="option"
+                aria-selected={isSelected}
+                aria-label={badge ? `${suggestion} ${badge}` : suggestion}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                }}
+                onClick={() => selectSuggestion(suggestion)}
+              >
                 <button
                   type="button"
+                  aria-label={badge ? `${suggestion} ${badge}` : suggestion}
                   className={cn(
                     dropdownMenuItemClassName,
                     isSelected && "bg-muted font-medium",
@@ -151,6 +169,11 @@ export function SuggestionField({
                   onClick={() => selectSuggestion(suggestion)}
                 >
                   <span className="min-w-0 flex-1 truncate">{suggestion}</span>
+                  {badge ? (
+                    <span className="shrink-0 text-[0.6875rem] tabular-nums text-muted-foreground">
+                      {badge}
+                    </span>
+                  ) : null}
                   {isSelected ? (
                     <Check className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                   ) : (

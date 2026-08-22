@@ -5,6 +5,8 @@ import {
   disciplinesFromPmpMarkdown,
   latestRequest,
   latestRequestForKind,
+  kindForTargetName,
+  latestRequestForTab,
   mergeDisciplineOptions,
   requestChipLabel,
 } from "@/lib/procurement-disciplines";
@@ -61,6 +63,26 @@ describe("procurement-disciplines", () => {
     expect(requestChipLabel(request)).toBe("Structural engineer v3");
   });
 
+  it("marks supplier quotes in the collapsed trade-package chip list", () => {
+    const request = {
+      kind: "trade_rfq",
+      target_name: "Windows",
+      revision: 1,
+      current_draft: { version: 1 },
+    } as ProcurementRequest;
+    expect(requestChipLabel(request)).toBe("Windows RFQ v1");
+  });
+
+  it("marks supplier quotes in the collapsed trade-package chip list", () => {
+    const request = {
+      kind: "trade_rfq",
+      target_name: "Windows",
+      revision: 1,
+      current_draft: { version: 1 },
+    } as ProcurementRequest;
+    expect(requestChipLabel(request)).toBe("Windows RFQ v1");
+  });
+
   it("orders package chips by kind then discipline", () => {
     const requests = [
       { kind: "trade_rft", target_name: "Main works" },
@@ -79,8 +101,8 @@ describe("procurement-disciplines", () => {
     ).toEqual([
       "Architect v1",
       "Certifier v1",
-      "Windows v1",
       "Main works v1",
+      "Windows RFQ v1",
     ]);
   });
 
@@ -102,5 +124,35 @@ describe("procurement-disciplines", () => {
     expect(latestRequestForKind([older, newer], "consultant_rfp")?.id).toBe(
       "structural",
     );
+  });
+
+  it("treats supplier quotes as trade-package tab items", () => {
+    const rft = {
+      id: "rft",
+      kind: "trade_rft",
+      target_name: "Main works",
+      updated_at: "2026-08-10T00:00:00Z",
+    } as ProcurementRequest;
+    const rfq = {
+      id: "rfq",
+      kind: "trade_rfq",
+      target_name: "Windows",
+      updated_at: "2026-08-12T00:00:00Z",
+    } as ProcurementRequest;
+    expect(latestRequestForTab([rft, rfq], "trade_rft")?.id).toBe("rfq");
+    expect(latestRequestForTab([rft, rfq], "consultant_rfp")).toBeNull();
+  });
+
+  it("routes known consultants to RFP and other names to RFT", () => {
+    expect(kindForTargetName("Architect")).toBe("consultant_rfp");
+    expect(kindForTargetName("Electrical services")).toBe("trade_rft");
+    expect(
+      kindForTargetName("Structural engineer", ["Structural engineer"]),
+    ).toBe("consultant_rfp");
+    expect(
+      kindForTargetName("Architect", [], [
+        { kind: "consultant_rfp", target_name: "Architect" } as ProcurementRequest,
+      ]),
+    ).toBe("consultant_rfp");
   });
 });

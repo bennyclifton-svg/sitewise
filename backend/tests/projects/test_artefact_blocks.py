@@ -4,15 +4,19 @@ import re
 from datetime import UTC, datetime
 
 from app.projects.artefact_blocks import (
+    BLOCK_OPERATION_RECEIPTS_KEY,
+    BLOCK_OPERATION_RECEIPT_LIMIT,
     ArtefactBlockOperation,
     ArtefactBlockTarget,
     IncrementalBlockProposal,
     apply_block_operations,
     block_input_hash,
+    find_block_operation_receipt,
     materialize_block_identity,
     markdown_blocks,
     merge_incremental_block_updates,
     reconcile_regenerated_blocks,
+    record_block_operation_receipt,
     strip_block_markers,
 )
 
@@ -677,3 +681,59 @@ def test_move_updates_provenance_timestamps() -> None:
         "+00:00", "Z"
     )
     assert first.id in moved.changed_block_ids
+
+
+def test_operation_id_ring_is_bounded() -> None:
+    provenance: dict = {}
+    for index in range(BLOCK_OPERATION_RECEIPT_LIMIT + 5):
+        provenance = {
+            **provenance,
+            BLOCK_OPERATION_RECEIPTS_KEY: record_block_operation_receipt(
+                provenance,
+                client_operation_id=f"op-{index}",
+                delta={"version": index},
+            ),
+        }
+
+    ring = provenance[BLOCK_OPERATION_RECEIPTS_KEY]
+    assert len(ring) == BLOCK_OPERATION_RECEIPT_LIMIT
+    # Oldest ids are evicted; the most recent window still replays.
+    assert find_block_operation_receipt(provenance, "op-0") is None
+    assert find_block_operation_receipt(provenance, "op-4") is None
+    newest = BLOCK_OPERATION_RECEIPT_LIMIT + 4
+    assert find_block_operation_receipt(provenance, f"op-{newest}") == {
+        "version": newest
+    }
+    oldest_kept = newest - BLOCK_OPERATION_RECEIPT_LIMIT + 1
+    assert find_block_operation_receipt(provenance, f"op-{oldest_kept}") == {
+        "version": oldest_kept
+    }
+
+
+def test_recording_the_same_operation_id_twice_does_not_grow_the_ring() -> None:
+    ring = record_block_operation_receipt(
+        {}, client_operation_id="op-a", delta={"version": 2}
+    )
+    ring = record_block_operation_receipt(
+        {BLOCK_OPERATION_RECEIPTS_KEY: ring},
+        client_operation_id="op-a",
+        delta={"version": 3},
+    )
+
+    assert len(ring) == 1
+    assert find_block_operation_receipt(
+        {BLOCK_OPERATION_RECEIPTS_KEY: ring}, "op-a"
+    ) == {"version": 3}
+
+
+def test_receipt_lookup_tolerates_absent_or_malformed_provenance() -> None:
+    assert find_block_operation_receipt(None, "op-a") is None
+    assert find_block_operation_receipt({}, "op-a") is None
+    assert find_block_operation_receipt({BLOCK_OPERATION_RECEIPTS_KEY: "junk"}, "op-a") is None
+    assert (
+        find_block_operation_receipt(
+            {BLOCK_OPERATION_RECEIPTS_KEY: ["junk", {"client_operation_id": "op-a"}]},
+            "op-a",
+        )
+        is None
+    )

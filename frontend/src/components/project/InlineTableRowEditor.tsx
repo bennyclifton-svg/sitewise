@@ -1,4 +1,6 @@
 import {
+  useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -27,11 +29,13 @@ export function InlineTableRowEditor({
   onCancel: () => void;
   onSave: (markdown: string) => Promise<void>;
 }) {
+  const unmountingRef = useRef(false);
   const [editCells] = useState(() => editableTableCells(sourceRow));
   const rowRef = useRef<HTMLTableRowElement>(null);
   const cellRefs = useRef<Array<HTMLTableCellElement | null>>([]);
   const dirtyRef = useRef(false);
   const savingRef = useRef(false);
+  const pendingRef = useRef(false);
 
   useLayoutEffect(() => {
     const focusIndex = Math.min(
@@ -49,21 +53,47 @@ export function InlineTableRowEditor({
     selection?.addRange(range);
   }, [editCells.length, focusCellIndex]);
 
-  async function save() {
+  useLayoutEffect(() => {
+    unmountingRef.current = false;
+    return () => {
+      unmountingRef.current = true;
+    };
+  }, []);
+
+  const save = useCallback(async () => {
     const row = rowRef.current;
-    if (!row || !dirtyRef.current || isSaving || savingRef.current) return;
+    if (!row || !dirtyRef.current) return;
+    if (savingRef.current || isSaving) {
+      // A commit is already running. Remember that there is newer content and
+      // flush it when the commit lands — dropping it here loses the user's
+      // keystrokes with no error (plan §8).
+      pendingRef.current = true;
+      return;
+    }
     savingRef.current = true;
     try {
-      const nextCells = Array.from(
-        row.querySelectorAll<HTMLElement>("[data-table-cell-editor]"),
-      ).map((cell) => (cell.textContent ?? "").replace(/\u00a0/g, " ").trim());
-      await onSave(formatTableRow(nextCells));
+      do {
+        pendingRef.current = false;
+        const nextCells = Array.from(
+          row.querySelectorAll<HTMLElement>("[data-table-cell-editor]"),
+        ).map((cell) => (cell.textContent ?? "").replace(/\u00a0/g, " ").trim());
+        dirtyRef.current = false;
+        await onSave(formatTableRow(nextCells));
+        // Loop only if the user typed again during the await, so this is
+        // bounded by real keystrokes rather than spinning.
+      } while (pendingRef.current && dirtyRef.current);
     } finally {
       savingRef.current = false;
     }
-  }
+  }, [isSaving, onSave]);
+
+  useEffect(() => {
+    if (isSaving || !pendingRef.current || !dirtyRef.current) return;
+    void save();
+  }, [isSaving, save]);
 
   function handleBlur(event: FocusEvent<HTMLTableRowElement>) {
+    if (unmountingRef.current || !event.currentTarget.isConnected) return;
     const next = event.relatedTarget;
     if (next instanceof Node && rowRef.current?.contains(next)) return;
     if (!dirtyRef.current) {
@@ -102,17 +132,27 @@ export function InlineTableRowEditor({
             key={`edit-cell-${index}`}
             ref={(node) => {
               cellRefs.current[index] = node;
+              // Seed the cell once and then let the DOM own it. Passing the
+              // text through React (children or dangerouslySetInnerHTML) means
+              // any parent re-render re-applies the *original* value and
+              // silently discards what the user has typed since.
+              if (node && node.dataset.seeded !== "true") {
+                node.textContent = cell;
+                node.dataset.seeded = "true";
+              }
             }}
             role="textbox"
             aria-label={`Edit table cell ${index + 1}`}
             aria-multiline="false"
             aria-busy={isSaving}
-            contentEditable={!isSaving}
+            // Stays editable during a save (plan §7). `save()` reads the DOM
+            // when it runs and `savingRef` serialises overlapping saves, so
+            // continued typing is captured rather than dropped.
+            contentEditable
             suppressContentEditableWarning
             spellCheck
             data-table-cell-editor
             className="border-b px-3 py-2 align-top text-foreground caret-[var(--sw-beam-hex)] outline-none"
-            dangerouslySetInnerHTML={{ __html: escapeText(cell) }}
             onInput={() => {
               dirtyRef.current = true;
             }}
@@ -133,12 +173,4 @@ export function InlineTableRowEditor({
       ) : null}
     </>
   );
-}
-
-function escapeText(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

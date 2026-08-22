@@ -1,4 +1,5 @@
 import {
+  Activity,
   AlertCircle,
   ChevronDown,
   ChevronUp,
@@ -22,6 +23,7 @@ import {
 } from "react";
 
 import { ActivityFeed } from "@/components/project/ActivityFeed";
+import { attentionHeadline, PulsePanel } from "@/components/project/PulsePanel";
 import {
   IngestProgressStrip,
   type IngestUploadProgress,
@@ -43,6 +45,13 @@ import {
   useDeleteDraft,
   useDeleteEvidence,
 } from "@/lib/queries/project-data";
+import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
+import type {
+  PulseAction,
+  PulseFeed,
+  PulseItem,
+  PulseSincePreset,
+} from "@/lib/types/pulse";
 import type {
   DeleteDraftResponse,
   DocumentUsageMark,
@@ -147,6 +156,14 @@ export function DocumentRepositoryPanel({
   onRunSortFiles,
   isRunningSortFiles = false,
   overlayReady = true,
+  pulseFeed = null,
+  pulseSincePreset = "7d",
+  onPulseSinceChange,
+  onPulseAction,
+  pulseEmailDraft = null,
+  pulseEmailSending = false,
+  onSendPulseEmailDraft,
+  pulseEmailThread = null,
   platformStatus = null,
   selectedPlatformKnowledgePath = null,
   onSelectPlatformKnowledge,
@@ -172,6 +189,14 @@ export function DocumentRepositoryPanel({
   onRunSortFiles?: () => void;
   isRunningSortFiles?: boolean;
   overlayReady?: boolean;
+  pulseFeed?: PulseFeed | null;
+  pulseSincePreset?: PulseSincePreset;
+  onPulseSinceChange?: (preset: PulseSincePreset) => void;
+  onPulseAction?: (item: PulseItem, action: PulseAction) => void;
+  pulseEmailDraft?: ProjectEmailDraft | null;
+  pulseEmailSending?: boolean;
+  onSendPulseEmailDraft?: () => void;
+  pulseEmailThread?: ProjectEmailMessage[] | null;
   platformStatus?: PlatformKnowledgeStatus | null;
   selectedPlatformKnowledgePath?: string | null;
   onSelectPlatformKnowledge?: (document: PlatformKnowledgeDocument) => void;
@@ -211,6 +236,7 @@ export function DocumentRepositoryPanel({
   );
   const [sortKey, setSortKey] = useState<ScheduleSortKey>("document_number");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [pulseOpen, setPulseOpen] = useState(false);
   const dragDepthRef = useRef(0);
   const scheduleRows = useMemo<ScheduleRow[]>(
     () =>
@@ -845,6 +871,33 @@ export function DocumentRepositoryPanel({
                 )}
               </Button>
             ) : null}
+            {pulseFeed ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className={cn(
+                  toolbarIconButtonClass,
+                  "relative",
+                  pulseOpen && toolbarIconButtonActiveClass,
+                )}
+                aria-label={
+                  pulseFeed.attention_count > 0
+                    ? `Project pulse, ${attentionHeadline(pulseFeed.attention_count)}`
+                    : "Project pulse"
+                }
+                aria-pressed={pulseOpen}
+                title="Project pulse"
+                onClick={() => setPulseOpen((open) => !open)}
+              >
+                <Activity className="size-3.5" aria-hidden />
+                {pulseFeed.attention_count > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 flex size-3 items-center justify-center rounded-full bg-[var(--sw-beam)] text-[0.5rem] leading-none text-[var(--sw-void)]">
+                    {pulseFeed.attention_count > 9 ? "9+" : pulseFeed.attention_count}
+                  </span>
+                ) : null}
+              </Button>
+            ) : null}
           </div>
           {activePanelView === "schedule" && selectedScheduleRows.length ? (
             <span className="shrink-0 text-xs text-muted-foreground">
@@ -929,6 +982,75 @@ export function DocumentRepositoryPanel({
       })}
 
       <div className="cockpit-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {pulseOpen && pulseFeed ? (
+          <>
+            <PulsePanel
+              feed={pulseFeed}
+              sincePreset={pulseSincePreset}
+              onSinceChange={onPulseSinceChange}
+              onAction={onPulseAction}
+            />
+            {pulseEmailDraft ? (
+              <aside
+                className="border-b border-[var(--border-hair)] px-1.5 py-2"
+                data-testid="pulse-email-draft"
+              >
+                <p className="text-[0.6rem] font-mono uppercase tracking-[0.12em] text-[var(--sw-text-quiet)]">
+                  Draft reply
+                </p>
+                <p
+                  className="mt-0.5 truncate text-[0.7rem] text-[var(--sw-text-primary)]"
+                  title={pulseEmailDraft.subject}
+                >
+                  {pulseEmailDraft.subject}
+                </p>
+                <p className="mt-0.5 text-[0.65rem] text-[var(--sw-text-secondary)]">
+                  {pulseEmailDraft.status === "sent"
+                    ? "Sent"
+                    : pulseEmailDraft.status === "send_failed"
+                      ? pulseEmailDraft.send_error || "Send failed"
+                      : "Saved as draft — not sent"}
+                </p>
+                {onSendPulseEmailDraft && pulseEmailDraft.status === "draft" ? (
+                  <button
+                    type="button"
+                    data-testid="pulse-email-send"
+                    disabled={pulseEmailSending}
+                    className="mt-1.5 inline-flex items-center rounded-sm bg-primary px-2.5 py-1 text-[0.65rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                    onClick={onSendPulseEmailDraft}
+                  >
+                    {pulseEmailSending ? "Sending…" : "Send"}
+                  </button>
+                ) : null}
+              </aside>
+            ) : null}
+            {pulseEmailThread ? (
+              <aside
+                className="border-b border-[var(--border-hair)] px-1.5 py-2"
+                data-testid="pulse-email-thread"
+              >
+                <p className="text-[0.6rem] font-mono uppercase tracking-[0.12em] text-[var(--sw-text-quiet)]">
+                  Thread
+                </p>
+                <ol className="mt-1 grid gap-1.5">
+                  {pulseEmailThread.map((message) => (
+                    <li key={message.email_id} className="min-w-0">
+                      <p
+                        className="truncate text-[0.7rem] text-[var(--sw-text-primary)]"
+                        title={message.subject}
+                      >
+                        {message.subject}
+                      </p>
+                      <p className="truncate text-[0.65rem] text-[var(--sw-text-secondary)]">
+                        {message.from_address}
+                      </p>
+                    </li>
+                  ))}
+                </ol>
+              </aside>
+            ) : null}
+          </>
+        ) : null}
         {activePanelView === "tree" ? (
           <div className="px-1.5 py-2">
             <WorkspaceExplorer

@@ -5,6 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   addMonths,
+  formatCompactDate,
   formatMonthYear,
   parseIsoDate,
   startOfMonth,
@@ -13,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const WEEKDAYS = ["M", "T", "W", "T", "F", "S", "S"];
-const DATE_LABEL = new Intl.DateTimeFormat("en-AU", {
+const DATE_TITLE = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
   month: "short",
   year: "numeric",
@@ -52,7 +53,11 @@ export function ProgrammeDateField({
         type="button"
         aria-label={ariaLabel}
         aria-expanded={open}
-        className="program-gantt-field flex h-6 w-full items-center gap-1 px-1 text-left text-xs leading-6"
+        className={cn(
+          "program-gantt-field flex h-5 w-full items-center gap-0.5 px-0.5 text-left",
+          "text-[10px] leading-5 md:text-[10px]",
+        )}
+        title={DATE_TITLE.format(parseIsoDate(value))}
         onClick={() => {
           if (open) {
             setOpen(false);
@@ -64,8 +69,8 @@ export function ProgrammeDateField({
           setOpen(true);
         }}
       >
-        <Calendar className="size-3.5 shrink-0 text-[var(--sw-text-tertiary)]" aria-hidden />
-        <span className="truncate">{DATE_LABEL.format(parseIsoDate(value))}</span>
+        <Calendar className="size-3 shrink-0 text-[var(--sw-text-tertiary)]" aria-hidden />
+        <span className="truncate">{formatCompactDate(value)}</span>
       </button>
       {open
         ? createPortal(

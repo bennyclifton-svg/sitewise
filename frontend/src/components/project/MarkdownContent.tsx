@@ -27,7 +27,6 @@ import remarkGfm from "remark-gfm";
 
 import {
   DecisionControl,
-  DecisionFinishSelect,
   DecisionSchedule,
   groupConsecutiveDecisionFences,
   parseEmbeddedDecision,
@@ -51,9 +50,22 @@ import {
   splitTraceQa,
 } from "@/lib/artifact-markdown";
 import {
+  ffeTableLayoutFromHeaders,
   foldFfeScheduleDecisions,
-  parseFfeDecisionMarker,
+  isFfeDecisionDuplicateRow,
+  presentFfeComment,
+  presentFfeFinish,
+  projectFfeScheduleRow,
+  type FfeTableLayout,
 } from "@/lib/ffe-schedule-display";
+import {
+  briefTableLayoutFromHeaders,
+  extractCitationTokens,
+  isCitationCellValue,
+  pmpRegisterTableLayoutFromHeaders,
+  stripCitationTokens,
+  type RegisterCitationLayout,
+} from "@/lib/pmp-register-tables";
 import { sourceRangeForRenderedBlock } from "@/lib/inline-markdown";
 import type { ArtifactBlockTarget } from "@/lib/artifact-blocks";
 import {
@@ -65,7 +77,11 @@ import {
   type MarkdownSectionSlice,
 } from "@/lib/markdown-sections";
 import type { MarkdownRange } from "@/lib/markdown-selection";
-import { expandRangeWithTrailingMarker } from "@/lib/table-row-edit";
+import {
+  editableTableCells,
+  expandRangeWithTrailingMarker,
+  formatTableRow,
+} from "@/lib/table-row-edit";
 import type {
   DraftArtifact,
   ProjectDecision,
@@ -73,6 +89,9 @@ import type {
 import { cn } from "@/lib/utils";
 
 const BLOCK_ID_RE = /<!--\s*clerk:block\s+id=(blk_[a-f0-9]{32})\s*-->/i;
+
+/** Stable plugin identity so react-markdown does not re-parse on every parent render. */
+const REMARK_PLUGINS = [remarkGfm];
 
 function blockIdNearRange(
   source: string,
@@ -100,15 +119,30 @@ const EVIDENCE_STATUSES = [
 /** Column layout hints for markdown tables rendered in the draft sheet. */
 type PmpTableLayout = {
   blankFeeNotEvidenced: boolean;
-  /** Drop legacy Scope / services for existing 6-column Consultants tables. */
-  dropColumnIndex: number | null;
+  dropColumnIndexes: readonly number[];
   feeColumnIndex: number | null;
+  renameHeaders: Record<string, string>;
+  isFfe: boolean;
+  finishColumnIndex: number | null;
+  commentColumnIndex: number | null;
+  citationColumnIndex: number | null;
+  appendCitation: boolean;
+  blankCitationHeader: boolean;
+  ffeLayout: FfeTableLayout | null;
 };
 
 const PmpTableLayoutContext = createContext<PmpTableLayout>({
   blankFeeNotEvidenced: false,
-  dropColumnIndex: null,
+  dropColumnIndexes: [],
   feeColumnIndex: null,
+  renameHeaders: {},
+  isFfe: false,
+  finishColumnIndex: null,
+  commentColumnIndex: null,
+  citationColumnIndex: null,
+  appendCitation: false,
+  blankCitationHeader: false,
+  ffeLayout: null,
 });
 
 type FfeDecisionRenderContextValue = {
@@ -152,17 +186,12 @@ type InlineEditOptions = {
   sourceMarkdown: string;
   renderedMarkdown: string;
   sourceSections: MarkdownSectionSlice[];
-  activeBlock?: ArtifactBlockTarget | null;
   editingRange?: MarkdownRange | null;
   editingFocusCellIndex?: number;
   isSavingEdit?: boolean;
   editError?: string | null;
   blockComposer?: ArtifactBlockComposerState | null;
   isSavingBlockComposer?: boolean;
-  /** Survives ReactMarkdown remounts; keyed by block identity. */
-  openActionsKey?: string | null;
-  onOpenActionsKeyChange?: (key: string | null) => void;
-  onActivateBlock?: (target: ArtifactBlockTarget) => void;
   editingCaretPoint?: { x: number; y: number } | null;
   onEditSelection?: (
     range: MarkdownRange,
@@ -199,6 +228,75 @@ type InlineEditOptions = {
   isSavingTransmittal?: boolean;
   transmittalSaveError?: string | null;
 };
+
+/**
+ * Live render options for the stable react-markdown component map.
+ *
+ * Recreating `p` / `tr` / `table` function identities remounts inline editors
+ * and wipes in-progress typing (a parent poll used to do this every few
+ * seconds). The map is created once; renderers read this context each time.
+ */
+type MarkdownRenderState = {
+  version?: number;
+  hideLeadingHeading?: boolean;
+  changedRanges: readonly MarkdownRange[];
+  projectTitle?: string;
+  projectId?: string;
+  decisionsById?: ReadonlyMap<string, ProjectDecision>;
+  foldedDecisionsById?: ReadonlyMap<string, EmbeddedDecision>;
+  readOnly?: boolean;
+  onDraftUpdated?: (draft: DraftArtifact) => void;
+} & InlineEditOptions;
+
+const EMPTY_RENDER_STATE: MarkdownRenderState = {
+  changedRanges: [],
+  sourceMarkdown: "",
+  renderedMarkdown: "",
+  sourceSections: [],
+};
+
+const MarkdownRenderContext =
+  createContext<MarkdownRenderState>(EMPTY_RENDER_STATE);
+
+function useMarkdownRender(): MarkdownRenderState {
+  return useContext(MarkdownRenderContext);
+}
+
+function markdownBlockTarget(
+  state: MarkdownRenderState,
+  node: unknown,
+  type: ArtifactBlockTarget["type"],
+): ArtifactBlockTarget | null {
+  const attributes = mdPosition(node, state.changedRanges);
+  if (!attributes || !state.sourceMarkdown) return null;
+  const renderedRange = {
+    start: attributes["data-md-start"],
+    end: attributes["data-md-end"],
+  };
+  const mapped = sourceRangeForRenderedBlock(
+    state.sourceMarkdown,
+    state.renderedMarkdown,
+    renderedRange,
+  );
+  if (!mapped) return null;
+  const range = expandRangeWithTrailingMarker(state.sourceMarkdown, mapped);
+  const section = state.sourceSections.find(
+    (item) => item.start <= range.start && range.start < item.end,
+  );
+  if (!section) return null;
+  const blockId = blockIdNearRange(state.sourceMarkdown, range);
+  return {
+    ...(blockId ? { id: blockId } : {}),
+    type,
+    range,
+    sectionStart: section.start,
+  };
+}
+
+function isLeadingH1(source: string, start: number | undefined): boolean {
+  if (start == null) return true;
+  return !/(^|\n)# /.test(source.slice(0, start));
+}
 
 function blockActionsKey(target: ArtifactBlockTarget): string {
   return `${target.type}:${target.range.start}:${target.range.end}`;
@@ -389,9 +487,38 @@ function composerForTarget(
 const BLOCK_ACTIONS_SLOT_CLASS =
   "flex h-6 w-6 shrink-0 items-center justify-end print:hidden";
 
-/** Resting: muted grey icons, no black chip. Hover keeps outline beam treatment. */
+/**
+ * Resting: muted grey icons, no black chip. Hover keeps outline beam treatment.
+ * Opacity is instant so the trigger is clickable as soon as the pointer hits the row.
+ */
 const BLOCK_ACTION_BUTTON_CLASS =
-  "border-transparent bg-transparent text-muted-foreground shadow-none";
+  "border-transparent bg-transparent text-muted-foreground shadow-none opacity-0 group-hover/block:opacity-100 group-focus-within/block:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100";
+
+type BlockActionsUi = {
+  openActionsKey: string | null;
+  onOpenActionsKeyChange: (key: string | null) => void;
+};
+
+const BlockActionsUiContext = createContext<BlockActionsUi>({
+  openActionsKey: null,
+  onOpenActionsKeyChange: () => {},
+});
+
+function BlockActionsProvider({ children }: { children: ReactNode }) {
+  const [openActionsKey, setOpenActionsKey] = useState<string | null>(null);
+  const value = useMemo(
+    () => ({
+      openActionsKey,
+      onOpenActionsKeyChange: setOpenActionsKey,
+    }),
+    [openActionsKey],
+  );
+  return (
+    <BlockActionsUiContext.Provider value={value}>
+      {children}
+    </BlockActionsUiContext.Provider>
+  );
+}
 
 const ICON_MENU_ITEM_CLASS = cn(
   dropdownMenuItemClassName,
@@ -431,20 +558,6 @@ function blockActionsAvailable(
   return Boolean(options.onEditWithAi || options.onMutateBlock);
 }
 
-function blockActionsVisible(
-  target: ArtifactBlockTarget | null | undefined,
-  options?: InlineEditOptions,
-  forceVisible = false,
-): boolean {
-  if (!blockActionsAvailable(target, options)) return false;
-  if (forceVisible) return true;
-  if (!options?.activeBlock) return false;
-  if (!rangesEqual(options.activeBlock.range, target!.range)) return false;
-  if (options.activeBlock.type !== target!.type) return false;
-  if (options.editingRange || options.blockComposer) return false;
-  return true;
-}
-
 function BlockHoverActions({
   target,
   options,
@@ -453,10 +566,13 @@ function BlockHoverActions({
   options?: InlineEditOptions;
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const { openActionsKey, onOpenActionsKeyChange } =
+    useContext(BlockActionsUiContext);
   const actionsKey = blockActionsKey(target);
-  const menuOpen = options?.openActionsKey === actionsKey;
+  const menuOpen = openActionsKey === actionsKey;
   const available = blockActionsAvailable(target, options);
-  const visible = available && blockActionsVisible(target, options, menuOpen);
+  const interactive =
+    available && !options?.editingRange && !options?.blockComposer;
   const blockId = target.id;
   const reviewStatus = blockId
     ? options?.reviewBlockStatuses?.get(blockId)
@@ -466,21 +582,21 @@ function BlockHoverActions({
   );
   const label = blockLabel(target.type);
 
-  // Always reserve the icon slot so hover does not shift citation/paragraph text.
+  // Keep the trigger mounted. CSS hides it until row hover so the first
+  // click does not wait for a markdown remount.
   if (!available) return null;
 
   return (
     <div
       className={BLOCK_ACTIONS_SLOT_CLASS}
-      data-instruction-ui={visible ? "" : undefined}
+      data-instruction-ui={interactive ? "" : undefined}
       data-block-actions
-      aria-hidden={!visible}
     >
-      {visible ? (
+      {interactive ? (
         <DropdownMenu
           open={menuOpen}
           onOpenChange={(open) =>
-            options?.onOpenActionsKeyChange?.(open ? actionsKey : null)
+            onOpenActionsKeyChange(open ? actionsKey : null)
           }
         >
           <DropdownMenuTrigger asChild>
@@ -664,68 +780,41 @@ function mdPosition(
     : { "data-md-start": start, "data-md-end": end };
 }
 
-function baseComponents(
-  changedRanges: readonly MarkdownRange[],
-  projectTitle?: string,
-  editOptions?: InlineEditOptions,
-): Components {
-  const position = (node: unknown) => mdPosition(node, changedRanges);
-  const blockTarget = (
-    node: unknown,
-    type: ArtifactBlockTarget["type"],
-  ): ArtifactBlockTarget | null => {
-    const attributes = position(node);
-    if (!attributes || !editOptions) return null;
-    const renderedRange = {
-      start: attributes["data-md-start"],
-      end: attributes["data-md-end"],
-    };
-    const mapped = sourceRangeForRenderedBlock(
-      editOptions.sourceMarkdown,
-      editOptions.renderedMarkdown,
-      renderedRange,
-    );
-    if (!mapped) return null;
-    const range = expandRangeWithTrailingMarker(
-      editOptions.sourceMarkdown,
-      mapped,
-    );
-    const section = editOptions.sourceSections.find(
-      (item) => item.start <= range.start && range.start < item.end,
-    );
-    if (!section) return null;
-    const blockId = blockIdNearRange(editOptions.sourceMarkdown, range);
-    return {
-      ...(blockId ? { id: blockId } : {}),
-      type,
-      range,
-      sectionStart: section.start,
-    };
-  };
+function baseComponents(): Components {
   return {
     h1: ({ children }) => (
       <h1 className="mb-4 text-2xl font-semibold leading-tight">{children}</h1>
     ),
-    h2: ({ children, node }) => (
-      <h2
-        className="pmp-section-heading mt-8 border-b pb-2 text-lg font-semibold first:mt-0"
-        {...position(node)}
-      >
-        {children}
-      </h2>
-    ),
-    h3: ({ children, node }) =>
-      flattenText(children).trim().toLowerCase() === "critical current position" ? null : (
-        <h3 className="mt-5 text-base font-semibold" {...position(node)}>
+    h2: function MarkdownH2Base({ children, node }) {
+      const { changedRanges } = useMarkdownRender();
+      return (
+        <h2
+          className="pmp-section-heading mt-8 border-b pb-2 text-lg font-semibold first:mt-0"
+          {...mdPosition(node, changedRanges)}
+        >
+          {children}
+        </h2>
+      );
+    },
+    h3: function MarkdownH3({ children, node }) {
+      const { changedRanges } = useMarkdownRender();
+      return flattenText(children).trim().toLowerCase() === "critical current position" ? null : (
+        <h3 className="mt-5 text-base font-semibold" {...mdPosition(node, changedRanges)}>
           {children}
         </h3>
-      ),
-    h4: ({ children, node }) => (
-      <h4 className="mt-4 text-sm font-semibold" {...position(node)}>
-        {children}
-      </h4>
-    ),
-    p: ({ children, node }) => {
+      );
+    },
+    h4: function MarkdownH4({ children, node }) {
+      const { changedRanges } = useMarkdownRender();
+      return (
+        <h4 className="mt-4 text-sm font-semibold" {...mdPosition(node, changedRanges)}>
+          {children}
+        </h4>
+      );
+    },
+    p: function MarkdownParagraph({ children, node }) {
+      const editOptions = useMarkdownRender();
+      const position = (item: unknown) => mdPosition(item, editOptions.changedRanges);
       const text = flattenText(children);
       if (isPmpGovernanceDisclaimer(text)) return null;
       const ownerBrief = stripOwnerBriefLeadIn(text);
@@ -790,7 +879,7 @@ function baseComponents(
         );
         return withAdjacentComposer(
           paragraphTarget,
-          <div className="group relative my-3 flex items-start gap-2">
+          <div className="group/block relative my-3 flex items-start gap-2">
             <InlineMarkdownEditor
               sectionStart={section?.start ?? sourceRange.start}
               sourceStart={sourceRange.start}
@@ -820,17 +909,10 @@ function baseComponents(
       if (canTargetParagraph && paragraphTarget && sourceRange) {
         return withAdjacentComposer(
           paragraphTarget,
-          <div
-            className="group relative my-3 flex items-start gap-2"
-            onMouseEnter={() => editOptions?.onActivateBlock?.(paragraphTarget)}
-            onClick={() => editOptions?.onActivateBlock?.(paragraphTarget)}
-          >
+          <div className="group/block relative my-3 flex items-start gap-2">
             <p
               className="min-w-0 flex-1 leading-relaxed"
               {...attributes}
-              onMouseEnter={() =>
-                editOptions?.onActivateBlock?.(paragraphTarget)
-              }
               onDoubleClick={(event) => {
                 if (!editOptions?.onEditSelection) return;
                 event.preventDefault();
@@ -861,14 +943,17 @@ function baseComponents(
         {children}
       </a>
     ),
-    blockquote: ({ children, node }) => (
-      <blockquote
-        className="my-4 border-l-2 pl-4 text-muted-foreground"
-        {...position(node)}
-      >
-        {children}
-      </blockquote>
-    ),
+    blockquote: function MarkdownBlockquote({ children, node }) {
+      const { changedRanges } = useMarkdownRender();
+      return (
+        <blockquote
+          className="my-4 border-l-2 pl-4 text-muted-foreground"
+          {...mdPosition(node, changedRanges)}
+        >
+          {children}
+        </blockquote>
+      );
+    },
     hr: () => <hr className="my-6 border-border" />,
     ul: ({ children }) => (
       <ul className="my-3 list-disc space-y-1.5 pl-5 leading-relaxed">{children}</ul>
@@ -876,11 +961,13 @@ function baseComponents(
     ol: ({ children }) => (
       <ol className="my-3 list-decimal space-y-1.5 pl-5 leading-relaxed">{children}</ol>
     ),
-    li: ({ children, node }) => {
+    li: function MarkdownListItem({ children, node }) {
+      const editOptions = useMarkdownRender();
+      const position = (item: unknown) => mdPosition(item, editOptions.changedRanges);
       const text = flattenText(children);
       const visibleText = stripEvidenceOnFileLabel(stripUserProvidedLabel(text));
       if (visibleText !== text && !visibleText) return null;
-      const target = blockTarget(node, "list_item");
+      const target = markdownBlockTarget(editOptions, node, "list_item");
       const isEditing = rangesEqual(editOptions?.editingRange, target?.range);
       if (
         isEditing &&
@@ -922,19 +1009,9 @@ function baseComponents(
       const placement = composerPlacement(editOptions);
       const item = (
         <li
-          className="relative list-item leading-relaxed"
+          className="group/block relative list-item leading-relaxed"
           {...position(node)}
           data-block-type="list_item"
-          onMouseEnter={
-            canEdit
-              ? () => editOptions?.onActivateBlock?.(target)
-              : undefined
-          }
-          onClick={
-            canEdit
-              ? () => editOptions?.onActivateBlock?.(target)
-              : undefined
-          }
           onDoubleClick={
             canEdit && editOptions?.onEditSelection
               ? (event) => {
@@ -977,27 +1054,20 @@ function baseComponents(
         <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{children}</code>
       );
     },
-    table: ({ children }) => {
+    table: function MarkdownTable({ children }) {
+      const editOptions = useMarkdownRender();
+      const projectTitle = editOptions.projectTitle;
       const isInformationRegister = informationRegisterTable(children);
+      const headers = headerLabelsFromTable(children);
       const consultantsLayout = consultantsTableLayout(children);
       const isConsultants = consultantsLayout !== null;
+      const ffeLayout = ffeTableLayoutFromHeaders(headers);
+      const isFfe = ffeLayout !== null;
       const collapsed =
         isInformationRegister && editOptions?.informationRegisterOpen === false;
       return (
         <PmpTableLayoutContext.Provider
-          value={
-            isConsultants
-              ? {
-                  blankFeeNotEvidenced: true,
-                  dropColumnIndex: consultantsLayout.dropColumnIndex,
-                  feeColumnIndex: consultantsLayout.feeColumnIndex,
-                }
-              : {
-                  blankFeeNotEvidenced: false,
-                  dropColumnIndex: null,
-                  feeColumnIndex: null,
-                }
-          }
+          value={tableLayoutFor(headers, consultantsLayout, ffeLayout)}
         >
           <div
             id={isInformationRegister ? "project-documents-register" : undefined}
@@ -1011,7 +1081,9 @@ function baseComponents(
                 "w-full border-collapse text-left text-sm",
                 isConsultants
                   ? "min-w-[52rem] table-fixed pmp-table-consultants"
-                  : "min-w-[32rem]",
+                  : isFfe
+                    ? "min-w-[28rem] pmp-table-ffe"
+                    : "min-w-[32rem]",
               ].join(" ")}
             >
               {isConsultants ? (
@@ -1042,17 +1114,20 @@ function baseComponents(
     ),
     // `tr` is the addressable unit for a table, never `td`/`th` — renderEvidenceCell
     // replaces cell content with badges, so a cell's rendered text is not its source.
-    tr: ({ children, node }) => (
+    tr: function MarkdownTableRowHost({ children, node }) {
+      const state = useMarkdownRender();
+      return (
       <MarkdownTableRow
         node={node}
-        projectTitle={projectTitle}
-        editOptions={editOptions}
-        position={position}
-        blockTarget={blockTarget}
+        projectTitle={state.projectTitle}
+        editOptions={state}
+        position={(item) => mdPosition(item, state.changedRanges)}
+        blockTarget={(item, type) => markdownBlockTarget(state, item, type)}
       >
         {children}
       </MarkdownTableRow>
-    ),
+      );
+    },
   };
 }
 
@@ -1074,27 +1149,33 @@ function MarkdownTableRow({
     type: ArtifactBlockTarget["type"],
   ) => ArtifactBlockTarget | null;
 }) {
-  const { blankFeeNotEvidenced, dropColumnIndex, feeColumnIndex } = useContext(
-    PmpTableLayoutContext,
-  );
   const {
-    projectId,
-    decisionsById,
-    foldedDecisionsById,
-    readOnly = false,
-    onDraftUpdated,
-  } = useContext(FfeDecisionRenderContext);
+    blankFeeNotEvidenced,
+    dropColumnIndexes,
+    feeColumnIndex,
+    renameHeaders,
+    isFfe,
+    finishColumnIndex,
+    commentColumnIndex,
+    citationColumnIndex,
+    appendCitation,
+    blankCitationHeader,
+    ffeLayout,
+  } = useContext(PmpTableLayoutContext);
+  const { foldedDecisionsById } = useContext(FfeDecisionRenderContext);
   const firstCell = Children.toArray(children)[0];
   const label = summaryLabel(firstCell);
   if (label === "critical current position" || label === "field") return null;
   const isHeader =
     isValidElement(firstCell) && String(firstCell.type).toLowerCase() === "th";
-  const hasFfeDecision = Children.toArray(children).some((cell) => {
-    if (!isValidElement<{ children?: ReactNode }>(cell)) return false;
-    return Boolean(parseFfeDecisionMarker(flattenText(cell.props.children)));
-  });
-  const target =
-    isHeader || hasFfeDecision ? null : blockTarget(node, "table_row");
+  if (
+    isFfe &&
+    !isHeader &&
+    isFfeDecisionDuplicateRow(flattenText(firstCell), foldedDecisionsById)
+  ) {
+    return null;
+  }
+  const target = isHeader ? null : blockTarget(node, "table_row");
   const isEditing = rangesEqual(editOptions?.editingRange, target?.range);
   if (
     isEditing &&
@@ -1102,12 +1183,29 @@ function MarkdownTableRow({
     editOptions?.onCancelSelectionEdit &&
     editOptions.onSaveSelectionEdit
   ) {
+    const sourceRow = editOptions.sourceMarkdown.slice(
+      target.range.start,
+      target.range.end,
+    );
+    const projected = isFfe ? projectFfeScheduleRow(sourceRow, ffeLayout) : null;
+    const editorRow = projected
+      ? formatTableRow(
+          projected.cells.map((cell, index) => {
+            if (index === 2) {
+              return presentFfeFinish(
+                projected.cells[0] ?? "",
+                cell,
+                foldedDecisionsById,
+              );
+            }
+            if (index === 3) return presentFfeComment(cell);
+            return cell;
+          }),
+        )
+      : sourceRow;
     return (
       <InlineTableRowEditor
-        sourceRow={editOptions.sourceMarkdown.slice(
-          target.range.start,
-          target.range.end,
-        )}
+        sourceRow={editorRow}
         sourceStart={target.range.start}
         sourceEnd={target.range.end}
         isSaving={Boolean(editOptions.isSavingEdit)}
@@ -1115,8 +1213,12 @@ function MarkdownTableRow({
         focusCellIndex={editOptions.editingFocusCellIndex ?? 0}
         onCancel={editOptions.onCancelSelectionEdit}
         onSave={(markdown) =>
-          editOptions.onSaveSelectionEdit?.(target.range, markdown) ??
-          Promise.resolve()
+          editOptions.onSaveSelectionEdit?.(
+            target.range,
+            projected
+              ? projected.commit(editableTableCells(markdown))
+              : markdown,
+          ) ?? Promise.resolve()
         }
       />
     );
@@ -1131,56 +1233,88 @@ function MarkdownTableRow({
     !editOptions?.editingRange &&
     !editOptions?.blockComposer;
   const conflicted = rowHasConflict(children);
-  const sourceCells = Children.toArray(children).filter((_, index) => {
-    return dropColumnIndex === null || index !== dropColumnIndex;
-  });
-  const cells = sourceCells.map((cell, index) => {
+  const itemName = flattenText(firstCell);
+  const prepared = Children.toArray(children).map((cell, sourceIndex) => {
     if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
     const raw = cell.props.children;
-    const decisionId = parseFfeDecisionMarker(flattenText(raw));
-    if (decisionId && projectId) {
-      const folded = foldedDecisionsById?.get(decisionId);
-      const decision = folded
-        ? hydrateEmbeddedDecision(folded, decisionsById?.get(decisionId))
-        : decisionsById?.get(decisionId)
-          ? hydrateEmbeddedDecision(
-              {
-                id: decisionId,
-                label: decisionId,
-                options: decisionsById.get(decisionId)!.options,
-                selected: decisionsById.get(decisionId)!.selected,
-                source: decisionsById.get(decisionId)!.source,
-              },
-              decisionsById.get(decisionId),
-            )
-          : null;
-      if (decision) {
-        return cloneElement(
-          cell,
-          { key: `cell-${index}` },
-          <DecisionFinishSelect
-            key={`${decision.id}:${decision.revision ?? 0}:${decision.set_revision ?? 0}`}
-            projectId={projectId}
-            decision={decision}
-            readOnly={readOnly || !decisionsById}
-            onDraftUpdated={onDraftUpdated}
-          />,
-        );
+    const renamed = renameHeaders[flattenText(raw).trim().toLowerCase()];
+    if (renamed) {
+      return cloneElement(cell, { key: `cell-${sourceIndex}` }, renamed);
+    }
+    if (isFfe && finishColumnIndex === sourceIndex) {
+      return cloneElement(
+        cell,
+        { key: `cell-${sourceIndex}` },
+        presentFfeFinish(itemName, flattenText(raw), foldedDecisionsById),
+      );
+    }
+    if (isFfe && commentColumnIndex === sourceIndex) {
+      return cloneElement(
+        cell,
+        { key: `cell-${sourceIndex}` },
+        presentFfeComment(flattenText(raw)),
+      );
+    }
+    if (isFfe) {
+      const text = flattenText(raw).trim();
+      if (/^not evidenced$/i.test(text)) {
+        return cloneElement(cell, { key: `cell-${sourceIndex}` }, "");
       }
     }
+    return cell;
+  });
+  const harvested =
+    isHeader || !(appendCitation || citationColumnIndex !== null)
+      ? ""
+      : harvestRowCitations(prepared);
+  const sourceCells = prepared.filter((_, index) => {
+    return !dropColumnIndexes.includes(index);
+  });
+  const remainingSourceIndexes = prepared
+    .map((_, index) => index)
+    .filter((index) => !dropColumnIndexes.includes(index));
+  const liftCitations = appendCitation || citationColumnIndex !== null;
+  const cells = sourceCells.map((cell, index) => {
+    if (!isValidElement<{ children?: ReactNode }>(cell)) return cell;
+    const sourceIndex = remainingSourceIndexes[index];
+    const isCitationCol = sourceIndex === citationColumnIndex;
+    if (isHeader && isCitationCol && blankCitationHeader) {
+      return cloneElement(cell, { key: `cell-${index}` }, "");
+    }
+    const raw = cell.props.children;
     const blankFee =
       blankFeeNotEvidenced &&
       feeColumnIndex !== null &&
       index === feeColumnIndex &&
       /^not evidenced$/i.test(flattenText(raw).trim());
-    return cloneElement(
-      cell,
-      { key: `cell-${index}` },
-      blankFee ? "" : renderEvidenceCell(raw, { conflicted }),
-    );
+    let content: ReactNode = raw;
+    if (blankFee) {
+      content = "";
+    } else if (isCitationCol) {
+      const citation = harvested || citationDisplayValue(flattenText(raw));
+      content = renderEvidenceCell(citation, { conflicted });
+    } else if (!isHeader && liftCitations) {
+      const text = flattenText(raw);
+      const stripped = stripCitationTokens(text);
+      const next = stripped !== text ? stripped : raw;
+      content = isFfe ? next : renderEvidenceCell(next, { conflicted });
+    } else if (!isHeader) {
+      content = isFfe ? raw : renderEvidenceCell(raw, { conflicted });
+    }
+    return cloneElement(cell, { key: `cell-${index}` }, content);
   });
+  const withCitation =
+    appendCitation && cells.length
+      ? [
+          ...cells,
+          appendTrailingCell(
+            cells[cells.length - 1],
+            isHeader ? "" : renderEvidenceCell(harvested, { conflicted }),
+          ),
+        ]
+      : cells;
   const normalized = Children.toArray(
-    normalizeSummaryRow(cells, projectTitle),
+    normalizeSummaryRow(withCitation, projectTitle),
   );
   const reserveRowActions = Boolean(
     target && blockActionsAvailable(target, editOptions),
@@ -1207,15 +1341,9 @@ function MarkdownTableRow({
       : normalized;
   const row = (
     <tr
-      className="sw-table-row even:bg-muted/20"
+      className="group/block sw-table-row even:bg-muted/20"
       {...position(node)}
       data-block-type={target ? "table_row" : undefined}
-      onMouseEnter={
-        canEdit ? () => editOptions?.onActivateBlock?.(target) : undefined
-      }
-      onClick={
-        canEdit ? () => editOptions?.onActivateBlock?.(target) : undefined
-      }
       onDoubleClick={
         canEdit && editOptions?.onEditSelection
           ? (event) => {
@@ -1250,25 +1378,11 @@ function MarkdownTableRow({
   );
 }
 
-function markdownComponents(
-  version?: number,
-  options?: {
-    projectId?: string;
-    decisionsById?: ReadonlyMap<string, ProjectDecision>;
-    foldedDecisionsById?: ReadonlyMap<string, EmbeddedDecision>;
-    readOnly?: boolean;
-    changedRanges?: readonly MarkdownRange[];
-    onDraftUpdated?: (draft: DraftArtifact) => void;
-    projectTitle?: string;
-  } & InlineEditOptions,
-): Components {
-  let isFirstHeading = true;
-  const changedRanges = options?.changedRanges ?? [];
-  const position = (node: unknown) => mdPosition(node, changedRanges);
-
+function markdownComponents(): Components {
   return {
-    ...baseComponents(changedRanges, options?.projectTitle, options),
-    pre: ({ children }) => {
+    ...baseComponents(),
+    pre: function MarkdownPre({ children }) {
+      const options = useMarkdownRender();
       const child = Array.isArray(children) ? children[0] : children;
       if (
         typeof child === "object" &&
@@ -1283,7 +1397,7 @@ function markdownComponents(
         const raw = String("children" in child.props ? child.props.children : "").trim();
 
         if (className.includes("language-pmp-decision-group")) {
-          if (options?.projectId) {
+          if (options.projectId) {
             const decisions = parseDecisionGroup(raw, options.decisionsById);
             if (decisions.length) {
               return (
@@ -1308,10 +1422,10 @@ function markdownComponents(
           const decision = embedded
             ? hydrateEmbeddedDecision(
                 embedded,
-                options?.decisionsById?.get(embedded.id),
+                options.decisionsById?.get(embedded.id),
               )
             : null;
-          if (decision && options?.projectId) {
+          if (decision && options.projectId) {
             return (
               <DecisionControl
                 key={`${decision.id}:${decision.revision ?? 0}:${decision.set_revision ?? 0}`}
@@ -1335,29 +1449,33 @@ function markdownComponents(
         </pre>
       );
     },
-    h1: ({ children }) => {
-      if (isFirstHeading && version != null) {
-        isFirstHeading = false;
-        return (
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <h1 className="min-w-0 text-2xl font-semibold leading-tight">{children}</h1>
-            <Badge variant="secondary" className="shrink-0 print:hidden">
-              v{version}
-            </Badge>
-          </div>
-        );
+    h1: function MarkdownH1({ children, node }) {
+      const state = useMarkdownRender();
+      const start = mdPosition(node, state.changedRanges)?.["data-md-start"];
+      if (isLeadingH1(state.sourceMarkdown, start)) {
+        if (state.hideLeadingHeading) return null;
+        if (state.version != null) {
+          return (
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h1 className="min-w-0 text-2xl font-semibold leading-tight">{children}</h1>
+              <Badge variant="secondary" className="shrink-0 print:hidden">
+                v{state.version}
+              </Badge>
+            </div>
+          );
+        }
       }
-      isFirstHeading = false;
       return (
         <h1 className="mb-4 text-2xl font-semibold leading-tight">{children}</h1>
       );
     },
-    h2: ({ children, node }) => {
+    h2: function MarkdownH2({ children, node }) {
+      const options = useMarkdownRender();
       const heading = flattenText(children);
       const isInformationRegister = isTransmittalHeading(heading);
-      const attributes = position(node);
+      const attributes = mdPosition(node, options.changedRanges);
       if (isInformationRegister) {
-        const open = options?.informationRegisterOpen ?? false;
+        const open = options.informationRegisterOpen ?? false;
         const displayHeading = displayTransmittalHeading(heading);
         return (
           <div className="mt-8 border-b pb-2 first:mt-0 print:break-before-page">
@@ -1378,7 +1496,7 @@ function markdownComponents(
                   }}
                   onClick={(event) => {
                     event.preventDefault();
-                    options?.onToggleInformationRegister?.();
+                    options.onToggleInformationRegister?.();
                   }}
                 >
                   <ChevronRight
@@ -1391,7 +1509,7 @@ function markdownComponents(
                   <span>{displayHeading}</span>
                 </button>
               </h2>
-              {options?.canLoadTransmittal && options.onLoadTransmittal ? (
+              {options.canLoadTransmittal && options.onLoadTransmittal ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -1408,7 +1526,7 @@ function markdownComponents(
                   Load Transmittal
                 </Button>
               ) : null}
-              {options?.canSaveTransmittal && options.onSaveTransmittal ? (
+              {options.canSaveTransmittal && options.onSaveTransmittal ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -1429,7 +1547,7 @@ function markdownComponents(
                 </Button>
               ) : null}
             </div>
-            {options?.transmittalSaveError ? (
+            {options.transmittalSaveError ? (
               <p className="mt-2 text-xs text-destructive print:hidden" role="alert">
                 {options.transmittalSaveError}
               </p>
@@ -1452,6 +1570,8 @@ function markdownComponents(
   };
 }
 
+const MARKDOWN_COMPONENTS = markdownComponents();
+
 function flattenText(children: ReactNode): string {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(flattenText).join("");
@@ -1468,6 +1588,23 @@ function blockLabel(type: ArtifactBlockTarget["type"]): string {
     : type === "list_item"
       ? "list item"
       : "paragraph";
+}
+
+function headerLabelsFromTable(children: ReactNode): string[] {
+  for (const section of Children.toArray(children)) {
+    if (!isValidElement<{ children?: ReactNode }>(section)) continue;
+    for (const row of Children.toArray(section.props.children)) {
+      if (!isValidElement<{ children?: ReactNode }>(row)) continue;
+      const cells = Children.toArray(row.props.children);
+      if (!cells.length) continue;
+      return cells.map((cell) =>
+        isValidElement<{ children?: ReactNode }>(cell)
+          ? flattenText(cell.props.children).trim()
+          : flattenText(cell).trim(),
+      );
+    }
+  }
+  return [];
 }
 
 function informationRegisterTable(children: ReactNode): boolean {
@@ -1503,6 +1640,86 @@ function consultantsTableLayout(
     // After dropping scope, Fee is always column index 2.
     feeColumnIndex: 2,
   };
+}
+
+const EMPTY_TABLE_LAYOUT: PmpTableLayout = {
+  blankFeeNotEvidenced: false,
+  dropColumnIndexes: [],
+  feeColumnIndex: null,
+  renameHeaders: {},
+  isFfe: false,
+  finishColumnIndex: null,
+  commentColumnIndex: null,
+  citationColumnIndex: null,
+  appendCitation: false,
+  blankCitationHeader: false,
+  ffeLayout: null,
+};
+
+function tableLayoutFor(
+  headers: readonly string[],
+  consultantsLayout: { dropColumnIndex: number | null; feeColumnIndex: number } | null,
+  ffeLayout: FfeTableLayout | null,
+): PmpTableLayout {
+  if (consultantsLayout) {
+    return {
+      ...EMPTY_TABLE_LAYOUT,
+      blankFeeNotEvidenced: true,
+      dropColumnIndexes:
+        consultantsLayout.dropColumnIndex === null
+          ? []
+          : [consultantsLayout.dropColumnIndex],
+      feeColumnIndex: consultantsLayout.feeColumnIndex,
+    };
+  }
+  if (ffeLayout) {
+    return {
+      ...EMPTY_TABLE_LAYOUT,
+      dropColumnIndexes: ffeLayout.dropColumnIndexes,
+      renameHeaders: ffeLayout.renameHeaders,
+      isFfe: true,
+      finishColumnIndex: ffeLayout.finishColumnIndex,
+      commentColumnIndex: ffeLayout.commentColumnIndex,
+      citationColumnIndex: ffeLayout.citationColumnIndex,
+      appendCitation: ffeLayout.appendCitation,
+      blankCitationHeader: ffeLayout.blankCitationHeader,
+      ffeLayout,
+    };
+  }
+  const register: RegisterCitationLayout | null =
+    briefTableLayoutFromHeaders(headers) ??
+    pmpRegisterTableLayoutFromHeaders(headers);
+  if (!register) return EMPTY_TABLE_LAYOUT;
+  return {
+    ...EMPTY_TABLE_LAYOUT,
+    dropColumnIndexes: register.dropColumnIndexes,
+    citationColumnIndex: register.citationColumnIndex,
+    appendCitation: register.appendCitation,
+    blankCitationHeader: register.blankCitationHeader,
+  };
+}
+
+function harvestRowCitations(cells: readonly ReactNode[]): string {
+  return extractCitationTokens(cells.map((cell) => flattenText(cell)).join(" "));
+}
+
+function citationDisplayValue(text: string): string {
+  const trimmed = text.trim();
+  if (!isCitationCellValue(trimmed) || trimmed === "—" || trimmed === "-" || trimmed === "–") {
+    return extractCitationTokens(trimmed);
+  }
+  return extractCitationTokens(trimmed) || trimmed;
+}
+
+function appendTrailingCell(template: ReactNode, content: ReactNode): ReactNode {
+  if (!isValidElement<{ children?: ReactNode }>(template)) {
+    return (
+      <td key="citation-col" className="border-b px-3 py-2 align-middle text-foreground">
+        {content}
+      </td>
+    );
+  }
+  return cloneElement(template, { key: "citation-col" }, content);
 }
 
 function rangesEqual(
@@ -1551,14 +1768,30 @@ function renderEvidenceCell(
     return "";
   }
   if (cleaned !== text && !cleaned) return "—";
-  if (/^\[\d+\]$/.test(cleaned)) {
+  if (/^\[\d+\](?:\s+\[\d+\])*$/.test(cleaned)) {
+    const tokens = cleaned.split(/\s+/);
+    if (tokens.length === 1) {
+      return (
+        <Badge
+          variant="outline"
+          className={citationBadgeClassName(Boolean(options?.conflicted))}
+        >
+          {cleaned}
+        </Badge>
+      );
+    }
     return (
-      <Badge
-        variant="outline"
-        className={citationBadgeClassName(Boolean(options?.conflicted))}
-      >
-        {cleaned}
-      </Badge>
+      <span className="inline-flex flex-wrap items-center gap-1">
+        {tokens.map((token) => (
+          <Badge
+            key={token}
+            variant="outline"
+            className={citationBadgeClassName(Boolean(options?.conflicted))}
+          >
+            {token}
+          </Badge>
+        ))}
+      </span>
     );
   }
   const match = EVIDENCE_STATUSES.find(
@@ -2001,6 +2234,7 @@ function evidenceBadgeClassName(status: (typeof EVIDENCE_STATUSES)[number]): str
 export function MarkdownContent({
   markdown,
   version,
+  hideLeadingHeading = false,
   projectId,
   decisions,
   projectTitle,
@@ -2040,6 +2274,7 @@ export function MarkdownContent({
    */
   markdown: string;
   version?: number;
+  hideLeadingHeading?: boolean;
   projectId?: string;
   decisions?: ProjectDecision[];
   projectTitle?: string;
@@ -2072,11 +2307,6 @@ export function MarkdownContent({
   protectedBlockIds?: Set<string>;
   reviewBlockStatuses?: Map<string, "conflict" | "propose_delete">;
 }) {
-  const [blockTarget, setBlockTarget] = useState<{
-    sourceMarkdown: string;
-    target: ArtifactBlockTarget;
-  } | null>(null);
-  const [openActionsKey, setOpenActionsKey] = useState<string | null>(null);
   const [informationRegisterOpen, setInformationRegisterOpen] = useState(false);
   const traceQa = useMemo(() => splitTraceQa(markdown), [markdown]);
   const presented = useMemo(() => {
@@ -2095,11 +2325,6 @@ export function MarkdownContent({
     () => splitMarkdownSections(traceQa.primary),
     [traceQa.primary],
   );
-  const activeBlock = blockComposer
-    ? blockComposer.target
-    : blockTarget?.sourceMarkdown === traceQa.primary
-      ? blockTarget.target
-      : null;
   const activeRanges = useMemo(
     () => (showChanges ? (changedRanges ?? []) : []),
     [showChanges, changedRanges],
@@ -2110,6 +2335,94 @@ export function MarkdownContent({
         ? new Map(decisions.map((decision) => [decision.decision_id, decision]))
         : undefined,
     [decisions],
+  );
+  const renderState = useMemo<MarkdownRenderState>(
+    () => ({
+      version,
+      hideLeadingHeading,
+      changedRanges: activeRanges,
+      projectTitle,
+      projectId,
+      decisionsById,
+      foldedDecisionsById,
+      readOnly,
+      onDraftUpdated,
+      sourceMarkdown: traceQa.primary,
+      renderedMarkdown: presentedPrimary,
+      sourceSections,
+      editingRange,
+      editingFocusCellIndex,
+      isSavingEdit,
+      editError,
+      blockComposer,
+      isSavingBlockComposer,
+      editingCaretPoint,
+      onEditSelection,
+      onEditWithAi,
+      onCancelSelectionEdit,
+      onSaveSelectionEdit,
+      onCancelBlockComposer,
+      onSaveBlockComposer,
+      onMutateBlock,
+      protectedBlockIds,
+      reviewBlockStatuses,
+      informationRegisterOpen,
+      onToggleInformationRegister: () =>
+        setInformationRegisterOpen((current) => !current),
+      onLoadTransmittal: onLoadTransmittal
+        ? () => {
+            setInformationRegisterOpen(true);
+            onLoadTransmittal();
+          }
+        : undefined,
+      canLoadTransmittal,
+      onSaveTransmittal: onSaveTransmittal
+        ? () => {
+            setInformationRegisterOpen(true);
+            onSaveTransmittal();
+          }
+        : undefined,
+      canSaveTransmittal,
+      isSavingTransmittal,
+      transmittalSaveError,
+    }),
+    [
+      version,
+      hideLeadingHeading,
+      activeRanges,
+      projectTitle,
+      projectId,
+      decisionsById,
+      foldedDecisionsById,
+      readOnly,
+      onDraftUpdated,
+      traceQa.primary,
+      presentedPrimary,
+      sourceSections,
+      editingRange,
+      editingFocusCellIndex,
+      isSavingEdit,
+      editError,
+      blockComposer,
+      isSavingBlockComposer,
+      editingCaretPoint,
+      onEditSelection,
+      onEditWithAi,
+      onCancelSelectionEdit,
+      onSaveSelectionEdit,
+      onCancelBlockComposer,
+      onSaveBlockComposer,
+      onMutateBlock,
+      protectedBlockIds,
+      reviewBlockStatuses,
+      informationRegisterOpen,
+      onLoadTransmittal,
+      canLoadTransmittal,
+      onSaveTransmittal,
+      canSaveTransmittal,
+      isSavingTransmittal,
+      transmittalSaveError,
+    ],
   );
 
   return (
@@ -2152,72 +2465,17 @@ export function MarkdownContent({
               onDraftUpdated,
             }}
           >
+          <MarkdownRenderContext.Provider value={renderState}>
+          <BlockActionsProvider>
           <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={markdownComponents(version, {
-              projectId,
-              decisionsById,
-              foldedDecisionsById,
-              readOnly,
-              changedRanges: activeRanges,
-              onDraftUpdated,
-              projectTitle,
-              sourceMarkdown: traceQa.primary,
-              renderedMarkdown: presentedPrimary,
-              sourceSections,
-              activeBlock,
-              editingRange,
-              editingFocusCellIndex,
-              editingCaretPoint,
-              isSavingEdit,
-              editError,
-              blockComposer,
-              isSavingBlockComposer,
-              openActionsKey,
-              onOpenActionsKeyChange: setOpenActionsKey,
-              onActivateBlock: blockComposer
-                ? undefined
-                : (target) =>
-                    setBlockTarget((current) =>
-                      current?.sourceMarkdown === traceQa.primary &&
-                      current.target.sectionStart === target.sectionStart &&
-                      rangesEqual(current.target.range, target.range)
-                        ? current
-                        : { sourceMarkdown: traceQa.primary, target },
-                    ),
-              onEditSelection,
-              onEditWithAi,
-              onCancelSelectionEdit,
-              onSaveSelectionEdit,
-              onCancelBlockComposer,
-              onSaveBlockComposer,
-              onMutateBlock,
-              protectedBlockIds,
-              reviewBlockStatuses,
-              informationRegisterOpen,
-              onToggleInformationRegister: () =>
-                setInformationRegisterOpen((current) => !current),
-              onLoadTransmittal: onLoadTransmittal
-                ? () => {
-                    setInformationRegisterOpen(true);
-                    onLoadTransmittal();
-                  }
-                : undefined,
-              canLoadTransmittal,
-              onSaveTransmittal: onSaveTransmittal
-                ? () => {
-                    setInformationRegisterOpen(true);
-                    onSaveTransmittal();
-                  }
-                : undefined,
-              canSaveTransmittal,
-              isSavingTransmittal,
-              transmittalSaveError,
-            })}
+            remarkPlugins={REMARK_PLUGINS}
+            components={MARKDOWN_COMPONENTS}
           >
 
             {presentedPrimary}
           </ReactMarkdown>
+          </BlockActionsProvider>
+          </MarkdownRenderContext.Provider>
           </FfeDecisionRenderContext.Provider>
           {showTraceQa && traceQa.qa ? (
             <details className="trace-qa mt-10 border-t border-[var(--sw-edge)] pt-4 print:hidden">
@@ -2227,8 +2485,8 @@ export function MarkdownContent({
               </summary>
               <div className="mt-3 border border-[var(--sw-edge)] bg-[var(--sw-panel)] p-4 text-muted-foreground">
                 <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  components={baseComponents([])}
+                  remarkPlugins={REMARK_PLUGINS}
+                  components={MARKDOWN_COMPONENTS}
                 >
                   {maskArtifactBlockMarkers(traceQa.qa)}
                 </ReactMarkdown>

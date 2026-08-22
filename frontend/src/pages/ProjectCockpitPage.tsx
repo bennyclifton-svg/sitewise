@@ -37,6 +37,7 @@ import {
   useProjectEventCursor,
   useProjectWorkspaceTree,
 } from "@/lib/queries/project-data";
+import { prefetchWorkbench } from "@/lib/queries/workbench";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
 import { EMPTY_PULSE_FEED, pulseSinceIso, type PulseAction, type PulseItem, type PulseSincePreset } from "@/lib/types/pulse";
 import type { ProjectEmailDraft, ProjectEmailMessage } from "@/lib/types/email";
@@ -110,12 +111,6 @@ const PlatformKnowledgeViewer = lazy(() =>
 const ChatRail = lazy(() =>
   import("@/components/chat/ChatRail").then((module) => ({
     default: module.ChatRail,
-  })),
-);
-
-const PulsePanel = lazy(() =>
-  import("@/components/project/PulsePanel").then((module) => ({
-    default: module.PulsePanel,
   })),
 );
 
@@ -248,6 +243,7 @@ function ProjectCockpitContents() {
   const [pulseEmailDraft, setPulseEmailDraft] = useState<ProjectEmailDraft | null>(
     null,
   );
+  const [pulseEmailSending, setPulseEmailSending] = useState(false);
   const [pulseEmailThread, setPulseEmailThread] = useState<
     ProjectEmailMessage[] | null
   >(null);
@@ -374,6 +370,23 @@ function ProjectCockpitContents() {
       cancelled = true;
     };
   }, [projectId, queryClient]);
+
+  useEffect(() => {
+    if (!projectId || !bootstrapLoaded) return;
+    void prefetchWorkbench(queryClient, {
+      projectId,
+      pmpDraftId: latestDraft?.id ?? null,
+      pmpDraftVersion: latestDraft?.version ?? null,
+      costPlanDraftId: latestCostPlanDraft?.id ?? null,
+    });
+  }, [
+    bootstrapLoaded,
+    latestCostPlanDraft?.id,
+    latestDraft?.id,
+    latestDraft?.version,
+    projectId,
+    queryClient,
+  ]);
 
   // Keep the selected evidence valid as the cached list changes (delete,
   // upload, sort). Preserves the current selection when it still exists.
@@ -841,6 +854,24 @@ function ProjectCockpitContents() {
     if (documentId) selectEvidenceFromRepository(documentId);
   }
 
+  async function sendPulseEmailDraft() {
+    if (!projectId || !pulseEmailDraft) return;
+    setPulseEmailSending(true);
+    try {
+      const sent = await api.sendProjectEmailDraft(projectId, pulseEmailDraft.id);
+      setPulseEmailDraft(sent);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Send failed";
+      setPulseEmailDraft((current) =>
+        current
+          ? { ...current, status: "send_failed", send_error: message }
+          : current,
+      );
+    } finally {
+      setPulseEmailSending(false);
+    }
+  }
+
   async function selectWorkspacePath(path: string) {
     const keepTenderRoute = isTenderRouteActive();
     if (!keepTenderRoute) {
@@ -891,14 +922,18 @@ function ProjectCockpitContents() {
     selectedRepositoryEvidence,
   } satisfies ProjectCockpitOutletContext);
 
+  // Sync from the URL only when the URL itself changes (back/forward, deep
+  // links). Do not re-read `selectedWorkflowId` here: a click updates local
+  // state before React Router commits `?workflow=`, and treating the stale
+  // URL as truth flashes the previous workbench once.
   useEffect(() => {
     if (!projectId) return;
     if (location.pathname !== `/projects/${projectId}`) return;
     const fromUrl = readWorkbenchWorkflow(location.search);
-    if (!fromUrl || fromUrl === selectedWorkflowId) return;
+    if (!fromUrl) return;
     setSelectedWorkflowId(fromUrl);
     setActiveView("workbench");
-  }, [location.pathname, location.search, projectId, selectedWorkflowId]);
+  }, [location.pathname, location.search, projectId]);
 
   if (!projectId) return null;
 
@@ -1103,6 +1138,14 @@ function ProjectCockpitContents() {
           onRunSortFiles={() => void runSortFiles()}
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
+          pulseFeed={pulseQuery.data ?? EMPTY_PULSE_FEED}
+          pulseSincePreset={pulseSincePreset}
+          onPulseSinceChange={setPulseSincePreset}
+          onPulseAction={handlePulseAction}
+          pulseEmailDraft={pulseEmailDraft}
+          pulseEmailSending={pulseEmailSending}
+          onSendPulseEmailDraft={() => void sendPulseEmailDraft()}
+          pulseEmailThread={pulseEmailThread}
           platformStatus={platformStatus}
           selectedPlatformKnowledgePath={selectedPlatformKnowledge?.relative_path ?? null}
           onSelectPlatformKnowledge={selectPlatformKnowledge}
@@ -1143,50 +1186,6 @@ function ProjectCockpitContents() {
     >
       {tenderOutlet ?? (
         <>
-      <Suspense fallback={null}>
-        <PulsePanel
-          feed={pulseQuery.data ?? EMPTY_PULSE_FEED}
-          sincePreset={pulseSincePreset}
-          onSinceChange={setPulseSincePreset}
-          onAction={handlePulseAction}
-        />
-        {pulseEmailDraft ? (
-          <aside
-            className="border-b border-[var(--border-hair)] bg-[var(--bg-surface)] px-4 py-3 lg:px-6"
-            data-testid="pulse-email-draft"
-          >
-            <p className="cockpit-eyebrow text-[var(--sw-text-quiet)]">
-              Draft reply
-            </p>
-            <p className="mt-1 text-sm text-[var(--sw-text-primary)]">
-              {pulseEmailDraft.subject}
-            </p>
-            <p className="mt-1 text-xs text-[var(--sw-text-secondary)]">
-              Saved as draft — not sent
-            </p>
-          </aside>
-        ) : null}
-        {pulseEmailThread ? (
-          <aside
-            className="border-b border-[var(--border-hair)] bg-[var(--bg-surface)] px-4 py-3 lg:px-6"
-            data-testid="pulse-email-thread"
-          >
-            <p className="cockpit-eyebrow text-[var(--sw-text-quiet)]">
-              Thread
-            </p>
-            <ol className="mt-2 grid gap-2">
-              {pulseEmailThread.map((message) => (
-                <li key={message.email_id} className="text-sm">
-                  <p className="text-[var(--sw-text-primary)]">{message.subject}</p>
-                  <p className="text-xs text-[var(--sw-text-secondary)]">
-                    {message.from_address}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          </aside>
-        ) : null}
-      </Suspense>
       {activeView === "workbench" ? (
         <ProjectControlBoard
           project={project}
@@ -1216,8 +1215,8 @@ function ProjectCockpitContents() {
             submitChatInstruction(workflowChatCommand("process_invoices"))
           }
           onRunSortFiles={() => void runSortFiles()}
-          onRunProcurement={(kind, targetName) =>
-            submitChatInstruction(procurementChatCommand(kind, targetName))
+          onRunProcurement={(kind, targetName, action) =>
+            submitChatInstruction(procurementChatCommand(kind, targetName, action))
           }
           onCancelSortFiles={() => {
             if (sortFilesRunId) void api.cancelWorkflowRun(project.id, sortFilesRunId);
@@ -1351,20 +1350,5 @@ function preferFreshDraft<T extends DraftArtifactSummary>(
   if (!current) return incoming;
   if (current.version > incoming.version) return current;
   if (current.version < incoming.version) return incoming;
-  const currentMarkdown =
-    "content_markdown" in current && typeof current.content_markdown === "string"
-      ? current.content_markdown
-      : null;
-  const incomingMarkdown =
-    "content_markdown" in incoming && typeof incoming.content_markdown === "string"
-      ? incoming.content_markdown
-      : null;
-  if (
-    currentMarkdown !== null &&
-    incomingMarkdown !== null &&
-    currentMarkdown !== incomingMarkdown
-  ) {
-    return current;
-  }
-  return incoming;
+  return current;
 }

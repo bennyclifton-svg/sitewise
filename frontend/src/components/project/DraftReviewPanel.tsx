@@ -17,7 +17,6 @@ import { CostPlanGrid } from "@/components/project/CostPlanGrid";
 import {
   PmpProgrammeFigure,
   PmpProgrammeProvider,
-  PmpProgrammeToolbar,
 } from "@/components/project/PmpProgrammeEmbed";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,6 +38,8 @@ import {
 } from "@/lib/draft-block-delta";
 import { rebaseDraftBlockEdit } from "@/lib/draft-block-rebase";
 import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import {
   clearTray,
   dropStaleTrays,
@@ -60,6 +61,7 @@ import { expandRangeWithTrailingMarker } from "@/lib/table-row-edit";
 import {
   matchTransmittalEvidenceIds,
   parseTransmittalRows,
+  replaceTransmittalSection,
 } from "@/lib/transmittal-register";
 import type {
   DraftArtifact,
@@ -287,8 +289,8 @@ export function DraftReviewPanel({
   selectedEvidenceIds,
   onSelectEvidenceIds,
   onTransmittalSessionChange,
-  onOpenProgram,
   reviewInvoiceId = null,
+  active = true,
 }: {
   projectId: string;
   draft: DraftArtifact | DraftArtifactSummary | null;
@@ -303,8 +305,9 @@ export function DraftReviewPanel({
   onTransmittalSessionChange?: (
     session: { draftId: string; workflowType: string } | null,
   ) => void;
-  onOpenProgram?: () => void;
   reviewInvoiceId?: string | null;
+  /** False while the workbench is kept mounted but hidden. */
+  active?: boolean;
 }) {
   const [loadedDraft, setLoadedDraft] = useState<DraftArtifact | null>(null);
   const [isLoadingDraft, setIsLoadingDraft] = useState(false);
@@ -338,6 +341,10 @@ export function DraftReviewPanel({
     null,
   );
   const draftDetailsRef = useRef<HTMLDetailsElement>(null);
+  const selectionEditRef = useRef(selectionEdit);
+  selectionEditRef.current = selectionEdit;
+  const blockComposerRef = useRef(blockComposer);
+  blockComposerRef.current = blockComposer;
   const [decisionState, setDecisionState] = useState<{
     key: string;
     decisions: ProjectDecision[] | null;
@@ -376,7 +383,14 @@ export function DraftReviewPanel({
       if (isFullDraft(draft)) {
         // Parent props can briefly regress to an older revision (event refresh,
         // summary bootstrap). Never clobber a newer local edit with older text.
-        setLoadedDraft((current) => preferNewerDraft(current, draft));
+        // While the user is typing, freeze the loaded body so a same-version
+        // poll cannot remount the editor and wipe in-progress keystrokes.
+        setLoadedDraft((current) => {
+          if ((selectionEditRef.current || blockComposerRef.current) && current) {
+            return current;
+          }
+          return preferNewerDraft(current, draft);
+        });
         setIsLoadingDraft(false);
         return;
       }
@@ -402,7 +416,10 @@ export function DraftReviewPanel({
 
       setIsLoadingDraft(true);
       try {
-        const data = await api.getProjectDraft(projectId, draft.id);
+        const data = await queryClient.fetchQuery({
+          queryKey: workbenchKeys.draft(projectId, draft.id, draft.version),
+          queryFn: () => api.getProjectDraft(projectId, draft.id),
+        });
         if (!cancelled) {
           setLoadedDraft((current) => preferNewerDraft(current, data));
         }
@@ -429,7 +446,10 @@ export function DraftReviewPanel({
     const requestKey = `${projectId}:${draft.id}`;
     async function loadDecisions() {
       try {
-        const response = await api.listDecisions(projectId);
+        const response = await queryClient.fetchQuery({
+          queryKey: workbenchKeys.decisions(projectId),
+          queryFn: () => api.listDecisions(projectId),
+        });
         if (!cancelled) {
           setDecisionState({
             key: requestKey,
@@ -460,9 +480,10 @@ export function DraftReviewPanel({
    * offset space, and the server normalizes identically before verifying an
    * anchor — so `MarkdownContent` receives `source`, never the raw markdown.
    */
+  const draftMarkdown = loadedDraft?.content_markdown ?? "";
   const source = useMemo(
-    () => (loadedDraft ? normalizeDraftMarkdown(loadedDraft.content_markdown) : ""),
-    [loadedDraft],
+    () => (draftMarkdown ? normalizeDraftMarkdown(draftMarkdown) : ""),
+    [draftMarkdown],
   );
   const issueContent = useMemo(() => splitTraceQa(source), [source]);
   const sections = useMemo(() => splitMarkdownSections(source), [source]);
@@ -667,21 +688,60 @@ export function DraftReviewPanel({
 
   async function handleSaveTransmittal() {
     if (!loadedDraft || isSavingTransmittal) return;
+    const snapshot = loadedDraft;
+    const evidenceIds = [...(selectedEvidenceIds ?? [])];
+    const selected = evidenceIds
+      .map((id) => repositoryEvidence.find((item) => item.id === id))
+      .filter((item): item is EvidencePreview => item !== undefined);
+    let nextMarkdown = source;
+    try {
+      nextMarkdown = replaceTransmittalSection(source, selected);
+    } catch {
+      // Server still owns the rewrite if local markdown has no register heading.
+    }
     setIsSavingTransmittal(true);
     setTransmittalSaveError(null);
     try {
-      const updated = await api.replaceDraftTransmittal(
-        projectId,
-        loadedDraft.id,
-        loadedDraft.version,
-        [...(selectedEvidenceIds ?? [])],
-      );
+      const updated = await runOptimisticMutation({
+        snapshot,
+        optimistic: { ...snapshot, content_markdown: nextMarkdown },
+        apply: setLoadedDraft,
+        commit: (base) =>
+          api.replaceDraftTransmittal(
+            projectId,
+            base.id,
+            base.version,
+            evidenceIds,
+          ),
+        confirmed: (draft) => draft,
+        reload: async () =>
+          (await api.getLatestDraft(projectId, snapshot.workflow_type)) ??
+          snapshot,
+        rebase: ({ latest }) => {
+          try {
+            return {
+              status: "safe",
+              state: {
+                ...latest,
+                content_markdown: replaceTransmittalSection(
+                  latest.content_markdown,
+                  selected,
+                ),
+              },
+            };
+          } catch {
+            return { status: "unsafe" };
+          }
+        },
+      });
       onDraftUpdated(updated);
       onTransmittalSessionChange?.(null);
     } catch (error) {
       setTransmittalSaveError(
         error instanceof ApiError
-          ? error.message
+          ? error.status === 409
+            ? rebaseMessage(error)
+            : error.message
           : error instanceof Error
             ? error.message
             : "Could not save transmittal.",
@@ -1055,6 +1115,7 @@ export function DraftReviewPanel({
           projectId={projectId}
           revision={displayDraft.version}
           reviewInvoiceId={reviewInvoiceId}
+          active={active}
         />
         {!isLoadingDraft && loadedDraft ? (
           <details
@@ -1127,11 +1188,6 @@ export function DraftReviewPanel({
         ) : (
           <PmpProgrammeProvider projectId={projectId}>
           <div className="p-4" ref={setProgrammeHost}>
-            {isPmpDraft(displayDraft.workflow_type) ? (
-              <div className="mb-2 flex justify-end print:hidden">
-                <PmpProgrammeToolbar />
-              </div>
-            ) : null}
             {actionError ? (
               <p
                 className="mb-3 border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
@@ -1184,21 +1240,27 @@ export function DraftReviewPanel({
               onDraftUpdated={(updated) => {
                 setLoadedDraft(updated);
                 onDraftUpdated(updated);
-                void api.listDecisions(projectId).then(
-                  (response) =>
-                    setDecisionState({
-                      key: decisionContextKey,
-                      decisions: response.decisions,
-                      error: null,
-                    }),
-                  () =>
-                    setDecisionState({
-                      key: decisionContextKey,
-                      decisions: null,
-                      error:
-                        "Decision saved, but current decision state could not be refreshed.",
-                    }),
-                );
+                void queryClient
+                  .fetchQuery({
+                    queryKey: workbenchKeys.decisions(projectId),
+                    queryFn: () => api.listDecisions(projectId),
+                    staleTime: 0,
+                  })
+                  .then(
+                    (response) =>
+                      setDecisionState({
+                        key: decisionContextKey,
+                        decisions: response.decisions,
+                        error: null,
+                      }),
+                    () =>
+                      setDecisionState({
+                        key: decisionContextKey,
+                        decisions: null,
+                        error:
+                          "Decision saved, but current decision state could not be refreshed.",
+                      }),
+                  );
               }}
               editingRange={selectionEditRange}
               editingFocusCellIndex={selectionEdit?.focusCellIndex}
@@ -1245,10 +1307,7 @@ export function DraftReviewPanel({
               transmittalSaveError={transmittalSaveError}
             />
             {isPmpDraft(displayDraft.workflow_type) ? (
-              <PmpProgrammeFigure
-                host={programmeHost}
-                onOpenProgram={onOpenProgram}
-              />
+              <PmpProgrammeFigure host={programmeHost} />
             ) : null}
           </div>
           </PmpProgrammeProvider>
@@ -1514,10 +1573,9 @@ function preferNewerDraft(
   if (current.workflow_type !== incoming.workflow_type) return incoming;
   if (current.version > incoming.version) return current;
   if (current.version < incoming.version) return incoming;
-  if (current.content_markdown !== incoming.content_markdown) {
-    return current;
-  }
-  return incoming;
+  // Same revision: keep the local object so parent polls do not change
+  // identity and remount inline editors mid-keystroke.
+  return current;
 }
 
 /** After a lean delta confirm, adopt the persisted draft body when available. */

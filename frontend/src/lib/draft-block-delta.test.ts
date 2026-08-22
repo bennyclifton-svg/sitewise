@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { applyArtefactBlockDelta } from "@/lib/draft-block-delta";
+import {
+  applyArtefactBlockDelta,
+  optimisticMatchesServer,
+} from "@/lib/draft-block-delta";
 import type { DraftArtifact } from "@/lib/types/project";
 
 function draft(overrides: Partial<DraftArtifact> = {}): DraftArtifact {
@@ -64,5 +67,38 @@ describe("applyArtefactBlockDelta", () => {
       (next.provenance_metadata?.blocks as Record<string, { last_modified_by: string }>)
         .blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.last_modified_by,
     ).toBe("user");
+  });
+});
+
+describe("optimisticMatchesServer", () => {
+  async function sha256(value: string): Promise<string> {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(value),
+    );
+    return Array.from(new Uint8Array(digest))
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  it("confirms an optimistic apply that already matches the server", async () => {
+    const markdown = "| Alpha | Beta |\n| Gamma | Delta |";
+    await expect(
+      optimisticMatchesServer(markdown, { content_sha256: await sha256(markdown) }),
+    ).resolves.toBe(true);
+  });
+
+  it("reports a mismatch so the caller falls back to a reload", async () => {
+    await expect(
+      optimisticMatchesServer("local text", {
+        content_sha256: await sha256("server text"),
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("reports a mismatch when the server sent no hash", async () => {
+    await expect(
+      optimisticMatchesServer("anything", { content_sha256: "" }),
+    ).resolves.toBe(false);
   });
 });

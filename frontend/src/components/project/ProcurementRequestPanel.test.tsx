@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,6 +14,8 @@ vi.mock("@/lib/api", () => ({
   api: {
     listProcurementRequests: vi.fn(),
     getLatestDraft: vi.fn(),
+    getProjectDraft: vi.fn(),
+    downloadDraftExport: vi.fn(),
   },
 }));
 
@@ -82,6 +84,12 @@ const tradeDraft = draftSummary(
   "trade_rft_main_works",
   2,
 );
+const supplierDraft = draftSummary(
+  "windows-rfq-v1",
+  "Request for Quotation - Windows",
+  "trade_rfq_windows",
+  1,
+);
 
 const architect = request({
   id: "architect",
@@ -104,14 +112,25 @@ const trade = request({
   current_draft: tradeDraft,
   updated_at: "2026-08-10T00:00:00Z",
 });
+const supplier = request({
+  id: "supplier",
+  kind: "trade_rfq",
+  target_name: "Windows",
+  current_draft: supplierDraft,
+  updated_at: "2026-08-13T00:00:00Z",
+});
 
 function renderPanel(
   requests: ProcurementRequest[],
   onDraftSelected: (draft: DraftArtifactSummary) => void = vi.fn(),
 ) {
   vi.mocked(api.listProcurementRequests).mockResolvedValue(requests);
+  const onCreate = vi.fn();
+  const onUpdate = vi.fn();
   return {
     onDraftSelected,
+    onCreate,
+    onUpdate,
     ...render(
       <ProcurementRequestPanel
         project={{ id: "mosaic", title: "Mosaic Apartments" } as ProjectDetail}
@@ -120,7 +139,8 @@ function renderPanel(
         error={null}
         refreshToken={0}
         renderGate={() => null}
-        onCreate={vi.fn()}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
         onDraftSelected={onDraftSelected}
       />,
     ),
@@ -133,94 +153,225 @@ describe("ProcurementRequestPanel", () => {
     vi.mocked(api.getLatestDraft).mockResolvedValue(null);
   });
 
+  async function openDisciplineMenu() {
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Discipline suggestions" }));
+    return user;
+  }
+
   it("opens the latest package on revisit and reports its draft", async () => {
     const { onDraftSelected } = renderPanel([planner, architect, trade]);
 
-    expect(
-      await screen.findByRole("tab", { name: "Architect v1" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: "Consultant" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(screen.queryByRole("tab", { name: "Main Works v2" })).toBeNull();
+    expect(await screen.findByLabelText("Discipline")).toHaveValue("Architect");
+    expect(screen.queryByRole("tab")).toBeNull();
     await waitFor(() =>
       expect(onDraftSelected).toHaveBeenCalledWith(architectDraft),
     );
     expect(await screen.findByText(architectDraft.title)).toBeTruthy();
   });
 
-  it("filters chips by kind and opens the latest package in that kind", async () => {
-    const user = userEvent.setup();
+  it("opens a trade package from the discipline menu", async () => {
     const { onDraftSelected } = renderPanel([planner, architect, trade]);
-
     await screen.findByText(architectDraft.title);
-    await user.click(screen.getByRole("tab", { name: "Trade package" }));
 
-    expect(
-      await screen.findByRole("tab", { name: "Main Works v2" }),
-    ).toHaveAttribute("aria-selected", "true");
-    expect(screen.queryByRole("tab", { name: "Architect v1" })).toBeNull();
+    const user = await openDisciplineMenu();
+    await user.click(screen.getByRole("option", { name: "Main Works 2" }));
+
     await waitFor(() =>
       expect(onDraftSelected).toHaveBeenCalledWith(tradeDraft),
     );
     expect(await screen.findByText(tradeDraft.title)).toBeTruthy();
+    expect(screen.getByLabelText("Discipline")).toHaveValue("Main Works");
   });
 
-  it("opens a package when its chip is selected", async () => {
-    const user = userEvent.setup();
+  it("opens a package when its discipline is selected", async () => {
     const { onDraftSelected } = renderPanel([planner, architect]);
-
     await screen.findByText(architectDraft.title);
-    await user.click(screen.getByRole("tab", { name: "Town planner v1" }));
+
+    const user = await openDisciplineMenu();
+    await user.click(screen.getByRole("option", { name: "Town planner 1" }));
 
     await waitFor(() =>
       expect(onDraftSelected).toHaveBeenCalledWith(plannerDraft),
     );
     expect(await screen.findByText(plannerDraft.title)).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Town planner v1" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
   });
 
-  it("uses Cost Plan tab buttons for kind and packages, with create beside them", async () => {
+  it("uses a PMP-style create/update row with revision markers in the menu", async () => {
     renderPanel([architect]);
 
-    const kinds = await screen.findByRole("tablist", { name: "Request type" });
-    expect(within(kinds).getByRole("tab", { name: "Consultant" })).toBeTruthy();
-    expect(within(kinds).getByRole("tab", { name: "Trade package" })).toBeTruthy();
-    expect(within(kinds).getByRole("tab", { name: "Supplier quote" })).toBeTruthy();
+    expect(await screen.findByLabelText("Discipline")).toHaveValue("Architect");
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.getByRole("button", { name: "Create RFT" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Update RFT" })).toBeEnabled();
 
-    const packages = screen.getByRole("tablist", {
-      name: "Open procurement request",
-    });
-    expect(within(packages).getByRole("tab", { name: "Architect v1" })).toBeTruthy();
-
-    expect(screen.queryByText("Select a package to view or open")).toBeNull();
-    expect(
-      screen.queryByText(/Latest version opens automatically/i),
-    ).toBeNull();
-    expect(screen.queryByText(/^Type$/)).toBeNull();
-    expect(screen.queryByText(/^Discipline$/)).toBeNull();
-    expect(screen.getByLabelText("Discipline")).toHaveAttribute(
-      "placeholder",
-      "Architect",
-    );
-    expect(screen.getByRole("button", { name: /create consultant/i })).toBeTruthy();
+    await userEvent.click(screen.getByRole("button", { name: "Discipline suggestions" }));
+    expect(screen.getByRole("option", { name: "Architect 1" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Electrical services" })).toBeTruthy();
   });
 
-  it("shows an empty hint when the selected kind has no packages", async () => {
+  it("creates a consultant RFP or trade RFT from the combined list", async () => {
     const user = userEvent.setup();
-    renderPanel([architect]);
+    const { onCreate } = renderPanel([]);
 
-    await screen.findByRole("tab", { name: "Architect v1" });
-    await user.click(screen.getByRole("tab", { name: "Trade package" }));
+    await screen.findByText("No requests yet. Create the first one above.");
+    const field = screen.getByLabelText("Discipline");
+    await user.type(field, "Architect");
+    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    expect(onCreate).toHaveBeenCalledWith("consultant_rfp", "Architect");
+
+    await user.clear(field);
+    await user.type(field, "Electrical services");
+    await user.click(screen.getByRole("button", { name: "Create RFT" }));
+    expect(onCreate).toHaveBeenCalledWith("trade_rft", "Electrical services");
+  });
+
+  it("updates the selected package", async () => {
+    const user = userEvent.setup();
+    const { onUpdate } = renderPanel([architect]);
+
+    await screen.findByText(architectDraft.title);
+    await user.click(screen.getByRole("button", { name: "Update RFT" }));
+    expect(onUpdate).toHaveBeenCalledWith("consultant_rfp", "Architect");
+  });
+
+  it("shows an empty hint when there are no packages", async () => {
+    renderPanel([]);
 
     expect(
       await screen.findByText("No requests yet. Create the first one above."),
     ).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "Architect v1" })).toBeNull();
-    expect(screen.queryByText(architectDraft.title)).toBeNull();
+    expect(screen.getByRole("button", { name: "Update RFT" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Download request for/ })).toBeDisabled();
+  });
+
+  it("places download and copy beside the package chips above the RFP", async () => {
+    renderPanel([architect]);
+
+    expect(await screen.findByText(architectDraft.title)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Download request for proposal" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Copy request for proposal" }),
+    ).toBeEnabled();
+  });
+
+  it("downloads Word and PDF for the selected RFP", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.downloadDraftExport).mockResolvedValue(new Blob(["export"]));
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:test"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+    renderPanel([architect]);
+    await screen.findByText(architectDraft.title);
+
+    await user.click(
+      screen.getByRole("button", { name: "Download request for proposal" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Word" }));
+    await waitFor(() => {
+      expect(api.downloadDraftExport).toHaveBeenCalledWith(
+        "mosaic",
+        architectDraft.id,
+        "docx",
+      );
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Download request for proposal" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
+    await waitFor(() => {
+      expect(api.downloadDraftExport).toHaveBeenCalledWith(
+        "mosaic",
+        architectDraft.id,
+        "pdf",
+      );
+    });
+  });
+
+  it("copies the selected RFP without block markers", async () => {
+    const user = userEvent.setup();
+    const documentMarkdown = [
+      "# Request for Proposal - Architect",
+      "",
+      "Prepare a fee proposal. <!-- clerk:block id=blk_rfp -->",
+    ].join("\n");
+    vi.mocked(api.getProjectDraft).mockResolvedValue({
+      ...architectDraft,
+      content_markdown: documentMarkdown,
+      provenance_metadata: null,
+    });
+    renderPanel([architect]);
+    await screen.findByText(architectDraft.title);
+
+    await user.click(
+      screen.getByRole("button", { name: "Copy request for proposal" }),
+    );
+
+    await waitFor(async () => {
+      expect(await navigator.clipboard.readText()).toBe(
+        "# Request for Proposal - Architect\n\nPrepare a fee proposal.",
+      );
+    });
+  });
+
+  it("relabels download and copy for the selected RFT", async () => {
+    renderPanel([architect, trade]);
+    await screen.findByText(architectDraft.title);
+
+    const user = await openDisciplineMenu();
+    await user.click(screen.getByRole("option", { name: "Main Works 2" }));
+    await screen.findByText(tradeDraft.title);
+
+    expect(
+      screen.getByRole("button", { name: "Download request for tender" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Copy request for tender" }),
+    ).toBeEnabled();
+  });
+
+  it("lists supplier quotes with trades and opens the RFQ from the menu", async () => {
+    const { onDraftSelected } = renderPanel([
+      architect,
+      trade,
+      {
+        ...supplier,
+        updated_at: "2026-08-09T00:00:00Z",
+      },
+    ]);
+
+    await screen.findByText(architectDraft.title);
+    const user = await openDisciplineMenu();
+    expect(screen.getByRole("option", { name: "Windows 1" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Main Works 2" })).toBeTruthy();
+
+    await user.click(screen.getByRole("option", { name: "Windows 1" }));
+    await waitFor(() =>
+      expect(onDraftSelected).toHaveBeenCalledWith(supplierDraft),
+    );
+    expect(await screen.findByText(supplierDraft.title)).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Download request for quotation" }),
+    ).toBeEnabled();
+  });
+
+  it("opens the latest supplier quote in the discipline field", async () => {
+    const { onDraftSelected } = renderPanel([architect, supplier]);
+
+    expect(await screen.findByLabelText("Discipline")).toHaveValue("Windows");
+    await waitFor(() =>
+      expect(onDraftSelected).toHaveBeenCalledWith(supplierDraft),
+    );
+    await openDisciplineMenu();
+    expect(screen.getByRole("option", { name: "Architect 1" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "Windows 1" })).toBeTruthy();
   });
 });

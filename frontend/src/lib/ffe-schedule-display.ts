@@ -3,16 +3,21 @@ import {
   type EmbeddedDecision,
 } from "@/components/project/DecisionControl";
 import { splitMarkdownSections } from "@/lib/markdown-sections";
+import {
+  citationColumnIndexFromHeaders,
+  type RegisterCitationLayout,
+} from "@/lib/pmp-register-tables";
+import { editableTableCells, formatTableRow } from "@/lib/table-row-edit";
 
 const FFE_HEADING_RE = /^ffe schedule$/i;
 const BRIEF_HEADING_RE = /^(brief|brief and scope)$/i;
 const FFE_TABLE_HEADER_RE =
-  /^\|\s*Item\s*\|\s*Location\s*\|\s*Qty\s*\|\s*Finish\s*\|\s*Status\s*\|\s*Notes\s*\|$/i;
+  /^\|\s*Item\s*\|\s*Location\s*\|(?:.*\|\s*)?Finish\s*\|/i;
 const DECISION_FENCE_RE =
   /```pmp-decision(?:-group)?\s*\n([\s\S]*?)\n```/g;
 
-/** Finish catalog ids that belong in the FFE Schedule table. */
-const FINISH_DECISION_IDS = new Set([
+/** Finish catalog ids that used to render as FFE dropdown rows. */
+export const FINISH_DECISION_IDS = new Set([
   "flooring-finish",
   "external-cladding",
   "roofing-system",
@@ -21,6 +26,43 @@ const FINISH_DECISION_IDS = new Set([
   "wet-area-finish",
   "window-frame",
   "glazing-type",
+]);
+
+const FINISH_DECISION_ROW_LABELS = new Set([
+  "primary flooring finish",
+  "primary external cladding",
+  "roofing system",
+  "kitchen benchtop",
+  "kitchen joinery grade",
+  "wet-area floor and wall finish",
+  "window and external door frames",
+  "glazing performance",
+]);
+
+const FINISH_ITEM_MATCHERS: { ids: string[]; pattern: RegExp }[] = [
+  { ids: ["external-cladding"], pattern: /\b(external\s+cladding|facade\s+cladding|cladding)\b/i },
+  { ids: ["roofing-system"], pattern: /\broof/i },
+  { ids: ["flooring-finish"], pattern: /\b(floor finish|flooring)\b/i },
+  {
+    ids: ["kitchen-benchtop", "kitchen-joinery-grade"],
+    pattern: /\b(kitchen|benchtop|joinery)\b/i,
+  },
+  { ids: ["wet-area-finish"], pattern: /\b(tile|wet[-\s]?area)\b/i },
+  { ids: ["window-frame", "glazing-type"], pattern: /\b(window|glazing)\b/i },
+];
+
+const FFE_PLACEHOLDERS = new Set([
+  "",
+  "—",
+  "-",
+  "tbc",
+  "to be confirmed",
+  "not evidenced",
+  "typical",
+  "user provided",
+  "assumption",
+  "assumption / not evidenced",
+  "profile",
 ]);
 
 export const FFE_DECISION_MARKER_RE =
@@ -40,13 +82,16 @@ export type FoldFfeScheduleResult = {
   foldedById: Map<string, EmbeddedDecision>;
 };
 
+export type FfeTableLayout = RegisterCitationLayout & {
+  finishColumnIndex: number;
+  commentColumnIndex: number | null;
+  renameHeaders: Record<string, string>;
+};
+
 /**
- * Display-only: move FFE Schedule `pmp-decision` fences into the schedule
- * table as rows with a Finish-column marker. Canonical markdown (and
- * persistence) keep the fences; callers apply this after grouping.
- *
- * Finish-catalog fences still living under Brief (legacy drafts) are
- * relocated into the FFE table when that table exists.
+ * Display-only: hide finish-catalog `pmp-decision` fences so they are not
+ * rendered as a second FFE list. Canonical markdown keeps the fences.
+ * Matching selected labels are applied onto existing rows at render time.
  */
 export function foldFfeScheduleDecisions(markdown: string): FoldFfeScheduleResult {
   const foldedById = new Map<string, EmbeddedDecision>();
@@ -110,6 +155,148 @@ export function foldFfeScheduleDecisions(markdown: string): FoldFfeScheduleResul
   };
 }
 
+export function isFfePlaceholder(value: string): boolean {
+  return FFE_PLACEHOLDERS.has(value.trim().toLowerCase());
+}
+
+export function isFfeDecisionDuplicateRow(
+  itemName: string,
+  foldedById?: ReadonlyMap<string, EmbeddedDecision>,
+): boolean {
+  const key = itemName.trim().toLowerCase();
+  if (!key) return false;
+  if (FINISH_DECISION_ROW_LABELS.has(key)) return true;
+  if (!foldedById) return false;
+  for (const decision of foldedById.values()) {
+    if (decision.label.trim().toLowerCase() === key) return true;
+  }
+  return false;
+}
+
+export function selectedFinishForItem(
+  itemName: string,
+  foldedById?: ReadonlyMap<string, EmbeddedDecision>,
+): string | null {
+  if (!foldedById?.size) return null;
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const matcher of FINISH_ITEM_MATCHERS) {
+    if (!matcher.pattern.test(itemName)) continue;
+    for (const id of matcher.ids) {
+      const decision = foldedById.get(id);
+      if (!decision) continue;
+      const label = selectedOptionLabel(decision);
+      if (!label || seen.has(label.toLowerCase())) continue;
+      seen.add(label.toLowerCase());
+      labels.push(label);
+    }
+  }
+  return labels.length ? labels.join("; ") : null;
+}
+
+export function presentFfeFinish(
+  itemName: string,
+  finishText: string,
+  foldedById?: ReadonlyMap<string, EmbeddedDecision>,
+): string {
+  const markerId = parseFfeDecisionMarker(finishText);
+  if (markerId && foldedById?.get(markerId)) {
+    return selectedOptionLabel(foldedById.get(markerId)!) || "TBC";
+  }
+  if (!isFfePlaceholder(finishText)) return finishText.trim();
+  return selectedFinishForItem(itemName, foldedById) ?? "TBC";
+}
+
+export function presentFfeComment(text: string): string {
+  return isFfePlaceholder(text) ? "" : text.trim();
+}
+
+export function ffeTableLayoutFromHeaders(
+  headers: readonly string[],
+): FfeTableLayout | null {
+  const normalized = headers.map((header) =>
+    header.trim().toLowerCase().replace(/\s+/g, " "),
+  );
+  const item = normalized.indexOf("item");
+  const finish = normalized.indexOf("finish");
+  if (item < 0 || finish < 0) return null;
+  const dropColumnIndexes: number[] = [];
+  let commentColumnIndex: number | null = null;
+  normalized.forEach((header, index) => {
+    if (header === "qty" || header === "quantity" || header === "status") {
+      dropColumnIndexes.push(index);
+      return;
+    }
+    if (header === "notes" || header === "comment") {
+      commentColumnIndex = index;
+    }
+  });
+  const citationColumnIndex = citationColumnIndexFromHeaders(headers);
+  return {
+    dropColumnIndexes,
+    finishColumnIndex: finish,
+    commentColumnIndex,
+    citationColumnIndex,
+    appendCitation: citationColumnIndex === null,
+    blankCitationHeader: true,
+    renameHeaders: { notes: "Comment" },
+  };
+}
+
+export function projectFfeScheduleRow(
+  sourceRow: string,
+  layout?: FfeTableLayout | null,
+): {
+  cells: string[];
+  commit: (cells: readonly string[]) => string;
+} {
+  const cells = editableTableCells(sourceRow);
+  if (layout && layout.dropColumnIndexes.length === 0) {
+    return {
+      cells,
+      commit: (next) => formatTableRow([...next]),
+    };
+  }
+  if (cells.length === 6) {
+    return {
+      cells: [cells[0], cells[1], cells[3], cells[5]],
+      commit: (next) =>
+        formatTableRow([
+          next[0] ?? cells[0],
+          next[1] ?? cells[1],
+          cells[2],
+          next[2] ?? cells[3],
+          cells[4],
+          next[3] ?? cells[5],
+        ]),
+    };
+  }
+  if (cells.length === 5) {
+    return {
+      cells: [cells[0], cells[1], cells[3], presentFfeComment(cells[4])],
+      commit: (next) =>
+        formatTableRow([
+          next[0] ?? cells[0],
+          next[1] ?? cells[1],
+          cells[2],
+          next[2] ?? cells[3],
+          next[3] ?? cells[4],
+        ]),
+    };
+  }
+  return {
+    cells,
+    commit: (next) => formatTableRow([...next]),
+  };
+}
+
+function selectedOptionLabel(decision: EmbeddedDecision): string {
+  const selected = decision.options.find(
+    (option) => option.value === decision.selected,
+  );
+  return (selected?.label || decision.selected || "").trim();
+}
+
 function stripFinishDecisions(sectionMarkdown: string): {
   markdown: string;
   removed: EmbeddedDecision[];
@@ -165,37 +352,11 @@ function foldSection(
   const decisions = [...byId.values()];
   if (!decisions.length) return sectionMarkdown;
 
-  const lines = withoutFences.split("\n");
-  const headerIndex = lines.findIndex((line) =>
-    FFE_TABLE_HEADER_RE.test(line.trim()),
-  );
-  if (headerIndex < 0) {
-    return sectionMarkdown;
-  }
-
   for (const decision of decisions) {
     foldedById.set(decision.id, decision);
   }
 
-  let insertAt = headerIndex + 1;
-  if (insertAt < lines.length && /^\|?\s*:?-{3,}/.test(lines[insertAt].trim())) {
-    insertAt += 1;
-  }
-  while (insertAt < lines.length && lines[insertAt].trim().startsWith("|")) {
-    insertAt += 1;
-  }
-
-  const rows = decisions.map((decision) => {
-    const status =
-      (decision.source ?? "").toLowerCase() === "user"
-        ? "Confirmed"
-        : "To be confirmed";
-    return `| ${escapeCell(decision.label)} | TBC | TBC | ${formatFfeDecisionMarker(decision.id)} | ${status} | — |`;
-  });
-
-  const next = [...lines.slice(0, insertAt), ...rows, ...lines.slice(insertAt)];
-  return next
-    .join("\n")
+  return withoutFences
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n");
 }
@@ -238,8 +399,4 @@ function decisionPayload(decision: EmbeddedDecision): Record<string, unknown> {
 
 function serializeDecisionFence(decision: EmbeddedDecision): string {
   return `\`\`\`pmp-decision\n${JSON.stringify(decisionPayload(decision))}\n\`\`\``;
-}
-
-function escapeCell(value: string): string {
-  return value.replace(/\|/g, "\\|").trim();
 }

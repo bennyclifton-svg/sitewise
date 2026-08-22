@@ -1,4 +1,4 @@
-import { Play } from "lucide-react";
+import { Download, Play, RefreshCw } from "lucide-react";
 import {
   lazy,
   Suspense,
@@ -9,19 +9,29 @@ import {
   type ReactNode,
 } from "react";
 
+import { PdfFileIcon, WordFileIcon } from "@/components/icons/OfficeFileIcons";
+import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { SuggestionField } from "@/components/ui/suggestion-field";
 import { api } from "@/lib/api";
+import { stripArtifactBlockMarkers } from "@/lib/artifact-markdown";
+import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
+import { cn } from "@/lib/utils";
 import {
-  compareProcurementRequests,
   DEFAULT_CONSULTANT_DISCIPLINES,
   DEFAULT_TRADE_PACKAGES,
   disciplinesFromPmpMarkdown,
-  kindShortLabel,
+  kindForTargetName,
   latestRequest,
-  latestRequestForKind,
   mergeDisciplineOptions,
-  requestChipLabel,
 } from "@/lib/procurement-disciplines";
 import type {
   DraftArtifact,
@@ -44,24 +54,6 @@ const DraftReviewPanel = lazy(() =>
   })),
 );
 
-const KIND_OPTIONS: Array<{
-  value: RunnableProcurementRequestKind;
-  label: string;
-}> = [
-  {
-    value: "consultant_rfp",
-    label: "Consultant",
-  },
-  {
-    value: "trade_rft",
-    label: "Trade package",
-  },
-  {
-    value: "trade_rfq",
-    label: "Supplier quote",
-  },
-];
-
 function isRunnableKind(
   value: ProcurementRequestKind,
 ): value is RunnableProcurementRequestKind {
@@ -72,12 +64,19 @@ function isRunnableKind(
   );
 }
 
+function artefactLabel(kind: ProcurementRequestKind): string {
+  if (kind === "consultant_rfp") return "request for proposal";
+  if (kind === "trade_rfq") return "request for quotation";
+  return "request for tender";
+}
+
 export function ProcurementRequestPanel({
   project,
   error,
   refreshToken,
   renderGate,
   onCreate,
+  onUpdate,
   onDraftSelected,
   onDraftUpdated,
   repositoryEvidence = [],
@@ -94,6 +93,7 @@ export function ProcurementRequestPanel({
   refreshToken: number;
   renderGate: (kind: ProcurementRequestKind) => ReactNode;
   onCreate: (kind: RunnableProcurementRequestKind, targetName: string) => void;
+  onUpdate?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onCancel?: () => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
@@ -104,12 +104,14 @@ export function ProcurementRequestPanel({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
 }) {
-  const [kind, setKind] = useState<RunnableProcurementRequestKind>("consultant_rfp");
   const [discipline, setDiscipline] = useState("");
   const [pmpDisciplines, setPmpDisciplines] = useState<string[]>([]);
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [draftExportAction, setDraftExportAction] = useState<"docx" | "pdf" | null>(
+    null,
+  );
+  const [draftExportError, setDraftExportError] = useState<string | null>(null);
   const reportedDraftId = useRef<string | null>(null);
   const knownIds = useRef<Set<string>>(new Set());
   const loadedProjectId = useRef(project.id);
@@ -120,8 +122,11 @@ export function ProcurementRequestPanel({
       loadedProjectId.current = project.id;
       knownIds.current = new Set();
     }
-    void api
-      .listProcurementRequests(project.id)
+    void queryClient
+      .fetchQuery({
+        queryKey: workbenchKeys.procurementRequests(project.id),
+        queryFn: () => api.listProcurementRequests(project.id),
+      })
       .then((next) => {
         if (cancelled) return;
         const newcomers = next.filter((request) => !knownIds.current.has(request.id));
@@ -132,15 +137,20 @@ export function ProcurementRequestPanel({
             newcomers.filter((request) => isRunnableKind(request.kind)),
           );
           if (pick && isRunnableKind(pick.kind)) {
-            setKind(pick.kind);
-            setSelectedRequestId(pick.id);
+            setDiscipline(pick.target_name);
           }
         } else {
-          setSelectedRequestId((current) => {
-            if (current && next.some((request) => request.id === current)) {
+          setDiscipline((current) => {
+            const key = current.trim().toLowerCase();
+            if (
+              key &&
+              next.some(
+                (request) => request.target_name.trim().toLowerCase() === key,
+              )
+            ) {
               return current;
             }
-            return latestRequest(runnable)?.id ?? null;
+            return latestRequest(runnable)?.target_name ?? current;
           });
         }
         setRequests(next);
@@ -174,17 +184,21 @@ export function ProcurementRequestPanel({
     };
   }, [project.id, refreshToken]);
 
-  const selectedRequest = useMemo(
-    () => requests.find((request) => request.id === selectedRequestId) ?? null,
-    [requests, selectedRequestId],
-  );
-  const visibleRequests = useMemo(
-    () =>
-      requests
-        .filter((request) => request.kind === kind)
-        .sort(compareProcurementRequests),
-    [kind, requests],
-  );
+  const selectedRequest = useMemo(() => {
+    const key = discipline.trim().toLowerCase();
+    if (!key) return null;
+    return (
+      latestRequest(
+        requests.filter(
+          (request) =>
+            isRunnableKind(request.kind) &&
+            request.target_name.trim().toLowerCase() === key,
+        ),
+      ) ?? null
+    );
+  }, [discipline, requests]);
+  const createKind = kindForTargetName(discipline, pmpDisciplines, requests);
+  const activeKind = selectedRequest?.kind ?? createKind;
 
   useEffect(() => {
     const draft = selectedRequest?.current_draft ?? null;
@@ -197,40 +211,86 @@ export function ProcurementRequestPanel({
     onDraftSelected?.(draft);
   }, [onDraftSelected, selectedRequest?.current_draft]);
 
-  const capability =
-    kind === "consultant_rfp"
+  const createCapability =
+    createKind === "consultant_rfp"
       ? project.workflow_capabilities?.capabilities.consultant_procurement
       : project.workflow_capabilities?.capabilities.trade_procurement;
-  const supported = !capability || capability.status === "supported";
+  const updateCapability =
+    selectedRequest?.kind === "consultant_rfp"
+      ? project.workflow_capabilities?.capabilities.consultant_procurement
+      : project.workflow_capabilities?.capabilities.trade_procurement;
+  const createSupported = !createCapability || createCapability.status === "supported";
+  const updateSupported = !updateCapability || updateCapability.status === "supported";
+  const capability = selectedRequest ? updateCapability : createCapability;
+  const supported = selectedRequest ? updateSupported : createSupported;
 
   const disciplineOptions = useMemo(() => {
-    const existingForKind = requests
-      .filter((request) => request.kind === kind)
+    const existingTargets = requests
+      .filter((request) => isRunnableKind(request.kind))
       .map((request) => request.target_name);
-    if (kind === "consultant_rfp") {
-      return mergeDisciplineOptions(
-        pmpDisciplines,
-        DEFAULT_CONSULTANT_DISCIPLINES,
-        existingForKind,
-      );
-    }
     return mergeDisciplineOptions(
-      existingForKind,
-      DEFAULT_TRADE_PACKAGES,
-      [],
+      pmpDisciplines,
+      [...DEFAULT_CONSULTANT_DISCIPLINES, ...DEFAULT_TRADE_PACKAGES],
+      existingTargets,
     );
-  }, [kind, pmpDisciplines, requests]);
+  }, [pmpDisciplines, requests]);
+  const disciplineBadges = useMemo(() => {
+    const badges: Record<string, string> = {};
+    for (const name of disciplineOptions) {
+      const match = latestRequest(
+        requests.filter(
+          (request) =>
+            isRunnableKind(request.kind) &&
+            request.target_name.trim().toLowerCase() === name.toLowerCase(),
+        ),
+      );
+      if (!match) continue;
+      badges[name] = String(match.current_draft?.version ?? match.revision);
+    }
+    return badges;
+  }, [disciplineOptions, requests]);
+  const hasGeneratedRequests = requests.some((request) => isRunnableKind(request.kind));
 
-  function selectKind(next: RunnableProcurementRequestKind) {
-    setKind(next);
-    setDiscipline("");
-    setSelectedRequestId(latestRequestForKind(requests, next)?.id ?? null);
+  function submitCreate() {
+    const target = discipline.trim();
+    if (!target || !createSupported) return;
+    onCreate(createKind, target);
   }
 
-  function submit() {
-    const target = discipline.trim();
-    if (!target || !supported) return;
-    onCreate(kind, target);
+  function submitUpdate() {
+    if (!selectedRequest || !updateSupported) return;
+    onUpdate?.(
+      isRunnableKind(selectedRequest.kind) ? selectedRequest.kind : createKind,
+      selectedRequest.target_name,
+    );
+  }
+
+  const currentDraft = selectedRequest?.current_draft ?? null;
+  const currentArtefactLabel = artefactLabel(activeKind);
+
+  async function downloadDraftExport(format: "docx" | "pdf") {
+    if (!currentDraft) return;
+    setDraftExportAction(format);
+    setDraftExportError(null);
+    try {
+      const blob = await api.downloadDraftExport(
+        project.id,
+        currentDraft.id,
+        format,
+      );
+      downloadBlob(
+        blob,
+        `${safeFilename(currentDraft.title)}_v${String(currentDraft.version).padStart(2, "0")}.${format}`,
+      );
+    } catch (error) {
+      setDraftExportError(
+        error instanceof ApiError
+          ? error.message
+          : `Could not export ${format.toUpperCase()}.`,
+      );
+    } finally {
+      setDraftExportAction(null);
+    }
   }
 
   return (
@@ -241,7 +301,7 @@ export function ProcurementRequestPanel({
         </p>
       ) : null}
 
-      {renderGate(kind)}
+      {renderGate(activeKind)}
 
       {!supported ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -249,47 +309,98 @@ export function ProcurementRequestPanel({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <WorkbenchTabs
-          label="Request type"
-          value={kind}
-          options={KIND_OPTIONS}
-          onChange={selectKind}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <SuggestionField
             id="procurement-discipline"
             className="w-56"
             value={discipline}
             suggestions={disciplineOptions}
+            badges={disciplineBadges}
             aria-label="Discipline"
-            placeholder={
-              kind === "consultant_rfp"
-                ? "Architect"
-                : kind === "trade_rfq"
-                  ? "Electrical supplier"
-                  : "Electrical services"
-            }
+            placeholder="Architect"
             onChange={setDiscipline}
           />
-          <Button onClick={submit} disabled={!discipline.trim() || !supported}>
+          <Button onClick={submitCreate} disabled={!discipline.trim() || !createSupported}>
             <Play className="size-4" aria-hidden />
-            Create {kindShortLabel(kind)}
+            Create RFT
           </Button>
+          <Button
+            variant="outline"
+            onClick={submitUpdate}
+            disabled={!currentDraft || !updateSupported}
+          >
+            <RefreshCw className="size-4" aria-hidden />
+            Update RFT
+          </Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {draftExportError ? (
+            <span className="self-center text-xs text-destructive" role="alert">
+              {draftExportError}
+            </span>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 text-muted-foreground hover:text-foreground"
+                disabled={!currentDraft || draftExportAction !== null}
+                aria-label={`Download ${currentArtefactLabel}`}
+                title="Download"
+              >
+                <Download
+                  className={cn(
+                    "size-5",
+                    draftExportAction !== null && "animate-pulse",
+                  )}
+                  aria-hidden
+                />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[11rem]">
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={draftExportAction !== null}
+                onSelect={() => {
+                  void downloadDraftExport("docx");
+                }}
+              >
+                <WordFileIcon className="size-6" />
+                <span>Word</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={draftExportAction !== null}
+                onSelect={() => {
+                  void downloadDraftExport("pdf");
+                }}
+              >
+                <PdfFileIcon className="size-6" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <CopyContentButton
+            loadContent={async () => {
+              if (!currentDraft) return "";
+              const fullDraft = await api.getProjectDraft(
+                project.id,
+                currentDraft.id,
+              );
+              return stripArtifactBlockMarkers(fullDraft.content_markdown);
+            }}
+            label={`Copy ${currentArtefactLabel}`}
+            disabled={!currentDraft}
+            size="icon"
+            className="size-10"
+          />
         </div>
       </div>
 
-      {visibleRequests.length ? (
-        <WorkbenchTabs
-          label="Open procurement request"
-          value={selectedRequestId ?? ""}
-          options={visibleRequests.map((request) => ({
-            value: request.id,
-            label: requestChipLabel(request),
-          }))}
-          onChange={setSelectedRequestId}
-        />
-      ) : (
+      {hasGeneratedRequests ? null : (
         <p className="text-sm text-muted-foreground">
           No requests yet. Create the first one above.
         </p>
@@ -319,31 +430,17 @@ export function ProcurementRequestPanel({
   );
 }
 
-function WorkbenchTabs<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  value: T;
-  options: ReadonlyArray<{ value: T; label: string }>;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-1" role="tablist" aria-label={label}>
-      {options.map((option) => (
-        <Button
-          key={option.value}
-          size="sm"
-          variant={value === option.value ? "default" : "ghost"}
-          role="tab"
-          aria-selected={value === option.value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </Button>
-      ))}
-    </div>
-  );
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeFilename(value: string): string {
+  return value.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Artefact";
 }

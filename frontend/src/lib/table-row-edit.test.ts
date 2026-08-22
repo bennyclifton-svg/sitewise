@@ -43,4 +43,52 @@ describe("table-row-edit", () => {
       end: start + row.length,
     });
   });
+
+  describe("escaped pipes", () => {
+    it("keeps an escaped pipe inside one cell instead of splitting the row", () => {
+      const row = String.raw`| Architect | Design \| documentation | Appointed |`;
+      expect(editableTableCells(row)).toEqual([
+        "Architect",
+        "Design | documentation",
+        "Appointed",
+      ]);
+    });
+
+    it("re-escapes pipes when formatting so the column count is stable", () => {
+      expect(formatTableRow(["Architect", "Design | documentation", "Appointed"])).toBe(
+        String.raw`| Architect | Design \| documentation | Appointed |`,
+      );
+    });
+
+    it("round-trips a row containing an escaped pipe without gaining a column", () => {
+      const row = String.raw`| Architect | Design \| documentation | Appointed |`;
+      const cells = editableTableCells(row);
+      expect(cells).toHaveLength(3);
+      expect(formatTableRow(cells)).toBe(row);
+    });
+
+    it("round-trips a row whose cell ends with a literal backslash", () => {
+      const row = String.raw`| Path | C:\\ | Done |`;
+      const cells = editableTableCells(row);
+      expect(cells).toHaveLength(3);
+      expect(cells[1]).toBe("C:\\");
+      expect(formatTableRow(cells)).toBe(row);
+    });
+
+    it("round-trips an escaped pipe alongside a provenance marker", () => {
+      const marker = "<!-- clerk:block id=blk_c5b155667c74837540ac88af34a7d358 -->";
+      const cells = editableTableCells(
+        String.raw`| Scope | Fee \| disbursements |` + marker,
+      );
+      expect(cells).toEqual(["Scope", "Fee | disbursements"]);
+      expect(formatTableRow(cells)).toBe(
+        String.raw`| Scope | Fee \| disbursements |`,
+      );
+    });
+
+    it("leaves rows without escapes byte-identical", () => {
+      const row = "| Address | Paddington | [1] |";
+      expect(formatTableRow(editableTableCells(row))).toBe(row);
+    });
+  });
 });

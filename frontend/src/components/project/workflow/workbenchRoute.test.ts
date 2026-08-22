@@ -9,6 +9,13 @@ describe("workbenchRoute", () => {
   it("reads a known workbench workflow from the query string", () => {
     expect(readWorkbenchWorkflow("?workflow=cost-plan")).toBe("cost-plan");
     expect(readWorkbenchWorkflow("workflow=create-pmp")).toBe("create-pmp");
+    expect(readWorkbenchWorkflow("?workflow=program")).toBe("program");
+    expect(readWorkbenchWorkflow("?workflow=project-profile")).toBe(
+      "project-profile",
+    );
+    expect(readWorkbenchWorkflow("?workflow=procurement-requests")).toBe(
+      "procurement-requests",
+    );
   });
 
   it("ignores unknown or missing workflow values", () => {

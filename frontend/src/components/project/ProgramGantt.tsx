@@ -15,13 +15,15 @@ import { Input } from "@/components/ui/input";
 import {
   addDays,
   daysBetween,
+  formatCompactDate,
   previousProgrammeKey,
   programmeBulkDeleteOperations,
   programmeLinkWouldCycle,
   programmeRowMove,
-  programmeScaleBands,
+  programmeHeaderLayers,
   programmeSpan,
-  programmeWeekTicks,
+  programmeLinks,
+  ganttLinkPath,
   type ProgrammeActivity,
   type ProgrammeAxisBand,
   type ProgrammeOperation,
@@ -30,10 +32,13 @@ import {
 } from "@/lib/programme";
 import { cn } from "@/lib/utils";
 
-const ROW_HEIGHT = 32;
-const NAME_WIDTH = 168;
-const DATE_WIDTH = 128;
-const DURATION_WIDTH = 76;
+const ROW_HEIGHT = 24;
+const BAR_HEIGHT = 10;
+const BAR_TOP = 7;
+const LINK_Y = 12;
+const NAME_WIDTH = 220;
+const DATE_WIDTH = 88;
+const DURATION_WIDTH = 48;
 const LINK_WIDTH = 24;
 const PLUS_WIDTH = 24;
 const TRASH_WIDTH = 24;
@@ -43,23 +48,50 @@ const SCALE_PX: Record<ProgrammeScale, number> = {
   month: 6,
   quarter: 2,
 };
+const FIGURE_SCALES: ProgrammeScale[] = ["month", "quarter"];
+const SCHEDULE_PANE = NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH;
+const ACTION_PANE = LINK_WIDTH + PLUS_WIDTH + TRASH_WIDTH;
+const ROW_TEXT = "text-[10px] leading-5 md:text-[10px]";
+
+function chartBoxStyle(
+  fitted: boolean,
+  panePx: number,
+  offsetDays: number,
+  sizeDays: number,
+  spanDays: number,
+  pxPerDay: number,
+  minUnfittedPx = 0,
+): { left: number | string; width: number | string } {
+  if (!fitted) {
+    return {
+      left: panePx + offsetDays * pxPerDay,
+      width: Math.max(sizeDays * pxPerDay, minUnfittedPx),
+    };
+  }
+  const span = Math.max(spanDays, 1);
+  return {
+    left: `calc(${panePx}px + (100% - ${panePx}px) * ${offsetDays / span})`,
+    width: `calc((100% - ${panePx}px) * ${sizeDays / span})`,
+  };
+}
 
 export function ProgramGantt({
   state,
   mode,
   onOperate,
   onScaleChange,
-  onOpenProgram,
+  active = true,
 }: {
   state: ProgrammeState;
   mode: "edit" | "figure";
   onOperate?: (operations: ProgrammeOperation[]) => void;
   onScaleChange?: (scale: ProgrammeScale) => void;
-  onOpenProgram?: () => void;
+  /** False while the workbench is kept mounted but hidden. */
+  active?: boolean;
 }) {
   const surfaceRef = useRef<HTMLDivElement | null>(null);
   const [surfaceWidth, setSurfaceWidth] = useState(0);
-  const [fitToScreen, setFitToScreen] = useState(false);
+  const [fitToScreen, setFitToScreen] = useState(mode === "edit");
   const [focusKey, setFocusKey] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
@@ -81,30 +113,30 @@ export function ProgramGantt({
   const span = useMemo(() => programmeSpan(state.activities), [state.activities]);
   const spanDays = Math.max(daysBetween(span.start, span.end), 1);
   const fitted = mode === "figure" || fitToScreen;
-  const leftPane =
-    mode === "figure"
-      ? NAME_WIDTH
-      : NAME_WIDTH +
-        DATE_WIDTH +
-        DURATION_WIDTH +
-        LINK_WIDTH +
-        PLUS_WIDTH +
-        TRASH_WIDTH;
-  const headerHeight = state.view_scale === "week" ? 44 : 28;
+  const leftPane = mode === "figure" ? SCHEDULE_PANE : SCHEDULE_PANE + ACTION_PANE;
+  const headerHeight = 44;
   const measuredChart = Math.max((surfaceWidth || 720) - leftPane, 80);
   const pxPerDay = fitted ? measuredChart / spanDays : SCALE_PX[state.view_scale];
   const chartWidth = fitted ? measuredChart : Math.max(spanDays * pxPerDay, 320);
 
   useEffect(() => {
     const node = surfaceRef.current;
-    if (!node || typeof ResizeObserver === "undefined") return;
+    if (!active || !node) return;
+    const readWidth = () => {
+      const width = node.getBoundingClientRect().width;
+      if (width) {
+        setSurfaceWidth((current) => (current === width ? current : width));
+      }
+    };
+    readWidth();
+    if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width ?? 0;
-      setSurfaceWidth(width);
+      setSurfaceWidth((current) => (current === width ? current : width));
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     if (visibleSelected.size === 0) return;
@@ -303,7 +335,7 @@ export function ProgramGantt({
           headerHeight={headerHeight}
           fitted={fitted}
           pxPerDay={pxPerDay}
-          showScheduleColumns={mode === "edit"}
+          showScheduleColumns
           onAddStage={mode === "edit" ? addStage : undefined}
           selectedCount={mode === "edit" ? visibleSelected.size : 0}
           onDeleteSelected={mode === "edit" ? removeSelected : undefined}
@@ -329,9 +361,14 @@ export function ProgramGantt({
             interactive={mode === "edit"}
             fitted={fitted}
             pxPerDay={pxPerDay}
+            leftPane={leftPane}
             headerHeight={headerHeight}
             hideRowDelete={visibleSelected.size > 1}
-            onRowClick={(event) => handleRowClick(event, activity.activity_key)}
+            onRowClick={
+              mode === "edit"
+                ? (event) => handleRowClick(event, activity.activity_key)
+                : undefined
+            }
             dropPlacement={
               rowDrag?.overKey === activity.activity_key ? rowDrag.placement : null
             }
@@ -351,14 +388,25 @@ export function ProgramGantt({
 
   if (mode === "figure") {
     return (
-      <button
-        type="button"
-        className="block w-full text-left"
-        onClick={onOpenProgram}
-        aria-label="Open Program"
-      >
+      <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex print:hidden">
+          <div className="flex overflow-hidden border">
+            {FIGURE_SCALES.map((scale) => (
+              <Button
+                key={scale}
+                type="button"
+                size="sm"
+                variant={state.view_scale === scale ? "default" : "ghost"}
+                className="rounded-none capitalize"
+                onClick={() => onScaleChange?.(scale)}
+              >
+                {scale}
+              </Button>
+            ))}
+          </div>
+        </div>
         {chart}
-      </button>
+      </div>
     );
   }
 
@@ -371,12 +419,9 @@ export function ProgramGantt({
               key={scale}
               type="button"
               size="sm"
-              variant={state.view_scale === scale && !fitToScreen ? "default" : "ghost"}
+              variant={state.view_scale === scale ? "default" : "ghost"}
               className="rounded-none capitalize"
-              onClick={() => {
-                setFitToScreen(false);
-                onScaleChange?.(scale);
-              }}
+              onClick={() => onScaleChange?.(scale)}
             >
               {scale}
             </Button>
@@ -423,11 +468,10 @@ function GanttAxis({
   onDeleteSelected?: () => void;
 }) {
   const end = addDays(start, days);
-  const bands = programmeScaleBands(start, end, scale);
-  const weekTicks = scale === "week" ? programmeWeekTicks(start, end) : [];
+  const { major, minor } = programmeHeaderLayers(start, end, scale, pxPerDay);
   return (
     <div
-      className="absolute inset-x-0 top-0 border-b text-[10px] text-[var(--sw-text-tertiary)]"
+      className="absolute inset-x-0 top-0 border-b text-[10px] leading-none text-[var(--sw-text-tertiary)]"
       style={{ height: headerHeight }}
     >
       <span className="absolute left-2 top-2">Activity</span>
@@ -466,28 +510,34 @@ function GanttAxis({
           ) : null}
         </>
       ) : null}
-      {bands.map((band) => (
+      <span
+        className="pointer-events-none absolute border-b border-[color-mix(in_oklch,var(--sw-text-tertiary)_25%,transparent)]"
+        style={{ left: leftPane, right: 0, top: 20 }}
+      />
+      {major.map((band) => (
         <AxisLabel
-          key={`band-${band.start}`}
+          key={`major-${band.start}`}
           band={band}
           start={start}
           days={days}
           leftPane={leftPane}
           fitted={fitted}
           pxPerDay={pxPerDay}
-          top={scale === "week" ? 4 : 8}
+          top={5}
+          align="left"
         />
       ))}
-      {weekTicks.map((tick) => (
+      {minor.map((band) => (
         <AxisLabel
-          key={`tick-${tick.start}`}
-          band={tick}
+          key={`minor-${band.start}`}
+          band={band}
           start={start}
           days={days}
           leftPane={leftPane}
           fitted={fitted}
           pxPerDay={pxPerDay}
-          top={24}
+          top={26}
+          align="center"
         />
       ))}
     </div>
@@ -502,6 +552,7 @@ function AxisLabel({
   fitted,
   pxPerDay,
   top,
+  align,
 }: {
   band: ProgrammeAxisBand;
   start: string;
@@ -510,19 +561,19 @@ function AxisLabel({
   fitted: boolean;
   pxPerDay: number;
   top: number;
+  align: "left" | "center";
 }) {
   const offset = daysBetween(start, band.start);
   return (
     <span
-      className="absolute truncate"
+      className={cn(
+        "absolute overflow-hidden whitespace-nowrap px-px",
+        align === "center" ? "text-center" : "text-left",
+      )}
+      title={band.title ?? band.label}
       style={{
         top,
-        left: fitted
-          ? `calc(${leftPane}px + ${(offset * 100) / days}%)`
-          : leftPane + offset * pxPerDay,
-        maxWidth: fitted
-          ? `calc(${(band.days * 100) / days}%)`
-          : Math.max(band.days * pxPerDay - 4, 36),
+        ...chartBoxStyle(fitted, leftPane, offset, band.days, days, pxPerDay, 8),
       }}
     >
       {band.label}
@@ -540,6 +591,7 @@ const GanttRow = memo(function GanttRow({
   interactive,
   fitted,
   pxPerDay,
+  leftPane,
   headerHeight,
   hideRowDelete,
   dropPlacement,
@@ -562,11 +614,12 @@ const GanttRow = memo(function GanttRow({
   interactive: boolean;
   fitted: boolean;
   pxPerDay: number;
+  leftPane: number;
   headerHeight: number;
   hideRowDelete: boolean;
   dropPlacement: "before" | "after" | null;
   dragging: boolean;
-  onRowClick: (event: ReactMouseEvent) => void;
+  onRowClick?: (event: ReactMouseEvent) => void;
   onRename: (name: string) => void;
   onMove: (start: string) => void;
   onResize: (days: number) => void;
@@ -584,11 +637,10 @@ const GanttRow = memo(function GanttRow({
     activity.kind === "milestone" ? 0 : 1,
   );
   const top = headerHeight + index * ROW_HEIGHT;
-  const leftPct = (offset / spanDays) * 100;
-  const widthPct = (duration / spanDays) * 100;
-  const chartLeft = interactive
-    ? NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH + LINK_WIDTH + PLUS_WIDTH + TRASH_WIDTH
-    : NAME_WIDTH;
+  const barFill =
+    activity.kind === "stage"
+      ? "bg-[color-mix(in_oklch,var(--sw-beam)_70%,transparent)]"
+      : "bg-[color-mix(in_oklch,var(--sw-beam)_45%,transparent)]";
 
   function beginDrag(event: ReactPointerEvent, kind: "move" | "resize") {
     if (!interactive) return;
@@ -648,48 +700,39 @@ const GanttRow = memo(function GanttRow({
           hideDelete={hideRowDelete}
         />
       ) : (
-        <span
-          className={cn(
-            "absolute left-0 truncate px-2 text-left text-xs",
-            activity.kind === "stage" ? "font-semibold" : "pl-5 text-[var(--sw-text-secondary)]",
-          )}
-          style={{ width: NAME_WIDTH, top: 8 }}
-        >
-          {activity.name}
-        </span>
+        <FigureFields activity={activity} />
       )}
       <div
         className="absolute"
+        data-gantt-bar={activity.activity_key}
         style={{
-          left: fitted
-            ? `calc(${chartLeft}px + ${leftPct}%)`
-            : chartLeft + offset * pxPerDay,
-          width: fitted
-            ? `calc(${Math.max(widthPct, 0.8)}% - 8px)`
-            : Math.max(duration * pxPerDay, 8),
-          top: 10,
-          height: 12,
+          ...chartBoxStyle(fitted, leftPane, offset, duration, spanDays, pxPerDay, 8),
+          top: BAR_TOP,
+          height: BAR_HEIGHT,
         }}
       >
         {activity.kind === "milestone" ? (
+          interactive ? (
+            <button
+              type="button"
+              aria-label={`Move ${activity.name}`}
+              className="size-2.5 rotate-45 bg-[var(--sw-beam)]"
+              onPointerDown={(event) => beginDrag(event, "move")}
+              data-interactive="true"
+            />
+          ) : (
+            <span className="block size-2.5 rotate-45 bg-[var(--sw-beam)]" aria-hidden />
+          )
+        ) : interactive ? (
           <button
             type="button"
             aria-label={`Move ${activity.name}`}
-            className="size-3 rotate-45 bg-[var(--sw-beam)]"
+            className={cn("h-full w-full rounded-sm", barFill)}
             onPointerDown={(event) => beginDrag(event, "move")}
-            data-interactive={interactive ? "true" : undefined}
+            data-interactive="true"
           />
         ) : (
-          <button
-            type="button"
-            aria-label={`Move ${activity.name}`}
-            className={cn(
-              "h-3 w-full rounded-sm",
-              activity.kind === "stage" ? "bg-[var(--sw-beam)]/70" : "bg-[var(--sw-beam)]/45",
-            )}
-            onPointerDown={(event) => beginDrag(event, "move")}
-            data-interactive={interactive ? "true" : undefined}
-          />
+          <span className={cn("block h-full w-full rounded-sm", barFill)} aria-hidden />
         )}
         {interactive && activity.kind !== "milestone" ? (
           <span
@@ -724,31 +767,13 @@ function GanttLinks({
 }) {
   const height = ROW_HEIGHT * Math.max(activities.length, 1);
   const width = fitted ? undefined : Math.max(spanDays * pxPerDay, 8);
-  const links = activities.flatMap((activity, index) => {
-    if (!activity.predecessor_key) return [];
-    const predecessorIndex = activities.findIndex(
-      (item) => item.activity_key === activity.predecessor_key,
-    );
-    const predecessor = activities[predecessorIndex];
-    if (!predecessor) return [];
-    const fromOffset =
-      daysBetween(spanStart, predecessor.start_date) +
-      Math.max(predecessor.duration_days, predecessor.kind === "milestone" ? 0 : 1);
-    const toOffset = daysBetween(spanStart, activity.start_date);
-    return [
-      {
-        key: `${predecessor.activity_key}->${activity.activity_key}`,
-        fromIndex: predecessorIndex,
-        toIndex: index,
-        fromOffset,
-        toOffset,
-      },
-    ];
-  });
+  const links = programmeLinks(activities, spanStart);
   if (!links.length) return null;
+  const xScale = fitted ? 1 : pxPerDay;
   return (
     <svg
       className="pointer-events-none absolute"
+      data-gantt-links=""
       style={{
         left: leftPane,
         top: headerHeight,
@@ -758,24 +783,48 @@ function GanttLinks({
       viewBox={fitted ? `0 0 ${spanDays} ${height}` : undefined}
       preserveAspectRatio={fitted ? "none" : undefined}
     >
-      {links.map((link) => {
-        const x1 = fitted ? link.fromOffset : link.fromOffset * pxPerDay;
-        const x2 = fitted ? link.toOffset : link.toOffset * pxPerDay;
-        const y1 = link.fromIndex * ROW_HEIGHT + 16;
-        const y2 = link.toIndex * ROW_HEIGHT + 16;
-        const mid = x1 + (fitted ? 4 : 8);
-        return (
-          <path
-            key={link.key}
-            d={`M ${x1} ${y1} H ${mid} V ${y2} H ${x2}`}
-            fill="none"
-            stroke="var(--sw-beam)"
-            strokeOpacity="0.45"
-            strokeWidth={fitted ? Math.max(spanDays / 240, 0.8) : 1.25}
-          />
-        );
-      })}
+      {links.map((link) => (
+        <path
+          key={link.key}
+          data-gantt-link={link.key}
+          d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale)}
+          fill="none"
+          stroke="var(--sw-beam)"
+          strokeOpacity="0.55"
+          strokeWidth="1.25"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
     </svg>
+  );
+}
+
+function FigureFields({ activity }: { activity: ProgrammeActivity }) {
+  return (
+    <>
+      <span
+        className={cn(
+          "absolute left-0 truncate px-2 text-left",
+          ROW_TEXT,
+          activity.kind === "stage" ? "font-semibold" : "pl-5 text-[var(--sw-text-secondary)]",
+        )}
+        style={{ width: NAME_WIDTH, top: 4 }}
+      >
+        {activity.name}
+      </span>
+      <span
+        className={cn("absolute truncate text-left", ROW_TEXT)}
+        style={{ left: NAME_WIDTH, width: DATE_WIDTH - 4, top: 4 }}
+      >
+        {formatCompactDate(activity.start_date)}
+      </span>
+      <span
+        className={cn("absolute text-center tabular-nums", ROW_TEXT)}
+        style={{ left: NAME_WIDTH + DATE_WIDTH, width: DURATION_WIDTH - 6, top: 4 }}
+      >
+        {activity.duration_days}
+      </span>
+    </>
   );
 }
 
@@ -821,7 +870,7 @@ function RowFields({
       <button
         type="button"
         aria-label={`Reorder ${activity.name}`}
-        className="absolute top-1 flex h-6 w-4 cursor-grab items-center justify-center text-[var(--sw-text-tertiary)] opacity-0 hover:text-[var(--sw-text-primary)] active:cursor-grabbing group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+        className="absolute top-0.5 flex h-5 w-4 cursor-grab items-center justify-center text-[var(--sw-text-tertiary)] opacity-0 hover:text-[var(--sw-text-primary)] active:cursor-grabbing group-hover/row:opacity-100 group-focus-within/row:opacity-100"
         style={{ left: 2 }}
         onPointerDown={onReorder}
       >
@@ -832,7 +881,7 @@ function RowFields({
           autoFocus
           value={draftName}
           aria-label={`${activity.kind} name`}
-          className="program-gantt-field absolute top-1 h-6 px-1.5 text-xs"
+          className={cn("program-gantt-field absolute top-0.5 h-5 px-1.5", ROW_TEXT)}
           style={{ left: nameLeft, width: NAME_WIDTH - nameLeft - 4 }}
           onChange={(event) => setDraftName(event.target.value)}
           onBlur={commitName}
@@ -848,7 +897,8 @@ function RowFields({
         <button
           type="button"
           className={cn(
-            "absolute top-1 truncate px-1.5 text-left text-xs leading-6",
+            "absolute top-0.5 truncate px-1.5 text-left",
+            ROW_TEXT,
             activity.kind === "stage" ? "font-semibold" : "text-[var(--sw-text-secondary)]",
           )}
           style={{ left: nameLeft, width: NAME_WIDTH - nameLeft - 4 }}
@@ -862,7 +912,7 @@ function RowFields({
           {activity.name}
         </button>
       )}
-      <div className="absolute top-1" style={{ left: NAME_WIDTH, width: DATE_WIDTH - 6 }}>
+      <div className="absolute top-0.5" style={{ left: NAME_WIDTH, width: DATE_WIDTH - 4 }}>
         <ProgrammeDateField
           value={activity.start_date}
           ariaLabel={`${activity.name} start date`}
@@ -874,7 +924,10 @@ function RowFields({
         min={activity.kind === "milestone" ? 0 : 1}
         value={durationEditing ? durationDraft : activity.duration_days}
         aria-label={`${activity.name} duration in days`}
-        className="program-gantt-field absolute top-1 h-6 px-1 text-center text-[11px]"
+        className={cn(
+          "program-gantt-field absolute top-0.5 h-5 px-0.5 text-center",
+          ROW_TEXT,
+        )}
         style={{ left: NAME_WIDTH + DATE_WIDTH, width: DURATION_WIDTH - 6 }}
         onFocus={() => {
           setDurationEditing(true);
@@ -903,7 +956,7 @@ function RowFields({
         aria-pressed={linked}
         title={linked ? "Linked — click to float" : "Floating — click to link to the row above"}
         className={cn(
-          "absolute top-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-[var(--sw-text-primary)]",
+          "absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-[var(--sw-text-primary)]",
           linked
             ? "text-[var(--sw-beam)] opacity-100"
             : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100",
@@ -919,7 +972,7 @@ function RowFields({
       <button
         type="button"
         aria-label={`Add activity below ${activity.name}`}
-        className="absolute top-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 hover:text-[var(--sw-text-primary)] group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+        className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 hover:text-[var(--sw-text-primary)] group-hover/row:opacity-100 group-focus-within/row:opacity-100"
         style={{ left: actionsLeft + LINK_WIDTH }}
         onClick={(event) => {
           event.stopPropagation();
@@ -933,7 +986,7 @@ function RowFields({
           type="button"
           aria-label={`Delete ${activity.name}`}
           title="Delete"
-          className="absolute top-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+          className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/row:opacity-100 group-focus-within/row:opacity-100"
           style={{ left: actionsLeft + LINK_WIDTH + PLUS_WIDTH }}
           onClick={(event) => {
             event.stopPropagation();

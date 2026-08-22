@@ -89,6 +89,15 @@ const CopyContentButton = lazy(() =>
   })),
 );
 
+const WARM_WORKFLOW_IDS = [
+  "create-pmp",
+  "cost-plan",
+  "program",
+  "procurement-requests",
+  "project-profile",
+] as const;
+const WARM_WORKFLOW_ID_SET: ReadonlySet<string> = new Set(WARM_WORKFLOW_IDS);
+
 export function ProjectControlBoard({
   project,
   profileProposals = [],
@@ -175,7 +184,11 @@ export function ProjectControlBoard({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelProcurement?: () => void;
-  onRunProcurement?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
+  onRunProcurement?: (
+    kind: RunnableProcurementRequestKind,
+    targetName: string,
+    action?: "create" | "update",
+  ) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -196,6 +209,14 @@ export function ProjectControlBoard({
   invoiceProcessResult?: ProcessInvoicesResult | null;
   openInvoiceId?: string | null;
 }) {
+  const [warmedProjectId, setWarmedProjectId] = useState<string | null>(null);
+  useEffect(() => {
+    const id = project.id;
+    const timer = window.setTimeout(() => setWarmedProjectId(id), 0);
+    return () => window.clearTimeout(timer);
+  }, [project.id]);
+  const warmReady = warmedProjectId === project.id;
+
   const lifecycle = buildLifecycleTiles({
     project,
     latestDraft,
@@ -218,6 +239,65 @@ export function ProjectControlBoard({
     lifecycle.find((tile) => tile.id === selectedWorkflowId) ??
     recurring.find((tile) => tile.id === selectedWorkflowId) ??
     lifecycle[0];
+  const warmTiles = WARM_WORKFLOW_IDS.map((id) =>
+    lifecycle.find((tile) => tile.id === id),
+  ).filter((tile): tile is WorkflowTile => Boolean(tile));
+  const detailProps = {
+    project,
+    latestDraft,
+    latestCostPlanDraft,
+    trace,
+    costPlanTrace,
+    workflowError,
+    costPlanWorkflowError,
+    isRunningWorkflow,
+    isRunningCostPlan,
+    pmpRunMode,
+    costPlanRunMode,
+    pmpProgressKey,
+    costPlanProgressKey,
+    activeWorkflowRun,
+    activeCostPlanRun,
+    activeProcurementRun,
+    procurementError,
+    isRunningProcurement,
+    procurementRefreshToken,
+    onSelectWorkflow,
+    onRunCreatePmp,
+    onRunUpdatePmp,
+    onRunCreateCostPlan,
+    onRunRefreshCostPlan,
+    onRunProcessInvoices,
+    onRunSortFiles,
+    onCancelWorkflow,
+    onCancelCostPlan,
+    onCancelProcurement,
+    onRunProcurement,
+    onCancelSortFiles,
+    onOpenTenderComparison,
+    inboxCount,
+    sortFilesResult,
+    sortFilesDraft,
+    sortFilesError,
+    isRunningSortFiles,
+    onProjectUpdated,
+    onDraftSelected,
+    onDraftUpdated,
+    repositoryEvidence,
+    selectedEvidenceIds,
+    onSelectEvidenceIds,
+    onTransmittalSessionChange,
+    invoiceProcessResult,
+    openInvoiceId,
+  };
+
+  function shouldMountWarm(id: string): boolean {
+    if (selectedWorkflowId === id) return true;
+    if (!warmReady) return false;
+    if (id === "create-pmp") return latestDraft != null;
+    if (id === "cost-plan") return latestCostPlanDraft != null;
+    return true;
+  }
 
   return (
     <div
@@ -232,57 +312,48 @@ export function ProjectControlBoard({
         }}
       />
 
-      <section className="min-w-0">
-        <WorkflowDetail
-          tile={selectedTile}
-          project={project}
-          latestDraft={latestDraft}
-          latestCostPlanDraft={latestCostPlanDraft}
-          trace={trace}
-          costPlanTrace={costPlanTrace}
-          workflowError={workflowError}
-          costPlanWorkflowError={costPlanWorkflowError}
-          isRunningWorkflow={isRunningWorkflow}
-          isRunningCostPlan={isRunningCostPlan}
-          pmpRunMode={pmpRunMode}
-          costPlanRunMode={costPlanRunMode}
-          pmpProgressKey={pmpProgressKey}
-          costPlanProgressKey={costPlanProgressKey}
-          activeWorkflowRun={activeWorkflowRun}
-          activeCostPlanRun={activeCostPlanRun}
-          activeProcurementRun={activeProcurementRun}
-          procurementError={procurementError}
-          isRunningProcurement={isRunningProcurement}
-          procurementRefreshToken={procurementRefreshToken}
-          onSelectWorkflow={onSelectWorkflow}
-          onRunCreatePmp={onRunCreatePmp}
-          onRunUpdatePmp={onRunUpdatePmp}
-          onRunCreateCostPlan={onRunCreateCostPlan}
-          onRunRefreshCostPlan={onRunRefreshCostPlan}
-          onRunProcessInvoices={onRunProcessInvoices}
-          onRunSortFiles={onRunSortFiles}
-          onCancelWorkflow={onCancelWorkflow}
-          onCancelCostPlan={onCancelCostPlan}
-          onCancelProcurement={onCancelProcurement}
-          onRunProcurement={onRunProcurement}
-          onCancelSortFiles={onCancelSortFiles}
-          onOpenTenderComparison={onOpenTenderComparison}
-          inboxCount={inboxCount}
-          sortFilesResult={sortFilesResult}
-          sortFilesDraft={sortFilesDraft}
-          sortFilesError={sortFilesError}
-          isRunningSortFiles={isRunningSortFiles}
-          onProjectUpdated={onProjectUpdated}
-          onDraftSelected={onDraftSelected}
-          onDraftUpdated={onDraftUpdated}
-          repositoryEvidence={repositoryEvidence}
-          selectedEvidenceIds={selectedEvidenceIds}
-          onSelectEvidenceIds={onSelectEvidenceIds}
-          onTransmittalSessionChange={onTransmittalSessionChange}
-          invoiceProcessResult={invoiceProcessResult}
-          openInvoiceId={openInvoiceId}
-        />
+      <section className="relative min-w-0">
+        {warmTiles.map((tile) =>
+          shouldMountWarm(tile.id) ? (
+            <WarmPane
+              key={tile.id}
+              workflowId={tile.id}
+              active={selectedWorkflowId === tile.id}
+            >
+              <WorkflowDetail
+                tile={tile}
+                active={selectedWorkflowId === tile.id}
+                {...detailProps}
+              />
+            </WarmPane>
+          ) : null,
+        )}
+        {selectedTile && !WARM_WORKFLOW_ID_SET.has(selectedTile.id) ? (
+          <WorkflowDetail tile={selectedTile} {...detailProps} />
+        ) : null}
       </section>
+    </div>
+  );
+}
+
+function WarmPane({
+  workflowId,
+  active,
+  children,
+}: {
+  workflowId: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      data-testid={`workbench-pane-${workflowId}`}
+      hidden={!active}
+      aria-hidden={!active}
+      inert={!active}
+      className={cn(!active && "hidden")}
+    >
+      {children}
     </div>
   );
 }
@@ -901,6 +972,7 @@ function WorkflowDetail({
   onSelectEvidenceIds,
   onTransmittalSessionChange,
   openInvoiceId = null,
+  active = true,
 }: {
   tile: WorkflowTile;
   project: ProjectDetail;
@@ -931,7 +1003,11 @@ function WorkflowDetail({
   onCancelWorkflow?: () => void;
   onCancelCostPlan?: () => void;
   onCancelProcurement?: () => void;
-  onRunProcurement?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
+  onRunProcurement?: (
+    kind: RunnableProcurementRequestKind,
+    targetName: string,
+    action?: "create" | "update",
+  ) => void;
   onCancelSortFiles?: () => void;
   onOpenTenderComparison: () => void;
   inboxCount: number;
@@ -951,6 +1027,7 @@ function WorkflowDetail({
   ) => void;
   invoiceProcessResult: ProcessInvoicesResult | null;
   openInvoiceId?: string | null;
+  active?: boolean;
 }) {
   const isProjectProfile = tile.id === "project-profile";
   const isCreatePmp = tile.id === "create-pmp";
@@ -1166,9 +1243,7 @@ function WorkflowDetail({
                 projectTitle={project.title}
                 workflowType="create_pmp"
                 embedded
-                onOpenProgram={
-                  onSelectWorkflow ? () => onSelectWorkflow("program") : undefined
-                }
+                active={active}
                 repositoryEvidence={repositoryEvidence}
                 selectedEvidenceIds={selectedEvidenceIds}
                 onSelectEvidenceIds={onSelectEvidenceIds}
@@ -1307,6 +1382,7 @@ function WorkflowDetail({
                 draft={latestCostPlanDraft}
                 workflowType="create_cost_plan"
                 embedded
+                active={active}
                 onDraftUpdated={(draft) => {
                   onDraftUpdated?.(draft);
                 }}
@@ -1342,7 +1418,7 @@ function WorkflowDetail({
             (!project.workflow_capabilities?.capabilities.edit_programme ||
               project.workflow_capabilities.capabilities.edit_programme.status ===
                 "supported") ? (
-              <ProgramWorkbench projectId={project.id} />
+              <ProgramWorkbench projectId={project.id} active={active} />
             ) : null}
           </>
         ) : isProcurementRequests ? (
@@ -1363,9 +1439,7 @@ function WorkflowDetail({
                     workflow={
                       kind === "consultant_rfp"
                         ? "Request for Proposal"
-                        : kind === "trade_rfq"
-                          ? "Request for Quotation"
-                          : "Request for Tender"
+                        : "Request for Tender"
                     }
                     capability={capability}
                   />
@@ -1374,6 +1448,9 @@ function WorkflowDetail({
               return null;
             }}
             onCreate={(kind, targetName) => onRunProcurement?.(kind, targetName)}
+            onUpdate={(kind, targetName) =>
+              onRunProcurement?.(kind, targetName, "update")
+            }
             onDraftSelected={onDraftSelected}
             onDraftUpdated={onDraftUpdated}
             repositoryEvidence={repositoryEvidence}

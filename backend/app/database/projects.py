@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.project import Project
+from app.email.alias_names import is_reserved_inbound_local_part
 from app.sitewise.gate import DEFAULT_USER_ROLE, overlay_status
 
 
@@ -51,7 +52,9 @@ async def unique_project_slug(
     base_slug = slug_from_title(requested_slug)
     slug = base_slug
     suffix = 2
-    while await _project_slug_exists(session, user_id, slug):
+    while is_reserved_inbound_local_part(slug) or await _project_slug_exists(
+        session, user_id, slug
+    ):
         slug = f"{base_slug}-{suffix}"
         suffix += 1
     return slug

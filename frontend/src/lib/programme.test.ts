@@ -4,16 +4,23 @@ import {
   addDays,
   daysBetween,
   DEFAULT_PROGRAMME_SCALE,
+  formatCompactDate,
   formatDayMonth,
+  formatMonthLetter,
   formatMonthYear,
   formatQuarterLabel,
+  formatWeekOfMonth,
   applyProgrammeOperationsLocally,
   coalesceProgrammeOperations,
   insertAfterProgrammeHeading,
   isLinked,
   previousProgrammeKey,
+  programmeActivitySpan,
   programmeBulkDeleteOperations,
+  programmeHeaderLayers,
+  ganttLinkPath,
   programmeLinkWouldCycle,
+  programmeLinks,
   programmeRowMove,
   programmeScaleBands,
   programmeSpan,
@@ -143,7 +150,12 @@ describe("programme helpers", () => {
   it("labels axis bands by month or quarter, not raw ISO fragments", () => {
     expect(formatMonthYear("2026-08-16")).toBe("Aug 2026");
     expect(formatDayMonth("2026-08-16")).toBe("16 Aug");
+    expect(formatCompactDate("2026-08-16")).toBe("16 Aug 26");
     expect(formatQuarterLabel("2026-08-16")).toBe("Q3 2026");
+    expect(formatMonthLetter("2026-08-16")).toBe("A");
+    expect(formatWeekOfMonth("2026-08-01")).toBe("1");
+    expect(formatWeekOfMonth("2026-08-16")).toBe("3");
+    expect(formatWeekOfMonth("2026-08-31")).toBe("5");
     expect(
       programmeScaleBands("2026-08-16", "2026-11-14", "month").map((band) => band.label),
     ).toEqual(["Aug 2026", "Sept 2026", "Oct 2026", "Nov 2026"]);
@@ -151,6 +163,56 @@ describe("programme helpers", () => {
       programmeScaleBands("2026-08-16", "2027-02-01", "quarter").map((band) => band.label),
     ).toEqual(["Q3 2026", "Q4 2026", "Q1 2027"]);
     expect(programmeWeekTicks("2026-08-16", "2026-08-30")[0]?.label).toBe("16 Aug");
+  });
+
+  it("builds a two-row header with compact labels that fit the available width", () => {
+    const spaciousWeek = programmeHeaderLayers("2026-08-16", "2026-09-27", "week", 18);
+    expect(spaciousWeek.major.map((band) => band.label)).toEqual(["Aug 2026", "Sep"]);
+    expect(spaciousWeek.minor.map((band) => band.label)).toEqual([
+      "16 Aug",
+      "23 Aug",
+      "30 Aug",
+      "6 Sept",
+      "13 Sept",
+      "20 Sept",
+    ]);
+
+    const fittedMonth = programmeHeaderLayers("2026-08-16", "2028-01-13", "month", 0.5);
+    expect(fittedMonth.major.map((band) => band.label)).toEqual(["2026", "2027"]);
+    expect(fittedMonth.minor.map((band) => band.label)).toEqual([
+      "A",
+      "Se",
+      "Oc",
+      "No",
+      "De",
+      "Ja",
+      "Fe",
+      "Mr",
+      "Ap",
+      "My",
+      "Jn",
+      "Jl",
+      "Au",
+      "Se",
+      "Oc",
+      "No",
+      "De",
+    ]);
+
+    const fittedWeek = programmeHeaderLayers("2026-08-16", "2028-01-13", "week", 0.5);
+    expect(fittedWeek.major.map((band) => band.label)[0]).toMatch(/^Q3/);
+    expect(fittedWeek.minor.every((band) => /^\d{1,2}$/.test(band.label))).toBe(true);
+
+    const fittedQuarter = programmeHeaderLayers("2026-08-16", "2028-01-13", "quarter", 0.5);
+    expect(fittedQuarter.major.map((band) => band.label)).toEqual(["2026", "2027"]);
+    expect(fittedQuarter.minor.map((band) => band.label)).toEqual([
+      "Q3",
+      "Q4",
+      "Q1",
+      "Q2",
+      "Q3",
+      "Q4",
+    ]);
   });
 
   it("builds a MOVE only when the drop target changes order", () => {
@@ -229,6 +291,82 @@ describe("programme helpers", () => {
     expect(previousProgrammeKey(rows, "delivery")).toBe("planning");
     expect(programmeLinkWouldCycle(rows, "planning", "delivery")).toBe(true);
     expect(programmeLinkWouldCycle(rows, "delivery", "planning")).toBe(false);
+  });
+
+  it("draws a single finish-to-start segment that always touches both bars", () => {
+    function row(
+      key: string,
+      start: string,
+      days: number,
+      predecessor: string | null,
+      kind: "stage" | "activity" | "milestone" = "activity",
+    ) {
+      return {
+        activity_key: key,
+        kind,
+        parent_key: null,
+        name: key,
+        display_order: 0,
+        start_date: start,
+        duration_days: days,
+        finish_date: addDays(start, days),
+        predecessor_key: predecessor,
+        lag_days: 0,
+        assumption: true,
+        notes: "",
+      };
+    }
+    const sequential = [
+      row("a", "2026-08-16", 90, null, "stage"),
+      row("b", "2026-11-14", 60, "a"),
+    ];
+    const gapped = [
+      row("a", "2026-08-16", 30, null),
+      row("b", "2026-10-16", 30, "a"),
+    ];
+    const overlapping = [
+      row("a", "2026-08-16", 90, null),
+      row("b", "2026-09-16", 30, "a"),
+    ];
+    const skipped = [
+      row("a", "2026-08-16", 14, null),
+      row("mid", "2026-08-20", 7, null),
+      row("b", "2026-08-30", 14, "a"),
+    ];
+    const milestone = [
+      row("a", "2026-08-16", 0, null, "milestone"),
+      row("b", "2026-08-16", 10, "a"),
+    ];
+    const missing = [row("b", "2026-08-16", 10, "gone")];
+
+    const seq = programmeLinks(sequential, "2026-08-16");
+    expect(seq).toEqual([
+      { key: "a->b", fromOffset: 90, toOffset: 90, fromIndex: 0, toIndex: 1 },
+    ]);
+    expect(programmeActivitySpan("2026-08-16", sequential[0]).end).toBe(seq[0]?.fromOffset);
+    expect(programmeActivitySpan("2026-08-16", sequential[1]).start).toBe(seq[0]?.toOffset);
+    expect(ganttLinkPath(seq[0]!, 24, 12, 1)).toBe("M 90 12 L 90 36");
+    expect(ganttLinkPath(seq[0]!, 24, 12, 2)).toBe("M 180 12 L 180 36");
+
+    const gap = programmeLinks(gapped, "2026-08-16");
+    expect(gap[0]).toMatchObject({ fromOffset: 30, toOffset: 61, fromIndex: 0, toIndex: 1 });
+    expect(ganttLinkPath(gap[0]!, 24, 12, 1)).toBe("M 30 12 L 61 36");
+
+    const overlap = programmeLinks(overlapping, "2026-08-16");
+    expect(overlap[0]?.fromOffset).toBeGreaterThan(overlap[0]!.toOffset);
+    expect(ganttLinkPath(overlap[0]!, 24, 12, 1)).toBe(
+      `M ${overlap[0]!.fromOffset} 12 L ${overlap[0]!.toOffset} 36`,
+    );
+
+    const skip = programmeLinks(skipped, "2026-08-16");
+    expect(skip[0]).toMatchObject({ fromIndex: 0, toIndex: 2 });
+    expect(ganttLinkPath(skip[0]!, 24, 12, 1)).toBe("M 14 12 L 14 60");
+
+    expect(programmeLinks(milestone, "2026-08-16")[0]).toMatchObject({
+      fromOffset: 0,
+      toOffset: 0,
+    });
+    expect(programmeLinks(missing, "2026-08-16")).toEqual([]);
   });
 
   it("inserts a figure under the Programme heading", () => {

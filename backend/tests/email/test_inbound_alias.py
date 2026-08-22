@@ -26,7 +26,7 @@ EMAIL_ID = uuid.UUID("cccccccc-cccc-cccc-cccc-cccccccccccc")
 OTHER_USER = uuid.UUID("22222222-2222-2222-2222-222222222222")
 SENT_AT = datetime(2026, 8, 19, 11, 0, tzinfo=UTC)
 SECRET = "inbound-test-secret"
-ALIAS = "kavanagh-residence@in.sitewise.au"
+ALIAS = "kavanagh-residence@sitewise.au"
 
 
 def _project(*, slug: str = "kavanagh-residence", owner: uuid.UUID = USER_ID) -> Project:
@@ -75,7 +75,7 @@ def _payload(**overrides) -> dict:
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(settings, "email_inbound_webhook_secret", SECRET)
-    monkeypatch.setattr(settings, "email_inbound_domain", "in.sitewise.au")
+    monkeypatch.setattr(settings, "email_inbound_domain", "sitewise.au")
 
     session = AsyncMock()
 
@@ -101,15 +101,37 @@ def test_known_slug_alias_resolves_project() -> None:
     assert found is project
 
 
+def test_sitewise_au_alias_resolves_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.email.inbound import project_code_from_alias
+
+    monkeypatch.setattr(settings, "email_inbound_domain", "sitewise.au")
+    assert project_code_from_alias("kavanagh-residence@sitewise.au") == (
+        "kavanagh-residence"
+    )
+    assert project_code_from_alias("kavanagh-residence@in.sitewise.au") is None
+
+
+def test_reserved_local_part_does_not_resolve(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.email.inbound import project_code_from_alias
+
+    monkeypatch.setattr(settings, "email_inbound_domain", "sitewise.au")
+    assert project_code_from_alias("support@sitewise.au") is None
+    assert project_code_from_alias("hello@sitewise.au") is None
+
+
 def test_unknown_alias_resolves_none() -> None:
     from app.email.inbound import project_code_from_alias, project_for_inbound_alias
 
-    assert project_code_from_alias("nobody@in.sitewise.au") == "nobody"
+    assert project_code_from_alias("nobody@sitewise.au") == "nobody"
     assert project_code_from_alias("kavanagh-residence@gmail.com") is None
     found = run_async(
         project_for_inbound_alias(
             _AliasSession([]),
-            address="nobody@in.sitewise.au",
+            address="nobody@sitewise.au",
         )
     )
     assert found is None
@@ -119,14 +141,14 @@ def test_alias_is_case_insensitive() -> None:
     from app.email.inbound import project_code_from_alias, project_for_inbound_alias
 
     assert (
-        project_code_from_alias("Kavanagh-Residence@IN.SITEWISE.AU")
+        project_code_from_alias("Kavanagh-Residence@SITEWISE.AU")
         == "kavanagh-residence"
     )
     project = _project()
     found = run_async(
         project_for_inbound_alias(
             _AliasSession([project]),
-            address="Kavanagh-Residence@IN.SITEWISE.AU",
+            address="Kavanagh-Residence@SITEWISE.AU",
         )
     )
     assert found is project
@@ -177,7 +199,7 @@ def test_signature_is_verified_against_raw_body_not_reserialised_json(
     client: TestClient,
 ) -> None:
     raw = (
-        b'{ "from" : "qs@consultant.com", "to" : ["kavanagh-residence@in.sitewise.au"],'
+        b'{ "from" : "qs@consultant.com", "to" : ["kavanagh-residence@sitewise.au"],'
         b' "cc" : [], "subject" : "Hi", "sent_at" : "2026-08-19T11:00:00+00:00",'
         b' "body_text" : "x", "headers" : {}, "attachments" : [] }'
     )

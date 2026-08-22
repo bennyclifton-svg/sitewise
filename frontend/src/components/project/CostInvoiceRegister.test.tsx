@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CostInvoiceRegister } from "@/components/project/CostInvoiceRegister";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import type { InvoiceLedger } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -30,7 +32,8 @@ function ledger(overrides: Partial<InvoiceLedger> = {}): InvoiceLedger {
         company: "Ardent Structural",
         po_number: null,
         invoice_number: "INV-AS-2611",
-        description: "Stage 1 — Concept design",
+        description:
+          "Stage 1 — Concept design and footing investigation — 30% of agreed fee",
         cost_item_key: null,
         cost_item_label: "Unidentified",
         amount_ex_gst: "3450",
@@ -61,6 +64,41 @@ describe("CostInvoiceRegister", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("renders a cached ledger immediately without waiting for a refetch", () => {
+    queryClient.setQueryData(workbenchKeys.invoiceLedger("project-1"), ledger());
+
+    render(<CostInvoiceRegister projectId="project-1" />);
+
+    expect(screen.getByText("Ardent Structural")).toBeInTheDocument();
+    expect(screen.queryByText("Loading invoices…")).not.toBeInTheDocument();
+    expect(api.getInvoiceLedger).not.toHaveBeenCalled();
+  });
+
+  it("renders a cached ledger immediately without waiting for a refetch", () => {
+    queryClient.setQueryData(workbenchKeys.invoiceLedger("project-1"), ledger());
+
+    render(<CostInvoiceRegister projectId="project-1" />);
+
+    expect(screen.getByText("Ardent Structural")).toBeInTheDocument();
+    expect(screen.queryByText("Loading invoices…")).not.toBeInTheDocument();
+    expect(api.getInvoiceLedger).not.toHaveBeenCalled();
+  });
+
+  it("exposes truncated invoice text on hover without wrapping rows", async () => {
+    render(<CostInvoiceRegister projectId="project-1" />);
+    const company = await screen.findByText("Ardent Structural");
+    const description = screen.getByText(
+      "Stage 1 — Concept design and footing investigation — 30% of agreed fee",
+    );
+
+    expect(company).toHaveAttribute("title", "Ardent Structural");
+    expect(description).toHaveAttribute(
+      "title",
+      "Stage 1 — Concept design and footing investigation — 30% of agreed fee",
+    );
+    expect(company.closest("table")).toHaveClass("cost-invoice-table");
   });
 
   it("retries a stale Cost Plan version instead of dropping the mapping", async () => {

@@ -84,7 +84,7 @@ describe("PulsePanel", () => {
 
   it("test_pulse_does_not_headline_raw_event_counts", () => {
     render(<PulsePanel feed={feed({ attention_count: 3 })} />);
-    const heading = screen.getByRole("heading", { level: 1 });
+    const heading = screen.getByRole("heading", { level: 2 });
     expect(heading).toHaveTextContent("3 items need attention");
     expect(heading).not.toHaveTextContent("48");
     expect(heading).not.toHaveTextContent("26 documents");

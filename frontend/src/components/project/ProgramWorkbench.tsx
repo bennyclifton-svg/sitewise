@@ -10,10 +10,19 @@ import {
   type ProgrammeScale,
   type ProgrammeState,
 } from "@/lib/programme";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
 
 const FLUSH_MS = 220;
 
-export function ProgramWorkbench({ projectId }: { projectId: string }) {
+export function ProgramWorkbench({
+  projectId,
+  active = true,
+}: {
+  projectId: string;
+  /** False while the workbench is kept mounted but hidden. */
+  active?: boolean;
+}) {
   const [state, setState] = useState<ProgrammeState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedId, setLoadedId] = useState(projectId);
@@ -36,7 +45,12 @@ export function ProgramWorkbench({ projectId }: { projectId: string }) {
     scaleRef.current = null;
     stateRef.current = null;
     versionRef.current = 0;
-    void api.ensureProgramme(projectId).then(
+    void queryClient
+      .fetchQuery({
+        queryKey: workbenchKeys.programme(projectId),
+        queryFn: () => api.ensureProgramme(projectId),
+      })
+      .then(
       (value) => {
         if (cancelled) return;
         stateRef.current = value;
@@ -63,6 +77,7 @@ export function ProgramWorkbench({ projectId }: { projectId: string }) {
     stateRef.current = next;
     versionRef.current = next.version;
     setState(next);
+    queryClient.setQueryData(workbenchKeys.programme(projectId), next);
   }
 
   function scheduleFlush(immediate = false) {
@@ -172,6 +187,7 @@ export function ProgramWorkbench({ projectId }: { projectId: string }) {
       <ProgramGantt
         state={state}
         mode="edit"
+        active={active}
         onOperate={operate}
         onScaleChange={changeScale}
       />

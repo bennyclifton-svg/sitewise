@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -107,6 +107,25 @@ function blockOpsResponse(updated: DraftArtifact, changedBlockIds: string[] = []
     },
     changed_block_ids: changedBlockIds,
   };
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function blockActionsButton(text: string | RegExp, name: string) {
+  const node = screen.getByText(text);
+  const host = node.closest("li, tr") ?? node.parentElement;
+  if (!(host instanceof HTMLElement)) {
+    throw new Error(`No block host for ${String(text)}`);
+  }
+  return within(host).getByRole("button", { name });
 }
 
 describe("DraftReviewPanel", () => {
@@ -240,6 +259,32 @@ Issued content. [1]
     expect(screen.queryByRole("button", { name: "PDF" })).not.toBeInTheDocument();
   });
 
+  it("omits the procurement document title already shown in the workbench chips", () => {
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: "consultant_procurement_structural_engineer",
+          title: "Request for Proposal - Structural engineer",
+          content_markdown: `# Request for Proposal - Structural engineer
+
+## Scope
+
+Structural design.`,
+        })}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "Request for Proposal - Structural engineer",
+        level: 1,
+      }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scope", level: 2 })).toBeInTheDocument();
+  });
+
   it.each([
     ["create_pmp", "Project Management Plan"],
     ["consultant_procurement_structural_engineer", "Request for Tender - Structural Engineer"],
@@ -355,13 +400,8 @@ Issued content. [1]
       await waitForPmpDecisions();
     }
 
-    fireEvent.mouseEnter(
-      screen.getByText("Current scope.").parentElement ??
-        screen.getByText("Current scope."),
-    );
-
+    const menuTrigger = blockActionsButton("Current scope.", "paragraph actions");
     expect(screen.queryByRole("button", { name: "Edit paragraph manually" })).not.toBeInTheDocument();
-    const menuTrigger = screen.getByRole("button", { name: "paragraph actions" });
     expect(
       screen.getByText("Current scope.").parentElement,
     ).toContainElement(menuTrigger);
@@ -520,6 +560,156 @@ Issued content. [1]
     expect(screen.queryByText("Alpha paragraph.")).not.toBeInTheDocument();
   });
 
+  it("keeps in-progress consultant fee text when a same-version poll re-renders", async () => {
+    const markdown = `## Consultants
+
+| Discipline | Firm | Fee | Status | Citation |
+| --- | --- | --- | --- | --- |
+| Surveyor | Acme Survey | $4,200 | Partial | [1] |
+`;
+    const original = draft({ content_markdown: markdown });
+    const polled = draft({ content_markdown: markdown });
+
+    const view = render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+    await waitForPmpDecisions();
+
+    fireEvent.doubleClick(screen.getByText("$4,200"));
+    const feeCell = screen.getByRole("textbox", { name: "Edit table cell 3" });
+    feeCell.textContent = "8500";
+    fireEvent.input(feeCell);
+
+    view.rerender(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={polled}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Edit table cell 3" })).toHaveTextContent(
+      "8500",
+    );
+  });
+
+  it("keeps in-progress consultant fee text when a same-version poll re-renders", async () => {
+    const markdown = `## Consultants
+
+| Discipline | Firm | Fee | Status | Citation |
+| --- | --- | --- | --- | --- |
+| Surveyor | Acme Survey | $4,200 | Partial | [1] |
+`;
+    const original = draft({ content_markdown: markdown });
+    const polled = draft({ content_markdown: markdown });
+
+    const view = render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+    await waitForPmpDecisions();
+
+    fireEvent.doubleClick(screen.getByText("$4,200"));
+    const feeCell = screen.getByRole("textbox", { name: "Edit table cell 3" });
+    feeCell.textContent = "8500";
+    fireEvent.input(feeCell);
+
+    view.rerender(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={polled}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("textbox", { name: "Edit table cell 3" })).toHaveTextContent(
+      "8500",
+    );
+  });
+
+  it("reuses one client_operation_id across the rebase retry", async () => {
+    const blockId = "blk_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const original = draft({
+      content_markdown: `# Title
+
+## First
+
+<!-- clerk:block id=${blockId} -->
+Alpha
+
+## Second
+
+Beta
+`,
+    });
+    const latest = draft({
+      id: "draft-2",
+      version: 2,
+      content_markdown: `# Title
+
+## First
+
+<!-- clerk:block id=${blockId} -->
+Alpha
+
+## Second
+
+Beta changed
+`,
+    });
+    const confirmed = draft({
+      id: "draft-3",
+      version: 3,
+      content_markdown: `# Title
+
+## First
+
+<!-- clerk:block id=${blockId} -->
+Gamma
+
+## Second
+
+Beta changed
+`,
+    });
+    vi.mocked(api.applyDraftBlockOperations)
+      .mockRejectedValueOnce(
+        new ApiError("Draft changed", { kind: "http", status: 409, body: {} }),
+      )
+      .mockResolvedValueOnce(blockOpsResponse(confirmed, [blockId]));
+    vi.mocked(api.getLatestDraft).mockResolvedValue(latest);
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    fireEvent.doubleClick(screen.getByText("Alpha"));
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+    editor.textContent = "Gamma";
+    fireEvent.input(editor);
+    fireEvent.blur(editor);
+
+    await waitFor(() => {
+      expect(api.applyDraftBlockOperations).toHaveBeenCalledTimes(2);
+    });
+    const [firstCall, retryCall] = vi.mocked(api.applyDraftBlockOperations).mock
+      .calls;
+    // Server idempotency only helps if the retry carries the first attempt's id.
+    expect(firstCall[4]).toEqual(expect.any(String));
+    expect(firstCall[4]).toBe(retryCall[4]);
+  });
+
   it("surfaces block-save failures above the draft, not inside Trace & QA", async () => {
     const original = draft({
       content_markdown: "# Title\n\n## First\n\nAlpha\n",
@@ -592,6 +782,7 @@ Issued content. [1]
           target: expect.objectContaining({ type: "paragraph" }),
         }),
       ],
+      expect.any(String),
     );
   });
 
@@ -649,6 +840,7 @@ Issued content. [1]
           target: expect.objectContaining({ type: "table_row" }),
         }),
       ],
+      expect.any(String),
     );
   });
 
@@ -698,10 +890,7 @@ Issued content. [1]
       if (workflowType === "create_pmp") {
         await waitForPmpDecisions();
       }
-      fireEvent.mouseEnter(
-        screen.getByText(/First item/).closest("li") ?? screen.getByText(/First item/),
-      );
-      await user.click(screen.getByRole("button", { name: "list item actions" }));
+      await user.click(blockActionsButton(/First item/, "list item actions"));
       expect(
         await screen.findByRole("menuitem", { name: "Add list item above" }),
       ).toBeInTheDocument();
@@ -724,6 +913,7 @@ Issued content. [1]
               }),
             }),
           ],
+          expect.any(String),
         );
       });
       expect(onDraftUpdated).toHaveBeenCalledWith(expect.objectContaining({ id: duplicated.id, version: duplicated.version }));
@@ -766,10 +956,7 @@ Issued content. [1]
       if (workflowType === "create_pmp") {
         await waitForPmpDecisions();
       }
-      fireEvent.mouseEnter(
-        screen.getByText(/First item/).closest("li") ?? screen.getByText(/First item/),
-      );
-      await user.click(screen.getByRole("button", { name: "list item actions" }));
+      await user.click(blockActionsButton(/First item/, "list item actions"));
       await user.click(
         await screen.findByRole("menuitem", { name: "Delete list item" }),
       );
@@ -787,10 +974,109 @@ Issued content. [1]
               }),
             }),
           ],
+          expect.any(String),
         );
       });
     },
   );
+
+  it("inserts a table row without falling back to a full reload", async () => {
+    const marker = "<!-- clerk:block id=blk_dddddddddddddddddddddddddddddddd -->";
+    const serverBlockId = `blk_${"f".repeat(32)}`;
+    const original = draft({
+      content_markdown:
+        "## Snapshot\n\n| Field | Status |\n| --- | --- |\n" +
+        `| Budget | Grounded |${marker}\n`,
+    });
+    // Byte-for-byte what the server stores: the inserted row carries a marker
+    // the optimistic body used to lack, which is what forced the reload (G2).
+    const persisted =
+      "## Snapshot\n\n| Field | Status |\n| --- | --- |\n" +
+      `| Budget | Grounded |${marker}\n` +
+      `| Budget | Grounded |<!-- clerk:block id=${serverBlockId} -->\n`;
+    const response = blockOpsResponse(
+      draft({ id: "draft-2", version: 2, content_markdown: persisted }),
+      [serverBlockId],
+    );
+    response.delta.content_sha256 = await sha256Hex(persisted);
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(response);
+    const onDraftUpdated = vi.fn();
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await waitForPmpDecisions();
+    await user.click(blockActionsButton("Grounded", "table row actions"));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Duplicate table row" }),
+    );
+
+    await waitFor(() => {
+      expect(onDraftUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({ content_markdown: persisted }),
+      );
+    });
+    // Packet 2.2's exit criterion: the optimistic body already carries a block
+    // marker, so the insert reconciles by hash instead of refetching the draft.
+    expect(api.getLatestDraft).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify(vi.mocked(api.applyDraftBlockOperations).mock.calls),
+    ).not.toContain("tmp_");
+  });
+
+  it("keeps focus where it was while the temporary id is swapped", async () => {
+    const marker = "<!-- clerk:block id=blk_dddddddddddddddddddddddddddddddd -->";
+    const serverBlockId = `blk_${"e".repeat(32)}`;
+    const original = draft({
+      content_markdown: `## Scope\n\n- First item ${marker}\n- Second item\n`,
+    });
+    const persisted =
+      `## Scope\n\n- First item ${marker}\n` +
+      `- First item <!-- clerk:block id=${serverBlockId} -->\n- Second item\n`;
+    const response = blockOpsResponse(
+      draft({ id: "draft-2", version: 2, content_markdown: persisted }),
+      [serverBlockId],
+    );
+    response.delta.content_sha256 = await sha256Hex(persisted);
+    vi.mocked(api.applyDraftBlockOperations).mockResolvedValue(response);
+    // A reconciliation fetch would leave the swap — and everything the user is
+    // touching — in flight. The swap must land without one.
+    vi.mocked(api.getLatestDraft).mockReturnValue(new Promise(() => {}));
+    const onDraftUpdated = vi.fn();
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={original}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    const user = userEvent.setup();
+    await waitForPmpDecisions();
+    await user.click(blockActionsButton(/First item/, "list item actions"));
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Duplicate list item" }),
+    );
+
+    const focused = screen
+      .getByTestId("draft-supporting-details")
+      .querySelector("summary")!;
+    (focused as HTMLElement).focus();
+
+    await waitFor(() => {
+      expect(onDraftUpdated).toHaveBeenCalledWith(
+        expect.objectContaining({ content_markdown: persisted }),
+      );
+    });
+    expect(document.activeElement).toBe(focused);
+  });
 
   it("keeps a conflicted block through a versioned KEEP operation", async () => {
     const marker = "<!-- clerk:block id=blk_cccccccccccccccccccccccccccccccc -->";
@@ -839,11 +1125,7 @@ Issued content. [1]
     const user = userEvent.setup();
     await waitForPmpDecisions();
     expect(screen.getByRole("status")).toHaveTextContent("1 conflict");
-    fireEvent.mouseEnter(
-      screen.getByText("User wording survives.").parentElement ??
-        screen.getByText("User wording survives."),
-    );
-    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(blockActionsButton("User wording survives.", "paragraph actions"));
     await user.click(
       await screen.findByRole("menuitem", {
         name: "Keep paragraph after refresh conflict",
@@ -864,6 +1146,7 @@ Issued content. [1]
             }),
           }),
         ],
+        expect.any(String),
       );
     });
   });
@@ -910,11 +1193,7 @@ Issued content. [1]
 
     const user = userEvent.setup();
     await waitForPmpDecisions();
-    fireEvent.mouseEnter(
-      screen.getByText("Protected fact.").parentElement ??
-        screen.getByText("Protected fact."),
-    );
-    await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+    await user.click(blockActionsButton("Protected fact.", "paragraph actions"));
     await user.click(
       await screen.findByRole("menuitem", { name: "Protect paragraph" }),
     );
@@ -933,6 +1212,7 @@ Issued content. [1]
             }),
           }),
         ],
+        expect.any(String),
       );
     });
   });
@@ -943,8 +1223,7 @@ Issued content. [1]
 
     async function queueOneInstruction(user: ReturnType<typeof userEvent.setup>) {
       await waitForPmpDecisions();
-      fireEvent.mouseEnter(screen.getByText("Alpha paragraph."));
-      await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+      await user.click(blockActionsButton("Alpha paragraph.", "paragraph actions"));
       await user.click(
         await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
       );
@@ -1315,8 +1594,7 @@ Issued content. [1]
       );
 
       await waitForPmpDecisions();
-      fireEvent.mouseEnter(screen.getByText("Follow up."));
-      await user.click(screen.getByRole("button", { name: "paragraph actions" }));
+      await user.click(blockActionsButton("Follow up.", "paragraph actions"));
       await user.click(
         await screen.findByRole("menuitem", { name: "Edit paragraph with AI" }),
       );
@@ -1449,6 +1727,112 @@ Issued content. [1]
     });
     expect(onDraftUpdated).toHaveBeenCalledWith(updated);
     expect(onTransmittalSessionChange).toHaveBeenCalledWith(null);
+    expect(
+      await screen.findByRole("button", { name: "Transmittal (1 document)" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("General arrangement")).toBeInTheDocument();
+  });
+
+  it("rebases a stale transmittal save onto the latest draft", async () => {
+    const user = userEvent.setup();
+    const onDraftUpdated = vi.fn();
+    const latest = draft({
+      id: "draft-3",
+      workflow_type: "consultant_procurement_architect",
+      version: 3,
+      content_markdown: [
+        "# Request for Proposal",
+        "",
+        "## Transmittal (1 document)",
+        "",
+        "| Document number | Title | Rev | Category |",
+        "| --- | --- | --- | --- |",
+        "| — | owners-project-brief | Current | Project |",
+        "",
+        "## Scope of services",
+        "Edited scope sentence.",
+      ].join("\n"),
+    });
+    const saved = draft({
+      id: "draft-4",
+      workflow_type: "consultant_procurement_architect",
+      version: 4,
+      content_markdown: [
+        "# Request for Proposal",
+        "",
+        "## Transmittal (1 document)",
+        "",
+        "| Document number | Title | Rev | Category |",
+        "| --- | --- | --- | --- |",
+        "| A001 | General arrangement | C | Architectural |",
+        "",
+        "## Scope of services",
+        "Edited scope sentence.",
+      ].join("\n"),
+    });
+    vi.mocked(api.replaceDraftTransmittal)
+      .mockRejectedValueOnce(
+        new ApiError(
+          "Expected consultant_procurement_architect v2, current version is v3",
+          { kind: "http", status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(saved);
+    vi.mocked(api.getLatestDraft).mockResolvedValue(latest);
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          id: "draft-2",
+          workflow_type: "consultant_procurement_architect",
+          version: 2,
+          title: "Request for Proposal - Architect",
+          content_markdown: [
+            "# Request for Proposal",
+            "",
+            "## Transmittal (1 document)",
+            "",
+            "| Document number | Title | Rev | Category |",
+            "| --- | --- | --- | --- |",
+            "| — | owners-project-brief | Current | Project |",
+          ].join("\n"),
+        })}
+        repositoryEvidence={[
+          {
+            id: "ev-a001",
+            title: "General arrangement",
+            filename: "A001.pdf",
+            relative_path: "04-projects/demo/drawings/A001.pdf",
+            source_type: "project_evidence",
+            document_class: "project_evidence",
+            excerpt: "",
+            document_number: "A001",
+            revision: "C",
+            category: "Architectural",
+          },
+        ]}
+        selectedEvidenceIds={new Set(["ev-a001"])}
+        onSelectEvidenceIds={vi.fn()}
+        onDraftUpdated={onDraftUpdated}
+      />,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Save Transmittal" }));
+
+    await waitFor(() => {
+      expect(api.replaceDraftTransmittal).toHaveBeenNthCalledWith(
+        2,
+        PROJECT_ID,
+        "draft-3",
+        3,
+        ["ev-a001"],
+      );
+    });
+    expect(onDraftUpdated).toHaveBeenCalledWith(saved);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByText("General arrangement")).toBeInTheDocument();
+    expect(screen.queryByText("owners-project-brief")).not.toBeInTheDocument();
   });
 
   it("shows only the three-tab cost workbook with all 25 Greenbank items", async () => {
@@ -1618,18 +2002,28 @@ Issued content. [1]
       />,
     );
     await waitForPmpDecisions();
-    expect(
-      await screen.findByRole("button", { name: "Hide programme from PMP" }),
-    ).toBeInTheDocument();
-    expect(document.querySelector("[data-programme-figure]")).toBeTruthy();
+    const heading = await screen.findByRole("heading", { name: "Programme" });
+    const toggle = await screen.findByRole("button", {
+      name: "Hide programme from PMP",
+    });
+    expect(heading.parentElement).toContainElement(toggle);
+    const figure = document.querySelector("[data-programme-figure]");
+    expect(figure).toBeTruthy();
+    expect(heading.parentElement?.contains(figure)).toBe(false);
+    expect(heading.closest("div")?.nextElementSibling).toBe(figure);
     expect(document.querySelector("[data-interactive]")).toBeNull();
+    expect(screen.getByText("16 Aug 26")).toBeInTheDocument();
+    expect(screen.getByText("90")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Hide programme from PMP" }));
+    await user.click(toggle);
     expect(api.setProgrammeView).toHaveBeenCalledWith(PROJECT_ID, 1, {
       pmp_embed_visible: false,
     });
     await waitFor(() => {
       expect(document.querySelector("[data-programme-figure]")).toBeNull();
     });
+    expect(
+      screen.getByRole("button", { name: "Show programme in PMP" }),
+    ).toBeInTheDocument();
   });
 });

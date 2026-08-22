@@ -430,6 +430,8 @@ def required_decision_ids_for_project(
             continue
         if spec.get("cost_only") and not include_cost_only:
             continue
+        if str(spec.get("section") or "").strip().casefold() == "ffe schedule":
+            continue
         ordered.append(decision_id)
     return ordered[:SPARSE_BRIEF_DECISION_BAND]
 
@@ -470,11 +472,13 @@ def format_decision_option_sets(
             + ", ".join(required)
         )
         lines.append(
-            "For each block set evidenced=true when Sources ground the selection; "
-            "evidenced=false only for silent Sources / default_hint placeholders. "
-            "Map named products to the closest option (Caesarstone/reconstituted stone "
-            "→ engineered_stone). Place each block in the listed section "
-            "(finishes catalog ids under FFE Schedule)."
+            "For each required block set evidenced=true when Sources ground the "
+            "selection; evidenced=false only for silent Sources / default_hint "
+            "placeholders. Place each required block in the listed section. "
+            "Do not emit pmp-decision blocks for finishes catalog ids "
+            "(flooring-finish, external-cladding, roofing-system, kitchen-benchtop, "
+            "and other FFE Schedule ids) — write the selected option label as "
+            "plain text in the FFE Schedule Finish cell instead."
         )
     return "\n".join(lines)
 

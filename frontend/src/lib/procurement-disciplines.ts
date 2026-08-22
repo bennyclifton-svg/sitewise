@@ -41,6 +41,8 @@ export const DEFAULT_TRADE_PACKAGES = [
   "Fire services",
 ] as const;
 
+export type ProcurementWorkbenchTab = "consultant_rfp" | "trade_rft";
+
 export function kindShortLabel(kind: ProcurementRequestKind): string {
   if (kind === "consultant_rfp") return "Consultant";
   if (kind === "trade_rfq") return "Supplier quote";
@@ -48,17 +50,59 @@ export function kindShortLabel(kind: ProcurementRequestKind): string {
   return "Trade package";
 }
 
+export function isTradePackageKind(kind: ProcurementRequestKind): boolean {
+  return kind === "trade_rft" || kind === "trade_rfq";
+}
+
+/** Infer create-kind from a typed target: known consultants stay RFPs. */
+export function kindForTargetName(
+  targetName: string,
+  pmpDisciplines: readonly string[] = [],
+  existing: readonly ProcurementRequest[] = [],
+): "consultant_rfp" | "trade_rft" {
+  const key = targetName.trim().toLowerCase();
+  if (!key) return "trade_rft";
+  const existingMatch = existing.find(
+    (request) => request.target_name.trim().toLowerCase() === key,
+  );
+  if (existingMatch?.kind === "consultant_rfp") return "consultant_rfp";
+  if (existingMatch && isTradePackageKind(existingMatch.kind)) return "trade_rft";
+  const consultantNames = new Set(
+    [...pmpDisciplines, ...DEFAULT_CONSULTANT_DISCIPLINES].map((name) =>
+      name.trim().toLowerCase(),
+    ),
+  );
+  return consultantNames.has(key) ? "consultant_rfp" : "trade_rft";
+}
+
+export function workbenchTabForKind(
+  kind: ProcurementRequestKind,
+): ProcurementWorkbenchTab {
+  return kind === "consultant_rfp" ? "consultant_rfp" : "trade_rft";
+}
+
+export function requestMatchesWorkbenchTab(
+  kind: ProcurementRequestKind,
+  tab: ProcurementWorkbenchTab,
+): boolean {
+  if (tab === "consultant_rfp") return kind === "consultant_rfp";
+  return isTradePackageKind(kind);
+}
+
 /** Kind order so like packages group together in the chip row. */
 const REQUEST_KIND_SORT_ORDER: Record<ProcurementRequestKind, number> = {
   consultant_rfp: 0,
   trade_rfq: 1,
-  trade_rft: 2,
-  contractor_eoi: 3,
+  trade_rft: 1,
+  contractor_eoi: 2,
 };
 
 /** Chip label once kind is already selected. Always the current/latest draft. */
 export function requestChipLabel(request: ProcurementRequest): string {
   const version = request.current_draft?.version ?? request.revision;
+  if (request.kind === "trade_rfq") {
+    return `${request.target_name} RFQ v${version}`;
+  }
   return `${request.target_name} v${version}`;
 }
 
@@ -81,7 +125,18 @@ export function latestRequestForKind(
   return latestRequest(requests.filter((request) => request.kind === kind));
 }
 
-/** Stable open-list order: Consultant → Supplier quote → Trade package → EOI. */
+export function latestRequestForTab(
+  requests: readonly ProcurementRequest[],
+  tab: ProcurementWorkbenchTab,
+): ProcurementRequest | null {
+  return latestRequest(
+    requests.filter((request) =>
+      requestMatchesWorkbenchTab(request.kind, tab),
+    ),
+  );
+}
+
+/** Stable open-list order: Consultant → Trade package (RFT/RFQ) → EOI. */
 export function compareProcurementRequests(
   left: ProcurementRequest,
   right: ProcurementRequest,

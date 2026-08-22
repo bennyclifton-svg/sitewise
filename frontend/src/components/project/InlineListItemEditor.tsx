@@ -22,6 +22,7 @@ export function InlineListItemEditor({
   onCancel: () => void;
   onSave: (markdown: string) => Promise<void>;
 }) {
+  const unmountingRef = useRef(false);
   const hostRef = useRef<HTMLLIElement>(null);
   const editorRef = useRef<HTMLElement | null>(null);
   const dirtyRef = useRef(false);
@@ -43,6 +44,13 @@ export function InlineListItemEditor({
   }, [isSaving, onCancel, onSave]);
 
   useLayoutEffect(() => {
+    unmountingRef.current = false;
+    return () => {
+      unmountingRef.current = true;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host || editorRef.current) return;
 
@@ -53,7 +61,8 @@ export function InlineListItemEditor({
     editor.setAttribute("aria-label", "Edit list item");
     editor.setAttribute("aria-multiline", "true");
     editor.setAttribute("aria-busy", isSavingRef.current ? "true" : "false");
-    editor.contentEditable = isSavingRef.current ? "false" : "true";
+    // Editable throughout a save (plan §7); the blur handler serialises commits.
+    editor.setAttribute("contenteditable", "true");
     editor.spellcheck = true;
     editor.dataset.instructionUi = "";
     editor.className =
@@ -71,6 +80,7 @@ export function InlineListItemEditor({
       }
     };
     const onBlur = (event: FocusEvent) => {
+      if (unmountingRef.current || !editor.isConnected) return;
       const next = event.relatedTarget;
       if (next instanceof Node && editor.contains(next)) return;
       if (!dirtyRef.current) {
@@ -78,7 +88,9 @@ export function InlineListItemEditor({
         return;
       }
       void (async () => {
-        if (!dirtyRef.current || isSavingRef.current || savingRef.current) return;
+        // The editor stays editable during a save, so a second blur can arrive
+        // mid-commit; `savingRef` serialises them instead of double-submitting.
+        if (!dirtyRef.current || savingRef.current) return;
         savingRef.current = true;
         try {
           const body = serializeInlineMarkdown(editor);
@@ -122,7 +134,6 @@ export function InlineListItemEditor({
   useLayoutEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    editor.contentEditable = isSaving ? "false" : "true";
     editor.setAttribute("aria-busy", isSaving ? "true" : "false");
   }, [isSaving]);
 

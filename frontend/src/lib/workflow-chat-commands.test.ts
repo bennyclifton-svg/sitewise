@@ -28,4 +28,13 @@ describe("procurementChatCommand", () => {
       "Create a supplier quote for Electrical supplier",
     );
   });
+
+  it("names the package when updating an existing request", () => {
+    expect(procurementChatCommand("consultant_rfp", "Architect", "update")).toBe(
+      "Update the consultant request for Architect",
+    );
+    expect(
+      procurementChatCommand("trade_rft", "Electrical services", "update"),
+    ).toBe("Update the trade package for Electrical services");
+  });
 });

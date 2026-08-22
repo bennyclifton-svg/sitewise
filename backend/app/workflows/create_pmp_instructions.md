@@ -50,22 +50,29 @@ the legacy role/archetype scaffold:
   prefix it with `Draft owner project brief`, draft status, formal-sign-off commentary,
   consultant rosters, engagement/fee content, or the detailed FFE item schedule.
 - **FFE Schedule** follows Brief. It is the unified Finishes, Fixtures and Equipment
-  register (`| Item | Location | Qty | Finish | Status | Notes |`) covering
+  register (`| Item | Location | Finish | Comment |` plus a trailing unlabelled
+  citation cell) covering
   interior and exterior finishes, fixtures, and equipment — cladding, roofing,
-  paving, paint and render, wet-area fittings, joinery, and plant. Preserve
-  user-added shared `ffe_item` rows and typical starter rows; keep unspecified
-  fields as TBC. Do not bury FFE selections inside Brief prose. Place
-  finishes/brief `pmp-decision` blocks (for example `flooring-finish`,
-  `kitchen-benchtop`, `wet-area-finish`) in this section after the schedule
-  table — the UI folds them into Finish-column dropdowns on the same table. Do
-  not emit a separate finishes-options table or a second equipment schedule.
+  windows, flooring, paving, paint and render, wet-area fittings, joinery, and plant.
+  Preserve user-added shared `ffe_item` rows and typical starter rows so the key
+  primary finishes are always listed. Keep unspecified Finish cells as TBC; leave
+  Comment blank when there is nothing useful to say. Never write `Not evidenced`
+  in this table. Do not include Quantity or Status columns. Do not bury FFE
+  selections inside Brief prose. Put `[n]` in the citation cell, not inside Finish
+  or Comment. Do not emit finishes catalog `pmp-decision`
+  blocks (`flooring-finish`, `external-cladding`, `roofing-system`,
+  `kitchen-benchtop`, and similar) — write the selected finish as plain text in
+  the Finish cell. Users edit cells directly or ask for an AI adjust. Do not
+  emit a separate finishes-options table or a second equipment schedule.
 - In evidence-grounded drafts, omit an empty work-scope taxonomy/fallback row. The
   fallback selector is for sparse projects only; do not ask the client to reconfirm
   scope already established by current documents.
-- Show exclusions as `Item | Position | Basis / source | Owner | Verification action`.
-  Distinguish a confirmed exclusion from an owner-supplied item, consultant interface,
-  design-development gap, and genuinely unverified exclusion. Never infer an exclusion
-  from silence and never leave an evidenced exclusion uncited.
+- Show exclusions as `Item | Position | Owner | Verification action` with a
+  trailing unlabelled citation cell. Distinguish a confirmed exclusion from an
+  owner-supplied item, consultant interface, design-development gap, and
+  genuinely unverified exclusion. Never infer an exclusion from silence and
+  never leave an evidenced exclusion uncited. Put `[n]` in the citation cell,
+  not inside Position or Owner. Do not add a Basis / source column.
 - **Consultants** is the appointment register:
   `| Discipline | Firm | Fee | Status | Citation |`.
   One discipline per row — never slash-join multiple disciplines into a single cell
@@ -80,7 +87,10 @@ the legacy role/archetype scaffold:
   **Status** with `—` citation. Leave **Fee** blank until a fee proposal is on
   file — never put `Not evidenced` in the Fee column.
 - Use one shared `[n]` number per active project evidence document across Summary,
-  Consultants, body refs, and **Citation key**. Use current project-profile facts directly,
+  Brief, FFE Schedule, Planning and Compliance, Programme, Risks, Actions,
+  Consultants, body refs, and **Citation key**. In Brief, FFE, Planning, Programme
+  milestone, Risks, and Actions tables put `[n]` in the trailing unlabelled
+  citation cell — never embed it in a content cell. Use current project-profile facts directly,
   without a provenance label or citation. Do not invent citations for assumption-only facts.
 - A citation must support the whole adjacent claim. Never assemble a claim by matching
   isolated tokens from separate source passages. Before citing `[n]`, ensure the named
@@ -236,7 +246,7 @@ Trace & QA. Never use `TBC` or `Confirm`; name the missing input plainly.
 
 ## Interactive decision blocks
 
-Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, finishes/brief decisions, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
+Where the draft chooses among taxonomy-defined options (procurement route, contract form, approvals pathway DA vs CDC, staging strategy, or any complexity dimension the evidence left open), emit a fenced `pmp-decision` block:
 
 ```pmp-decision
 {
@@ -263,8 +273,9 @@ Rules:
   mechanism (`design_construct`, `cost_plus`) as a contract-form value.
 - Preserve user-locked decisions exactly (`source: "user"`) when the prompt lists locked selections.
 - One block per open decision; place it in the relevant `##` section.
-  Finishes catalog decisions belong under **FFE Schedule** (not Brief).
+  Do not emit finishes catalog decisions (`flooring-finish`, `external-cladding`,
+  `roofing-system`, `kitchen-benchtop`, `kitchen-joinery-grade`, `wet-area-finish`,
+  `window-frame`, `glazing-type`) as `pmp-decision` blocks.
 - Always set `evidenced` (boolean). `true` when project Sources nominate or clearly imply the selected option; `false` only when Sources are silent and you are using `default_hint` or another working assumption.
-- Prefer evidence over `default_hint`. If a specification, schedule, quote, or brief names a product/system that maps to an option, select that option, set `evidenced: true`, and cite the concrete nomination in `rationale` (do not call it a placeholder).
-- Finishes mapping examples: Caesarstone / Smartstone / reconstituted stone / quartz / engineered stone → `kitchen-benchtop` `engineered_stone`; polyurethane or veneer joinery → `kitchen-joinery-grade` `custom_pu`; Monier / concrete roof tiles → `roofing-system` `concrete_tile`.
-- Only use "not evidenced" / "placeholder" / "selected default" language when `evidenced` is false.
+- Prefer evidence over `default_hint`. If a specification, schedule, quote, or brief names a product/system that maps to a finish option, write that label into the FFE Schedule Finish cell (Caesarstone / Smartstone / reconstituted stone / quartz / engineered stone → Engineered stone / quartz on the kitchen joinery or benchtop row; polyurethane or veneer joinery → Custom polyurethane / veneer; Monier / concrete roof tiles → Concrete tile on the roofing row).
+- Only use "not evidenced" / "placeholder" / "selected default" language when `evidenced` is false, and never in the FFE Schedule table.

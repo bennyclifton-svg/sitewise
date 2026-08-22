@@ -9,6 +9,8 @@ import {
   type CostPlanDelta,
   type CostPlanItem,
 } from "@/lib/cost-plan";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
 
 vi.mock("@/lib/api", () => ({
   api: {
@@ -232,6 +234,50 @@ describe("CostPlanGrid", () => {
         [expect.objectContaining({ operation: "DELETE", target_id: "joinery" })],
       ),
     );
+  });
+
+  it("keeps Cost Plan and Invoices panes mounted so switching tabs does not reload", async () => {
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByLabelText("joinery name")).toBeVisible();
+    expect(api.getCostPlanState).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(api.getInvoiceLedger).toHaveBeenCalled());
+    const ledgerCalls = vi.mocked(api.getInvoiceLedger).mock.calls.length;
+
+    fireEvent.click(screen.getByRole("tab", { name: "Invoices" }));
+    expect(screen.getByTestId("cost-plan-tab-pane-invoices")).toBeVisible();
+    expect(await screen.findByText(/Upload invoice files, then/i)).toBeVisible();
+    expect(screen.getByLabelText("joinery name")).not.toBeVisible();
+    expect(api.getCostPlanState).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.getInvoiceLedger).mock.calls.length).toBe(ledgerCalls);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Cost Plan v1" }));
+    expect(screen.getByLabelText("joinery name")).toBeVisible();
+    expect(screen.getByTestId("cost-plan-tab-pane-invoices")).not.toBeVisible();
+    expect(api.getCostPlanState).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.getInvoiceLedger).mock.calls.length).toBe(ledgerCalls);
+  });
+
+  it("shows a cached Cost Plan and invoice register without a loading flash", () => {
+    queryClient.setQueryData(workbenchKeys.costPlan("project-1"), {
+      version: 1,
+      items: baseItems,
+      totals: calculateCostPlanTotals(baseItems),
+      categories: ["Construction"],
+    });
+    queryClient.setQueryData(workbenchKeys.invoiceLedger("project-1"), {
+      cost_plan_version: 1,
+      workbook_path: "cost-plan.xlsx",
+      rows: [],
+      cost_items: [],
+    });
+
+    render(<CostPlanGrid projectId="project-1" />);
+
+    expect(screen.getByLabelText("joinery name")).toBeVisible();
+    expect(screen.queryByText("Loading Cost Plan…")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "Invoices" }));
+    expect(screen.getByText(/Upload invoice files, then/i)).toBeVisible();
+    expect(screen.queryByText("Loading invoices…")).not.toBeInTheDocument();
   });
 
   it("restores the last Cost Plan tab after leaving and returning", async () => {

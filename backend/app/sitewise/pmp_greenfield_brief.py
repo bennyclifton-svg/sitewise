@@ -36,8 +36,8 @@ ARCHETYPE_DUE_DILIGENCE_CHECKLISTS: dict[str, str] = {
 ### Due diligence checklist (open until evidenced) — new-dwelling
 Include this table under **Approvals and compliance** (every row status = Assumption until filed):
 
-| Item | Status | Filing path | Next action |
-| --- | --- | --- | --- |
+| Item | Status | Filing path | Next action |  |
+| --- | --- | --- | --- | --- |
 | Survey / title boundary | Assumption | `03-design/01-due-diligence/` | Commission registered surveyor |
 | Dilapidation (adjoining) | Assumption | `03-design/01-due-diligence/` | Commission dilapidation report |
 | Geotechnical / AS 2870 class | Assumption | `03-design/01-due-diligence/` | Commission soil report |
@@ -51,8 +51,8 @@ Include this table under **Approvals and compliance** (every row status = Assump
 ### Due diligence checklist (open until evidenced) — renovation
 Include this table under **Approvals and compliance** (every row status = Assumption until filed):
 
-| Item | Status | Filing path | Next action |
-| --- | --- | --- | --- |
+| Item | Status | Filing path | Next action |  |
+| --- | --- | --- | --- | --- |
 | Survey / measure-up | Assumption | `03-design/01-due-diligence/` | Commission surveyor |
 | Dilapidation (neighbours + retained fabric) | Assumption | `03-design/01-due-diligence/` | Commission dilapidation |
 | Existing structure assessment | Assumption | `03-design/01-due-diligence/` | Structural review |
@@ -67,8 +67,8 @@ Include this table under **Approvals and compliance** (every row status = Assump
 ### Due diligence checklist (open until evidenced) — multi-dwelling
 Include this table under **Approvals and compliance** (every row status = Assumption until filed):
 
-| Item | Status | Filing path | Next action |
-| --- | --- | --- | --- |
+| Item | Status | Filing path | Next action |  |
+| --- | --- | --- | --- | --- |
 | NCC classification gate (Class 1a vs Class 2) | Assumption | `00-brief-pmp/` | Certifier confirmation |
 | Consent conditions register | Assumption | `03-design/01-due-diligence/` | Extract conditions early |
 | Subdivision / strata pathway | Assumption | `03-design/01-due-diligence/` | Confirm titling strategy |
@@ -82,8 +82,8 @@ Include this table under **Approvals and compliance** (every row status = Assump
 ### Due diligence checklist (open until evidenced) — ancillary
 Include this table under **Approvals and compliance** (every row status = Assumption until filed):
 
-| Item | Status | Filing path | Next action |
-| --- | --- | --- | --- |
+| Item | Status | Filing path | Next action |  |
+| --- | --- | --- | --- | --- |
 | NCC class fork (Class 1a secondary vs Class 10a/10b) | Assumption | `00-brief-pmp/` | Confirm classification |
 | Housing SEPP CDC eligibility test | Assumption | `03-design/01-due-diligence/` | Test CDC vs DA fallback |
 | BASIX trigger (Class 1a secondary) | Assumption | `03-design/01-due-diligence/` | Confirm BASIX obligation |
@@ -94,8 +94,8 @@ Include this table under **Approvals and compliance** (every row status = Assump
 ### Due diligence checklist (open until evidenced) — small-commercial
 Include this table under **Approvals and compliance** (every row status = Assumption until filed):
 
-| Item | Status | Filing path | Next action |
-| --- | --- | --- | --- |
+| Item | Status | Filing path | Next action |  |
+| --- | --- | --- | --- | --- |
 | Builder licence endorsement (commercial) | Assumption | `00-brief-pmp/` | Verify licence class |
 | NCC Volume One applicability | Assumption | `00-brief-pmp/` | Confirm classification |
 | Accessibility (AS 1428) | Assumption | `03-design/01-due-diligence/` | Early accessibility review |
@@ -108,8 +108,8 @@ Include this table under **Approvals and compliance** (every row status = Assump
 ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE = """
 Include this sub-milestone table under **Programme and staging regime** (status Assumption; durations TBC):
 
-| Sub-milestone | Maps to stage | Status | Note |
-| --- | --- | --- | --- |
+| Sub-milestone | Maps to stage | Status | Note |  |
+| --- | --- | --- | --- | --- |
 | Site due diligence complete | Stage 1 | Assumption | Per archetype checklist |
 | Planning pathway confirmed | Stage 1 | Assumption | CDC / DA / exempt |
 | DA/CDC lodged and determined | Stage 1 | Assumption | Authority gate |
@@ -130,8 +130,8 @@ PROGRAMME_SUBMILESTONE_TABLE = ARCHITECT_PM_PROGRAMME_SUBMILESTONE_TABLE
 AUTHORITY_TRACKER_TABLE = """
 Include this authority tracker table under the planning/approvals section (status Assumption):
 
-| Authority / instrument | Status | Responsible party | Next action |
-| --- | --- | --- | --- |
+| Authority / instrument | Status | Responsible party | Next action |  |
+| --- | --- | --- | --- | --- |
 | Building surveyor / certifier | Assumption | Owner | Appoint before CC |
 | Planning permit / DA or CDC | Assumption | Owner / builder | Confirm pathway |
 | Construction Certificate / building permit | Assumption | Certifier | Issue before site start |
@@ -142,8 +142,8 @@ Include this authority tracker table under the planning/approvals section (statu
 RISK_REGISTER_TABLE = """
 Include this risk register table under **Risks, decisions and next actions** (not a numbered prose list):
 
-| Risk | Owner | Status | Next action | Due |
-| --- | --- | --- | --- | --- |
+| Risk | Owner | Status | Next action | Due |  |
+| --- | --- | --- | --- | --- | --- |
 | (archetype-specific risk 1) | Builder | Assumption | (specific action) | (relative date) |
 | (archetype-specific risk 2) | Builder | Assumption | (specific action) | (relative date) |
 | (archetype-specific risk 3) | Owner | Assumption | (specific action) | (relative date) |
@@ -639,7 +639,10 @@ def _contract_focus_line(
             "lead with the project scope itself, without draft/sign-off commentary; "
             "cover the physical brief only: class/type/subclass, selected work-scope "
             "inclusions/exclusions, interfaces, finishes/fixtures where relevant, "
-            "client requirements, scale fields, budget basis, and acceptance criteria"
+            "client requirements, scale fields, budget basis, and acceptance criteria; "
+            "exclusions table is `| Item | Position | Owner | Verification action |` plus "
+            "a trailing unlabelled citation cell — no Basis / source column; put [n] "
+            "in the citation cell"
         )
         if "fire_services" in work_scope:
             focus += "; keep fire-services scope precise rather than generic services prose"
@@ -667,13 +670,18 @@ def _contract_focus_line(
         return (
             "cover the unified Finishes, Fixtures and Equipment schedule after "
             "the Accommodation Schedule (or after Consultants when that section "
-            "is absent): one table for interior and exterior finishes, fixtures, and "
-            "equipment (cladding, roofing, paving, paint/render, wet-area "
-            "fittings, joinery, and plant); preserve user-added shared ffe_item "
-            "rows and typical starter rows; keep unspecified fields as TBC; do "
-            "not bury FFE selections inside the Brief prose; place finishes "
-            "catalog pmp-decision blocks after the schedule table in this section "
-            "(UI folds them into Finish-column dropdowns)"
+            "is absent): one table (`| Item | Location | Finish | Comment |` plus "
+            "a trailing unlabelled citation cell) "
+            "for interior and exterior finishes, fixtures, and equipment "
+            "(cladding, roofing, windows, flooring, paving, paint/render, "
+            "wet-area fittings, joinery, and plant); preserve user-added shared "
+            "ffe_item rows and typical starter rows so the key primary finishes "
+            "stay listed; keep unspecified Finish cells as TBC and leave Comment "
+            "blank when empty; never write Not evidenced in this table; do not "
+            "include Quantity or Status columns; put [n] in the citation cell "
+            "not inside Finish or Comment; do not bury FFE selections "
+            "inside the Brief prose; do not emit finishes catalog pmp-decision "
+            "blocks — write selected finishes as plain text in the Finish cell"
         )
     if section_id == "consultants":
         lead = design_lead_discipline(work_type, work_scope)
@@ -705,7 +713,9 @@ def _contract_focus_line(
     if section_id == "compliance-approvals":
         focus = (
             "cover DtS/performance pathway, NCC/authority gates, essential safety measures, "
-            "approval status, and seed-backed compliance references"
+            "approval status, and seed-backed compliance references; keep the register as "
+            "`| Approval / compliance item | Status | Basis | Next action |` plus a trailing "
+            "unlabelled citation cell and put [n] in that cell, not inside Basis"
         )
         if "fire_services" in work_scope:
             as_refs = ", ".join(ref for ref in refs if "as-2419" in ref or "as-2941" in ref)
@@ -715,7 +725,11 @@ def _contract_focus_line(
             )
         return focus
     if section_id == "programme":
-        return "cover key milestones, authority lead times, procurement gates, and staging assumptions"
+        return (
+            "cover key milestones, authority lead times, procurement gates, and staging "
+            "assumptions; keep the milestone table with a trailing unlabelled citation cell "
+            "and put [n] there, not inside the control-requirement text"
+        )
     if section_id == "cost-budget":
         return "cover budget status, cost risks, contingency, allowances, and benchmark/seed limits"
     if section_id == "procurement-delivery":
@@ -723,9 +737,16 @@ def _contract_focus_line(
             return "cover services, deliverables, exclusions, hold points, and review outputs"
         return "cover procurement route, consultant/builder inputs, tender/award gates, and delivery responsibilities"
     if section_id == "risks":
-        return "show a condensed top-risk register only; full detail belongs in companion annexures"
+        return (
+            "show a condensed top-risk register only with a trailing unlabelled citation "
+            "cell; put [n] there, not inside the mitigation text; full detail belongs in "
+            "companion annexures"
+        )
     if section_id == "actions-decisions":
-        return "show top open decisions/actions only with owner, status, due basis, and next action"
+        return (
+            "show top open decisions/actions only with owner, status, due basis, next action, "
+            "and a trailing unlabelled citation cell; put [n] in that cell"
+        )
     if section_id == "citation-key":
         return (
             "keep short: numbered document citations, section status table, "

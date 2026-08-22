@@ -1,269 +1,498 @@
-# Storyboard 2 — Chelmsford Road
+# Wianamatta Avenue — landing story and later-film brief
 
-**Medium:** SaaS UI motion graphics. No live action, no face on screen.
-**Runtime:** 2:05. **Audience:** project managers, design managers, architects running
-delivery, small D&C contractors, superintendents.
-**Status:** first pass, for agreement before the corpus is built.
+**Project:** 14–18 Wianamatta Avenue, Seven Hills NSW 2147
 
----
+**Status:** landing-first specification; the film is a later derivative
 
-## The project
+**Audience:** project managers, architects, design managers, superintendents and
+small-to-mid-sized contractors
 
-| | |
-|---|---|
-| **Site** | 14–18 Chelmsford Road, Seven Hills NSW 2147 — three lots amalgamated |
-| **Scheme** | 11 two-storey attached townhouses, basement-free, Torrens subdivision |
-| **Zone / pathway** | R3 Medium Density · DA to Blacktown City Council · multi dwelling housing |
-| **Class** | Class 1a, fire-separated party walls |
-| **Construction budget** | $9.8M excl GST |
-| **Contract** | AS 4902 design and construct, consultants novated at contract award |
-| **Practice** | Ridgeline Projects — six people, three live jobs |
-| **Now** | Month 4 of construction. The film covers 14 months in 2 minutes. |
+**Primary surface:** `frontend/public/landing.html`
 
-Deliberately not a house. It is the smallest job that legitimately carries seven consultants,
-a subdivision certificate, s7.11 contributions, an OSD tank, six trade packages, novation, and
-a superintendent's contract-admin load — which is the whole point.
+**Capture instructions:** [`run-sheet.md`](run-sheet.md)
+
+> **Synthetic project.** Wianamatta Avenue, the site, the client, every person,
+> practice, tenderer, identifier, fee, price and project document in this corpus
+> are fictional. The planning setting is modelled on Western Sydney practice, but
+> this corpus must never be presented as a real development or customer project.
 
 ---
 
-## Who it is for, and the pivot from film 1
+## 1. The decision
 
-Film 1 (Newtown) sells to a lay client: *you will not be blindsided.*
+Build the **landing proof first**. Do not make a two-minute film before the
+project can be run end to end in the live SiteWise interface and every frame can
+be captured from a reproducible state.
 
-**Film 2 sells to someone who already knows the job.** They do not need to be told what a
-DA is. They need to be shown that the software carries the load they currently carry in their
-head, in a spreadsheet, and in an inbox with 900 unread.
+The landing page is not a feature tour. It follows one requirement — the on-site
+detention tank — from the first planning note to consultant appointment, civil
+design, builder tender, design revision and invoice review. The complete corpus
+sits behind that thread and makes it credible; only one representative row is
+expanded in each beat.
 
-Two structural decisions follow:
+The governing proposition is:
 
-1. **No named protagonist.** The camera never leaves the screen, so there is no one to name.
-   VO is second person — *you have three jobs running* — which lets a PM firm, an
-   architecture practice and a D&C builder all project themselves onto it. If we name a
-   character we exclude two of those three audiences.
-2. **In 2:05, four prompts are typed.** Everything else is the software reacting to evidence
-   arriving. That ratio is the argument. Say it out loud in the VO.
+> **SiteWise turns scattered project evidence into controlled, reviewable work —
+> and when new evidence arrives, it shows what should change without taking the
+> judgement away.**
 
----
+The short form is:
 
-## The thesis
+> **One fact arrives. SiteWise assembles the updates. You decide what moves.**
 
-> **One document arrives. Nine things move. Nothing is retyped.**
-
-Everyone in this audience already has the documents. What they do not have is coherence — the
-programme knowing what the drawing revision did, the cost plan knowing what the RFI did, the
-tender knowing what the consent condition did. Today a person is that coherence, and that
-person is the bottleneck and the risk.
-
-The film is four demonstrations of the same claim, at four points in the lifecycle. Each one
-puts a counter on screen.
-
----
-
-## Run of show
-
-| # | Time | Beat | Trigger | Percolation | UI in shot |
-|---|---|---|---|---|---|
-| 0 | 0:00–0:14 | Three jobs, one strip | — | — | Multi-project Pulse |
-| 1 | 0:14–0:38 | Council RFI lands | email | **1 → 9** | Email intake · obligations · programme ripple |
-| 2 | 0:38–1:04 | Rev D — 12 units become 11 | drawings | **1 → 11** | Drawing register · yield · cost plan · pro forma |
-| 3 | 1:04–1:28 | Six packages out, three back | email | **3 → 1 matrix** | Tender comparison · chase list |
-| 4 | 1:28–1:52 | The week from hell | email ×4 | **4 → 4 registers** | CA registers · time-bar radar · drafted assessments |
-| 5 | 1:52–2:00 | The coherence proof | — | **1 fact, 7 places** | Evidence trace across the app |
-| 6 | 2:00–2:05 | Card | — | — | — |
-
----
-
-## Scenes
-
-### 0 · Three jobs, one strip — 0:00
-
-No prompt. Cold open on the portfolio view, 7:42 on a Monday.
-
-Three projects. Not a wall of counts — a short list of what needs a human, ranked across all
-three. A number in the corner reads what was *absorbed*: 61 documents and 148 emails since
-Friday, 5 things surfaced.
-
-**VO:** *Three jobs. Two hundred and nine things arrived over the weekend. Five of them need
-you.*
-
-**UI:** multi-project Pulse. This is the frame that says "this is not a document folder."
-
----
-
-### 1 · Council RFI lands — 0:14
-
-**Trigger:** email from Blacktown City Council. No prompt. Nobody opens the app.
-
-The request for further information: deep soil provision falls short of the DCP minimum, and
-the waste collection room does not meet the waste DCP.
-
-Then the count runs, one line at a time:
-
-```
-1  filed to planning, linked to DA/2026/0733
-2  RFI register row opened — statutory clock, 21 days
-3  obligation: deep soil shortfall        → landscape architect
-4  obligation: waste room relocation      → architect
-5  three consultants tagged with what is needed from each
-6  programme: determination milestone at risk → CC, site start, settlement
-7  cost: contingency exposure flagged, not consumed
-8  draft response assembled from evidence already on file
-9  one item on the Pulse strip
-```
-
-**VO:** *One email from Council. Nine places it lands. You have not typed anything.*
-
-**UI:** the ripple. Cards and rows lighting in sequence across four different screens, then
-pulling back to one strip. This is the single most important motion sequence in the film —
-it must read as *one thing propagating*, not as nine notifications.
-
----
-
-### 2 · Rev D — 0:38
-
-**Trigger:** the architect issues Rev D. Yield drops from 12 townhouses to 11 to resolve the
-deep soil shortfall.
-
-**Prompt (typed, 1 of 4):**
-> What does losing unit 12 do to the numbers?
-
-```
-1   drawing register — 22 sheets to Rev D, Rev C superseded
-2   yield 12 → 11 · GFA down 148 m²
-3   cost plan rebuilt — build cost down $612k
-4   pro forma — revenue down $890k, margin down 1.4%
-5   s7.11 contributions recalculated per dwelling
-6   BASIX and the ESD report now superseded → obligation
-7   two trade packages already in market are out of date → addendum drafted
-8   programme — re-documentation activity, 3 weeks
-9   transmittal drafted to 7 recipients
-10  RFI 04 from scene 1 → satisfied, this drawing set is the evidence
-11  Pulse: one decision, not eleven notifications
-```
-
-**VO:** *A drawing set changes. The cost plan knows. The programme knows. The feasibility
-knows. The tender that went out last week knows it is now wrong.*
-
-**UI:** revision compare, then the cost plan and pro forma re-forecasting with a visible basis
-column, then item 10 closing the loop back to scene 1. **The loop-close is the beat.** Hold
-it.
-
----
-
-### 3 · Six packages out, three back — 1:04
-
-**Trigger:** trade returns arrive by email across a week, in six different formats.
-
-**Prompt (typed, 2 of 4):**
-> Level the concrete, brick and framing returns.
-
-- Normalised against the trade scope, not against each other's totals.
-- The concretor has priced no OSD tank. It is on C-201 and it is a consent condition.
-- The bricklayer's qualification on face brick supply is a real risk, correctly flagged as
-  a qualification and not a price.
-- Two packages have not responded. Follow-ups drafted, not sent.
-
-**VO:** *Six packages, six formats, one comparison. The cheapest concrete price has no
-detention tank in it.*
-
-**UI:** tender comparison matrix with scope gaps as first-class rows; the chase list beneath
-it. Reuse the re-sort motion from film 1 — it works and it is on brand for the product.
-
----
-
-### 4 · The week from hell — 1:28
-
-**Trigger:** four things arrive in six days. This is the scene the audience came for.
-
-| Arrives | What SiteWise does |
-|---|---|
-| EOT claim — 9 days wet weather | Clock started under the EOT clause. BOM records retrieved. Programme impact tested against the critical path — 4 days are on it, 5 are not. Assessment drafted. |
-| Variation — additional pier depth | Priced against the schedule of rates in the contract, not the claim. Checked against the geotech report already on file. |
-| Progress claim 4 | Reconciled against contract sum, approved variations only, previous claims, retention. Payment schedule drafted with a reason against every withheld dollar. |
-| RFI from site — waterproofing junction | Routed to the architect with the two details that already answer half of it attached. |
-
-Across the top, the clocks. Not a calendar — a countdown per obligation, sorted by what
-expires first.
-
-**VO:** *Four claims in six days. Every clock started the moment the email arrived. Every
-assessment drafted, with the evidence attached. Nothing sent. You still sign it.*
-
-**UI:** variation register, EOT register, claims register, RFI register — then one drafted
-assessment opened to show the evidence panel. **The word *drafted* is on screen in every
-shot.** For this audience, an autonomous superintendent is a liability, not a feature, and
-saying so is a selling point.
-
----
-
-### 5 · The coherence proof — 1:52
-
-No prompt. Pull back. One fact — the deep soil shortfall from scene 1 — highlighted
-simultaneously in seven places: the RFI register, the obligation list, the drawing revision,
-the cost plan basis, the pro forma, the programme, and the Council response. Every one of them
-citing the same source document.
-
-**VO:** *One fact. Seven places. It only had to be true once.*
-
-**UI:** the trace view. If we build nothing else new for this film, build this shot.
-
----
-
-### 6 · Card — 2:00
+The existing brand spine remains the close:
 
 > **You do the judgement. SiteWise does the assembly.**
 
----
-
-## What the corpus will need
-
-Sketch only — full document list once this storyboard is agreed.
-
-| Group | Rough count | Notes |
-|---|---:|---|
-| Consultant fee proposals + appointments | 21 | 7 disciplines × 3, one novated set |
-| Design documents, Rev A–D | ~70 | Arch, structural, civil, hydraulic, landscape, survey |
-| Reports | 10 | Geotech, BASIX, ESD, acoustic, waste, traffic, arborist, QS |
-| **Council correspondence** | 6 | Pre-DA notes, **RFI**, determination + conditions, s7.11 notice |
-| **Consultant emails** | ~12 | Including the Rev D issue and two commitments to chase |
-| Trade package RFQs + returns | 18 | 6 packages × 3, in deliberately inconsistent formats |
-| Contract admin | 9 | EOT claim, variation, progress claims 1–4, site RFI, 2 directions |
-| **Total** | **~146** | Newtown was 97 |
-
-The new material relative to Newtown is all **correspondence**: the Council RFI, the
-consultant emails, the trade chasers, the claims. That is what makes this film a lifecycle
-story rather than a filing story, and it is the part worth writing carefully.
+The previous thesis — *one document arrives, nine things move* — is retained only
+as a later product ambition. The current product proof is stronger when it shows
+explicit authority: one document arrives, SiteWise identifies the relevant work,
+and the user reviews the PMP, Cost Plan, programme and email changes before any
+of them becomes project state.
 
 ---
 
-## Build gaps
+## 2. The project
 
-Same honesty as film 1. Scenes 0–3 are close to the X1 programme as scoped. Scene 4 is not.
-
-| Needed | Status |
+| | |
 |---|---|
-| Multi-project Pulse strip | Pulse is Stage 14; **cross-project** roll-up is not scoped |
-| Email intake, project matching | Stages 15–19 |
-| Revision blast radius | Partial — compare exists, "who holds the superseded rev" does not |
-| Obligation tracker (RFIs, conditions, s7.11) | Not in the plan |
-| Cost plan / pro forma re-forecast on a design change | Cost plan exists; automatic re-forecast on revision does not |
-| **Contract admin registers** — EOT, variations, claims, directions | **Not in the app.** They exist as agent skills only. |
-| Time-bar clocks | Not in the plan |
-| Trace view (one fact, seven places) | Not in the plan — and it is the closing shot |
+| **Site** | 14–18 Wianamatta Avenue, Seven Hills NSW 2147 — three fictional lots amalgamated |
+| **Client** | Wianamatta Developments Pty Ltd — fictional |
+| **Client-side practice** | Ridgeline Project Management Pty Ltd — project manager and Superintendent |
+| **Scheme** | 11 two-storey attached townhouses, basement-free, Torrens subdivision |
+| **Zone / pathway** | R3 Medium Density · DA to Blacktown City Council · multi dwelling housing — corpus assumptions to be clause-checked before capture |
+| **Class** | Class 1a dwellings with fire-resisting separating walls |
+| **Construction budget** | $9.8 million excluding GST |
+| **Head contract** | AS 4000 construct-only |
+| **Procurement** | Three whole-of-works builder tenders on the same issued scope |
+| **Now** | Construction month 4; the corpus spans establishment to the fourth builder invoice |
 
-Scene 4 is roughly a quarter of the runtime and none of it is built. Worth knowing now,
-because it is also the scene this audience will judge the product on.
+### Why AS 4000
+
+Ridgeline Project Management remains on one side of the contract throughout the story. It procures
+and manages the client-side consultants, runs the builder tender and later acts
+as Superintendent. The five consultant invoice histories therefore remain
+client-side project costs. The commercial register therefore does not change
+owner halfway through the demo.
+
+### The five competitive consultant disciplines
+
+| Discipline | Why it earns a place in the story |
+|---|---|
+| Architecture | Primary design coordination, DA and issued drawing sets |
+| Town planning | Pathway, Council RFI and determination advice |
+| Structural engineering | Class 1a structure and construction-stage revisions |
+| Civil / stormwater engineering | The OSD requirement, design and revision — the red thread |
+| Building services engineering | Coordinated hydraulic, electrical and mechanical design |
+
+Each discipline has three fictional fee proposals and one appointment. Each
+appointed consultant has five invoices, giving a complete 25-invoice consultant
+register.
+
+Survey, geotechnical, traffic, waste, arboricultural, landscape, BASIX/ESD,
+acoustic, BCA and QS material may appear as direct specialist reports or one-off
+advice. They must not silently inflate the five competitive disciplines. The
+building-services appointment covers the coordinated hydraulic, electrical and
+mechanical drawing sets without implying three additional appointments.
 
 ---
 
-## Three questions before the corpus
+## 3. The red thread: the OSD tank
 
-1. **AS 4902 design and construct, or AS 4000 construct-only?** D&C gives us novation, which
-   is a strong practitioner beat, but it moves design risk to the builder and softens the
-   superintendent story in scene 4. Construct-only sharpens scene 4. Pick one — the whole
-   corpus hangs off it.
-2. **Is the practice the client's PM, or the D&C contractor?** Scene 4 reads from opposite
-   sides depending. Currently written as the superintendent, which suits the PM firm and the
-   architect-as-contract-administrator, and reads slightly wrong for the builder.
-3. **Does film 2 replace film 1 or sit beside it?** If both ship, film 1 is the top of the
-   funnel and film 2 is the one that closes a practice. That ordering also settles the
-   persona-headline question left open on film 1.
+The OSD requirement is useful because it legitimately appears in every major
+part of the application without requiring an invented fact graph.
+
+| Lifecycle point | OSD evidence or action | Product surface |
+|---|---|---|
+| Early planning | Planning advice and stormwater controls identify the need for OSD | Evidence intake, official sources, project profile, PMP |
+| Consultant procurement | Civil/stormwater RFP requires design, authority coordination and certification deliverables | Procurement draft and email issue |
+| Appointment | The selected civil proposal is adopted | Consultant facts, PMP Consultants register, Cost Plan committed fee |
+| Design | Civil drawing C-201 defines the tank and drainage arrangement | Drawing register, retrieval, transmittal |
+| Builder tender | One bidder explicitly excludes the OSD tank; the other two include it | Tender Comparison matrix and source reference |
+| Construction revision | Structural drawing S-202 Rev C supersedes Rev B; QS advice prices the forecast effect at **$68,500 excluding GST** | Pulse, inline PMP edit, Cost Plan operation |
+| Programme | The architect's evidenced coordination note requires a **10 calendar-day** activity | Programme operation and deterministic dates |
+| Correspondence | SiteWise drafts the reply; the user sends it | Project email thread |
+| Invoice | Builder Invoice 04 includes **VO-007** for the OSD work before the variation is approved | Invoice review and Pulse |
+
+The $68,500 is not model arithmetic. It comes from a fictional QS change advice
+in the project evidence. The ten-day duration is not inferred from a generic
+programme. It comes from a dated consultant coordination note. SiteWise applies
+those evidenced inputs and software recalculates the Cost Plan and programme.
+
+The OSD tender finding must also be document-led. Do not use the low-confidence
+house-scale OSD benchmark to manufacture a comparable price for this development.
+If the comparison needs an adjustment, include a bidder clarification/addendum
+with the bidder's stated price.
+
+---
+
+## 4. The exact landing spine
+
+The page is **hero + four beats + close**. Its one job is to make a construction
+professional want to open the product because the evidence stays connected to
+real project work.
+
+### Hero — the consequence first
+
+**Eyebrow**
+
+> ONE REQUIREMENT · THE WHOLE PROJECT
+
+**Headline**
+
+> **The cheapest tender did not price the OSD tank.**
+
+**Body**
+
+> SiteWise found the requirement in the planning evidence and civil design, then
+> put the bidder's stated exclusion beside the comparison before you made the
+> call.
+
+**Primary action:** `Open SiteWise`
+
+**Secondary action:** `Follow the evidence`
+
+**UI proof:** a real Tender Comparison crop with three whole-builder columns,
+the OSD row selected and the source page open. The bidder document must state the
+exclusion explicitly so the interface may truthfully show:
+
+> `Excluded (stated, p. N)`
+
+If the corpus instead provides only silence, the copy and UI must use the
+binding phrase:
+
+> `Not explicitly itemised — confirm with builder`
+
+Never say the builder *forgot*, *hid*, *underquoted* or intended anything.
+
+### Beat 1 — the pile becomes a project
+
+**Anchor:** `#project`
+
+**Heading:** `The pile becomes a project.`
+
+**Body**
+
+> A client brief, deposited-plan extract, planning advice, a forwarded email and a
+> desktop geotechnical note arrive as fragments with different assumptions. SiteWise
+> reads them as project evidence, files them, and shows what is known, conflicted
+> and still missing.
+
+**UI proof:** canonical intake and classification flow into the project profile
+and the first scaffolded PMP. Open the OSD control row and its citation. Keep one
+real `Not evidenced` field visible; refusal to fill a gap is part of the product.
+
+**Capabilities proved:**
+
+- upload and email attachments use the same intake;
+- text extraction, classification, filing and user override;
+- project evidence, platform guidance and official reference remain distinct;
+- profile changes are proposals or explicit user changes;
+- capability gates unlock the valid workflows;
+- PMP, Cost Plan and programme begin from the current project state;
+- every asserted project fact remains source-linked.
+
+### Beat 2 — one appointment, three controls
+
+**Anchor:** `#controls`
+
+**Heading:** `One appointment. Three controls.`
+
+**Body**
+
+> Five disciplines go to market. When the civil/stormwater appointment is
+> accepted, the firm and fee become one controlled project fact: the Consultant
+> register changes, the committed Cost Plan fee changes, and the proposal remains
+> attached as the basis.
+
+**UI proof:** show the proposal register grouped by five disciplines, then expand
+only the selected civil proposal. The appointment result must visibly show the
+Cost Plan version, shared consultant fact and PMP v1 → v2 register update.
+
+The surrounding interface may show the scale counters — all proposal returns,
+25 consultant invoices, and the drawing discipline counts — but must not scroll
+through them.
+
+**Capabilities proved:**
+
+- consultant RFP generation;
+- classified fee proposals and disciplined selection;
+- the dedicated consultant appointment mutation;
+- deterministic Cost Plan versioning;
+- consultant facts reused by the PMP;
+- invoice extraction and allocation against appointed fees;
+- versioned, editable working documents rather than chat-only output.
+
+### Beat 3 — three tenders, one basis
+
+**Anchor:** `#compare`
+
+**Heading:** `Three tenders. One basis.`
+
+**Body**
+
+> Three builders price the same job in three different document structures.
+> SiteWise reconciles each quote to its own total, maps the scope to one matrix,
+> and makes the missing or qualified work visible before price decides the job.
+
+**UI proof:** three ordered bidder groups, the OSD row, one source-page highlight
+and the report draft. Do not compare concrete, brickwork and framing returns with
+one another: different packages are not three bids for the same scope.
+
+**Capabilities proved:**
+
+- two-to-five bidder document groups;
+- census-verified structured number extraction;
+- quote-ledger reconciliation;
+- line-item taxonomy mapping and silence analysis;
+- human QA for uncertain mappings/statuses;
+- report language from the controlled vocabulary;
+- a versioned, reviewable Tender Comparison report;
+- approved tender handoff to the Cost Plan as a reviewed proposal.
+
+### Beat 4 — one email, four reviewed updates
+
+**Anchor:** `#change`
+
+**Heading:** `One email. Four reviewed updates.`
+
+**Body**
+
+> S-202 Rev C arrives by email with a QS change advice and a ten-day coordination
+> note. Pulse shows the revised structural drawing and its thread. You ask SiteWise to update
+> the work: one PMP control changes inline, the Cost Plan carries the evidenced
+> forecast, the programme gains the activity, and a reply is drafted. You still
+> send it.
+
+**UI sequence:**
+
+1. Pulse merges the inbound transmittal with `S-202 Rev C supersedes Rev B`.
+2. The evidence drawer shows the drawing, QS advice and programme note.
+3. A user-authorised Pi turn updates the OSD control **inline**; PMP v3 becomes v4.
+4. The Cost Plan applies **+$68,500 excluding GST as a forecast variation**, not an approved variation.
+5. The programme adds **OSD redesign and coordination — 10 calendar days** with a finish-to-start predecessor.
+6. Pi drafts the reply; the user reviews it and presses Send.
+7. Builder Invoice 04 later arrives with unapproved **VO-007** and Pulse opens the invoice review surface.
+
+**Capabilities proved:**
+
+- inbound email matching and canonical attachment intake;
+- drawing revision detection and transmittal-aware Pulse;
+- evidence-linked Pi tool use through project-scoped authority;
+- addressable block editing rather than whole-document replacement;
+- shared operation vocabulary for manual and agent edits;
+- Python-owned Cost Plan and programme calculations;
+- invoice extraction, allocation and unapproved-variation validation;
+- Hold / Reject / Approve remain user decisions;
+- email drafting is not unattended sending.
+
+### Close — the authority line
+
+**Heading**
+
+> **You've still got the last word.**
+
+**Body**
+
+> The source stays attached. The numbers show their workings. The decision stays
+> yours.
+
+**Action:** `Open SiteWise`
+
+**Final UI proof:** citations, used-by marks, workflow trace, evidence coverage
+and the version labels for PMP, Cost Plan and programme. Do not fabricate a
+cross-application fact-graph view.
+
+---
+
+## 5. Visual and editorial compression
+
+The corpus is exhaustive; the landing is selective.
+
+1. Keep cumulative register counts visible, but expand one row only.
+2. Use the same `OSD` evidence label in every beat so the eye follows the fact.
+3. Reuse the same three-part composition where possible: **source → controlled
+   project state → human action**.
+4. Use amber only for the active OSD exclusion, unresolved issue or review item.
+   Evidence and settled state remain neutral/blue in the current landing system.
+5. Show real filenames, dates, revisions, page references and version numbers.
+   They carry credibility more efficiently than explanatory copy.
+6. Never animate all documents. One source travelling into one register is enough;
+   the grouped count proves scale.
+7. Do not add a section for every workflow. A feature appears only when it advances
+   the OSD thread.
+
+The minimum register proof behind the page is:
+
+| Group | Corpus contract | What the landing shows |
+|---|---:|---|
+| Initial planning / briefing | Deposited-plan/title summaries, brief, handover email, desktop advice and pre-DA/cost records | One planning note and one cited OSD fact |
+| Fee proposals | 3 proposals × 5 disciplines = 15 | Five discipline groups; one civil proposal open |
+| Consultant invoices | 5 invoices × 5 appointed disciplines = 25 | Register count; one mapped invoice |
+| Architectural drawings | Exactly 20 current sheets | Discipline count only |
+| Structural drawings | Exactly 7 current sheets, plus staged S-202 Rev B | S-202 Rev B→C row |
+| Civil / stormwater drawings | Exactly 5 current sheets | C-201 Rev C open |
+| Hydraulic / electrical / mechanical | Exactly 5 each, coordinated by appointed Flux Services | Discipline counts only |
+| Landscape | Exactly 5 current sheets by direct specialist Fieldwork Landscape | Discipline count only |
+| Reports | Exactly 13, spanning survey, site, planning, design, compliance and cost evidence | One relevant source at a time |
+| Builder tenders | 3 whole-of-works tender groups | Three comparison columns |
+| Builder invoices | Exactly 4, including Progress Claim 04 / VO-007 | One review item |
+| Correspondence | Planning, consultant transmittals, procurement issue/returns and construction advice | One Pulse thread and one drafted reply |
+
+---
+
+## 6. Product truth boundaries
+
+### Safe to show as current product proof
+
+- Pi is the sole reasoning runtime and acts only through authorised,
+  project-scoped SiteWise tools.
+- Upload and project email attachments converge on canonical document intake.
+- Document classification, filing, retrieval, citations and user overrides.
+- Project profile proposals, decisions and capability gates.
+- Scaffolded, versioned PMP and Cost Plan workflows with evidence coverage.
+- Deterministic Cost Plan arithmetic and downloadable workbook.
+- An editable finish-to-start programme with deterministic date roll-up.
+- Stable block-level PMP editing by the user or Pi.
+- Consultant procurement and the dedicated consultant appointment operation.
+- Drawing registers, revision detection and drafted transmittals.
+- Three whole-builder Tender Comparison with human QA and controlled language.
+- Approved tender handoff to the Cost Plan as a reviewed proposal.
+- Invoice extraction, allocation, validation and Hold / Reject / Approve review.
+- Per-project Pulse for drawing revisions, tender receipts, invoice issues,
+  classifications, approvals and unanswered correspondence.
+- Email drafts, explicit user send and project-thread history when a provider is
+  configured.
+
+### Must be shown as proposed or user-authorised
+
+- an email-derived action or project decision;
+- any profile change inferred from evidence;
+- the PMP v3 → v4 inline update;
+- the +$68,500 Cost Plan forecast variation;
+- the ten-day programme activity;
+- a tender-to-cost handoff;
+- an invoice approval or rejection;
+- an outbound email.
+
+The user may authorise several bounded changes in one Pi turn. That does not
+make them automatic consequences of document intake.
+
+### Language constraints
+
+- Say **drafted**, not sent, until the user presses Send.
+- Say **forecast variation** for the $68,500 until VO-007 is approved.
+- Say **invoice review**, not progress-claim certification or payment schedule.
+- Say **finish-to-start programme effect**, not critical path impact.
+- Say **forecast completion moves**, not contractual practical completion, unless a
+  separately authorised EOT or contract adjustment changes the contract date.
+- Say **not explicitly itemised** unless an exclusion is stated and page-cited.
+- Findings describe documents, never the bidder's motives.
+- Project guidance and official reference are labelled separately from project
+  evidence.
+
+### Deployment gates before capture
+
+- Fix and verify townhouse support through both the workflow capability matrix
+  and the Tender Comparison context adapter.
+- Configure a real Graph/Gmail provider or the inbound project alias if the
+  public copy says an email arrived from a live mailbox. If the demo uses the
+  fake provider or seeded webhook, label the capture as a staged demo.
+- Verify the fictional planning instruments, version dates, clauses and OSD
+  requirement against the intended 2026 planning setting.
+- Run the three tenders through the actual evaluation pipeline; do not rely on
+  an answer key alone.
+- Confirm every screenshot contains no personal account data, real mailbox
+  address, OS watermark or non-synthetic third-party identity.
+
+---
+
+## 7. Later film / product-gap annex — not current landing claims
+
+This annex preserves the ambition of the first storyboard. None of these scenes
+may be presented as current product behaviour until its acceptance test passes
+in the live application.
+
+### A. Cross-project Monday Pulse
+
+**Later scene:** three projects, hundreds of weekend arrivals, five items needing
+judgement.
+
+**Gap:** Pulse is project-scoped; there is no cross-project roll-up.
+
+### B. One arrival, nine prepared updates
+
+**Later scene:** a Council RFI produces obligations, consultant requests,
+programme proposals, cost exposure and a drafted response.
+
+**Gap:** email intelligence creates evidence-linked candidates, not a complete
+obligation or impact-review workflow. There is no automatic nine-surface cascade.
+
+The desirable product is a review queue of typed candidate impacts, not silent
+mutation.
+
+### C. Full revision blast radius
+
+**Later scene:** Rev D changes yield and shows every affected package, recipient,
+PMP section, cost item and programme activity.
+
+**Gap:** revision detection exists; drawing-derived yield extraction, recipient
+holdings and a complete blast-radius graph do not.
+
+### D. Automatic feasibility and contribution reforecast
+
+**Later scene:** 12 dwellings become 11; revenue, margin and s7.11 contributions
+recalculate.
+
+**Gap:** there is no current pro forma workflow or automatic revision-to-cost/
+contribution propagation. Do not ask the model to perform this arithmetic.
+
+### E. The contract-administration week
+
+**Later scene:** EOT, variation, progress claim and site RFI arrive together;
+every clock starts and assessments are drafted.
+
+**Gap:** current SiteWise has invoice review and editable Cost Plan variation
+columns, not complete EOT, variation, progress-claim, RFI, direction or time-bar
+registers. The programme has no critical path, baseline, working calendar or
+delay-analysis engine. There is no BOM weather-record integration.
+
+### F. One fact, seven places
+
+**Later scene:** the OSD requirement is highlighted simultaneously across every
+artefact and register.
+
+**Gap:** citations, used-by marks, evidence coverage, version history and activity
+trace exist; the unified fact-graph view does not.
+
+### Later-film thesis
+
+Once the product gaps above are closed, the film may use:
+
+> **One document arrives. Nine updates are ready for review. Nothing is sent
+> until you decide.**
+
+That is the future form of the original idea that remains consistent with
+SiteWise's human-authority doctrine.
+
+---
+
+## 8. Acceptance criteria for this storyboard
+
+This brief is ready for landing implementation when:
+
+1. the fictional address and client-side AS 4000 point of view appear everywhere;
+2. the corpus contains the complete consultant, drawing, tender and invoice
+   registers described above;
+3. the OSD requirement can be traced through real uploaded corpus documents;
+4. three whole-builder tenders complete Tender Comparison in the townhouse project;
+5. the civil appointment updates controlled project state from its source proposal;
+6. the inbound S-202 Rev C email produces the expected Pulse item;
+7. an authorised Pi turn changes PMP v3 → v4 inline, applies +$68,500 as forecast,
+   adds the ten-day programme activity and drafts the reply;
+8. the user, not Pi, sends the email;
+9. Builder Invoice 04 / VO-007 opens as an unapproved-variation review item;
+10. every landing claim can be captured from the current UI without compositing a
+    capability that does not exist.
+
+The exact project setup and capture order are in [`run-sheet.md`](run-sheet.md).

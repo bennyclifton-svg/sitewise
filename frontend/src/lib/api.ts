@@ -845,10 +845,13 @@ export const api = {
     draftId: string,
     expectedBaseVersion: number,
     operations: ArtifactBlockOperation[],
+    /** Stable per logical edit: a retry replays instead of applying twice. */
+    clientOperationId?: string,
   ): Promise<{ delta: ArtefactBlockDelta; changed_block_ids: string[] }> =>
     api.post(`/projects/${projectId}/drafts/${draftId}/blocks`, {
       expected_base_version: expectedBaseVersion,
       operations,
+      ...(clientOperationId ? { client_operation_id: clientOperationId } : {}),
     }),
 
   replaceDraftTransmittal: async (

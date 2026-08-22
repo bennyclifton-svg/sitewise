@@ -55,7 +55,8 @@ def test_asset_rows_carry_the_facts_the_prompt_supplied() -> None:
         "R22",
     ):
         assert fact in row, fact
-    assert "| 2 |" in row
+    assert "2 units" in row
+    assert "| Qty |" not in row
 
 
 def test_a_sparse_asset_still_renders() -> None:
@@ -63,7 +64,8 @@ def test_a_sparse_asset_still_renders() -> None:
 
     assert len(rows) == 1
     assert "Passenger lift" in rows[0]
-    assert "User provided" in rows[0]
+    assert "User provided" not in rows[0]
+    assert "| TBC |" in rows[0]
 
 
 def test_no_assets_renders_no_rows() -> None:

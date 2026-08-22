@@ -114,6 +114,15 @@ Agent and billing values:
 - `STRIPE_CHECKOUT_SUCCESS_PATH`
 - `STRIPE_PORTAL_RETURN_PATH`
 
+Email values (inbound is dark until a signing key is set):
+
+- `EMAIL_PROVIDER=fake` until a Gmail or Graph mailbox is connected
+- `EMAIL_INBOUND_DOMAIN=sitewise.au`
+- `EMAIL_INBOUND_WEBHOOK_SECRET` — native JSON webhook; optional if Mailgun is used
+- `MAILGUN_INBOUND_SIGNING_KEY` — Mailgun HTTP webhook signing key
+- `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` / `GMAIL_REFRESH_TOKEN` when `EMAIL_PROVIDER=gmail`
+- `MICROSOFT_GRAPH_TENANT_ID` / `MICROSOFT_GRAPH_CLIENT_ID` / `MICROSOFT_GRAPH_CLIENT_SECRET` when `EMAIL_PROVIDER=microsoft_graph`
+
 Frontend build values:
 
 - `VITE_API_BASE_URL=/api`
@@ -127,6 +136,35 @@ silently override a code change.
 2026-08-02; a leftover `BILLING_PROVIDER=polar` now fails validation and will
 stop the container booting. Any other stale `POLAR_*` values are inert — the
 settings model is `extra="ignore"` — and can be deleted at leisure.
+
+### Email (project alias `@sitewise.au`)
+
+Inbound address is `{project-slug}@sitewise.au`. DNS is at Crazy Domains.
+There is currently no MX on the apex. Mailgun receives the message and POSTs
+to:
+
+```text
+https://sitewise.au/api/internal/email/inbound/mailgun
+```
+
+1. Create a Mailgun domain for `sitewise.au` (US or EU; use that region's MX).
+2. At Crazy Domains add Mailgun's MX plus the domain-verification TXT.
+   Typical US MX: `mxa.mailgun.org` (10), `mxb.mailgun.org` (10).
+3. Add an inbound route: match `.*@sitewise.au`, action store-and-notify the
+   URL above. Do not catch reserved local-parts as a human inbox
+   (`hello`, `support`, `admin`, `billing`, `postmaster`).
+4. Put Mailgun's **HTTP webhook signing key** in Dokploy as
+   `MAILGUN_INBOUND_SIGNING_KEY`. Set `EMAIL_INBOUND_DOMAIN=sitewise.au`.
+5. Redeploy `sitewise-api`. The Mailgun route 404s until that key is set.
+
+Outbound is a separate mailbox. Keep `EMAIL_PROVIDER=fake` until Gmail or
+Graph secrets exist. Then set `EMAIL_PROVIDER=gmail` (or `microsoft_graph`)
+and the matching OAuth values. The agent only drafts; the project owner
+sends. From-address is the connected mailbox, not the project alias.
+
+Native JSON intake remains at `/api/internal/email/inbound` with header
+`X-Sitewise-Inbound-Signature` (HMAC-SHA256 of the raw body) when
+`EMAIL_INBOUND_WEBHOOK_SECRET` is set.
 
 ---
 

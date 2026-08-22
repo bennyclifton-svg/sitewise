@@ -29,8 +29,18 @@ export function workflowChatCommand(
 export function procurementChatCommand(
   kind: RunnableProcurementRequestKind,
   targetName: string,
+  action: "create" | "update" = "create",
 ): string {
   const target = targetName.trim();
+  if (action === "update") {
+    if (kind === "consultant_rfp") {
+      return `Update the consultant request for ${target}`;
+    }
+    if (kind === "trade_rfq") {
+      return `Update the supplier quote for ${target}`;
+    }
+    return `Update the trade package for ${target}`;
+  }
   if (kind === "consultant_rfp") {
     return `Create a consultant request for ${target}`;
   }

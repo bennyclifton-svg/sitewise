@@ -13,6 +13,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
   type RefObject,
 } from "react";
 
@@ -26,6 +27,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
+import { queryClient } from "@/lib/query-client";
+import { workbenchKeys } from "@/lib/queries/workbench";
 import {
   addCostItemOptimistically,
   amount,
@@ -64,18 +67,66 @@ import { cn } from "@/lib/utils";
 const COST_PLAN_ROW_PX = 26;
 const TABLE_COL_COUNT = 13;
 
+function readCachedCostPlan(projectId: string): CostPlanState | null {
+  const cached = queryClient.getQueryData<CostPlanState>(
+    workbenchKeys.costPlan(projectId),
+  );
+  if (!cached) return null;
+  return {
+    ...cached,
+    categories: costPlanCategories(cached),
+  };
+}
+
+function readCachedInvoiceLedger(projectId: string): InvoiceLedger | null {
+  return (
+    queryClient.getQueryData<InvoiceLedger>(
+      workbenchKeys.invoiceLedger(projectId),
+    ) ?? null
+  );
+}
+
+function CostPlanTabPane({
+  id,
+  active,
+  children,
+}: {
+  id: CostPlanTab;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      data-testid={`cost-plan-tab-pane-${id}`}
+      hidden={!active}
+      aria-hidden={!active}
+      inert={!active}
+      className={cn(!active && "hidden")}
+    >
+      {children}
+    </div>
+  );
+}
+
 export function CostPlanGrid({
   projectId,
   revision = null,
   reviewInvoiceId = null,
+  active = true,
 }: {
   projectId: string;
   /** When the published Cost Plan revision changes (e.g. agent edit), reload. */
   revision?: number | null;
   reviewInvoiceId?: string | null;
+  /** False while the workbench is kept mounted but hidden. */
+  active?: boolean;
 }) {
-  const [state, setState] = useState<CostPlanState | null>(null);
-  const [ledger, setLedger] = useState<InvoiceLedger | null>(null);
+  const [state, setState] = useState<CostPlanState | null>(() =>
+    readCachedCostPlan(projectId),
+  );
+  const [ledger, setLedger] = useState<InvoiceLedger | null>(() =>
+    readCachedInvoiceLedger(projectId),
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [addingCategory, setAddingCategory] = useState(false);
@@ -89,6 +140,7 @@ export function CostPlanGrid({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const loadedRevisionRef = useRef(revision);
 
   if (projectId !== tabProjectId) {
     setTabProjectId(projectId);
@@ -106,29 +158,53 @@ export function CostPlanGrid({
 
   useEffect(() => {
     let cancelled = false;
-    void api.getCostPlanState(projectId).then(
-      (value) => {
+    const fresh = loadedRevisionRef.current !== revision;
+    loadedRevisionRef.current = revision;
+
+    async function loadDetail() {
+      setError(null);
+      try {
+        if (fresh) {
+          await queryClient.invalidateQueries({
+            queryKey: workbenchKeys.costPlan(projectId),
+          });
+        }
+        const value = await queryClient.fetchQuery({
+          queryKey: workbenchKeys.costPlan(projectId),
+          queryFn: () => api.getCostPlanState(projectId),
+        });
         if (!cancelled) {
           setState({
             ...value,
             categories: costPlanCategories(value),
           });
         }
-      },
-      (loadError) => {
+      } catch (loadError) {
         if (!cancelled) {
-          setError(loadError instanceof ApiError ? loadError.message : "Cost Plan could not load.");
+          setError(
+            loadError instanceof ApiError
+              ? loadError.message
+              : "Cost Plan could not load.",
+          );
         }
-      },
-    );
-    void api.getInvoiceLedger(projectId).then(
-      (value) => {
+      }
+      try {
+        if (fresh) {
+          await queryClient.invalidateQueries({
+            queryKey: workbenchKeys.invoiceLedger(projectId),
+          });
+        }
+        const value = await queryClient.fetchQuery({
+          queryKey: workbenchKeys.invoiceLedger(projectId),
+          queryFn: () => api.getInvoiceLedger(projectId),
+        });
         if (!cancelled) setLedger(value);
-      },
-      () => {
+      } catch {
         if (!cancelled) setLedger(null);
-      },
-    );
+      }
+    }
+
+    void loadDetail();
     return () => {
       cancelled = true;
     };
@@ -156,7 +232,7 @@ export function CostPlanGrid({
           api.applyCostPlanOperations(projectId, base.version, batch),
         confirmed: (delta) => {
           const next = applyCostPlanDelta(optimistic, delta);
-          return {
+          const resolved = {
             ...next,
             items: renumberCostPlanItems(next.items),
             categories: costPlanCategories(next),
@@ -169,8 +245,22 @@ export function CostPlanGrid({
               },
             },
           };
+          queryClient.setQueryData(workbenchKeys.costPlan(projectId), resolved);
+          return resolved;
         },
-        reload: () => api.getCostPlanState(projectId),
+        reload: async () => {
+          await queryClient.invalidateQueries({
+            queryKey: workbenchKeys.costPlan(projectId),
+          });
+          const latest = await queryClient.fetchQuery({
+            queryKey: workbenchKeys.costPlan(projectId),
+            queryFn: () => api.getCostPlanState(projectId),
+          });
+          return {
+            ...latest,
+            categories: costPlanCategories(latest),
+          };
+        },
         rebase: ({ pending, latest }) => {
           const missingTarget = batch.some(
             (operation) =>
@@ -206,7 +296,15 @@ export function CostPlanGrid({
         },
       });
       measureLocalMutation("cost-plan", startedAt);
-      void api.getInvoiceLedger(projectId).then(setLedger, () => undefined);
+      void queryClient
+        .invalidateQueries({ queryKey: workbenchKeys.invoiceLedger(projectId) })
+        .then(() =>
+          queryClient.fetchQuery({
+            queryKey: workbenchKeys.invoiceLedger(projectId),
+            queryFn: () => api.getInvoiceLedger(projectId),
+          }),
+        )
+        .then(setLedger, () => undefined);
     } catch (mutationError) {
       if (!(mutationError instanceof ApiError && mutationError.status === 409) || !unresolvedConflict) {
         const deletionMessage =
@@ -279,22 +377,22 @@ export function CostPlanGrid({
         ) : null}
       </div>
 
-      {tab === "invoices" ? (
+      <CostPlanTabPane id="invoices" active={tab === "invoices"}>
         <CostInvoiceRegister
           projectId={projectId}
           revision={state.version}
           reviewInvoiceId={reviewInvoiceId}
+          ledger={ledger}
         />
-      ) : null}
-      {tab === "variations" ? (
+      </CostPlanTabPane>
+      <CostPlanTabPane id="variations" active={tab === "variations"}>
         <div className="px-3 py-8 text-sm text-muted-foreground">
           Variation schedule coming soon. Forecast and approved variation amounts can be
           edited on each Cost Plan line until then.
         </div>
-      ) : null}
+      </CostPlanTabPane>
 
-      {tab === "cost-plan" ? (
-        <>
+      <CostPlanTabPane id="cost-plan" active={tab === "cost-plan"}>
           {addingCategory ? (
             <form
               className="flex flex-wrap items-end gap-2 border-b p-3"
@@ -350,6 +448,7 @@ export function CostPlanGrid({
             selectedKeys={selectedKeys}
             selectionAnchor={selectionAnchor}
             scrollRef={scrollRef}
+            active={active && tab === "cost-plan"}
             onSortChange={setSort}
             onSelectionChange={setSelectedKeys}
             onSelectionAnchorChange={setSelectionAnchor}
@@ -383,8 +482,7 @@ export function CostPlanGrid({
               <Loader2 className="size-3 animate-spin" aria-hidden /> Saving in background
             </p>
           ) : null}
-        </>
-      ) : null}
+      </CostPlanTabPane>
     </section>
   );
 }
@@ -407,6 +505,7 @@ function CostPlanItemsTable({
   selectedKeys,
   selectionAnchor,
   scrollRef,
+  active,
   onSortChange,
   onSelectionChange,
   onSelectionAnchorChange,
@@ -421,6 +520,7 @@ function CostPlanItemsTable({
   selectedKeys: Set<string>;
   selectionAnchor: string | null;
   scrollRef: RefObject<HTMLDivElement | null>;
+  active: boolean;
   onSortChange: (sort: CostPlanSort | null) => void;
   onSelectionChange: (keys: Set<string>) => void;
   onSelectionAnchorChange: (key: string | null) => void;
@@ -452,8 +552,12 @@ function CostPlanItemsTable({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => COST_PLAN_ROW_PX,
     overscan: 8,
-    enabled: virtualize,
+    enabled: virtualize && active,
   });
+  useEffect(() => {
+    if (!active) return;
+    virtualizer.measure?.();
+  }, [active, virtualizer]);
   const rows = virtualize
     ? virtualizer.getVirtualItems().map((virtualRow) => ({
         row: viewRows[virtualRow.index]!,

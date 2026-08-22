@@ -756,6 +756,11 @@ class UpdatePmpRequest(BaseModel):
 class ApplyArtefactBlockOperationsRequest(BaseModel):
     expected_base_version: int = Field(ge=1)
     operations: list[ArtefactBlockOperation] = Field(min_length=1, max_length=50)
+    # One id per logical user edit, reused on every retry. A replay returns the
+    # first apply's delta instead of applying the operation twice.
+    client_operation_id: str | None = Field(
+        default=None, min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_.:-]+$"
+    )
 
 
 class ArtefactBlockDelta(BaseModel):

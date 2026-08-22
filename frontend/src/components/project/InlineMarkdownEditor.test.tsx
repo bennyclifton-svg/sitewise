@@ -87,4 +87,33 @@ describe("InlineMarkdownEditor", () => {
     await waitFor(() => expect(latestSave).toHaveBeenCalledWith("Updated"));
     expect(firstSave).not.toHaveBeenCalled();
   });
+
+  it("stays editable while a save is in flight", () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+
+    function Host({ isSaving }: { isSaving: boolean }) {
+      return (
+        <InlineMarkdownEditor
+          sectionStart={0}
+          sourceStart={0}
+          sourceEnd={20}
+          isChanged={false}
+          isSaving={isSaving}
+          onCancel={vi.fn()}
+          onSave={onSave}
+        >
+          original wording
+        </InlineMarkdownEditor>
+      );
+    }
+
+    const view = render(<Host isSaving={false} />);
+    const editor = screen.getByRole("textbox", { name: "Edit selected text" });
+
+    view.rerender(<Host isSaving />);
+
+    // Plan §7: autosave must not freeze the caret mid-sentence.
+    expect(editor.getAttribute("contenteditable")).toBe("true");
+    expect(editor.getAttribute("aria-busy")).toBe("true");
+  });
 });

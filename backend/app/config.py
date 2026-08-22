@@ -136,9 +136,10 @@ class Settings(BaseSettings):
     web_fetch_timeout_seconds: float = 12.0
     web_fetch_max_bytes: int = 4 * 1024 * 1024
     email_provider: str = "fake"
-    email_inbound_domain: str = "in.sitewise.au"
+    email_inbound_domain: str = "sitewise.au"
     email_inbound_webhook_secret: str | None = None
     email_inbound_max_body_bytes: int = 8 * 1024 * 1024
+    mailgun_inbound_signing_key: str | None = None
     microsoft_graph_tenant_id: str | None = None
     microsoft_graph_client_id: str | None = None
     microsoft_graph_client_secret: str | None = None

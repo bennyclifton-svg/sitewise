@@ -14,6 +14,7 @@ import type {
   TaxonomyCatalog,
   WorkflowCapability,
   WorkflowRun,
+  WorkflowTraceEvent,
 } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -30,6 +31,10 @@ vi.mock("@/lib/api", () => ({
     applyProgrammeOperations: vi.fn(),
     setProgrammeView: vi.fn(),
     getProgrammeFigureSvg: vi.fn(),
+    getProjectDraft: vi.fn(),
+    listDecisions: vi.fn(),
+    downloadWorkspaceFile: vi.fn(),
+    downloadDraftExport: vi.fn(),
   },
 }));
 
@@ -116,6 +121,27 @@ describe("ProjectControlBoard project profile", () => {
       workbook_path: "cost-plan.xlsx",
       rows: [],
       cost_items: [],
+    });
+    vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
+    vi.mocked(api.getLatestDraft).mockResolvedValue(null);
+    vi.mocked(api.ensureProgramme).mockResolvedValue({
+      id: "prog-1",
+      project_id: project.id,
+      version: 1,
+      status: "proposed",
+      view_scale: "month",
+      pmp_embed_visible: true,
+      activities: [],
+    });
+    vi.mocked(api.getProjectDraft).mockImplementation(async (_projectId, draftId) => ({
+      ...draftSummary,
+      id: draftId,
+      content_markdown: "# Project Management Plan\n\nBody.",
+      provenance_metadata: null,
+    }));
+    vi.mocked(api.listDecisions).mockResolvedValue({
+      decisions: [],
+      set_revision: 0,
     });
     vi.mocked(useTaxonomy).mockReturnValue({
       data: catalog,
@@ -521,11 +547,8 @@ describe("ProjectControlBoard project profile", () => {
     );
 
     await screen.findByText("No requests yet. Create the first one above.");
-    await user.click(screen.getByRole("tab", { name: "Trade package" }));
     await user.type(screen.getByLabelText("Discipline"), "Electrical services");
-    await user.click(
-      screen.getByRole("button", { name: "Create Trade package" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Create RFT" }));
 
     expect(onRunProcurement).toHaveBeenCalledWith(
       "trade_rft",
@@ -745,6 +768,91 @@ describe("ProjectControlBoard project profile", () => {
     expect(costPlanFrame).not.toHaveClass("max-w-none");
   });
 
+  it("keeps Cost Plan mounted in the background while Project Plan is open", async () => {
+    const costPlanSummary: DraftArtifactSummary = {
+      ...draftSummary,
+      id: "cost-draft-1",
+      workflow_type: "create_cost_plan",
+      title: "Cost Plan",
+    };
+    vi.mocked(api.getProjectDraft).mockImplementation(async (_projectId, draftId) => ({
+      ...draftSummary,
+      id: draftId,
+      workflow_type:
+        draftId === costPlanSummary.id ? "create_cost_plan" : "create_pmp",
+      content_markdown: "# Draft",
+      provenance_metadata: null,
+    }));
+
+    const view = {
+      project,
+      latestDraft: draftSummary,
+      latestCostPlanDraft: costPlanSummary,
+      trace: [] as WorkflowTraceEvent[],
+      costPlanTrace: [] as WorkflowTraceEvent[],
+      workflowError: null,
+      costPlanWorkflowError: null,
+      isRunningWorkflow: false,
+      isRunningCostPlan: false,
+      onRunCreatePmp: vi.fn(),
+      onRunUpdatePmp: vi.fn(),
+      onRunCreateCostPlan: vi.fn(),
+      onRunSortFiles: vi.fn(),
+      onOpenTenderComparison: vi.fn(),
+      inboxCount: 0,
+      sortFilesResult: null,
+      sortFilesDraft: null,
+      sortFilesError: null,
+      isRunningSortFiles: false,
+    };
+
+    const { rerender } = render(
+      <ProjectControlBoard {...view} selectedWorkflowId="create-pmp" />,
+    );
+
+    await waitFor(() =>
+      expect(api.getProjectDraft).toHaveBeenCalledWith(project.id, draftSummary.id),
+    );
+    await waitFor(() => expect(api.getCostPlanState).toHaveBeenCalledWith(project.id));
+    await waitFor(() => expect(api.ensureProgramme).toHaveBeenCalledWith(project.id));
+    await waitFor(() =>
+      expect(api.listProcurementRequests).toHaveBeenCalledWith(project.id),
+    );
+    const costPlanLoads = vi.mocked(api.getCostPlanState).mock.calls.length;
+    const programmeLoads = vi.mocked(api.ensureProgramme).mock.calls.length;
+    const procurementLoads = vi.mocked(api.listProcurementRequests).mock.calls.length;
+    expect(screen.getByTestId("workbench-pane-cost-plan")).not.toBeVisible();
+    expect(screen.getByTestId("workbench-pane-program")).not.toBeVisible();
+    expect(screen.getByTestId("workbench-pane-procurement-requests")).not.toBeVisible();
+    expect(screen.getByTestId("workbench-pane-project-profile")).not.toBeVisible();
+
+    rerender(<ProjectControlBoard {...view} selectedWorkflowId="cost-plan" />);
+
+    expect(screen.getByTestId("workbench-pane-cost-plan")).toBeVisible();
+    expect(api.getCostPlanState).toHaveBeenCalledTimes(costPlanLoads);
+    expect(screen.getByRole("button", { name: /create cost plan/i })).toBeEnabled();
+
+    rerender(<ProjectControlBoard {...view} selectedWorkflowId="program" />);
+
+    expect(screen.getByTestId("workbench-pane-program")).toBeVisible();
+    expect(api.ensureProgramme).toHaveBeenCalledTimes(programmeLoads);
+    expect(screen.getByRole("button", { name: "Fit to screen" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    rerender(
+      <ProjectControlBoard {...view} selectedWorkflowId="procurement-requests" />,
+    );
+
+    expect(screen.getByTestId("workbench-pane-procurement-requests")).toBeVisible();
+    expect(api.listProcurementRequests).toHaveBeenCalledTimes(procurementLoads);
+
+    rerender(<ProjectControlBoard {...view} selectedWorkflowId="project-profile" />);
+
+    expect(screen.getByTestId("workbench-pane-project-profile")).toBeVisible();
+  });
+
   it("keeps Create/Update PMP enabled without a top-of-panel progress strip", async () => {
     render(
       <ProjectControlBoard
@@ -833,7 +941,7 @@ describe("ProjectControlBoard project profile", () => {
       "",
       "- [P1] Project brief",
     ].join("\n");
-    const getProjectDraft = vi.fn().mockResolvedValue({
+    vi.mocked(api.getProjectDraft).mockResolvedValue({
       ...draftSummary,
       content_markdown: documentMarkdown,
       provenance_metadata: {
@@ -847,31 +955,25 @@ describe("ProjectControlBoard project profile", () => {
         ],
       },
     } as DraftArtifact);
-    Object.assign(api, { getProjectDraft });
 
-    try {
-      render(pmpBoard());
+    render(pmpBoard());
 
-      await user.click(
-        await screen.findByRole("button", { name: "Copy project management plan" }),
-      );
+    await user.click(
+      await screen.findByRole("button", { name: "Copy project management plan" }),
+    );
 
-      await waitFor(async () => {
-        expect(await navigator.clipboard.readText()).toBe(copiedMarkdown);
-      });
-      expect(await navigator.clipboard.readText()).not.toContain("clerk:block");
-      expect(await navigator.clipboard.readText()).not.toContain(
-        "This workflow trace is not document content.",
-      );
-    } finally {
-      Reflect.deleteProperty(api, "getProjectDraft");
-    }
+    await waitFor(async () => {
+      expect(await navigator.clipboard.readText()).toBe(copiedMarkdown);
+    });
+    expect(await navigator.clipboard.readText()).not.toContain("clerk:block");
+    expect(await navigator.clipboard.readText()).not.toContain(
+      "This workflow trace is not document content.",
+    );
   });
 
   it("downloads Word and PDF from a single download callout beside copy", async () => {
     const user = userEvent.setup();
-    const downloadDraftExport = vi.fn().mockResolvedValue(new Blob(["export"]));
-    Object.assign(api, { downloadDraftExport });
+    vi.mocked(api.downloadDraftExport).mockResolvedValue(new Blob(["export"]));
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:test"),
@@ -881,50 +983,46 @@ describe("ProjectControlBoard project profile", () => {
       value: vi.fn(),
     });
 
-    try {
-      render(pmpBoard());
+    render(pmpBoard());
 
-      expect(screen.queryByRole("button", { name: "Copy for Word" })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", {
-          name: "Download project management plan as Word",
-        }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", {
-          name: "Download project management plan as PDF",
-        }),
-      ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy for Word" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Download project management plan as Word",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", {
+        name: "Download project management plan as PDF",
+      }),
+    ).not.toBeInTheDocument();
 
-      await user.click(
-        screen.getByRole("button", { name: "Download project management plan" }),
+    await user.click(
+      screen.getByRole("button", { name: "Download project management plan" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "Word" }));
+    await waitFor(() => {
+      expect(api.downloadDraftExport).toHaveBeenCalledWith(
+        "project-1",
+        draftSummary.id,
+        "docx",
       );
-      await user.click(await screen.findByRole("menuitem", { name: "Word" }));
-      await waitFor(() => {
-        expect(downloadDraftExport).toHaveBeenCalledWith(
-          "project-1",
-          draftSummary.id,
-          "docx",
-        );
-      });
+    });
 
-      await user.click(
-        screen.getByRole("button", { name: "Download project management plan" }),
+    await user.click(
+      screen.getByRole("button", { name: "Download project management plan" }),
+    );
+    await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
+    await waitFor(() => {
+      expect(api.downloadDraftExport).toHaveBeenCalledWith(
+        "project-1",
+        draftSummary.id,
+        "pdf",
       );
-      await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
-      await waitFor(() => {
-        expect(downloadDraftExport).toHaveBeenCalledWith(
-          "project-1",
-          draftSummary.id,
-          "pdf",
-        );
-      });
-      expect(
-        screen.getByRole("button", { name: "Copy project management plan" }),
-      ).toBeInTheDocument();
-    } finally {
-      Reflect.deleteProperty(api, "downloadDraftExport");
-    }
+    });
+    expect(
+      screen.getByRole("button", { name: "Copy project management plan" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps Cost Plan actions available without a top-of-panel progress strip", () => {
@@ -984,7 +1082,7 @@ describe("ProjectControlBoard project profile", () => {
 
   it("downloads Excel from a single download callout beside copy", async () => {
     const user = userEvent.setup();
-    const getProjectDraft = vi.fn().mockResolvedValue({
+    vi.mocked(api.getProjectDraft).mockResolvedValue({
       ...draftSummary,
       workflow_type: "create_cost_plan",
       title: "Cost Plan",
@@ -996,8 +1094,7 @@ describe("ProjectControlBoard project profile", () => {
         },
       },
     });
-    const downloadWorkspaceFile = vi.fn().mockResolvedValue(new Blob(["xlsx"]));
-    Object.assign(api, { getProjectDraft, downloadWorkspaceFile });
+    vi.mocked(api.downloadWorkspaceFile).mockResolvedValue(new Blob(["xlsx"]));
     Object.defineProperty(URL, "createObjectURL", {
       configurable: true,
       value: vi.fn(() => "blob:test"),
@@ -1007,36 +1104,31 @@ describe("ProjectControlBoard project profile", () => {
       value: vi.fn(),
     });
 
-    try {
-      render(
-        costPlanBoard(costPlanSupportedProject, {
-          latestCostPlanDraft: {
-            ...draftSummary,
-            workflow_type: "create_cost_plan",
-            title: "Cost Plan",
-          },
-        }),
+    render(
+      costPlanBoard(costPlanSupportedProject, {
+        latestCostPlanDraft: {
+          ...draftSummary,
+          workflow_type: "create_cost_plan",
+          title: "Cost Plan",
+        },
+      }),
+    );
+
+    expect(screen.queryByRole("button", { name: "Download Excel" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Download cost plan as Excel" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Download cost plan" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Excel" }));
+    await waitFor(() => {
+      expect(api.getProjectDraft).toHaveBeenCalledWith("project-1", "draft-1");
+      expect(api.downloadWorkspaceFile).toHaveBeenCalledWith(
+        "project-1",
+        "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
       );
-
-      expect(screen.queryByRole("button", { name: "Download Excel" })).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("button", { name: "Download cost plan as Excel" }),
-      ).not.toBeInTheDocument();
-
-      await user.click(screen.getByRole("button", { name: "Download cost plan" }));
-      await user.click(await screen.findByRole("menuitem", { name: "Excel" }));
-      await waitFor(() => {
-        expect(getProjectDraft).toHaveBeenCalledWith("project-1", "draft-1");
-        expect(downloadWorkspaceFile).toHaveBeenCalledWith(
-          "project-1",
-          "04-projects/demo/01-cost/Cost_Plan_v02.draft.xlsx",
-        );
-      });
-      expect(screen.getByRole("button", { name: "Copy cost plan" })).toBeInTheDocument();
-    } finally {
-      Reflect.deleteProperty(api, "getProjectDraft");
-      Reflect.deleteProperty(api, "downloadWorkspaceFile");
-    }
+    });
+    expect(screen.getByRole("button", { name: "Copy cost plan" })).toBeInTheDocument();
   });
 
 });
