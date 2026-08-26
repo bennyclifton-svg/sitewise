@@ -32,8 +32,8 @@ export function ProjectWorkflowNav({
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm transition-colors",
                   selected
-                    ? "bg-[var(--brand-subtle)] text-foreground"
-                    : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+                    ? "bg-[var(--brand-subtle)] font-medium text-foreground"
+                    : "font-normal text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
                 )}
                 aria-current={selected ? "page" : undefined}
                 onClick={() => onSelectWorkflow(tile.id)}

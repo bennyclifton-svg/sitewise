@@ -60,7 +60,7 @@ export function ProjectSwitcher({
             void commitRename();
           }}
         >
-          <label className="text-[0.65rem] font-medium tracking-[0.08em] text-muted-foreground">
+          <label className="text-xs font-medium tracking-[0.08em] text-muted-foreground">
             PROJECT
           </label>
           <Input
@@ -88,7 +88,7 @@ export function ProjectSwitcher({
               type="button"
               className={cn(
                 "flex w-full cursor-pointer items-start gap-2 rounded-md px-1.5 py-1.5 text-left text-sm transition-colors outline-none",
-                "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+                "text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
                 "focus-visible:bg-muted/30 focus-visible:text-foreground",
                 "aria-expanded:bg-muted/30 aria-expanded:text-foreground",
               )}
@@ -100,7 +100,7 @@ export function ProjectSwitcher({
                 aria-hidden
               />
               <span className="min-w-0 flex-1">
-                <span className="block text-[0.65rem] font-medium tracking-[0.08em] text-muted-foreground">
+                <span className="block text-xs font-medium tracking-[0.08em] text-muted-foreground">
                   PROJECT
                 </span>
                 <span className="mt-0.5 block line-clamp-2 leading-snug text-foreground">

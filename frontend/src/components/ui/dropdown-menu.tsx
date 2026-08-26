@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /** Floating SiteWise menu surface — contact shadow, specular edge, no hover lift. */
 export const dropdownMenuContentClassName =
-  "sw-surface sw-contact z-50 min-w-[8rem] overflow-hidden p-1 text-popover-foreground outline-none hover:translate-y-0";
+  "sw-surface sw-contact z-50 min-w-[8rem] overflow-hidden rounded-lg p-1 text-popover-foreground outline-none hover:translate-y-0";
 
 /** Shared item treatment for every menu in the app. */
 export const dropdownMenuItemClassName =

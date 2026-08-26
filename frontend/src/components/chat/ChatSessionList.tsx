@@ -198,10 +198,10 @@ export function ChatSessionList({
         className={cn(
           isNav
             ? cn(
-                "flex w-full min-w-0 items-center gap-1 rounded-sm px-1.5 py-0.5 transition-colors",
+                "flex w-full min-w-0 items-center gap-1 rounded-sm px-1.5 py-1 transition-colors",
                 thread.id === activeThreadId
-                  ? "bg-[var(--brand-subtle)] text-foreground"
-                  : "text-muted-foreground hover:bg-muted/30 hover:text-foreground",
+                  ? "bg-[var(--brand-subtle)] font-medium text-foreground"
+                  : "font-normal text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
               )
             : "grid gap-2 rounded-md border p-2",
           !isNav && thread.id === activeThreadId && "border-primary/50 bg-[var(--brand-subtle)]",
@@ -245,7 +245,7 @@ export function ChatSessionList({
                 aria-busy={isLive || undefined}
                 className={cn(
                   "min-w-0 flex-1 truncate text-left",
-                  isNav ? "text-xs leading-5 hover:text-foreground" : "text-sm hover:underline",
+                  isNav ? "text-sm leading-5 hover:text-foreground" : "text-sm hover:underline",
                   isLive && "streaming-status-live",
                 )}
                 onClick={() => openThread(thread.id)}

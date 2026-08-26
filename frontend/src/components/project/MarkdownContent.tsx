@@ -1172,6 +1172,7 @@ function baseComponents(): Components {
       const projectTitle = editOptions.projectTitle;
       const isInformationRegister = informationRegisterTable(children);
       const headers = headerLabelsFromTable(children);
+      const isProjectSummary = projectSummaryTable(children, projectTitle);
       const consultantsLayout = consultantsTableLayout(children);
       const isConsultants = consultantsLayout !== null;
       const ffeLayout = ffeTableLayoutFromHeaders(headers);
@@ -1191,7 +1192,8 @@ function baseComponents(): Components {
           >
             <table
               className={[
-                "w-full border-collapse text-left text-sm",
+                "w-full border-collapse text-left text-[0.9375rem]",
+                isProjectSummary ? "pmp-table-summary" : "",
                 isConsultants
                   ? "min-w-[52rem] table-fixed pmp-table-consultants"
                   : isFfe
@@ -2070,6 +2072,27 @@ function normalizeSummaryTable(children: ReactNode, projectTitle?: string): Reac
   );
 }
 
+function projectSummaryTable(children: ReactNode, projectTitle?: string): boolean {
+  const kinds = new Set<string>();
+  for (const tableChild of Children.toArray(children)) {
+    if (!isValidElement<{ children?: ReactNode }>(tableChild)) continue;
+    for (const row of Children.toArray(tableChild.props.children)) {
+      const kind = summaryRowKind(row, projectTitle);
+      if (kind) kinds.add(kind);
+      if (isCombinedIdentityLabel(summaryLabelFromRow(row))) {
+        kinds.add("project");
+        kinds.add("address");
+        kinds.add("owner");
+      }
+    }
+  }
+  return (
+    kinds.has("address") &&
+    kinds.has("owner") &&
+    (kinds.has("project") || kinds.has("description") || Boolean(projectTitle))
+  );
+}
+
 function isCombinedIdentityLabel(label: string): boolean {
   return /^project\s*\/\s*(?:owners?|clients?)\s*\/\s*(?:site|address)$/i.test(label);
 }
@@ -2546,7 +2569,7 @@ export function MarkdownContent({
   return (
     <div
       ref={containerRef}
-      className="draft-markdown text-sm text-foreground"
+      className="draft-markdown text-base text-foreground"
       data-project-title={projectTitle}
       data-draft-version={version}
     >

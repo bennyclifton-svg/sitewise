@@ -19,9 +19,9 @@
   --border-strong: color-mix(in oklch, var(--sw-edge) 70%, var(--sw-bone));
 
   --text-primary: var(--sw-text-primary);
-  --text-body: var(--sw-text-secondary);
-  --text-muted: var(--sw-text-tertiary);
-  --text-faint: var(--sw-text-quiet);
+  --text-body: var(--sw-text-primary);
+  --text-muted: var(--sw-text-secondary);
+  --text-faint: var(--sw-text-tertiary);
   --text-on-brand: #ffffff;
 
   --brand: var(--sw-facet-blue);
@@ -55,7 +55,7 @@
   --cockpit-ribbon-height: 5.5rem;
 
   /* shadcn semantic mapping */
-  --radius: 0;
+  --radius: 0.375rem;
   --background: var(--bg-canvas);
   --foreground: var(--text-primary);
   --card: var(--bg-surface);
@@ -92,8 +92,10 @@
   --font-sans: var(--sw-font-sans);
   --font-mono: var(--sw-font-mono);
   --font-display: var(--sw-font-display);
+  --sw-type-body-size: 16px;
+  --sw-weight-body: 400;
   --fs-micro: var(--sw-type-label-size);
-  --fs-body: 15px;
+  --fs-body: 16px;
   --tr-label: var(--sw-type-label-track);
   --tr-mono: 0.02em;
 
@@ -151,10 +153,10 @@ html.sw-atmosphere-dense[data-theme="light"] {
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
-  --radius-xl: 0;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
 }
 
 @layer base {
@@ -172,7 +174,7 @@ html.sw-atmosphere-dense[data-theme="light"] {
     @apply bg-background font-sans text-foreground antialiased;
     margin: 0;
     font-size: var(--fs-body);
-    font-weight: var(--sw-weight-body);
+    font-weight: var(--sw-weight-medium);
     line-height: 1.5;
     color: var(--text-body);
     background: var(--sw-void);
@@ -1125,9 +1127,16 @@ html.sw-atmosphere-dense[data-theme="light"] {
 }
 
 .artifact-sheet .draft-markdown {
-  color: var(--sw-text-secondary);
-  font-size: 0.9375rem;
-  line-height: 1.55;
+  color: var(--sw-text-primary);
+  font-size: 1rem;
+  font-weight: var(--sw-weight-medium);
+  line-height: 1.6;
+}
+
+.artifact-sheet .draft-markdown p,
+.artifact-sheet .draft-markdown ul,
+.artifact-sheet .draft-markdown ol {
+  max-width: 70ch;
 }
 
 .artifact-sheet .draft-markdown h1 {
@@ -1162,6 +1171,16 @@ html.sw-atmosphere-dense[data-theme="light"] {
 
 .draft-markdown table.pmp-table-consultants {
   table-layout: fixed;
+}
+
+.draft-markdown table.pmp-table-summary td:first-child {
+  width: 9rem;
+  color: var(--sw-text-primary);
+  font-weight: var(--sw-weight-strong);
+}
+
+.draft-markdown table.pmp-table-summary td:not(:first-child) {
+  font-weight: var(--sw-weight-medium);
 }
 
 /* Prefer Fee/Status width; Citation only needs chip + ⋯ menu. */

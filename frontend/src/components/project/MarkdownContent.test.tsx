@@ -161,6 +161,7 @@ describe("MarkdownContent", () => {
 
     const table = container.querySelector("table");
     expect(table).not.toBeNull();
+    expect(table).toHaveClass("pmp-table-summary");
     expect(table?.querySelectorAll("tr")).toHaveLength(3);
     expect(table?.querySelectorAll("th, td")).toHaveLength(6);
     expect(container).not.toHaveTextContent("clerk:block");

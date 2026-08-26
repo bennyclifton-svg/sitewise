@@ -51,8 +51,8 @@ function CockpitRibbonContent({
         <p
           className={
             projectAddress
-              ? "truncate text-[0.65rem] font-normal leading-[1.1] tracking-tight text-[var(--sw-text-secondary)]"
-              : "truncate text-[0.65rem] font-normal leading-[1.1] tracking-tight text-[var(--sw-text-quiet)]"
+              ? "truncate text-sm font-normal leading-[1.35] text-[var(--sw-text-secondary)]"
+              : "truncate text-sm font-normal leading-[1.35] text-[var(--sw-text-tertiary)]"
           }
         >
           {projectAddress ?? "Site address TBC"}
