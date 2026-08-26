@@ -157,7 +157,7 @@ describe("CostPlanGrid", () => {
     );
   });
 
-  it("duplicates a row from the row menu and renumbers codes", async () => {
+  it("duplicates a row from its inline copy action and renumbers codes", async () => {
     const user = userEvent.setup();
     let resolveMutation!: (value: CostPlanDelta) => void;
     vi.mocked(api.applyCostPlanOperations).mockImplementation(
@@ -170,8 +170,7 @@ describe("CostPlanGrid", () => {
     render(<CostPlanGrid projectId="project-1" />);
     expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Copy" }));
+    await user.click(screen.getByRole("button", { name: "Copy joinery" }));
 
     expect(screen.getByText("Construction subtotal")).toBeInTheDocument();
     expect(screen.getAllByText("250.00").length).toBeGreaterThan(0);
@@ -413,32 +412,28 @@ describe("CostPlanGrid", () => {
     expect(within(table).getByText("2")).toBeInTheDocument();
     expect(screen.queryByText("$100")).not.toBeInTheDocument();
     expect(screen.getAllByText("100.00").length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Add category" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add category" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Selected billing month")).toBeInTheDocument();
   });
 
-  it("closes the row actions menu on dismiss", async () => {
-    const user = userEvent.setup();
+  it("shows add, copy, and delete as inline row actions", async () => {
     render(<CostPlanGrid projectId="project-1" />);
     expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
-    expect(await screen.findByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
-    expect(screen.getByRole("menuitem", { name: "Add row below" })).toBeInTheDocument();
-
-    await user.keyboard("{Escape}");
-    await waitFor(() =>
-      expect(screen.queryByRole("menuitem", { name: "Copy" })).not.toBeInTheDocument(),
-    );
+    expect(screen.getByRole("button", { name: "Add row below joinery" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy joinery" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete joinery" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "More actions for joinery" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("adds a blank row below from the row menu", async () => {
+  it("adds a blank row below from the inline plus action", async () => {
     const user = userEvent.setup();
     render(<CostPlanGrid projectId="project-1" />);
     expect(await screen.findByLabelText("joinery name")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "More actions for joinery" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Add row below" }));
+    await user.click(screen.getByRole("button", { name: "Add row below joinery" }));
 
     expect(await screen.findByLabelText("New item name")).toBeInTheDocument();
     await waitFor(() =>
@@ -453,6 +448,103 @@ describe("CostPlanGrid", () => {
             reference_id: "joinery",
             placement: "after",
           }),
+        ],
+      ),
+    );
+  });
+
+  it("creates a visible blank section directly after a subtotal", async () => {
+    const user = userEvent.setup();
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByText("Construction subtotal")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Add section after Construction" }),
+    );
+
+    expect(await screen.findByLabelText("New item name")).toBeInTheDocument();
+    expect(screen.getByLabelText("New item category")).toHaveValue("New category");
+    expect(screen.getByText("New category subtotal")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.applyCostPlanOperations).toHaveBeenCalledWith(
+        "project-1",
+        1,
+        [
+          expect.objectContaining({
+            operation: "ADD",
+            target_type: "cost_category",
+            values: { category: "New category" },
+            reference_id: "Construction",
+            placement: "after",
+          }),
+          expect.objectContaining({ operation: "ADD", target_type: "cost_item" }),
+          expect.objectContaining({
+            operation: "MOVE",
+            target_type: "cost_item",
+            reference_id: "ffe",
+            placement: "after",
+          }),
+        ],
+      ),
+    );
+  });
+
+  it("copies a category section from its subtotal action", async () => {
+    const user = userEvent.setup();
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByText("Construction subtotal")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Copy Construction section" }),
+    );
+
+    expect(await screen.findByText("Construction copy subtotal")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.applyCostPlanOperations).toHaveBeenCalledWith(
+        "project-1",
+        1,
+        [
+          expect.objectContaining({
+            operation: "ADD",
+            target_type: "cost_category",
+            values: { category: "Construction copy" },
+            reference_id: "Construction",
+            placement: "after",
+          }),
+          expect.objectContaining({
+            operation: "DUPLICATE",
+            target_type: "cost_item",
+            target_id: "joinery",
+            values: expect.objectContaining({ category: "Construction copy" }),
+          }),
+          expect.objectContaining({
+            operation: "DUPLICATE",
+            target_type: "cost_item",
+            target_id: "ffe",
+            values: expect.objectContaining({ category: "Construction copy" }),
+          }),
+        ],
+      ),
+    );
+  });
+
+  it("deletes a category section from its subtotal action", async () => {
+    const user = userEvent.setup();
+    render(<CostPlanGrid projectId="project-1" />);
+    expect(await screen.findByText("Construction subtotal")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete Construction section" }),
+    );
+
+    expect(screen.queryByText("Construction subtotal")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.applyCostPlanOperations).toHaveBeenCalledWith(
+        "project-1",
+        1,
+        [
+          expect.objectContaining({ operation: "DELETE", target_id: "joinery" }),
+          expect.objectContaining({ operation: "DELETE", target_id: "ffe" }),
         ],
       ),
     );

@@ -37,10 +37,7 @@ import { Label } from "@/components/ui/label";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
 import { ProgramWorkbench } from "@/components/project/ProgramWorkbench";
-import {
-  ProcurementRequestPanel,
-  type RunnableProcurementRequestKind,
-} from "@/components/project/ProcurementRequestPanel";
+import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
   TaxonomyPicker,
@@ -89,12 +86,16 @@ const CopyContentButton = lazy(() =>
     default: module.CopyContentButton,
   })),
 );
+const ProcurementRequestPanel = lazy(() =>
+  import("@/components/project/ProcurementRequestPanel").then((module) => ({
+    default: module.ProcurementRequestPanel,
+  })),
+);
 
 const WARM_WORKFLOW_IDS = [
   "create-pmp",
   "cost-plan",
   "program",
-  "procurement-requests",
   "project-profile",
 ] as const;
 const WARM_WORKFLOW_ID_SET: ReadonlySet<string> = new Set(WARM_WORKFLOW_IDS);
@@ -1462,43 +1463,53 @@ function WorkflowDetail({
             ) : null}
           </>
         ) : isProcurementRequests ? (
-          <ProcurementRequestPanel
-            project={project}
-            activeRun={null}
-            isRunning={false}
-            error={procurementError}
-            refreshToken={procurementRefreshToken}
-            renderGate={(kind) => {
-              const capability =
-                kind === "consultant_rfp"
-                  ? project.workflow_capabilities?.capabilities.consultant_procurement
-                  : project.workflow_capabilities?.capabilities.trade_procurement;
-              if (capability && capability.status !== "supported") {
-                return (
-                  <CapabilityGateNotice
-                    workflow={
-                      kind === "consultant_rfp"
-                        ? "Request for Proposal"
-                        : "Request for Tender"
-                    }
-                    capability={capability}
-                  />
-                );
-              }
-              return null;
-            }}
-            onCreate={(kind, targetName) => onRunProcurement?.(kind, targetName)}
-            onUpdate={(kind, targetName) =>
-              onRunProcurement?.(kind, targetName, "update")
+          <Suspense
+            fallback={
+              <p className="text-sm text-muted-foreground">Opening procurement…</p>
             }
-            onEditStrategyRowWithAi={onEditProcurementStrategyRow}
-            onDraftSelected={onDraftSelected}
-            onDraftUpdated={onDraftUpdated}
-            repositoryEvidence={repositoryEvidence}
-            selectedEvidenceIds={selectedEvidenceIds}
-            onSelectEvidenceIds={onSelectEvidenceIds}
-            onTransmittalSessionChange={onTransmittalSessionChange}
-          />
+          >
+            <ProcurementRequestPanel
+              key={project.id}
+              project={project}
+              activeRun={null}
+              isRunning={false}
+              error={procurementError}
+              refreshToken={procurementRefreshToken}
+              renderGate={(kind) => {
+                const capability =
+                  kind === "consultant_rfp"
+                    ? project.workflow_capabilities?.capabilities.consultant_procurement
+                    : project.workflow_capabilities?.capabilities.trade_procurement;
+                if (capability && capability.status !== "supported") {
+                  return (
+                    <CapabilityGateNotice
+                      workflow={
+                        kind === "consultant_rfp"
+                          ? "Request for Proposal"
+                          : "Request for Tender"
+                      }
+                      capability={capability}
+                    />
+                  );
+                }
+                return null;
+              }}
+              onCreate={(kind, targetName) =>
+                onRunProcurement?.(kind, targetName)
+              }
+              onUpdate={(kind, targetName) =>
+                onRunProcurement?.(kind, targetName, "update")
+              }
+              onEditStrategyRowWithAi={onEditProcurementStrategyRow}
+              onOpenTenderComparison={() => onOpenTenderComparison()}
+              onDraftSelected={onDraftSelected}
+              onDraftUpdated={onDraftUpdated}
+              repositoryEvidence={repositoryEvidence}
+              selectedEvidenceIds={selectedEvidenceIds}
+              onSelectEvidenceIds={onSelectEvidenceIds}
+              onTransmittalSessionChange={onTransmittalSessionChange}
+            />
+          </Suspense>
         ) : isDocumentIntake ? (
           <>
             <div className="grid gap-3 md:grid-cols-3">

@@ -66,12 +66,11 @@ describe("buildLifecycleTiles workflow capabilities", () => {
       "cost-plan",
       "program",
       "procurement-requests",
-      "procurement",
     ]);
     expect(tiles.find((tile) => tile.id === "procurement-requests")?.label).toBe(
       "Procurement",
     );
-    expect(tiles.find((tile) => tile.id === "procurement")?.status).toBe("blocked");
+    expect(tiles.find((tile) => tile.label === "Tender Comparison")).toBeUndefined();
   });
 
   it("marks the project profile when document identity needs review", () => {

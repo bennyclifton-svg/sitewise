@@ -25,6 +25,11 @@ vi.mock("@/lib/api", () => ({
     getProject: vi.fn(),
     updateProject: vi.fn(),
     listProcurementRequests: vi.fn(),
+    listProjectDisciplines: vi.fn(),
+    ensureProcurementStrategy: vi.fn(),
+    getProcurementStrategy: vi.fn(),
+    refreshProcurementStrategy: vi.fn(),
+    applyProcurementStrategyOperations: vi.fn(),
     getLatestDraft: vi.fn(),
     getProgrammeState: vi.fn(),
     ensureProgramme: vi.fn(),
@@ -100,6 +105,18 @@ const catalog: TaxonomyCatalog = {
 describe("ProjectControlBoard project profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
+    vi.mocked(api.listProjectDisciplines).mockResolvedValue([]);
+    vi.mocked(api.ensureProcurementStrategy).mockResolvedValue({
+      id: "strategy-1",
+      project_id: "project-1",
+      revision: 1,
+      tenderer_column_count: 3,
+      source_fingerprint: "",
+      rows: [],
+      created_at: "2026-08-22T00:00:00Z",
+      updated_at: "2026-08-22T00:00:00Z",
+    });
     vi.mocked(api.getCostPlanState).mockResolvedValue({
       version: 1,
       items: [],
@@ -131,6 +148,7 @@ describe("ProjectControlBoard project profile", () => {
       status: "proposed",
       view_scale: "month",
       pmp_embed_visible: true,
+      collapsed_stage_keys: [],
       activities: [],
     });
     vi.mocked(api.getProjectDraft).mockImplementation(async (_projectId, draftId) => ({
@@ -519,6 +537,41 @@ describe("ProjectControlBoard project profile", () => {
     const onRunProcurement = vi.fn();
     vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
     vi.mocked(api.getLatestDraft).mockResolvedValue(null);
+    vi.mocked(api.listProjectDisciplines).mockResolvedValue([
+      {
+        code: "trade.electrical",
+        label: "Electrical services",
+        participant_type: "trade",
+        request_kind: "trade_rft",
+        workspace_slug: "electrical-services",
+      },
+    ]);
+    vi.mocked(api.ensureProcurementStrategy).mockResolvedValue({
+      id: "strategy-1",
+      project_id: project.id,
+      revision: 1,
+      tenderer_column_count: 3,
+      source_fingerprint: "",
+      rows: [
+        {
+          id: "electrical-row",
+          discipline_code: "trade.electrical",
+          discipline_label: "Electrical services",
+          participant_type: "trade",
+          request_kind: "trade_rft",
+          status: "not_started",
+          notes: "",
+          display_order: 100,
+          origin: "derived",
+          locked: false,
+          candidates: [],
+          linked_request_ids: [],
+          no_longer_required: false,
+        },
+      ],
+      created_at: "2026-08-22T00:00:00Z",
+      updated_at: "2026-08-22T00:00:00Z",
+    });
 
     render(
       <ProjectControlBoard
@@ -546,9 +599,10 @@ describe("ProjectControlBoard project profile", () => {
       />,
     );
 
-    await screen.findByText("No requests yet. Create the first one above.");
-    await user.type(screen.getByLabelText("Discipline"), "Electrical services");
-    await user.click(screen.getByRole("button", { name: "Generate RFT" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for Electrical services" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Create RFT" }));
 
     expect(onRunProcurement).toHaveBeenCalledWith(
       "trade_rft",
@@ -815,16 +869,12 @@ describe("ProjectControlBoard project profile", () => {
     );
     await waitFor(() => expect(api.getCostPlanState).toHaveBeenCalledWith(project.id));
     await waitFor(() => expect(api.ensureProgramme).toHaveBeenCalledWith(project.id));
-    await waitFor(() =>
-      expect(api.listProcurementRequests).toHaveBeenCalledWith(project.id),
-    );
     const costPlanLoads = vi.mocked(api.getCostPlanState).mock.calls.length;
     const programmeLoads = vi.mocked(api.ensureProgramme).mock.calls.length;
-    const procurementLoads = vi.mocked(api.listProcurementRequests).mock.calls.length;
     expect(screen.getByTestId("workbench-pane-cost-plan")).not.toBeVisible();
     expect(screen.getByTestId("workbench-pane-program")).not.toBeVisible();
-    expect(screen.getByTestId("workbench-pane-procurement-requests")).not.toBeVisible();
     expect(screen.getByTestId("workbench-pane-project-profile")).not.toBeVisible();
+    expect(api.listProcurementRequests).not.toHaveBeenCalled();
 
     rerender(<ProjectControlBoard {...view} selectedWorkflowId="cost-plan" />);
 
@@ -845,8 +895,9 @@ describe("ProjectControlBoard project profile", () => {
       <ProjectControlBoard {...view} selectedWorkflowId="procurement-requests" />,
     );
 
-    expect(screen.getByTestId("workbench-pane-procurement-requests")).toBeVisible();
-    expect(api.listProcurementRequests).toHaveBeenCalledTimes(procurementLoads);
+    await waitFor(() =>
+      expect(api.listProcurementRequests).toHaveBeenCalledWith(project.id),
+    );
 
     rerender(<ProjectControlBoard {...view} selectedWorkflowId="project-profile" />);
 

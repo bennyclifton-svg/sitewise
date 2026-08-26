@@ -18,6 +18,7 @@ from app.projects.classification_override import (
     classification_from_override,
     lookup_override,
     set_document_classification,
+    set_document_classifications,
 )
 
 PROJECT_A = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
@@ -495,7 +496,7 @@ def test_user_override_emits_document_reclassified(record_verb_mock: AsyncMock) 
         assert kwargs["reference_type"] == "source_document"
         assert kwargs["reference_id"] == DOC_ID
         assert kwargs["deduplication_key"].endswith(
-            f"report:certificate:{CONTENT_HASH}"
+            f"report:heritage:certificate:town_planner:{CONTENT_HASH}"
         )
         assert kwargs["metadata"]["document_class"] == "certificate"
         assert "normalized_content" not in kwargs["metadata"]
@@ -505,5 +506,92 @@ def test_user_override_emits_document_reclassified(record_verb_mock: AsyncMock) 
             "document_subject",
             "content_hash",
         }
+
+    run_async(_run())
+
+
+class _BatchExecuteResult:
+    def __init__(self, documents: list[SourceDocument]) -> None:
+        self.documents = documents
+
+    def scalars(self) -> _BatchExecuteResult:
+        return self
+
+    def all(self) -> list[SourceDocument]:
+        return self.documents
+
+
+class _BatchSession:
+    def __init__(self, documents: list[SourceDocument]) -> None:
+        self.documents = documents
+
+    async def execute(self, _statement: object) -> _BatchExecuteResult:
+        return _BatchExecuteResult(self.documents)
+
+
+def test_bulk_category_change_preserves_each_document_type() -> None:
+    drawing = _document()
+    drawing.document_class = "drawing"
+    report = _document(
+        id=uuid.uuid4(),
+        document_class="report",
+        content_hash="b" * 64,
+        relative_path="04-projects/demo/_inbox/Report.pdf",
+        filename="Report.pdf",
+    )
+    session = _BatchSession([drawing, report])
+
+    async def _run() -> None:
+        with patch(
+            "app.projects.classification_override.set_document_classification",
+            new=AsyncMock(side_effect=[drawing, report]),
+        ) as update:
+            result = await set_document_classifications(
+                session,
+                project_id=PROJECT_A,
+                document_ids=[drawing.id, report.id],
+                document_class=None,
+                document_subject="architect",
+                actor_id=ACTOR_ID,
+            )
+
+        assert result == [drawing, report]
+        assert update.await_args_list[0].kwargs["document_class"] == "drawing"
+        assert update.await_args_list[1].kwargs["document_class"] == "report"
+        assert all(
+            call.kwargs["document_subject"] == "architect"
+            for call in update.await_args_list
+        )
+
+    run_async(_run())
+
+
+def test_bulk_type_change_preserves_each_document_category() -> None:
+    architectural = _document()
+    structural = _document(
+        id=uuid.uuid4(),
+        content_hash="b" * 64,
+        relative_path="04-projects/demo/_inbox/Structure.pdf",
+        filename="Structure.pdf",
+        document_metadata={"subject": "structural"},
+    )
+    session = _BatchSession([architectural, structural])
+
+    async def _run() -> None:
+        with patch(
+            "app.projects.classification_override.set_document_classification",
+            new=AsyncMock(side_effect=[architectural, structural]),
+        ) as update:
+            await set_document_classifications(
+                session,
+                project_id=PROJECT_A,
+                document_ids=[architectural.id, structural.id],
+                document_class="drawing",
+                document_subject=None,
+                actor_id=ACTOR_ID,
+            )
+
+        assert update.await_args_list[0].kwargs["document_subject"] == "heritage"
+        assert update.await_args_list[1].kwargs["document_subject"] == "structural"
 
     run_async(_run())

@@ -50,7 +50,7 @@ const disciplines = [
 ];
 
 describe("ProcurementStrategyGrid", () => {
-  it("starts at three tenderers and requests a persisted fourth column", async () => {
+  it("starts at three firms and requests a persisted fourth column", async () => {
     const onApply = vi.fn().mockResolvedValue(undefined);
     render(
       <ProcurementStrategyGrid
@@ -62,11 +62,11 @@ describe("ProcurementStrategyGrid", () => {
       />,
     );
 
-    expect(screen.getByRole("columnheader", { name: "Tenderer 3" })).toBeTruthy();
-    expect(screen.queryByLabelText("Structural, Tenderer 4")).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Firm 3" })).toBeTruthy();
+    expect(screen.queryByLabelText("Structural, Firm 4")).toBeNull();
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Add tenderer column" }),
+      screen.getByRole("button", { name: "Add firm column" }),
     );
     expect(onApply).toHaveBeenCalledWith([
       {
@@ -76,7 +76,7 @@ describe("ProcurementStrategyGrid", () => {
     ]);
   });
 
-  it("commits a tenderer on blur", async () => {
+  it("commits a firm on blur", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn().mockResolvedValue(undefined);
     render(
@@ -89,8 +89,8 @@ describe("ProcurementStrategyGrid", () => {
       />,
     );
 
-    const tenderer = screen.getByLabelText("Structural, Tenderer 1");
-    await user.type(tenderer, "North & Co");
+    const firm = screen.getByLabelText("Structural, Firm 1");
+    await user.type(firm, "North & Co");
     await user.tab();
 
     expect(onApply).toHaveBeenCalledWith([
@@ -117,7 +117,7 @@ describe("ProcurementStrategyGrid", () => {
     );
 
     await user.click(screen.getByLabelText("Structural status"));
-    expect(screen.getByRole("menuitem", { name: "RFP issued" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Issued" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Received" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Recommendation" })).toBeTruthy();
     expect(screen.getByRole("menuitem", { name: "Awarded" })).toBeTruthy();
@@ -133,7 +133,7 @@ describe("ProcurementStrategyGrid", () => {
     ]);
   });
 
-  it("uses the compact icon-only artefact action menu", async () => {
+  it("uses clear labels in the row action menu", async () => {
     const user = userEvent.setup();
     render(
       <ProcurementStrategyGrid
@@ -153,8 +153,70 @@ describe("ProcurementStrategyGrid", () => {
     const lock = screen.getByRole("menuitem", { name: "Lock Structural" });
     const remove = screen.getByRole("menuitem", { name: "Delete Structural" });
 
-    for (const action of [edit, above, below, lock, remove]) {
-      expect(action.textContent).toBe("");
-    }
+    expect(edit).toHaveTextContent("Edit with AI");
+    expect(above).toHaveTextContent("Add discipline above");
+    expect(below).toHaveTextContent("Add discipline below");
+    expect(lock).toHaveTextContent("Lock row");
+    expect(remove).toHaveTextContent("Delete row");
+  });
+
+  it("groups consultants and trades and sorts each list alphanumerically", () => {
+    const mixedStrategy: ProcurementStrategy = {
+      ...strategy,
+      rows: [
+        {
+          ...strategy.rows[0],
+          id: "trade-10",
+          discipline_code: null,
+          discipline_label: "Trade 10",
+          participant_type: "trade",
+          request_kind: "trade_rft",
+          display_order: 100,
+        },
+        {
+          ...strategy.rows[0],
+          id: "consultant-zulu",
+          discipline_code: null,
+          discipline_label: "Zulu Consultant",
+          display_order: 200,
+        },
+        {
+          ...strategy.rows[0],
+          id: "trade-2",
+          discipline_code: null,
+          discipline_label: "Trade 2",
+          participant_type: "trade",
+          request_kind: "trade_rft",
+          display_order: 300,
+        },
+        {
+          ...strategy.rows[0],
+          id: "consultant-alpha",
+          discipline_code: null,
+          discipline_label: "Alpha Consultant",
+          display_order: 400,
+        },
+      ],
+    };
+
+    render(
+      <ProcurementStrategyGrid
+        strategy={mixedStrategy}
+        disciplines={disciplines}
+        saving={false}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    const bodyRows = screen.getAllByRole("row").slice(1);
+    expect(bodyRows.map((row) => row.textContent)).toEqual([
+      "Consultants",
+      expect.stringMatching(/^Alpha Consultant/),
+      expect.stringMatching(/^Zulu Consultant/),
+      "Trades",
+      expect.stringMatching(/^Trade 2/),
+      expect.stringMatching(/^Trade 10/),
+    ]);
   });
 });

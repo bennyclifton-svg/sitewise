@@ -239,24 +239,35 @@ export function costPlanCategories(state: CostPlanState): string[] {
   const seen = new Set<string>();
   const ordered: string[] = [];
 
-  for (const defaultCategory of DEFAULT_COST_PLAN_CATEGORIES) {
-    const match = present.find(
-      (value) =>
-        canonicalCostPlanCategory(value).toLowerCase() ===
-        defaultCategory.toLowerCase(),
-    );
-    if (!match) continue;
-    const key = canonicalCostPlanCategory(match).toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    ordered.push(match);
-  }
-
-  for (const value of present) {
+  for (const value of fromState) {
     const key = canonicalCostPlanCategory(value).toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     ordered.push(value);
+  }
+
+  for (const value of fromItems) {
+    const canonical = canonicalCostPlanCategory(value);
+    const key = canonical.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const defaultIndex = DEFAULT_COST_PLAN_CATEGORIES.findIndex(
+      (category) => category.toLowerCase() === key,
+    );
+    if (defaultIndex < 0) {
+      ordered.push(value);
+      continue;
+    }
+    const insertionIndex = ordered.findIndex((category) => {
+      const existingIndex = DEFAULT_COST_PLAN_CATEGORIES.findIndex(
+        (defaultCategory) =>
+          defaultCategory.toLowerCase() ===
+          canonicalCostPlanCategory(category).toLowerCase(),
+      );
+      return existingIndex > defaultIndex;
+    });
+    if (insertionIndex < 0) ordered.push(value);
+    else ordered.splice(insertionIndex, 0, value);
   }
 
   return ordered;
@@ -557,7 +568,7 @@ export function forecastFromContractAndVariations(
 export function duplicateCostItemOptimistically(
   state: CostPlanState,
   targetId: string,
-  values: { item_key: string; cost_code: string },
+  values: { item_key: string; cost_code: string; category?: string },
 ): CostPlanState {
   const index = state.items.findIndex((item) => item.item_key === targetId);
   if (index < 0) return state;
@@ -566,6 +577,7 @@ export function duplicateCostItemOptimistically(
     ...source,
     item_key: values.item_key,
     cost_code: values.cost_code,
+    category: values.category ?? source.category,
     status: "manual",
     locked: false,
   };

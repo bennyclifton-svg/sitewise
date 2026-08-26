@@ -314,6 +314,26 @@ def test_parses_markdown_title_blocks_from_preview_snippets():
     assert result.confidence == "high"
 
 
+def test_parses_plain_label_markdown_title_block_without_confusing_revision_status():
+    result = _parse(
+        file_name="A-100-proposed-site-plan.md",
+        filed_path="04-projects/seven-hills/_inbox/A-100-proposed-site-plan.md",
+        preview_snippet="\n".join(
+            [
+                "| Drawing title | Proposed Site Plan |",
+                "| Drawing number | **A-100** |",
+                "| Revision | **D** |",
+                "| Revision status | Current |",
+            ]
+        ),
+    )
+
+    assert result.document_number == "A-100"
+    assert result.title == "Proposed Site Plan"
+    assert result.revision == "D"
+    assert result.confidence == "high"
+
+
 def test_parses_kebab_civil_sheet_numbers_from_filename():
     result = _parse(
         file_name="C-001-civil-notes-legend-and-abbreviations.md",

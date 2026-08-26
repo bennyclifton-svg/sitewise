@@ -97,7 +97,7 @@ def test_architect_is_not_duplicated_when_it_is_the_lead() -> None:
     rows = [line for line in markdown.splitlines() if line.startswith("| ")]
     disciplines = [row.split("|")[1].strip() for row in rows[2:]]
 
-    assert disciplines[0] == "Architect"
+    assert disciplines == sorted(disciplines, key=str.casefold)
     assert disciplines.count("Architect") == 1
 
 

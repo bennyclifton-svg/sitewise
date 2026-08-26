@@ -155,6 +155,11 @@ export function classificationLabel(value: string): string {
   );
 }
 
+export function documentTypeLabel(value: string): string {
+  if (value === "unknown") return "Unclassified";
+  return classificationLabel(value);
+}
+
 function categoryKey(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }

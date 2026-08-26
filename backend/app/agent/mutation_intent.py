@@ -52,6 +52,15 @@ _PROCUREMENT_STRATEGY_WRITE = re.compile(
     r"set|shortlist|unlock|update)\b",
     re.IGNORECASE,
 )
+_PROCUREMENT_CANDIDATE_RESEARCH = re.compile(
+    r"\b(?:find|identify|look\s+up|research|source)\b",
+    re.IGNORECASE,
+)
+_PROCUREMENT_CANDIDATE_PARTICIPANT = re.compile(
+    r"\b(?:architects?|certifiers?|consultants?|contractors?|engineers?|firms?|"
+    r"planners?|suppliers?|surveyors?|tenderers?|trades?)\b",
+    re.IGNORECASE,
+)
 
 _BUILDING_CLASSES = {
     "residential": "residential",
@@ -274,10 +283,16 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
 def _has_procurement_strategy_mutation(user_text: str) -> bool:
     if _is_quoted_instruction(user_text) or _EVIDENCE_ASSERTION.search(user_text):
         return False
-    return bool(
+    table_write = bool(
         _PROCUREMENT_STRATEGY_CONTEXT.search(user_text)
         and _PROCUREMENT_STRATEGY_WRITE.search(user_text)
     )
+    researched_candidate_write = bool(
+        _PROCUREMENT_CANDIDATE_RESEARCH.search(user_text)
+        and _PROCUREMENT_CANDIDATE_PARTICIPANT.search(user_text)
+        and _PROCUREMENT_STRATEGY_WRITE.search(user_text)
+    )
+    return table_write or researched_candidate_write
 
 
 def is_profile_proposal_confirmation(user_text: str) -> bool:

@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import re
+from datetime import date
 
-from app.programme.schedule import ActivityDraft, rollup_stages, schedule_activities
+from app.programme.schedule import (
+    ActivityDraft,
+    DependencyDraft,
+    driving_dependency,
+    rollup_stages,
+    schedule_activities,
+)
 from app.programme.schemas import (
     MAX_PROGRAMME_OPERATIONS,
     ProgrammeActivityInput,
+    ProgrammeDependencyInput,
     ProgrammeOperation,
     normalize_activity_values,
 )
@@ -20,19 +28,46 @@ def activity_slug(name: str) -> str:
 
 def apply_operations(
     activities: list[ProgrammeActivityInput],
+    dependencies: list[ProgrammeDependencyInput],
     operations: list[ProgrammeOperation],
-) -> list[ProgrammeActivityInput]:
+) -> tuple[list[ProgrammeActivityInput], list[ProgrammeDependencyInput]]:
     if not operations or len(operations) > MAX_PROGRAMME_OPERATIONS:
         raise ValueError(
             f"operations must contain between 1 and {MAX_PROGRAMME_OPERATIONS} items"
         )
     rows = [item.model_copy(deep=True) for item in activities]
+    links = [item.model_copy(deep=True) for item in dependencies]
     for operation in operations:
+        if operation.target_type == "dependency":
+            links = _apply_dependency(links, rows, operation)
+            continue
+        if operation.operation == "UPDATE" and "start_date" in operation.values:
+            links, linked = _adjust_move_lag(rows, links, operation)
+            if linked:
+                remaining_values = {
+                    key: value
+                    for key, value in operation.values.items()
+                    if key != "start_date"
+                }
+                if not remaining_values:
+                    continue
+                operation = operation.model_copy(update={"values": remaining_values})
         rows = _apply_one(rows, operation)
-    return reschedule(rows)
+        if operation.operation == "DELETE":
+            keys = {item.activity_key for item in rows}
+            links = [
+                item
+                for item in links
+                if item.source_activity_key in keys and item.target_activity_key in keys
+            ]
+    return reschedule(rows, links), links
 
 
-def reschedule(activities: list[ProgrammeActivityInput]) -> list[ProgrammeActivityInput]:
+def reschedule(
+    activities: list[ProgrammeActivityInput],
+    dependencies: list[ProgrammeDependencyInput] | None = None,
+) -> list[ProgrammeActivityInput]:
+    dependencies = dependencies or []
     drafts = [
         ActivityDraft(
             activity_key=item.activity_key,
@@ -40,8 +75,6 @@ def reschedule(activities: list[ProgrammeActivityInput]) -> list[ProgrammeActivi
             start_date=item.start_date,
             duration_days=item.duration_days,
             parent_key=item.parent_key,
-            predecessor_key=item.predecessor_key,
-            lag_days=item.lag_days,
             name=item.name,
             display_order=item.display_order,
             assumption=item.assumption,
@@ -49,7 +82,18 @@ def reschedule(activities: list[ProgrammeActivityInput]) -> list[ProgrammeActivi
         )
         for item in activities
     ]
-    scheduled = rollup_stages(schedule_activities(drafts))
+    dependency_drafts = [
+        DependencyDraft(
+            dependency_key=item.dependency_key,
+            source_activity_key=item.source_activity_key,
+            target_activity_key=item.target_activity_key,
+            source_endpoint=item.source_endpoint,
+            target_endpoint=item.target_endpoint,
+            lag_days=item.lag_days,
+        )
+        for item in dependencies
+    ]
+    scheduled = rollup_stages(schedule_activities(drafts, dependency_drafts))
     by_key = {item.activity_key: item for item in activities}
     return [
         by_key[row.activity_key].model_copy(
@@ -57,12 +101,121 @@ def reschedule(activities: list[ProgrammeActivityInput]) -> list[ProgrammeActivi
                 "start_date": row.start_date,
                 "duration_days": row.duration_days,
                 "finish_date": row.finish_date,
-                "predecessor_key": row.predecessor_key,
-                "lag_days": row.lag_days,
             }
         )
         for row in scheduled
     ]
+
+
+def dependency_key(
+    source_activity_key: str,
+    source_endpoint: str,
+    target_activity_key: str,
+    target_endpoint: str,
+) -> str:
+    return (
+        f"{source_activity_key}:{source_endpoint}->"
+        f"{target_activity_key}:{target_endpoint}"
+    )
+
+
+def _apply_dependency(
+    links: list[ProgrammeDependencyInput],
+    rows: list[ProgrammeActivityInput],
+    operation: ProgrammeOperation,
+) -> list[ProgrammeDependencyInput]:
+    if operation.operation == "ADD":
+        values = dict(operation.values)
+        values.setdefault(
+            "dependency_key",
+            dependency_key(
+                str(values.get("source_activity_key") or ""),
+                str(values.get("source_endpoint") or ""),
+                str(values.get("target_activity_key") or ""),
+                str(values.get("target_endpoint") or ""),
+            ),
+        )
+        item = ProgrammeDependencyInput.model_validate(values)
+        keys = {row.activity_key for row in rows}
+        if item.source_activity_key not in keys or item.target_activity_key not in keys:
+            raise ValueError("dependency activities must exist in the programme")
+        if any(link.dependency_key == item.dependency_key for link in links):
+            return links
+        return [*links, item]
+    index = next(
+        (
+            index
+            for index, item in enumerate(links)
+            if item.dependency_key == operation.target_id
+        ),
+        -1,
+    )
+    if index < 0:
+        raise ValueError(f"dependency {operation.target_id!r} was not found")
+    if operation.operation == "DELETE":
+        return [item for item in links if item.dependency_key != operation.target_id]
+    if operation.operation == "UPDATE":
+        values = links[index].model_dump()
+        values.update(operation.values)
+        values["dependency_key"] = links[index].dependency_key
+        updated = list(links)
+        updated[index] = ProgrammeDependencyInput.model_validate(values)
+        return updated
+    raise ValueError(f"unsupported dependency operation {operation.operation}")
+
+
+def _adjust_move_lag(
+    rows: list[ProgrammeActivityInput],
+    links: list[ProgrammeDependencyInput],
+    operation: ProgrammeOperation,
+) -> tuple[list[ProgrammeDependencyInput], bool]:
+    target = next(
+        (item for item in rows if item.activity_key == operation.target_id),
+        None,
+    )
+    if target is None:
+        return links, False
+    incoming = [item for item in links if item.target_activity_key == target.activity_key]
+    if not incoming:
+        return links, False
+    raw_start = operation.values.get("start_date")
+    new_start = raw_start if isinstance(raw_start, date) else date.fromisoformat(str(raw_start))
+    drafts = [
+        ActivityDraft(
+            activity_key=item.activity_key,
+            kind=item.kind,
+            start_date=item.start_date,
+            duration_days=item.duration_days,
+            parent_key=item.parent_key,
+            finish_date=item.finish_date,
+            name=item.name,
+            display_order=item.display_order,
+            assumption=item.assumption,
+            notes=item.notes,
+        )
+        for item in rows
+    ]
+    dependency_drafts = [
+        DependencyDraft(
+            dependency_key=item.dependency_key,
+            source_activity_key=item.source_activity_key,
+            target_activity_key=item.target_activity_key,
+            source_endpoint=item.source_endpoint,
+            target_endpoint=item.target_endpoint,
+            lag_days=item.lag_days,
+        )
+        for item in links
+    ]
+    driving = driving_dependency(drafts, dependency_drafts, target.activity_key)
+    if driving is None:
+        return links, False
+    delta = (new_start - target.start_date).days
+    return [
+        item.model_copy(update={"lag_days": max(0, item.lag_days + delta)})
+        if item.dependency_key == driving.dependency_key
+        else item
+        for item in links
+    ], True
 
 
 def _apply_one(
@@ -125,9 +278,6 @@ def _update(
     current = rows[index]
     values = current.model_dump()
     incoming = normalize_activity_values(dict(operation.values))
-    if "start_date" in incoming and current.predecessor_key:
-        incoming["predecessor_key"] = None
-        incoming["lag_days"] = 0
     values.update(incoming)
     values["activity_key"] = current.activity_key
     values["kind"] = current.kind
@@ -148,15 +298,7 @@ def _delete(
     ]
     if len(remaining) == len(rows):
         raise ValueError(f"activity {target_id!r} was not found")
-    cleared: list[ProgrammeActivityInput] = []
-    for item in remaining:
-        if item.predecessor_key == target_id:
-            cleared.append(
-                item.model_copy(update={"predecessor_key": None, "lag_days": 0})
-            )
-        else:
-            cleared.append(item)
-    return cleared
+    return remaining
 
 
 def _move(
@@ -308,10 +450,9 @@ def _infer_parent_key(
     operation: ProgrammeOperation,
     values: dict[str, object],
 ) -> str | None:
-    for candidate in (operation.reference_id, values.get("predecessor_key")):
-        parent = _parent_of(rows, str(candidate) if candidate else None)
-        if parent:
-            return parent
+    parent = _parent_of(rows, operation.reference_id)
+    if parent:
+        return parent
     stage = next((row for row in rows if row.kind == "stage"), None)
     return stage.activity_key if stage else None
 

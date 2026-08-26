@@ -1,4 +1,4 @@
-import { Download, Play, RefreshCw, Table2 } from "lucide-react";
+import { ArrowLeft, Download, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import {
   lazy,
@@ -20,23 +20,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SuggestionField } from "@/components/ui/suggestion-field";
 import { api } from "@/lib/api";
 import { stripArtifactBlockMarkers } from "@/lib/artifact-markdown";
 import { ApiError } from "@/lib/http";
 import { queryClient } from "@/lib/query-client";
 import { workbenchKeys } from "@/lib/queries/workbench";
 import { cn } from "@/lib/utils";
-import {
-  latestRequest,
-  mergeDisciplineOptions,
-} from "@/lib/procurement-disciplines";
+import { latestRequest } from "@/lib/procurement-disciplines";
 import type {
   DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
   ProcurementRequest,
   ProcurementRequestKind,
+  ProcurementStrategy,
   ProcurementStrategyOperation,
   ProcurementStrategyRow,
   ProjectDiscipline,
@@ -65,10 +62,94 @@ function isRunnableKind(
   );
 }
 
+function normaliseDisciplineIdentity(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function participantTypeForRequest(
+  request: ProcurementRequest,
+): ProjectDiscipline["participant_type"] | null {
+  if (request.kind === "consultant_rfp") return "consultant";
+  if (request.kind === "trade_rft") return "trade";
+  if (request.kind === "trade_rfq") return "supplier";
+  return null;
+}
+
+function disciplineForRequestTarget(
+  request: ProcurementRequest,
+  disciplines: readonly ProjectDiscipline[],
+): ProjectDiscipline | null {
+  const target = normaliseDisciplineIdentity(request.target_name);
+  const participantType = participantTypeForRequest(request);
+  if (!target || !participantType) return null;
+  return (
+    disciplines.find((item) => {
+      if (item.participant_type !== participantType) return false;
+      return [item.label, item.workspace_slug].some(
+        (value) => normaliseDisciplineIdentity(value) === target,
+      );
+    }) ?? null
+  );
+}
+
+function requestTargetLabel(
+  request: ProcurementRequest,
+  disciplines: readonly ProjectDiscipline[],
+): string {
+  return disciplineForRequestTarget(request, disciplines)?.label ?? request.target_name.trim();
+}
+
 function artefactLabel(kind: ProcurementRequestKind): string {
   if (kind === "consultant_rfp") return "request for proposal";
   if (kind === "trade_rfq") return "request for quotation";
   return "request for tender";
+}
+
+function requestTypeLabel(kind: ProcurementRequestKind): "RFP" | "RFT" | "RFQ" {
+  if (kind === "consultant_rfp") return "RFP";
+  if (kind === "trade_rfq") return "RFQ";
+  return "RFT";
+}
+
+function requestForStrategyRow(
+  row: ProcurementStrategyRow,
+  requests: ProcurementRequest[],
+  disciplines: ProjectDiscipline[],
+): ProcurementRequest | null {
+  const compatible = requests.filter(
+    (request) => isRunnableKind(request.kind) && request.kind === row.request_kind,
+  );
+  const directlyLinked = latestRequest(
+    compatible.filter((request) => request.strategy_row_id === row.id),
+  );
+  if (directlyLinked) return directlyLinked;
+
+  const disciplineLinked = row.discipline_code
+    ? latestRequest(
+        compatible.filter(
+          (request) =>
+            !request.strategy_row_id &&
+            request.discipline_code === row.discipline_code,
+        ),
+      )
+    : null;
+  if (disciplineLinked) return disciplineLinked;
+
+  const rowLabel = normaliseDisciplineIdentity(row.discipline_label);
+  return (
+    latestRequest(
+      compatible.filter(
+        (request) =>
+          !request.strategy_row_id &&
+          normaliseDisciplineIdentity(requestTargetLabel(request, disciplines)) ===
+            rowLabel,
+      ),
+    ) ?? null
+  );
 }
 
 export function ProcurementRequestPanel({
@@ -85,6 +166,7 @@ export function ProcurementRequestPanel({
   onSelectEvidenceIds,
   onTransmittalSessionChange,
   onEditStrategyRowWithAi,
+  onOpenTenderComparison,
 }: {
   project: ProjectDetail;
   /** @deprecated Progress now lives in chat; retained for call-site compatibility. */
@@ -106,14 +188,14 @@ export function ProcurementRequestPanel({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
   onEditStrategyRowWithAi?: (row: ProcurementStrategyRow) => void;
+  onOpenTenderComparison?: (row: ProcurementStrategyRow) => void;
 }) {
-  const [discipline, setDiscipline] = useState("");
   const [disciplines, setDisciplines] = useState<ProjectDiscipline[]>([]);
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
-  const [view, setView] = useState<"request" | "strategy">("request");
-  const [strategyReady, setStrategyReady] = useState(false);
-  const [strategyOpening, setStrategyOpening] = useState(false);
+  const [view, setView] = useState<"request" | "strategy">("strategy");
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [strategySaving, setStrategySaving] = useState(false);
+  const [strategyRefreshing, setStrategyRefreshing] = useState(false);
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draftExportAction, setDraftExportAction] = useState<"docx" | "pdf" | null>(
@@ -121,24 +203,15 @@ export function ProcurementRequestPanel({
   );
   const [draftExportError, setDraftExportError] = useState<string | null>(null);
   const reportedDraftId = useRef<string | null>(null);
-  const knownIds = useRef<Set<string>>(new Set());
-  const loadedProjectId = useRef(project.id);
   const strategyQuery = useQuery({
     queryKey: workbenchKeys.procurementStrategy(project.id),
-    queryFn: () => api.getProcurementStrategy(project.id),
-    enabled: strategyReady && view === "strategy",
+    queryFn: () => api.ensureProcurementStrategy(project.id),
   }, queryClient);
   const strategy = strategyQuery.data ?? null;
-  const strategyLoading = strategyOpening || (strategyQuery.isFetching && !strategy);
+  const strategyLoading = strategyQuery.isFetching && !strategy;
 
   useEffect(() => {
     let cancelled = false;
-    if (loadedProjectId.current !== project.id) {
-      loadedProjectId.current = project.id;
-      knownIds.current = new Set();
-      setStrategyReady(false);
-      setView("request");
-    }
     void queryClient
       .fetchQuery({
         queryKey: workbenchKeys.procurementRequests(project.id),
@@ -146,30 +219,6 @@ export function ProcurementRequestPanel({
       })
       .then((next) => {
         if (cancelled) return;
-        const newcomers = next.filter((request) => !knownIds.current.has(request.id));
-        knownIds.current = new Set(next.map((request) => request.id));
-        const runnable = next.filter((request) => isRunnableKind(request.kind));
-        if (newcomers.length) {
-          const pick = latestRequest(
-            newcomers.filter((request) => isRunnableKind(request.kind)),
-          );
-          if (pick && isRunnableKind(pick.kind)) {
-            setDiscipline(pick.target_name);
-          }
-        } else {
-          setDiscipline((current) => {
-            const key = current.trim().toLowerCase();
-            if (
-              key &&
-              next.some(
-                (request) => request.target_name.trim().toLowerCase() === key,
-              )
-            ) {
-              return current;
-            }
-            return latestRequest(runnable)?.target_name ?? current;
-          });
-        }
         setRequests(next);
         setLoadError(null);
       })
@@ -199,31 +248,25 @@ export function ProcurementRequestPanel({
     };
   }, [project.id]);
 
-  const selectedRequest = useMemo(() => {
-    const key = discipline.trim().toLowerCase();
-    if (!key) return null;
-    return (
-      latestRequest(
-        requests.filter(
-          (request) =>
-            isRunnableKind(request.kind) &&
-            request.target_name.trim().toLowerCase() === key,
-        ),
-      ) ?? null
-    );
-  }, [discipline, requests]);
-  const selectedDiscipline = disciplines.find(
-    (item) => item.label.toLowerCase() === discipline.trim().toLowerCase(),
+  const selectableDisciplines = useMemo(
+    () => disciplines.filter((item) => item.picker_visible !== false),
+    [disciplines],
   );
-  const createKind =
-    selectedRequest && isRunnableKind(selectedRequest.kind)
-      ? selectedRequest.kind
-      : selectedDiscipline && isRunnableKind(selectedDiscipline.request_kind)
-      ? selectedDiscipline.request_kind
-      : "trade_rft";
-  const activeKind = selectedRequest?.kind ?? createKind;
+  const selectedRequest =
+    requests.find((request) => request.id === selectedRequestId) ?? null;
+  const requestsByRowId = useMemo(() => {
+    if (!strategy) return {};
+    return Object.fromEntries(
+      strategy.rows.map((row) => [
+        row.id,
+        requestForStrategyRow(row, requests, disciplines) ?? undefined,
+      ]),
+    );
+  }, [disciplines, requests, strategy]);
+  const activeKind = selectedRequest?.kind ?? "consultant_rfp";
 
   useEffect(() => {
+    if (view !== "request") return;
     const draft = selectedRequest?.current_draft ?? null;
     if (!draft) {
       reportedDraftId.current = null;
@@ -232,60 +275,29 @@ export function ProcurementRequestPanel({
     if (draft.id === reportedDraftId.current) return;
     reportedDraftId.current = draft.id;
     onDraftSelected?.(draft);
-  }, [onDraftSelected, selectedRequest?.current_draft]);
+  }, [onDraftSelected, selectedRequest?.current_draft, view]);
 
-  const createCapability =
-    createKind === "consultant_rfp"
-      ? project.workflow_capabilities?.capabilities.consultant_procurement
-      : project.workflow_capabilities?.capabilities.trade_procurement;
   const updateCapability =
     selectedRequest?.kind === "consultant_rfp"
       ? project.workflow_capabilities?.capabilities.consultant_procurement
       : project.workflow_capabilities?.capabilities.trade_procurement;
-  const createSupported = !createCapability || createCapability.status === "supported";
   const updateSupported = !updateCapability || updateCapability.status === "supported";
-  const capability = selectedRequest ? updateCapability : createCapability;
-  const supported = selectedRequest ? updateSupported : createSupported;
+  const supported = !selectedRequest || updateSupported;
 
-  const disciplineOptions = useMemo(() => {
-    const existingTargets = requests
-      .filter((request) => isRunnableKind(request.kind))
-      .map((request) => request.target_name);
-    return mergeDisciplineOptions(
-      disciplines.map((item) => item.label),
-      [],
-      existingTargets,
-    );
-  }, [disciplines, requests]);
-  const disciplineBadges = useMemo(() => {
-    const badges: Record<string, string> = {};
-    for (const name of disciplineOptions) {
-      const match = latestRequest(
-        requests.filter(
-          (request) =>
-            isRunnableKind(request.kind) &&
-            request.target_name.trim().toLowerCase() === name.toLowerCase(),
-        ),
-      );
-      if (!match) continue;
-      badges[name] = String(match.current_draft?.version ?? match.revision);
-    }
-    return badges;
-  }, [disciplineOptions, requests]);
-  const hasGeneratedRequests = requests.some((request) => isRunnableKind(request.kind));
+  function createRequestForRow(row: ProcurementStrategyRow) {
+    if (!isRunnableKind(row.request_kind)) return;
+    onCreate(row.request_kind, row.discipline_label);
+  }
 
-  function submitCreate() {
-    const target = discipline.trim();
-    if (!target || !createSupported) return;
+  function openRequest(request: ProcurementRequest) {
+    setSelectedRequestId(request.id);
     setView("request");
-    onCreate(createKind, target);
   }
 
   function submitUpdate() {
     if (!selectedRequest || !updateSupported) return;
-    setView("request");
     onUpdate?.(
-      isRunnableKind(selectedRequest.kind) ? selectedRequest.kind : createKind,
+      isRunnableKind(selectedRequest.kind) ? selectedRequest.kind : "trade_rft",
       selectedRequest.target_name,
     );
   }
@@ -318,44 +330,36 @@ export function ProcurementRequestPanel({
     }
   }
 
-  async function openStrategy() {
-    setView("strategy");
-    setStrategyError(null);
-    if (strategy) return;
-    setStrategyOpening(true);
-    try {
-      const next = await queryClient.fetchQuery({
-        queryKey: workbenchKeys.procurementStrategy(project.id),
-        queryFn: () => api.ensureProcurementStrategy(project.id),
-      });
-      queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
-      setStrategyReady(true);
-    } catch (nextError) {
-      setView("request");
-      setStrategyError(
-        nextError instanceof ApiError
-          ? nextError.message
-          : "Could not open Procurement Strategy.",
-      );
-    } finally {
-      setStrategyOpening(false);
-    }
-  }
-
   async function applyStrategyOperations(
     operations: ProcurementStrategyOperation[],
   ) {
     if (!strategy) return;
+    const strategyBeforeSave = strategy;
+    const optimisticStrategy = optimisticallyApplyStrategyOperations(
+      strategyBeforeSave,
+      disciplines,
+      operations,
+    );
     setStrategySaving(true);
     setStrategyError(null);
+    if (optimisticStrategy !== strategyBeforeSave) {
+      queryClient.setQueryData(
+        workbenchKeys.procurementStrategy(project.id),
+        optimisticStrategy,
+      );
+    }
     try {
       const next = await api.applyProcurementStrategyOperations(
         project.id,
-        strategy.revision,
+        strategyBeforeSave.revision,
         operations,
       );
       queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
     } catch (nextError) {
+      queryClient.setQueryData(
+        workbenchKeys.procurementStrategy(project.id),
+        strategyBeforeSave,
+      );
       setStrategyError(
         nextError instanceof ApiError
           ? nextError.message
@@ -383,7 +387,7 @@ export function ProcurementRequestPanel({
 
   async function refreshStrategy() {
     if (!strategy) return;
-    setStrategySaving(true);
+    setStrategyRefreshing(true);
     setStrategyError(null);
     try {
       const next = await api.refreshProcurementStrategy(project.id);
@@ -395,15 +399,21 @@ export function ProcurementRequestPanel({
           : "Could not refresh the discipline roster.",
       );
     } finally {
-      setStrategySaving(false);
+      setStrategyRefreshing(false);
     }
   }
 
+  const strategyLoadError = strategyQuery.error
+    ? strategyQuery.error instanceof ApiError
+      ? strategyQuery.error.message
+      : "Could not open Procurement Strategy."
+    : null;
+
   return (
     <div className="space-y-4">
-      {error || loadError || strategyError ? (
+      {error || loadError || strategyError || strategyLoadError ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {error ?? loadError ?? strategyError}
+          {error ?? loadError ?? strategyError ?? strategyLoadError}
         </p>
       ) : null}
 
@@ -411,46 +421,60 @@ export function ProcurementRequestPanel({
 
       {view === "request" && !supported ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-          {capability?.reasons.join(" ") || "This request is not supported yet."}
+          {updateCapability?.reasons.join(" ") || "This request is not supported yet."}
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <SuggestionField
-            id="procurement-discipline"
-            className="w-56"
-            value={discipline}
-            suggestions={disciplineOptions}
-            badges={disciplineBadges}
-            aria-label="Discipline"
-            placeholder="Architect"
-            onChange={setDiscipline}
+      {view === "strategy" ? (
+        strategy ? (
+          <ProcurementStrategyGrid
+            strategy={strategy}
+            disciplines={selectableDisciplines}
+            requestsByRowId={requestsByRowId}
+            saving={strategySaving}
+            refreshing={strategyRefreshing}
+            onApply={applyStrategyOperations}
+            onRefresh={refreshStrategy}
+            onCreateRequest={createRequestForRow}
+            onOpenRequest={openRequest}
+            onCompare={onOpenTenderComparison}
+            onEditWithAi={onEditStrategyRowWithAi}
           />
-          <Button onClick={submitCreate} disabled={!discipline.trim() || !createSupported}>
-            <Play className="size-4" aria-hidden />
-            Generate RFT
-          </Button>
-          <Button
-            variant="outline"
-            onClick={submitUpdate}
-            disabled={!currentDraft || !updateSupported}
-          >
-            <RefreshCw className="size-4" aria-hidden />
-            Update RFT
-          </Button>
-          <Button
-            type="button"
-            variant={view === "strategy" ? "secondary" : "outline"}
-            aria-pressed={view === "strategy"}
-            disabled={strategyLoading}
-            onClick={() => void openStrategy()}
-          >
-            <Table2 className="size-4" aria-hidden />
-            {strategyLoading ? "Opening…" : "Strategy"}
-          </Button>
-        </div>
-        {view === "request" ? <div className="flex flex-wrap items-center gap-1.5">
+        ) : strategyLoading ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            Opening procurement…
+          </p>
+        ) : null
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setView("strategy")}
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Procurement
+              </Button>
+              {selectedRequest ? (
+                <span className="truncate text-sm font-medium">
+                  {selectedRequest.target_name}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={submitUpdate}
+                disabled={!currentDraft || !updateSupported}
+              >
+                <RefreshCw className="size-4" aria-hidden />
+                Update {requestTypeLabel(activeKind)}
+              </Button>
           {draftExportError ? (
             <span className="self-center text-xs text-destructive" role="alert">
               {draftExportError}
@@ -513,44 +537,35 @@ export function ProcurementRequestPanel({
             size="icon"
             className="size-10"
           />
-        </div> : null}
-      </div>
+            </div>
+          </div>
 
-      {view === "request" && !hasGeneratedRequests ? (
-        <p className="text-sm text-muted-foreground">
-          No requests yet. Create the first one above.
-        </p>
-      ) : null}
-
-      {view === "strategy" && strategy ? (
-        <ProcurementStrategyGrid
-          strategy={strategy}
-          disciplines={disciplines}
-          saving={strategySaving}
-          onApply={applyStrategyOperations}
-          onRefresh={refreshStrategy}
-          onEditWithAi={onEditStrategyRowWithAi}
-        />
-      ) : view === "request" && selectedRequest?.current_draft ? (
-        <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
-          <DraftReviewPanel
-            projectId={project.id}
-            draft={selectedRequest.current_draft}
-            workflowType={selectedRequest.current_draft.workflow_type}
-            projectTitle={project.title}
-            embedded
-            repositoryEvidence={repositoryEvidence}
-            selectedEvidenceIds={selectedEvidenceIds}
-            onSelectEvidenceIds={onSelectEvidenceIds}
-            onTransmittalSessionChange={onTransmittalSessionChange}
-            onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
-          />
-        </Suspense>
-      ) : view === "request" && selectedRequest ? (
-        <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          The current document will appear here when it is ready.
-        </p>
-      ) : null}
+          {selectedRequest?.current_draft ? (
+            <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
+              <DraftReviewPanel
+                projectId={project.id}
+                draft={selectedRequest.current_draft}
+                workflowType={selectedRequest.current_draft.workflow_type}
+                projectTitle={project.title}
+                embedded
+                repositoryEvidence={repositoryEvidence}
+                selectedEvidenceIds={selectedEvidenceIds}
+                onSelectEvidenceIds={onSelectEvidenceIds}
+                onTransmittalSessionChange={onTransmittalSessionChange}
+                onDraftUpdated={(draft) => onDraftUpdated?.(draft)}
+              />
+            </Suspense>
+          ) : selectedRequest ? (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              The current document will appear here when it is ready.
+            </p>
+          ) : (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              This procurement request is no longer available.
+            </p>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -568,4 +583,101 @@ function downloadBlob(blob: Blob, filename: string) {
 
 function safeFilename(value: string): string {
   return value.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Artefact";
+}
+
+function optimisticallyApplyStrategyOperations(
+  strategy: ProcurementStrategy,
+  disciplines: ProjectDiscipline[],
+  operations: ProcurementStrategyOperation[],
+): ProcurementStrategy {
+  let rows = strategy.rows;
+  let tendererColumnCount = strategy.tenderer_column_count;
+
+  for (const operation of operations) {
+    if (operation.operation === "SET_TENDERER_COLUMN_COUNT") {
+      if (operation.tenderer_column_count) {
+        tendererColumnCount = operation.tenderer_column_count;
+      }
+      continue;
+    }
+
+    if (operation.operation !== "ADD_ROW") {
+      const rowIndex = operation.row_id
+        ? rows.findIndex((row) => row.id === operation.row_id)
+        : -1;
+      if (rowIndex < 0) continue;
+      const row = rows[rowIndex];
+      let nextRow = row;
+
+      if (operation.operation === "UPDATE_ROW") {
+        nextRow = {
+          ...row,
+          ...(operation.status ? { status: operation.status } : {}),
+          ...(operation.notes !== undefined ? { notes: operation.notes } : {}),
+          ...(operation.discipline_label !== undefined
+            ? { discipline_label: operation.discipline_label }
+            : {}),
+        };
+      } else if (operation.operation === "LOCK_ROW") {
+        nextRow = { ...row, locked: true };
+      } else if (operation.operation === "UNLOCK_ROW") {
+        nextRow = { ...row, locked: false };
+      } else if (operation.operation === "DELETE_ROW") {
+        rows = rows.filter((item) => item.id !== row.id);
+        continue;
+      }
+
+      if (nextRow !== row) {
+        if (rows === strategy.rows) rows = [...rows];
+        rows[rowIndex] = nextRow;
+      }
+      continue;
+    }
+
+    if (!operation.discipline_code) continue;
+    if (rows.some((row) => row.discipline_code === operation.discipline_code)) continue;
+
+    const discipline = disciplines.find(
+      (item) => item.code === operation.discipline_code,
+    );
+    if (!discipline) continue;
+
+    if (rows === strategy.rows) rows = [...rows];
+    const row: ProcurementStrategyRow = {
+      id: `pending:${discipline.code}`,
+      discipline_code: discipline.code,
+      discipline_label: discipline.label,
+      participant_type: discipline.participant_type,
+      request_kind: discipline.request_kind,
+      status: "not_started",
+      notes: "",
+      display_order: 0,
+      origin: "manual",
+      locked: false,
+      candidates: [],
+      linked_request_ids: [],
+      no_longer_required: false,
+    };
+    const beforeIndex = operation.before_row_id
+      ? rows.findIndex((item) => item.id === operation.before_row_id)
+      : -1;
+    const afterIndex = operation.after_row_id
+      ? rows.findIndex((item) => item.id === operation.after_row_id)
+      : -1;
+    const insertionIndex =
+      beforeIndex >= 0 ? beforeIndex : afterIndex >= 0 ? afterIndex + 1 : rows.length;
+    rows.splice(insertionIndex, 0, row);
+  }
+
+  if (
+    rows === strategy.rows &&
+    tendererColumnCount === strategy.tenderer_column_count
+  ) {
+    return strategy;
+  }
+  return {
+    ...strategy,
+    tenderer_column_count: tendererColumnCount,
+    rows: rows.map((row, index) => ({ ...row, display_order: (index + 1) * 100 })),
+  };
 }

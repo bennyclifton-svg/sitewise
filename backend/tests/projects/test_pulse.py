@@ -693,6 +693,7 @@ def test_acceptance_g_unapproved_variation_pulse_attention() -> None:
         build_pulse_feed(
             CountingSession(invoices=[invoice]),
             PROJECT_ID,
+            now=NOW,
         )
     )
     assert len(feed.attention) == 1
@@ -718,6 +719,7 @@ def test_acceptance_i_drawing_revision_pulse_attention() -> None:
                 ]
             ),
             PROJECT_ID,
+            now=NOW,
         )
     )
     assert len(feed.attention) == 1

@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from typing import Literal
 
 ActivityKind = Literal["stage", "activity", "milestone"]
+DependencyEndpoint = Literal["start", "finish"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -14,8 +15,6 @@ class ActivityDraft:
     start_date: date
     duration_days: int
     parent_key: str | None = None
-    predecessor_key: str | None = None
-    lag_days: int = 0
     finish_date: date | None = None
     name: str = ""
     display_order: int = 0
@@ -23,8 +22,39 @@ class ActivityDraft:
     notes: str = ""
 
 
-def schedule_activities(rows: list[ActivityDraft]) -> list[ActivityDraft]:
-    """Compute finishes and apply finish-to-start links in topological order."""
+@dataclass(frozen=True, slots=True)
+class DependencyDraft:
+    dependency_key: str
+    source_activity_key: str
+    target_activity_key: str
+    source_endpoint: DependencyEndpoint
+    target_endpoint: DependencyEndpoint
+    lag_days: int = 0
+
+
+def dependency_constraint_start(
+    dependency: DependencyDraft,
+    *,
+    source: ActivityDraft,
+    target_duration_days: int,
+) -> date:
+    source_anchor = (
+        source.start_date
+        if dependency.source_endpoint == "start"
+        else source.finish_date
+    )
+    if source_anchor is None:
+        raise ValueError(f"{source.activity_key} is missing a finish date")
+    target_offset = target_duration_days if dependency.target_endpoint == "finish" else 0
+    return source_anchor + timedelta(days=dependency.lag_days - target_offset)
+
+
+def schedule_activities(
+    rows: list[ActivityDraft],
+    dependencies: list[DependencyDraft] | None = None,
+) -> list[ActivityDraft]:
+    """Compute the earliest schedule satisfying every directed dependency."""
+    dependencies = dependencies or []
     by_key = {row.activity_key: row for row in rows}
     if len(by_key) != len(rows):
         raise ValueError("activity_key values must be unique")
@@ -34,10 +64,25 @@ def schedule_activities(rows: list[ActivityDraft]) -> list[ActivityDraft]:
             raise ValueError(f"{row.activity_key} duration_days cannot be negative")
         if row.kind == "milestone" and row.duration_days != 0:
             raise ValueError(f"{row.activity_key} milestone duration_days must be 0")
-        if row.predecessor_key and row.predecessor_key not in by_key:
+    incoming: dict[str, list[DependencyDraft]] = {}
+    seen_dependencies: set[str] = set()
+    for dependency in dependencies:
+        if dependency.dependency_key in seen_dependencies:
+            raise ValueError(f"duplicate dependency {dependency.dependency_key}")
+        seen_dependencies.add(dependency.dependency_key)
+        if dependency.lag_days < 0:
+            raise ValueError(f"{dependency.dependency_key} lag_days cannot be negative")
+        if dependency.source_activity_key not in by_key:
             raise ValueError(
-                f"{row.activity_key} predecessor {row.predecessor_key} does not exist"
+                f"dependency source {dependency.source_activity_key} does not exist"
             )
+        if dependency.target_activity_key not in by_key:
+            raise ValueError(
+                f"dependency target {dependency.target_activity_key} does not exist"
+            )
+        if dependency.source_activity_key == dependency.target_activity_key:
+            raise ValueError("a dependency cannot link an activity to itself")
+        incoming.setdefault(dependency.target_activity_key, []).append(dependency)
 
     visiting: set[str] = set()
     resolved: dict[str, ActivityDraft] = {}
@@ -50,12 +95,17 @@ def schedule_activities(rows: list[ActivityDraft]) -> list[ActivityDraft]:
         visiting.add(key)
         row = by_key[key]
         start = row.start_date
-        if row.predecessor_key:
-            predecessor = resolve(row.predecessor_key)
-            predecessor_finish = predecessor.finish_date
-            if predecessor_finish is None:
-                raise ValueError(f"{row.predecessor_key} is missing a finish date")
-            start = predecessor_finish + timedelta(days=row.lag_days)
+        constraints = incoming.get(key, [])
+        if constraints:
+            starts = [
+                dependency_constraint_start(
+                    dependency,
+                    source=resolve(dependency.source_activity_key),
+                    target_duration_days=row.duration_days,
+                )
+                for dependency in constraints
+            ]
+            start = max(starts)
         finish = start if row.kind == "milestone" else start + timedelta(days=row.duration_days)
         scheduled = replace(row, start_date=start, finish_date=finish)
         visiting.remove(key)
@@ -65,9 +115,37 @@ def schedule_activities(rows: list[ActivityDraft]) -> list[ActivityDraft]:
     return [resolve(row.activity_key) for row in rows]
 
 
-def apply_link_move(row: ActivityDraft, *, new_start: date) -> ActivityDraft:
-    """Dragging a bar sets an explicit start and converts the row to floating."""
-    return replace(row, start_date=new_start, predecessor_key=None, lag_days=0)
+def driving_dependency(
+    rows: list[ActivityDraft],
+    dependencies: list[DependencyDraft],
+    target_key: str,
+) -> DependencyDraft | None:
+    """Return the stable incoming dependency currently controlling target start."""
+    by_key = {row.activity_key: row for row in rows}
+    target = by_key.get(target_key)
+    if target is None:
+        return None
+    candidates: list[tuple[date, str, DependencyDraft]] = []
+    for dependency in dependencies:
+        if dependency.target_activity_key != target_key:
+            continue
+        source = by_key.get(dependency.source_activity_key)
+        if source is None:
+            continue
+        candidates.append(
+            (
+                dependency_constraint_start(
+                    dependency,
+                    source=source,
+                    target_duration_days=target.duration_days,
+                ),
+                dependency.dependency_key,
+                dependency,
+            )
+        )
+    if not candidates:
+        return None
+    return max(candidates)[2]
 
 
 def rollup_stages(rows: list[ActivityDraft]) -> list[ActivityDraft]:

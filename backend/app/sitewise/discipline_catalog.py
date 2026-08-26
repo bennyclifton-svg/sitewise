@@ -27,6 +27,7 @@ class Discipline:
     aliases: tuple[str, ...]
     workspace_slug: str
     pmp_label: str
+    picker_visible: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +41,15 @@ class RequiredProjectDiscipline:
 
 def _normalise(value: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", value.casefold()).split())
+
+
+def alphanumeric_label_key(value: str) -> tuple[tuple[int, str | int], ...]:
+    """Compare human-facing labels case-insensitively with numeric runs."""
+    return tuple(
+        (1, int(part)) if part.isdigit() else (0, part.casefold())
+        for part in re.split(r"(\d+)", value)
+        if part
+    )
 
 
 @lru_cache(maxsize=1)
@@ -61,6 +71,7 @@ def _discipline(raw: object) -> Discipline:
         aliases=tuple(str(value) for value in raw.get("aliases", [])),
         workspace_slug=str(raw["workspace_slug"]),
         pmp_label=str(raw.get("pmp_label") or raw["label"]),
+        picker_visible=bool(raw.get("picker_visible", True)),
     )
 
 
@@ -190,7 +201,7 @@ def required_project_disciplines(project: object) -> tuple[RequiredProjectDiscip
         sources = merged[discipline.code][1]
         if source not in sources:
             sources.append(source)
-    return tuple(
+    rows = (
         RequiredProjectDiscipline(
             code=code,
             label=merged[code][0].pmp_label,
@@ -199,4 +210,14 @@ def required_project_disciplines(project: object) -> tuple[RequiredProjectDiscip
             sources=tuple(merged[code][1]),
         )
         for code in order
+    )
+    participant_order = {"consultant": 0, "trade": 1, "supplier": 1}
+    return tuple(
+        sorted(
+            rows,
+            key=lambda row: (
+                participant_order[row.participant_type],
+                alphanumeric_label_key(row.label),
+            ),
+        )
     )

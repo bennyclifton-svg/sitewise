@@ -84,9 +84,57 @@ def test_override_rejects_cross_project_document(client: TestClient) -> None:
     ):
         response = client.put(
             f"/projects/{PROJECT_B}/documents/{DOCUMENT_ID}/classification",
-            json={"document_class": "certificate", "document_subject": "planning"},
+            json={
+                "document_class": "certificate",
+                "document_subject": "town_planner",
+            },
         )
 
     assert response.status_code == 404
     assert "document" in str(response.json()["detail"]).lower()
     assert response.status_code != 403
+
+
+def test_bulk_override_updates_selected_documents(client: TestClient) -> None:
+    first = _document()
+    second = _document()
+    second.id = uuid.uuid4()
+    second.filename = "Structural Plan.pdf"
+    second.document_class = "drawing"
+    second.document_metadata = {"subject": "structural"}
+
+    with (
+        patch(
+            "app.api.projects.get_project",
+            new=AsyncMock(return_value=_project(PROJECT_A)),
+        ),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch(
+            "app.api.projects.set_document_classifications",
+            new=AsyncMock(return_value=[first, second]),
+        ) as update,
+    ):
+        response = client.put(
+            f"/projects/{PROJECT_A}/documents/classification/batch",
+            json={
+                "document_ids": [str(first.id), str(second.id)],
+                "document_subject": "architect",
+            },
+        )
+
+    assert response.status_code == 200
+    assert [row["id"] for row in response.json()["documents"]] == [
+        str(first.id),
+        str(second.id),
+    ]
+    assert update.await_args.kwargs["document_class"] is None
+    assert update.await_args.kwargs["document_subject"] == "architect"
+
+
+def test_bulk_override_requires_a_type_or_category(client: TestClient) -> None:
+    response = client.put(
+        f"/projects/{PROJECT_A}/documents/classification/batch",
+        json={"document_ids": [str(DOCUMENT_ID)]},
+    )
+
+    assert response.status_code == 422

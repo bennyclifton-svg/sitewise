@@ -1,5 +1,4 @@
 import {
-  BriefcaseBusiness,
   ClipboardList,
   FileText,
   GanttChart,
@@ -45,7 +44,6 @@ export function buildLifecycleTiles({
   isRunningProcurement?: boolean;
 }): WorkflowTile[] {
   const capabilities = project.workflow_capabilities?.capabilities;
-  const tenderCapability = capabilities?.tender_comparison;
   const consultantProcurementCapability = capabilities?.consultant_procurement;
   const tradeProcurementCapability = capabilities?.trade_procurement;
   const procurementTileStatus = procurementStatus({
@@ -123,18 +121,6 @@ export function buildLifecycleTiles({
       statusLabel: procurementTileStatus.label,
       description:
         "Prepare consultant proposals, trade quotations, or head-contractor tenders and review the latest draft.",
-      implemented: true,
-    },
-    {
-      id: "procurement",
-      label: "Tender Comparison",
-      folder: "05-procurement",
-      icon: BriefcaseBusiness,
-      status: tenderCapability && tenderCapability.status !== "supported" ? "blocked" : "ready",
-      statusLabel:
-        tenderCapability && tenderCapability.status !== "supported" ? "Blocked" : "Ready",
-      description:
-        "Create tender comparisons, review QA, inspect the matrix, and approve reports.",
       implemented: true,
     },
   ];

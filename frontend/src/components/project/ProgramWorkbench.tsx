@@ -15,6 +15,18 @@ import { workbenchKeys } from "@/lib/queries/workbench";
 
 const FLUSH_MS = 220;
 
+type ProgrammeViewMutation = {
+  view_scale?: ProgrammeScale;
+  collapsed_stage_keys?: string[];
+};
+
+function mergeProgrammeViewMutations(
+  sent: ProgrammeViewMutation,
+  pending: ProgrammeViewMutation | null,
+): ProgrammeViewMutation {
+  return pending ? { ...sent, ...pending } : sent;
+}
+
 export function ProgramWorkbench({
   projectId,
   active = true,
@@ -29,7 +41,7 @@ export function ProgramWorkbench({
   const stateRef = useRef<ProgrammeState | null>(null);
   const versionRef = useRef(0);
   const queueRef = useRef<ProgrammeOperation[]>([]);
-  const scaleRef = useRef<ProgrammeScale | null>(null);
+  const viewRef = useRef<ProgrammeViewMutation | null>(null);
   const timerRef = useRef<number | null>(null);
   const flushingRef = useRef(false);
 
@@ -42,7 +54,7 @@ export function ProgramWorkbench({
   useEffect(() => {
     let cancelled = false;
     queueRef.current = [];
-    scaleRef.current = null;
+    viewRef.current = null;
     stateRef.current = null;
     versionRef.current = 0;
     void queryClient
@@ -96,10 +108,10 @@ export function ProgramWorkbench({
   async function flush() {
     if (flushingRef.current) return;
     const queued = coalesceProgrammeOperations(queueRef.current);
-    const scale = scaleRef.current;
-    if ((!queued.length && !scale) || !stateRef.current) return;
+    const view = viewRef.current;
+    if ((!queued.length && !view) || !stateRef.current) return;
     queueRef.current = [];
-    scaleRef.current = null;
+    viewRef.current = null;
     flushingRef.current = true;
     try {
       let next = stateRef.current;
@@ -107,13 +119,11 @@ export function ProgramWorkbench({
         next = await api.applyProgrammeOperations(projectId, versionRef.current, queued);
         versionRef.current = next.version;
       }
-      if (scale) {
-        next = await api.setProgrammeView(projectId, versionRef.current, {
-          view_scale: scale,
-        });
+      if (view) {
+        next = await api.setProgrammeView(projectId, versionRef.current, view);
         versionRef.current = next.version;
       }
-      if (queueRef.current.length === 0 && scaleRef.current === null) {
+      if (queueRef.current.length === 0 && viewRef.current === null) {
         replaceState(next);
       } else if (stateRef.current) {
         const merged = { ...stateRef.current, version: next.version };
@@ -126,7 +136,9 @@ export function ProgramWorkbench({
           const fresh = await api.getProgrammeState(projectId);
           versionRef.current = fresh.version;
           queueRef.current = [...queued, ...queueRef.current];
-          if (scale) scaleRef.current = scaleRef.current ?? scale;
+          if (view) {
+            viewRef.current = mergeProgrammeViewMutations(view, viewRef.current);
+          }
           flushingRef.current = false;
           await flush();
           return;
@@ -142,13 +154,13 @@ export function ProgramWorkbench({
       try {
         replaceState(await api.ensureProgramme(projectId));
         queueRef.current = [];
-        scaleRef.current = null;
+        viewRef.current = null;
       } catch {
         // Keep the optimistic state visible.
       }
     } finally {
       flushingRef.current = false;
-      if (queueRef.current.length || scaleRef.current) scheduleFlush(true);
+      if (queueRef.current.length || viewRef.current) scheduleFlush(true);
     }
   }
 
@@ -170,7 +182,17 @@ export function ProgramWorkbench({
     const next = { ...current, view_scale };
     stateRef.current = next;
     setState(next);
-    scaleRef.current = view_scale;
+    viewRef.current = { ...viewRef.current, view_scale };
+    scheduleFlush();
+  }
+
+  function changeCollapsed(collapsed_stage_keys: string[]) {
+    const current = stateRef.current;
+    if (!current) return;
+    const next = { ...current, collapsed_stage_keys };
+    stateRef.current = next;
+    setState(next);
+    viewRef.current = { ...viewRef.current, collapsed_stage_keys };
     scheduleFlush();
   }
 
@@ -190,6 +212,7 @@ export function ProgramWorkbench({
         active={active}
         onOperate={operate}
         onScaleChange={changeScale}
+        onCollapsedChange={changeCollapsed}
       />
     </div>
   );

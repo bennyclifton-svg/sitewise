@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useInstructionTraySlot } from "@/components/project/cockpitShellLayout";
 import {
@@ -26,14 +26,17 @@ import {
   duplicateBlock,
   insertAfterBlock,
   insertBeforeBlock,
+  newTemporaryBlockId,
   operationForTarget,
   replaceBlock,
+  swapTemporaryBlockIds,
   type ArtifactBlockOperationType,
   type ArtifactBlockTarget,
 } from "@/lib/artifact-blocks";
 import { api } from "@/lib/api";
 import {
   applyArtefactBlockDelta,
+  optimisticMatchesServer,
   type ArtefactBlockDelta,
 } from "@/lib/draft-block-delta";
 import { rebaseDraftBlockEdit } from "@/lib/draft-block-rebase";
@@ -538,7 +541,7 @@ export function DraftReviewPanel({
     window.getSelection()?.removeAllRanges();
   }
 
-  async function applyInstructions() {
+  const applyInstructions = useCallback(async () => {
     if (!loadedDraft || trayItems.length === 0) return;
     setIsApplying(true);
     setApplyError(null);
@@ -580,7 +583,7 @@ export function DraftReviewPanel({
     } finally {
       setIsApplying(false);
     }
-  }
+  }, [loadedDraft, onDraftUpdated, projectId, trayItems]);
 
   // The cockpit right panel owns the tray; this publishes into that slot.
   useLayoutEffect(() => {
@@ -617,6 +620,7 @@ export function DraftReviewPanel({
     trayItems,
     isApplying,
     applyError,
+    applyInstructions,
   ]);
 
   if (!draft) {
@@ -820,6 +824,7 @@ export function DraftReviewPanel({
     }
 
     const snapshot = loadedDraft;
+    const clientOperationId = crypto.randomUUID();
     const startedAt = performance.now();
     setIsSaving(true);
     setActionError(null);
@@ -833,7 +838,7 @@ export function DraftReviewPanel({
         commit: (base) =>
           api.applyDraftBlockOperations(projectId, base.id, base.version, [
             operationForTarget("UPDATE", canonical, { content }),
-          ]),
+          ], clientOperationId),
         confirmed: (value) =>
           applyArtefactBlockDelta(
             snapshot,
@@ -1009,6 +1014,11 @@ export function DraftReviewPanel({
   ) {
     if (!loadedDraft) return;
     const snapshot = loadedDraft;
+    const clientOperationId = crypto.randomUUID();
+    const temporaryBlockId =
+      operation === "ADD" || operation === "DUPLICATE"
+        ? newTemporaryBlockId()
+        : undefined;
     const canonical = canonicalBlockTarget(target);
     const nextMarkdown =
       operation === "UPDATE"
@@ -1018,11 +1028,11 @@ export function DraftReviewPanel({
             contentWithPreservedMarker(source, canonical, content ?? ""),
           )
         : operation === "ADD" && placement === "before"
-          ? insertBeforeBlock(source, canonical, content ?? "")
+          ? insertBeforeBlock(source, canonical, content ?? "", temporaryBlockId)
           : operation === "ADD"
-            ? insertAfterBlock(source, canonical, content ?? "")
+            ? insertAfterBlock(source, canonical, content ?? "", temporaryBlockId)
             : operation === "DUPLICATE"
-              ? duplicateBlock(source, canonical)
+              ? duplicateBlock(source, canonical, temporaryBlockId)
               : operation === "DELETE" || operation === "CONFIRM_DELETE"
                 ? deleteBlock(source, canonical)
                 : source;
@@ -1052,12 +1062,15 @@ export function DraftReviewPanel({
         commit: (base) =>
           api.applyDraftBlockOperations(projectId, base.id, base.version, [
             operationForTarget(operation, canonical, { content, placement }),
-          ]),
+          ], clientOperationId),
         confirmed: (value) =>
           applyArtefactBlockDelta(
             snapshot,
             value.delta,
-            optimistic.content_markdown,
+            swapTemporaryBlockIds(
+              optimistic.content_markdown,
+              value.changed_block_ids,
+            ),
           ),
         reload: async () =>
           (await api.getLatestDraft(projectId, snapshot.workflow_type)) ?? snapshot,
@@ -1084,7 +1097,10 @@ export function DraftReviewPanel({
         workflowType: snapshot.workflow_type,
         snapshot,
         delta: response.delta,
-        optimisticMarkdown: optimistic.content_markdown,
+        optimisticMarkdown: swapTemporaryBlockIds(
+          optimistic.content_markdown,
+          response.changed_block_ids,
+        ),
         expectedSnippet: content,
       });
       setLoadedDraft(confirmed.draft);
@@ -1228,7 +1244,7 @@ export function DraftReviewPanel({
               markdown={source}
               version={displayDraft.version}
               hideLeadingHeading={isProcurementDraft(displayDraft.workflow_type)}
-              hideProgrammeSectionBody={isPmpDraft(displayDraft.workflow_type)}
+              hideProgrammeSectionBody={isProgrammeFigureDraft(displayDraft.workflow_type)}
               projectId={projectId}
               decisions={projectDecisions ?? undefined}
               projectTitle={projectTitle}
@@ -1308,8 +1324,12 @@ export function DraftReviewPanel({
               isSavingTransmittal={isSavingTransmittal}
               transmittalSaveError={transmittalSaveError}
             />
-            {isPmpDraft(displayDraft.workflow_type) ? (
-              <PmpProgrammeFigure host={programmeHost} contentKey={source} />
+            {isProgrammeFigureDraft(displayDraft.workflow_type) ? (
+              <PmpProgrammeFigure
+                host={programmeHost}
+                contentKey={source}
+                alwaysVisible
+              />
             ) : null}
           </div>
           </PmpProgrammeProvider>
@@ -1476,6 +1496,10 @@ function isPmpDraft(workflowType: string): boolean {
   return workflowType === "create_pmp" || workflowType === "update_pmp";
 }
 
+function isProgrammeFigureDraft(workflowType: string): boolean {
+  return isPmpDraft(workflowType) || isProcurementDraft(workflowType);
+}
+
 function isProcurementDraft(workflowType: string): boolean {
   return (
     workflowType.startsWith("consultant_procurement_") ||
@@ -1602,6 +1626,9 @@ async function resolveConfirmedDraft(args: {
     args.delta,
     args.optimisticMarkdown,
   );
+  if (await optimisticMatchesServer(args.optimisticMarkdown, args.delta)) {
+    return { draft: fallback, warning: null };
+  }
   try {
     const latest = await api.getLatestDraft(args.projectId, args.workflowType);
     if (!latest || latest.version !== args.delta.version) {

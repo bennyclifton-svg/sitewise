@@ -665,6 +665,12 @@ Commercial office refurbishment scope is being confirmed from setup inputs and c
 | --- | --- | --- | --- | --- | --- |
 | Architect | Harrison Clarke Studio | Appointment | TBC | Grounded | — |
 
+## Accommodation Schedule
+
+| Space | Level | Area | Characteristics | Status |
+| --- | --- | --- | --- | --- |
+| Office | TBC | TBC | Existing office refurbishment | Existing |
+
 ## Planning and Compliance
 
 Approval pathway remains an Assumption pending authority records.
@@ -780,7 +786,7 @@ No project evidence documents numbered yet.
             )
         )
 
-    assert result.status == "complete"
+    assert result.status == "complete", result.message
     saved_markdown = create_draft.await_args.kwargs["content_markdown"]
     assert "Engagement letter on file" in saved_markdown
 

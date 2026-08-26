@@ -41,6 +41,11 @@ class _ScalarResult:
         return self.value
 
 
+class _ScalarRowsResult:
+    def scalars(self):
+        return []
+
+
 class _EnsureSession:
     def __init__(self) -> None:
         self.strategy = None
@@ -336,3 +341,76 @@ def test_consultant_appointment_marks_awarded_and_retains_firm() -> None:
     assert row.candidates[0].company_name == "North & Co"
     assert row.candidates[0].slot == 1
     assert strategy.revision == 4
+
+
+def test_strategy_snapshot_groups_and_sorts_rows_alphanumerically() -> None:
+    strategy = _strategy()
+    now = datetime(2026, 8, 22, tzinfo=UTC)
+
+    def row(
+        *,
+        row_id: str,
+        label: str,
+        participant_type: str,
+        display_order: int,
+    ) -> ProcurementStrategyRow:
+        return ProcurementStrategyRow(
+            id=uuid.UUID(row_id),
+            strategy_id=STRATEGY_ID,
+            discipline_code=None,
+            discipline_label=label,
+            participant_type=participant_type,
+            request_kind=(
+                "consultant_rfp" if participant_type == "consultant" else "trade_rft"
+            ),
+            status="not_started",
+            notes="",
+            display_order=display_order,
+            origin="manual",
+            locked=False,
+            created_at=now,
+            updated_at=now,
+            candidates=[],
+        )
+
+    strategy.rows = [
+        row(
+            row_id="00000000-0000-0000-0000-000000000010",
+            label="Trade 10",
+            participant_type="trade",
+            display_order=100,
+        ),
+        row(
+            row_id="00000000-0000-0000-0000-000000000020",
+            label="Zulu Consultant",
+            participant_type="consultant",
+            display_order=200,
+        ),
+        row(
+            row_id="00000000-0000-0000-0000-000000000002",
+            label="Trade 2",
+            participant_type="trade",
+            display_order=300,
+        ),
+        row(
+            row_id="00000000-0000-0000-0000-000000000001",
+            label="Alpha Consultant",
+            participant_type="consultant",
+            display_order=400,
+        ),
+    ]
+
+    class SnapshotSession(_Session):
+        async def execute(self, _statement):
+            return _ScalarRowsResult()
+
+    snapshot = run_async(
+        service.strategy_snapshot(SnapshotSession(), strategy=strategy)
+    )
+
+    assert [item["discipline_label"] for item in snapshot["rows"]] == [
+        "Alpha Consultant",
+        "Zulu Consultant",
+        "Trade 2",
+        "Trade 10",
+    ]

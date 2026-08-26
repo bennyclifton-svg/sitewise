@@ -78,9 +78,9 @@ def test_house_extension_register_lists_starter_rows_not_the_stub() -> None:
     markdown = _render_taxonomy_consultants(_house())
     assert _disciplines(markdown) == [
         "Architect",
+        "Civil",
         "Structural",
         "Town Planner",
-        "Civil",
     ]
     assert "Discipline roster" not in markdown
     assert "The Architect row is the design lead" not in markdown
@@ -93,7 +93,13 @@ def test_scope_and_appointment_rows_are_not_duplicated() -> None:
         _house(work_scope=["structural_tie_in", "partitions_walls"])
     )
     disciplines = _disciplines(markdown)
-    assert disciplines[0] == "Structural"
+    assert disciplines == [
+        "Architect",
+        "Civil",
+        "Interior Design",
+        "Structural",
+        "Town Planner",
+    ]
     assert disciplines.count("Architect") == 1
     assert disciplines.count("Structural") == 1
     assert "Town Planner" in disciplines

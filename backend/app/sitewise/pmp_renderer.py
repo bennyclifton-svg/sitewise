@@ -6,6 +6,7 @@ import re
 from typing import Literal
 
 from app.database.project import Project
+from app.sitewise.discipline_catalog import alphanumeric_label_key
 from app.sitewise.mobilisation_evidence import (
     GAP_CERTIFIER,
     GAP_CONSTRUCTION_BUDGET,
@@ -1698,6 +1699,10 @@ def _render_taxonomy_consultants(
         rows.append(
             "| Discipline roster | TBC | | Not evidenced | — |"
         )
+    rows[2:] = sorted(
+        rows[2:],
+        key=lambda row: alphanumeric_label_key(row.split("|", 2)[1].strip()),
+    )
 
     if lead == DESIGN_LEAD_UNCONFIRMED:
         intro = (

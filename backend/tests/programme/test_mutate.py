@@ -1,8 +1,16 @@
 from datetime import date
 
-from app.programme.mutate import apply_operations
+from app.programme.mutate import apply_operations as apply_programme_operations
 from app.programme.schemas import ProgrammeActivityInput, ProgrammeOperation
 from app.programme.seed import default_stage_inputs
+
+
+def apply_operations(
+    activities: list[ProgrammeActivityInput],
+    operations: list[ProgrammeOperation],
+) -> list[ProgrammeActivityInput]:
+    rows, _dependencies = apply_programme_operations(activities, [], operations)
+    return rows
 
 
 def _activity(

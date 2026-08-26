@@ -66,6 +66,7 @@ def test_ensure_programme_seeds_three_linked_stages() -> None:
         )
     )
     assert state.version == 1
+    assert state.collapsed_stage_keys == []
     assert [item.activity_key for item in state.activities] == [
         "planning",
         "procurement",
@@ -73,9 +74,11 @@ def test_ensure_programme_seeds_three_linked_stages() -> None:
     ]
     by_key = {item.activity_key: item for item in state.activities}
     assert by_key["planning"].start_date == date(2026, 8, 16)
-    assert by_key["procurement"].predecessor_key == "planning"
     assert by_key["procurement"].start_date == date(2026, 11, 14)
-    assert by_key["delivery"].predecessor_key == "procurement"
+    assert [
+        (item.source_activity_key, item.target_activity_key)
+        for item in state.dependencies
+    ] == [("planning", "procurement"), ("procurement", "delivery")]
 
 
 def test_ensure_programme_returns_existing() -> None:
@@ -171,7 +174,7 @@ def test_add_activity_under_delivery() -> None:
     assert delivery.finish_date == slab.finish_date
 
 
-def test_drag_clears_link() -> None:
+def test_drag_preserves_link_and_records_lag() -> None:
     session = _Session()
     run_async(
         ensure_programme(
@@ -198,8 +201,74 @@ def test_drag_clears_link() -> None:
         )
     )
     delivery = next(item for item in state.activities if item.activity_key == "delivery")
-    assert delivery.predecessor_key is None
     assert delivery.start_date == date(2028, 1, 1)
+    dependency = next(
+        item for item in state.dependencies if item.target_activity_key == "delivery"
+    )
+    assert dependency.source_activity_key == "procurement"
+    assert dependency.lag_days > 0
+
+
+def test_adds_typed_dependency_and_rejects_cycles() -> None:
+    session = _Session()
+    run_async(
+        ensure_programme(
+            session,
+            project=_project(),
+            author_user_id=USER_ID,
+            start=date(2026, 8, 16),
+        )
+    )
+    state = run_async(
+        apply_programme_operations(
+            session,
+            project=_project(),
+            author_user_id=USER_ID,
+            expected_base_version=1,
+            operations=[
+                ProgrammeOperation(
+                    operation="ADD",
+                    target_type="dependency",
+                    values={
+                        "dependency_key": "planning:start->delivery:finish",
+                        "source_activity_key": "planning",
+                        "target_activity_key": "delivery",
+                        "source_endpoint": "start",
+                        "target_endpoint": "finish",
+                        "lag_days": 4,
+                    },
+                )
+            ],
+        )
+    )
+    assert any(
+        item.dependency_key == "planning:start->delivery:finish"
+        and item.lag_days == 4
+        for item in state.dependencies
+    )
+
+    with pytest.raises(ValueError, match="cycle"):
+        run_async(
+            apply_programme_operations(
+                session,
+                project=_project(),
+                author_user_id=USER_ID,
+                expected_base_version=2,
+                operations=[
+                    ProgrammeOperation(
+                        operation="ADD",
+                        target_type="dependency",
+                        values={
+                            "dependency_key": "delivery:finish->planning:start",
+                            "source_activity_key": "delivery",
+                            "target_activity_key": "planning",
+                            "source_endpoint": "finish",
+                            "target_endpoint": "start",
+                        },
+                    )
+                ],
+            )
+        )
 
 
 def test_delete_stage_removes_children() -> None:
@@ -250,8 +319,10 @@ def test_delete_stage_removes_children() -> None:
     keys = [item.activity_key for item in state.activities]
     assert "delivery" not in keys
     assert "slab" not in keys
-    procurement = next(item for item in state.activities if item.activity_key == "procurement")
-    assert procurement.predecessor_key is None or procurement.predecessor_key != "delivery"
+    assert all(
+        item.source_activity_key != "delivery" and item.target_activity_key != "delivery"
+        for item in state.dependencies
+    )
 
 
 def test_set_view_scale() -> None:
@@ -276,3 +347,27 @@ def test_set_view_scale() -> None:
     assert state.version == 2
     assert state.view_scale == "quarter"
     assert state.pmp_embed_visible is True
+
+
+def test_set_collapsed_stages_filters_unknown_keys() -> None:
+    session = _Session()
+    run_async(
+        ensure_programme(
+            session,
+            project=_project(),
+            author_user_id=USER_ID,
+            start=date(2026, 8, 16),
+        )
+    )
+    state = run_async(
+        set_programme_view(
+            session,
+            project=_project(),
+            author_user_id=USER_ID,
+            expected_base_version=1,
+            update=ProgrammeViewUpdate(
+                collapsed_stage_keys=["planning", "missing", "planning"]
+            ),
+        )
+    )
+    assert state.collapsed_stage_keys == ["planning"]

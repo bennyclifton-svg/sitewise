@@ -115,6 +115,12 @@ describe("cost-plan optimistic helpers", () => {
       categories: ["Construction"],
     });
     expect(costPlanCategories(current)).toEqual(["Construction"]);
+    expect(
+      costPlanCategories({
+        ...current,
+        categories: ["Construction", "New category", "Contingency"],
+      }),
+    ).toEqual(["Construction", "New category", "Contingency"]);
     expect(costPlanCategories({ ...current, items: [], categories: [] })).toEqual([
       ...DEFAULT_COST_PLAN_CATEGORIES,
     ]);

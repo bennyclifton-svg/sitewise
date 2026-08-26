@@ -132,6 +132,7 @@ class Settings(BaseSettings):
     agent_web_research_enabled: bool = False
     web_search_provider: str = "nsw_legislation"
     brave_search_api_key: str | None = None
+    tavily_api_key: str | None = None
     web_search_max_results: int = 6
     web_fetch_timeout_seconds: float = 12.0
     web_fetch_max_bytes: int = 4 * 1024 * 1024
@@ -184,9 +185,9 @@ class Settings(BaseSettings):
     @field_validator("web_search_provider")
     @classmethod
     def validate_web_search_provider(cls, value: str) -> str:
-        if value not in {"nsw_legislation", "brave"}:
+        if value not in {"nsw_legislation", "brave", "tavily"}:
             raise ValueError(
-                "WEB_SEARCH_PROVIDER must be nsw_legislation or brave"
+                "WEB_SEARCH_PROVIDER must be nsw_legislation, brave, or tavily"
             )
         return value
 
@@ -234,6 +235,14 @@ class Settings(BaseSettings):
         ):
             raise ValueError(
                 "WEB_SEARCH_PROVIDER is brave, but BRAVE_SEARCH_API_KEY is missing"
+            )
+        if (
+            self.agent_web_research_enabled
+            and self.web_search_provider == "tavily"
+            and not self.tavily_api_key
+        ):
+            raise ValueError(
+                "WEB_SEARCH_PROVIDER is tavily, but TAVILY_API_KEY is missing"
             )
         return self
 

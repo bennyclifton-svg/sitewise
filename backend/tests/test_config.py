@@ -62,6 +62,27 @@ def test_web_research_enabled_requires_key_for_brave_provider():
         )
 
 
+def test_web_research_enabled_requires_key_for_tavily_provider():
+    with pytest.raises(ValidationError, match="TAVILY_API_KEY"):
+        Settings(
+            **_settings_kwargs(),
+            agent_web_research_enabled=True,
+            web_search_provider="tavily",
+            tavily_api_key=None,
+        )
+
+
+def test_web_research_enabled_accepts_tavily_key():
+    settings = Settings(
+        **_settings_kwargs(),
+        agent_web_research_enabled=True,
+        web_search_provider="tavily",
+        tavily_api_key="tvly-test",
+    )
+
+    assert settings.web_search_provider == "tavily"
+
+
 def test_web_search_provider_is_validated():
     with pytest.raises(ValidationError, match="WEB_SEARCH_PROVIDER"):
         Settings(

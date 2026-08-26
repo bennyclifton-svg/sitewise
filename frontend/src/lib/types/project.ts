@@ -290,6 +290,10 @@ export type EvidencePreview = {
   used_by?: DocumentUsageMark[];
 };
 
+export type BatchDocumentClassificationResponse = {
+  documents: EvidencePreview[];
+};
+
 export type ProjectDetail = ProjectSummary & {
   metadata: ProjectMetadata | null;
   evidence_preview: EvidencePreview | null;
@@ -721,6 +725,7 @@ export type ProjectDiscipline = {
   participant_type: ProcurementParticipantType;
   request_kind: ProcurementRequestKind;
   workspace_slug: string;
+  picker_visible?: boolean;
 };
 
 export type ProcurementStrategyStatus =

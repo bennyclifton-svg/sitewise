@@ -686,6 +686,25 @@ html.sw-atmosphere-dense[data-theme="light"] {
     line-height: 1.15;
   }
 
+  .program-gantt-activity-bar {
+    border-radius: 2px;
+    background: var(--sw-beam);
+  }
+
+  .program-gantt-summary-bar {
+    background: color-mix(
+      in oklch,
+      var(--sw-text-primary) 82%,
+      var(--sw-beam)
+    );
+  }
+
+  .program-gantt-dependency-editor {
+    color: var(--sw-text-secondary);
+    background: color-mix(in oklch, var(--sw-panel) 94%, var(--sw-void));
+    border-color: var(--sw-edge);
+  }
+
   .program-gantt-field {
     border: 1px solid transparent !important;
     background: transparent !important;
@@ -752,7 +771,7 @@ html.sw-atmosphere-dense[data-theme="light"] {
   /* Compact Excel-like Cost Plan grid: shared cell borders, no inter-cell buffer. */
   .cost-plan-grid-table {
     width: 100%;
-    min-width: 0;
+    min-width: 76rem;
     border-collapse: collapse;
     table-layout: fixed;
     font-size: 0.6875rem;
@@ -1415,6 +1434,30 @@ html.sw-atmosphere-dense[data-theme="light"] {
 
 .sw-table-row--accent:hover {
   background: color-mix(in oklch, var(--sw-beam) 10%, transparent);
+}
+
+/* Repository columns yield from right to left as the resizable rail narrows. */
+.document-repository-panel {
+  container-name: document-repository;
+  container-type: inline-size;
+}
+
+@container document-repository (max-width: 340px) {
+  .document-repository-col-type {
+    display: none;
+  }
+}
+
+@container document-repository (max-width: 280px) {
+  .document-repository-col-category {
+    display: none;
+  }
+}
+
+@container document-repository (max-width: 220px) {
+  .document-repository-col-revision {
+    display: none;
+  }
 }
 
 /* Evidence / conflict status chips — square chip + LED dot */

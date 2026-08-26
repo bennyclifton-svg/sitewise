@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from app.database.project import Project
+from app.programme.figure import render_programme_markdown
+from app.programme.schemas import ProgrammeState
 from app.projects.identity import classification_summary, resolve_project_identity
 from app.sitewise.pmp_citations import (
     CitationIndex,
@@ -127,6 +129,7 @@ def render_rfp_scaffold(
     assumptions: list[str] | None = None,
     missing_inputs: list[str] | None = None,
     instructions: str | None = None,
+    programme: ProgrammeState | None = None,
 ) -> str:
     """Render the deterministic consultant Request for Proposal scaffold."""
     del max_pages, instructions
@@ -157,15 +160,13 @@ def render_rfp_scaffold(
         "",
         REQUESTED_SERVICES_PLACEHOLDER,
         "",
-        "**Required deliverables**",
-        *_numbered(target.deliverables),
-        "",
-        "## Programme and submission",
+        "## Programme",
+        *([render_programme_markdown(programme), ""] if programme is not None else []),
         PROGRAMME_PLACEHOLDER,
-        "- State earliest availability, stage durations and programme dependencies.",
-        "- Submit one PDF response with company details, insurances, proposed personnel and proposed terms.",
+        "- State earliest availability, proposed service-stage durations, and dependencies against the current project programme.",
         "",
         "## Fee response",
+        "- Submit one PDF fee response with company details, insurances, proposed personnel and proposed terms.",
         "- Submit a lump-sum fee excluding GST, with GST shown separately.",
         (
             "- Use the indicative breakdown below (mark stages N/A where not "

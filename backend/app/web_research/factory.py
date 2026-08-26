@@ -7,6 +7,7 @@ from app.web_research.brave import BraveSearchProvider
 from app.web_research.fetcher import SafePageFetcher
 from app.web_research.nsw_legislation import NswLegislationProvider
 from app.web_research.service import SearchProvider, WebResearchService
+from app.web_research.tavily import TavilySearchProvider
 
 
 class WebResearchDisabled(Exception):
@@ -32,6 +33,11 @@ def _search_provider() -> SearchProvider:
     if settings.web_search_provider == "brave" and settings.brave_search_api_key:
         return BraveSearchProvider(
             api_key=settings.brave_search_api_key,
+            timeout_seconds=settings.web_fetch_timeout_seconds,
+        )
+    if settings.web_search_provider == "tavily" and settings.tavily_api_key:
+        return TavilySearchProvider(
+            api_key=settings.tavily_api_key,
             timeout_seconds=settings.web_fetch_timeout_seconds,
         )
     raise WebResearchDisabled("Web research provider is not configured")

@@ -92,6 +92,8 @@ from app.schemas.projects import (
     DependencyOfferAcceptRequest,
     DependencyOfferRejectRequest,
     FailedInstructionResponse,
+    BatchSetDocumentClassificationRequest,
+    BatchSetDocumentClassificationResponse,
     BatchDeleteEvidenceFailure,
     BatchDeleteEvidenceRequest,
     BatchDeleteEvidenceResponse,
@@ -172,6 +174,7 @@ from app.projects.classification_override import (
     DocumentClassificationInvalid,
     DocumentClassificationNotFound,
     set_document_classification,
+    set_document_classifications,
 )
 from app.projects.decisions import (
     DecisionNotFound,
@@ -223,10 +226,13 @@ from app.projects.artefact_adapters import (
     revise_workflow_artefact,
 )
 from app.projects.artefact_blocks import (
+    BLOCK_OPERATION_RECEIPTS_KEY,
     BlockMutationResult,
     apply_block_operations,
+    find_block_operation_receipt,
     markdown_blocks,
     materialize_block_identity,
+    record_block_operation_receipt,
 )
 from app.projects.generation_audit import carry_generation_audit
 from app.sitewise.markdown_sections import normalize_draft_markdown
@@ -334,7 +340,7 @@ from app.sitewise.workspace_tree import build_project_workspace_tree
 from app.workflows.consultant_procurement import (
     sync_consultant_procurement_draft_workspace,
 )
-from ingest.document_metadata import strip_markdown_emphasis
+from ingest.document_metadata import parse_document_metadata, strip_markdown_emphasis
 from ingest.hashing import bytes_content_hash
 from app.workflows.contractor_procurement import sync_contractor_eoi_draft_workspace
 from app.workflows.create_cost_plan import (
@@ -653,7 +659,13 @@ def _evidence_preview_from_values(
         excerpt=_excerpt(excerpt_source),
         content=content,
         document_number=_metadata_text(metadata, "document_number"),
-        revision=_metadata_text(metadata, "revision"),
+        revision=_resolved_preview_revision(
+            metadata=metadata,
+            filename=filename,
+            relative_path=relative_path,
+            document_class=document_class,
+            excerpt_source=excerpt_source,
+        ),
         category=_metadata_text(metadata, "discipline"),
     )
 
@@ -2173,6 +2185,67 @@ async def put_document_classification(
     return _evidence_preview_from_document(document, include_content=False)
 
 
+@router.put("/{project_id}/documents/classification/batch")
+async def put_document_classifications_batch(
+    project_id: uuid.UUID,
+    body: BatchSetDocumentClassificationRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> BatchSetDocumentClassificationResponse:
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        documents = await set_document_classifications(
+            session,
+            project_id=project.id,
+            document_ids=body.document_ids,
+            document_class=body.document_class,
+            document_subject=body.document_subject,
+            actor_id=user.id,
+            reason=body.reason,
+        )
+    except DocumentClassificationNotFound as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more documents were not found",
+        ) from exc
+    except DocumentClassificationInvalid as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+    return BatchSetDocumentClassificationResponse(
+        documents=[
+            _evidence_preview_from_document(document, include_content=False)
+            for document in documents
+        ]
+    )
+
+
+def _resolved_preview_revision(
+    *,
+    metadata: dict,
+    filename: str,
+    relative_path: str,
+    document_class: str,
+    excerpt_source: str,
+) -> str | None:
+    stored = _metadata_text(metadata, "revision")
+    if document_class != "drawing" or (stored or "").strip().casefold() not in {
+        "",
+        "current",
+        "unknown",
+    }:
+        return stored
+    parsed = parse_document_metadata(
+        file_name=filename,
+        filed_path=relative_path,
+        source_path=relative_path,
+        preview_snippet=excerpt_source[:16_000],
+    )
+    return parsed.revision if parsed.revision != "Current" else stored
+
+
 @router.delete("/{project_id}/evidence/batch")
 async def delete_project_evidence_batch(
     project_id: uuid.UUID,
@@ -3044,6 +3117,12 @@ async def apply_project_draft_block_operations(
     draft = await get_draft_artifact(session, draft_id)
     if draft is None or draft.project_id != project.id:
         raise HTTPException(status_code=404, detail="Draft not found")
+    if body.client_operation_id:
+        receipt = find_block_operation_receipt(
+            draft.provenance_metadata, body.client_operation_id
+        )
+        if receipt is not None:
+            return ApplyArtefactBlockOperationsResponse.model_validate(receipt)
     try:
         mutation = apply_block_operations(
             normalize_draft_markdown(draft.content_markdown),
@@ -3117,7 +3196,7 @@ async def apply_project_draft_block_operations(
     # Async sessions cannot lazy-load expired columns (MissingGreenlet).
     await session.refresh(updated)
     content_sha256 = hashlib.sha256(mutation.markdown.encode("utf-8")).hexdigest()
-    return ApplyArtefactBlockOperationsResponse(
+    response = ApplyArtefactBlockOperationsResponse(
         delta=ArtefactBlockDelta(
             draft_id=updated.id,
             version=updated.version,
@@ -3132,6 +3211,15 @@ async def apply_project_draft_block_operations(
         ),
         changed_block_ids=changed_ids,
     )
+    if body.client_operation_id:
+        provenance[BLOCK_OPERATION_RECEIPTS_KEY] = record_block_operation_receipt(
+            provenance,
+            client_operation_id=body.client_operation_id,
+            delta=response.model_dump(mode="json"),
+        )
+        updated.provenance_metadata = provenance
+        await session.flush()
+    return response
 
 
 @router.get("/{project_id}/cost-plan/state")
@@ -3259,6 +3347,7 @@ async def patch_project_programme_view(
             update=ProgrammeViewUpdate(
                 view_scale=body.view_scale,
                 pmp_embed_visible=body.pmp_embed_visible,
+                collapsed_stage_keys=body.collapsed_stage_keys,
             ),
         )
         await session.commit()
@@ -3509,6 +3598,7 @@ async def get_project_disciplines(
                 participant_type=entry.participant_type,
                 request_kind=entry.request_kind,
                 workspace_slug=entry.workspace_slug,
+                picker_visible=entry.picker_visible,
             )
             for entry in discipline_catalog()
         ]

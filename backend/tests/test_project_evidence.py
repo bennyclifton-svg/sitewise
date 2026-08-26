@@ -141,6 +141,32 @@ def test_evidence_preview_strips_markdown_emphasis_from_document_number() -> Non
     assert preview.revision == "C"
 
 
+def test_drawing_preview_repairs_legacy_current_revision_from_source_content() -> None:
+    preview = _evidence_preview_from_values(
+        document_id=uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+        metadata={
+            "document_number": "A-100",
+            "title": "Proposed Site Plan",
+            "revision": "Current",
+            "discipline": "Architectural",
+        },
+        filename="A-100-proposed-site-plan.md",
+        relative_path="04-projects/seven-hills/03-design/architect/A-100-proposed-site-plan.md",
+        source_type="project_evidence",
+        document_class="drawing",
+        excerpt_source="\n".join(
+            [
+                "| Drawing title | Proposed Site Plan |",
+                "| Drawing number | **A-100** |",
+                "| Revision | **D** |",
+                "| Revision status | Current |",
+            ]
+        ),
+    )
+
+    assert preview.revision == "D"
+
+
 def test_specification_preview_uses_filename_title_over_body_derived_metadata() -> None:
     preview = _evidence_preview_from_values(
         document_id=uuid.UUID("88888888-8888-8888-8888-888888888888"),

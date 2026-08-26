@@ -114,6 +114,7 @@ class ProcurementDocument(ABC):
     trace_guidance_purpose: str
     load_required_seed_content = False
     seed_artefact_type: ArtefactType
+    scaffold_version = ""
 
     def provenance_metadata(self, target: ProcurementTarget) -> dict[str, Any]:
         """Return document-specific metadata without duplicating publication."""
@@ -164,6 +165,27 @@ class ProcurementDocument(ABC):
         """Return complete structured inputs that semantic passage search can miss."""
         del session, project, target
         return []
+
+    async def build_render_context(
+        self,
+        session: AsyncSession,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+    ) -> dict[str, Any]:
+        """Load structured state needed by the deterministic document renderer."""
+        del session, project, target
+        return {}
+
+    def render_context_version(self, context: dict[str, Any]) -> str:
+        """Return a stable refresh key for structured renderer inputs."""
+        del context
+        return ""
+
+    def requires_full_replace(self, baseline_markdown: str) -> bool:
+        """Return whether an obsolete scaffold must bypass block reconciliation."""
+        del baseline_markdown
+        return False
 
     def filter_project_evidence(
         self,
@@ -230,6 +252,7 @@ class ProcurementDocument(ABC):
         artefact_context: ProcurementArtefactContext | None,
         generation_brief: ArtefactGenerationBrief | None,
         on_progress: ProgressPublisher | None,
+        render_context: dict[str, Any] | None = None,
     ) -> str | Awaitable[str]: ...
 
 
@@ -322,6 +345,11 @@ async def draft_procurement_request(
         project_id=project.id,
         workflow_type=workflow_type,
     )
+    render_context = await document.build_render_context(
+        session,
+        project=project,
+        target=target,
+    )
     seed_selection = _select_procurement_seed_knowledge(
         document=document,
         project=project,
@@ -333,8 +361,11 @@ async def draft_procurement_request(
         if generation_context is not None
         else getattr(project, "project_context_version", None) or 1
     )
+    render_context_version = document.render_context_version(render_context)
     refresh_source_version = (
         f"instructions:{(instructions or '').strip()}|pages:{pages}|target:{target.slug}"
+        f"{f'|scaffold:{document.scaffold_version}' if document.scaffold_version else ''}"
+        f"{f'|render:{render_context_version}' if render_context_version else ''}"
     )
     refresh_seed_version = (
         "|".join(seed_selection.applicable_paths) or "no-seed-guidance"
@@ -469,6 +500,8 @@ async def draft_procurement_request(
         assumptions=assumptions,
         missing_inputs=missing_inputs,
     )
+    if render_context_version:
+        source_trace["structured_render_context"] = render_context_version
     search_stats = evidence_pool.stats or final_retrieval_stats
     source_trace["retrieval"] = {
         "level": search_stats.level.name.casefold(),
@@ -514,6 +547,7 @@ async def draft_procurement_request(
         artefact_context=artefact_context,
         generation_brief=generation_brief,
         on_progress=progress_capture.publish,
+        render_context=render_context,
     )
     markdown = await rendered if inspect.isawaitable(rendered) else rendered
     if citation_gated:
@@ -528,9 +562,9 @@ async def draft_procurement_request(
     )
     # Legacy RFP/RFT scaffolds (Profile chips, no Citation key) must be replaced
     # wholesale so incremental block reconcile cannot preserve the old shell.
-    force_full_replace = citation_gated and _legacy_procurement_scaffold(
-        baseline_markdown
-    )
+    force_full_replace = (
+        citation_gated and _legacy_procurement_scaffold(baseline_markdown)
+    ) or document.requires_full_replace(baseline_markdown)
     if baseline is not None and artefact_type in {"rfp", "rft"} and not force_full_replace:
         incremental = apply_document_refresh(
             baseline.content_markdown,

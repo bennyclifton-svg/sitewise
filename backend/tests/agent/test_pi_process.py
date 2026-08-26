@@ -279,6 +279,96 @@ def test_stream_pi_turn_passes_prompt_as_at_file_and_cleans_up(
     assert not seen["prompt_path"].exists()
 
 
+def test_stream_pi_turn_rejects_pi_terminal_provider_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    async def spawn(**_kwargs: Any) -> _FakeProcess:
+        return _FakeProcess(
+            stdout=[
+                json.dumps(
+                    {
+                        "type": "message_end",
+                        "message": {
+                            "role": "assistant",
+                            "stopReason": "error",
+                            "errorMessage": "Connection error.",
+                            "content": [],
+                        },
+                    }
+                )
+                + "\n",
+                json.dumps(
+                    {
+                        "type": "auto_retry_end",
+                        "attempt": 3,
+                        "finalError": "Connection error.",
+                        "success": False,
+                    }
+                )
+                + "\n",
+            ],
+            returncode=0,
+        )
+
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
+
+    with pytest.raises(PiTurnError, match="Connection error"):
+        _collect(
+            stream_pi_turn(
+                prompt="research and populate candidates",
+                mcp_url="http://test/mcp",
+                turn_token="turn-token",
+                cwd=tmp_path,
+                provider="xai",
+                model="grok-4.6",
+                spawn=spawn,
+            )
+        )
+
+
+def test_stream_pi_turn_rejects_successful_exit_without_assistant_text(
+    monkeypatch, tmp_path: Path
+) -> None:
+    async def spawn(**_kwargs: Any) -> _FakeProcess:
+        return _FakeProcess(
+            stdout=[
+                json.dumps(
+                    {
+                        "type": "message_end",
+                        "message": {
+                            "role": "assistant",
+                            "stopReason": "stop",
+                            "content": [],
+                        },
+                    }
+                )
+                + "\n"
+            ],
+            returncode=0,
+        )
+
+    monkeypatch.setattr(
+        "app.agent.pi_process.pi_builtin_tools_flag",
+        lambda _binary: "--no-builtin-tools",
+    )
+
+    with pytest.raises(PiTurnError, match="without an assistant response"):
+        _collect(
+            stream_pi_turn(
+                prompt="reply with a summary",
+                mcp_url="http://test/mcp",
+                turn_token="turn-token",
+                cwd=tmp_path,
+                provider="openai",
+                model="gpt-5.6-luna",
+                spawn=spawn,
+            )
+        )
+
+
 def test_stream_pi_turn_timeout_survives_relay_chunk_task_changes(
     monkeypatch, tmp_path: Path
 ) -> None:

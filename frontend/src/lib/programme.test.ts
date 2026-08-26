@@ -14,18 +14,18 @@ import {
   coalesceProgrammeOperations,
   insertAfterProgrammeHeading,
   stripProgrammeSectionBody,
-  isLinked,
   previousProgrammeKey,
   programmeActivitySpan,
   programmeBulkDeleteOperations,
   programmeHeaderLayers,
   ganttLinkPath,
-  programmeLinkWouldCycle,
+  programmeDependencyWouldCycle,
   programmeLinks,
   programmeRowMove,
   programmeScaleBands,
   programmeSpan,
   programmeWeekTicks,
+  type ProgrammeDependency,
   type ProgrammeState,
 } from "@/lib/programme";
 
@@ -47,8 +47,6 @@ describe("programme helpers", () => {
             start_date: "2027-01-13",
             duration_days: 365,
             finish_date: "2028-01-13",
-            predecessor_key: null,
-            lag_days: 0,
             assumption: true,
             notes: "",
           },
@@ -61,8 +59,6 @@ describe("programme helpers", () => {
             start_date: "2027-01-13",
             duration_days: 14,
             finish_date: "2027-01-27",
-            predecessor_key: null,
-            lag_days: 0,
             assumption: true,
             notes: "",
           },
@@ -75,8 +71,6 @@ describe("programme helpers", () => {
             start_date: "2026-08-16",
             duration_days: 90,
             finish_date: "2026-11-14",
-            predecessor_key: null,
-            lag_days: 0,
             assumption: true,
             notes: "",
           },
@@ -87,25 +81,6 @@ describe("programme helpers", () => {
       { operation: "DELETE", target_type: "stage", target_id: "delivery" },
       { operation: "DELETE", target_type: "stage", target_id: "planning" },
     ]);
-  });
-
-  it("treats a predecessor as linked", () => {
-    expect(
-      isLinked({
-        activity_key: "delivery",
-        kind: "stage",
-        parent_key: null,
-        name: "Delivery",
-        display_order: 2,
-        start_date: "2026-11-14",
-        duration_days: 365,
-        finish_date: "2027-11-14",
-        predecessor_key: "procurement",
-        lag_days: 0,
-        assumption: true,
-        notes: "",
-      }),
-    ).toBe(true);
   });
 
   it("adds calendar days", () => {
@@ -125,8 +100,6 @@ describe("programme helpers", () => {
           start_date: "2026-08-16",
           duration_days: 90,
           finish_date: "2026-11-14",
-          predecessor_key: null,
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
@@ -139,8 +112,6 @@ describe("programme helpers", () => {
           start_date: "2027-01-01",
           duration_days: 30,
           finish_date: "2027-01-31",
-          predecessor_key: null,
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
@@ -227,8 +198,6 @@ describe("programme helpers", () => {
         start_date: "2026-08-16",
         duration_days: 90,
         finish_date: "2026-11-14",
-        predecessor_key: null,
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
@@ -241,8 +210,6 @@ describe("programme helpers", () => {
         start_date: "2027-01-01",
         duration_days: 30,
         finish_date: "2027-01-31",
-        predecessor_key: null,
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
@@ -269,8 +236,6 @@ describe("programme helpers", () => {
         start_date: "2026-08-16",
         duration_days: 90,
         finish_date: "2026-11-14",
-        predecessor_key: null,
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
@@ -283,15 +248,23 @@ describe("programme helpers", () => {
         start_date: "2027-01-01",
         duration_days: 30,
         finish_date: "2027-01-31",
-        predecessor_key: "planning",
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
     ];
     expect(previousProgrammeKey(rows, "delivery")).toBe("planning");
-    expect(programmeLinkWouldCycle(rows, "planning", "delivery")).toBe(true);
-    expect(programmeLinkWouldCycle(rows, "delivery", "planning")).toBe(false);
+    const dependencies: ProgrammeDependency[] = [
+      {
+        dependency_key: "planning:finish->delivery:start",
+        source_activity_key: "planning",
+        target_activity_key: "delivery",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 0,
+      },
+    ];
+    expect(programmeDependencyWouldCycle(rows, dependencies, "delivery", "planning")).toBe(true);
+    expect(programmeDependencyWouldCycle(rows, dependencies, "planning", "delivery")).toBe(false);
   });
 
   it("draws a single finish-to-start segment that always touches both bars", () => {
@@ -299,7 +272,7 @@ describe("programme helpers", () => {
       key: string,
       start: string,
       days: number,
-      predecessor: string | null,
+      _predecessor: string | null,
       kind: "stage" | "activity" | "milestone" = "activity",
     ) {
       return {
@@ -311,8 +284,6 @@ describe("programme helpers", () => {
         start_date: start,
         duration_days: days,
         finish_date: addDays(start, days),
-        predecessor_key: predecessor,
-        lag_days: 0,
         assumption: true,
         notes: "",
       };
@@ -340,34 +311,52 @@ describe("programme helpers", () => {
     ];
     const missing = [row("b", "2026-08-16", 10, "gone")];
 
-    const seq = programmeLinks(sequential, "2026-08-16");
-    expect(seq).toEqual([
-      { key: "a->b", fromOffset: 90, toOffset: 90, fromIndex: 0, toIndex: 1 },
-    ]);
+    const dependency = (
+      source = "a",
+      target = "b",
+      source_endpoint: "start" | "finish" = "finish",
+      target_endpoint: "start" | "finish" = "start",
+    ): ProgrammeDependency => ({
+      dependency_key: `${source}:${source_endpoint}->${target}:${target_endpoint}`,
+      source_activity_key: source,
+      target_activity_key: target,
+      source_endpoint,
+      target_endpoint,
+      lag_days: 0,
+    });
+
+    const seq = programmeLinks(sequential, [dependency()], "2026-08-16");
+    expect(seq[0]).toMatchObject({
+      key: "a:finish->b:start",
+      fromOffset: 90,
+      toOffset: 90,
+      fromIndex: 0,
+      toIndex: 1,
+    });
     expect(programmeActivitySpan("2026-08-16", sequential[0]).end).toBe(seq[0]?.fromOffset);
     expect(programmeActivitySpan("2026-08-16", sequential[1]).start).toBe(seq[0]?.toOffset);
-    expect(ganttLinkPath(seq[0]!, 24, 12, 1)).toBe("M 90 12 V 36");
-    expect(ganttLinkPath(seq[0]!, 24, 12, 2)).toBe("M 180 12 V 36");
+    expect(ganttLinkPath(seq[0]!, 24, 12, 1)).toBe("M 90 12 H 98 H 106 V 36 H 82 H 90");
+    expect(ganttLinkPath(seq[0]!, 24, 12, 2)).toBe("M 180 12 H 188 H 196 V 36 H 172 H 180");
 
-    const gap = programmeLinks(gapped, "2026-08-16");
+    const gap = programmeLinks(gapped, [dependency()], "2026-08-16");
     expect(gap[0]).toMatchObject({ fromOffset: 30, toOffset: 61, fromIndex: 0, toIndex: 1 });
-    expect(ganttLinkPath(gap[0]!, 24, 12, 1)).toBe("M 30 12 H 38 V 36 H 61");
+    expect(ganttLinkPath(gap[0]!, 24, 12, 1)).toBe("M 30 12 H 38 H 45.5 V 36 H 53 H 61");
 
-    const overlap = programmeLinks(overlapping, "2026-08-16");
+    const overlap = programmeLinks(overlapping, [dependency()], "2026-08-16");
     expect(overlap[0]?.fromOffset).toBeGreaterThan(overlap[0]!.toOffset);
     expect(ganttLinkPath(overlap[0]!, 24, 12, 1)).toBe(
-      `M ${overlap[0]!.fromOffset} 12 H ${overlap[0]!.fromOffset + 8} V 36 H ${overlap[0]!.toOffset}`,
+      `M ${overlap[0]!.fromOffset} 12 H ${overlap[0]!.fromOffset + 8} H ${overlap[0]!.fromOffset + 16} V 36 H ${overlap[0]!.toOffset - 8} H ${overlap[0]!.toOffset}`,
     );
 
-    const skip = programmeLinks(skipped, "2026-08-16");
+    const skip = programmeLinks(skipped, [dependency()], "2026-08-16");
     expect(skip[0]).toMatchObject({ fromIndex: 0, toIndex: 2 });
-    expect(ganttLinkPath(skip[0]!, 24, 12, 1)).toBe("M 14 12 V 60");
+    expect(ganttLinkPath(skip[0]!, 24, 12, 1)).toBe("M 14 12 H 22 H 30 V 60 H 6 H 14");
 
-    expect(programmeLinks(milestone, "2026-08-16")[0]).toMatchObject({
+    expect(programmeLinks(milestone, [dependency()], "2026-08-16")[0]).toMatchObject({
       fromOffset: 0,
       toOffset: 0,
     });
-    expect(programmeLinks(missing, "2026-08-16")).toEqual([]);
+    expect(programmeLinks(missing, [dependency("gone", "b")], "2026-08-16")).toEqual([]);
   });
 
   it("inserts a figure under the Programme heading", () => {
@@ -416,6 +405,17 @@ describe("programme helpers", () => {
       status: "proposed",
       view_scale: "month",
       pmp_embed_visible: true,
+      collapsed_stage_keys: [],
+      dependencies: [
+        {
+          dependency_key: "planning:finish->procurement:start",
+          source_activity_key: "planning",
+          target_activity_key: "procurement",
+          source_endpoint: "finish",
+          target_endpoint: "start",
+          lag_days: 0,
+        },
+      ],
       activities: [
         {
           activity_key: "planning",
@@ -426,8 +426,6 @@ describe("programme helpers", () => {
           start_date: "2026-08-16",
           duration_days: 90,
           finish_date: "2026-11-14",
-          predecessor_key: null,
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
@@ -440,8 +438,6 @@ describe("programme helpers", () => {
           start_date: "2026-11-14",
           duration_days: 60,
           finish_date: "2027-01-13",
-          predecessor_key: "planning",
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
@@ -458,6 +454,16 @@ describe("programme helpers", () => {
     expect(next.activities[0]?.duration_days).toBe(95);
     expect(next.activities[0]?.finish_date).toBe("2026-11-19");
     expect(next.activities[1]?.start_date).toBe("2026-11-19");
+    const delayed = applyProgrammeOperationsLocally(next, [
+      {
+        operation: "UPDATE",
+        target_type: "stage",
+        target_id: "procurement",
+        values: { start_date: "2026-11-24" },
+      },
+    ]);
+    expect(delayed.dependencies?.[0]?.lag_days).toBe(5);
+    expect(delayed.activities[1]?.start_date).toBe("2026-11-24");
     expect(
       coalesceProgrammeOperations([
         {

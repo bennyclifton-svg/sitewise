@@ -19,6 +19,12 @@ not pull the whole request down into one discipline's detail.
   Do not write a prose paragraph. This is the
   highest-priority section. Tailor the baseline services to the evidenced
   building uses, rooms, systems, constraints and current design maturity.
+  Thread the corresponding design documents, calculations, drawings,
+  schedules, reports, certifications, registers, review records and handover
+  outputs into the service item that produces them. Do not create a separate
+  deliverables list. Fee schedules, hourly rates, disbursements, proposal
+  assumptions and other tender-response returnables belong in the deterministic
+  Fee response section, not in requested services.
   Preserve whole-of-appointment coverage by combining related controls rather
   than dropping design coordination, compliance, tender/construction support,
   commissioning, handover, exclusions or responsibility boundaries. Remove

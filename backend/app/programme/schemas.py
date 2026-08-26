@@ -7,6 +7,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ActivityKind = Literal["stage", "activity", "milestone"]
+DependencyEndpoint = Literal["start", "finish"]
+OperationTarget = Literal["stage", "activity", "milestone", "dependency"]
 ProgrammeScale = Literal["week", "month", "quarter"]
 ProgrammeStatus = Literal["proposed", "accepted", "superseded"]
 MAX_PROGRAMME_OPERATIONS = 80
@@ -23,8 +25,6 @@ class ProgrammeActivityInput(BaseModel):
     start_date: date
     duration_days: int = Field(ge=0)
     finish_date: date | None = None
-    predecessor_key: str | None = Field(default=None, max_length=255)
-    lag_days: int = 0
     assumption: bool = True
     notes: str = ""
 
@@ -38,8 +38,25 @@ class ProgrammeActivityInput(BaseModel):
             raise ValueError(f"{self.kind} requires parent_key")
         return self
 
+class ProgrammeDependencyInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dependency_key: str = Field(min_length=1, max_length=640)
+    source_activity_key: str = Field(min_length=1, max_length=255)
+    target_activity_key: str = Field(min_length=1, max_length=255)
+    source_endpoint: DependencyEndpoint
+    target_endpoint: DependencyEndpoint
+    lag_days: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def reject_self_link(self) -> "ProgrammeDependencyInput":
+        if self.source_activity_key == self.target_activity_key:
+            raise ValueError("a programme dependency cannot link an activity to itself")
+        return self
+
 
 _ACTIVITY_VALUE_FIELDS = frozenset(ProgrammeActivityInput.model_fields)
+_DEPENDENCY_VALUE_FIELDS = frozenset(ProgrammeDependencyInput.model_fields)
 _VALUE_ALIASES = {"description": "notes"}
 _DROP_VALUE_KEYS = frozenset({"end_date", "phase", "status", "wbs", "percent_complete"})
 _OPERATION_FIELDS = frozenset(
@@ -62,8 +79,8 @@ class ProgrammeOperation(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     operation: Literal["ADD", "UPDATE", "DELETE", "MOVE"]
-    target_type: ActivityKind
-    target_id: str | None = Field(default=None, max_length=255)
+    target_type: OperationTarget
+    target_id: str | None = Field(default=None, max_length=640)
     values: dict[str, Any] = Field(default_factory=dict)
     reference_id: str | None = Field(default=None, max_length=255)
     placement: Literal["before", "after"] | None = None
@@ -84,12 +101,21 @@ class ProgrammeOperation(BaseModel):
             if target_id:
                 incoming.setdefault("target_id", target_id)
         values = dict(incoming.get("values") or {})
-        for key in _ACTIVITY_VALUE_FIELDS | _VALUE_ALIASES.keys() | _DROP_VALUE_KEYS:
+        value_fields = (
+            _DEPENDENCY_VALUE_FIELDS
+            if incoming.get("target_type") == "dependency"
+            else _ACTIVITY_VALUE_FIELDS | _VALUE_ALIASES.keys() | _DROP_VALUE_KEYS
+        )
+        for key in value_fields:
             if key in incoming:
                 values.setdefault(key, incoming.pop(key))
         if "kind" in values and "target_type" not in incoming:
             incoming["target_type"] = values["kind"]
-        if values:
+        if values and incoming.get("target_type") == "dependency":
+            incoming["values"] = {
+                key: value for key, value in values.items() if key in _DEPENDENCY_VALUE_FIELDS
+            }
+        elif values:
             incoming["values"] = normalize_activity_values(values)
         return {key: value for key, value in incoming.items() if key in _OPERATION_FIELDS}
 
@@ -103,6 +129,8 @@ class ProgrammeOperation(BaseModel):
             raise ValueError("MOVE requires reference_id and placement")
         if self.operation in {"ADD", "UPDATE"} and not self.values:
             raise ValueError(f"{self.operation} requires values")
+        if self.target_type == "dependency" and self.operation == "MOVE":
+            raise ValueError("dependencies cannot be moved")
         return self
 
 
@@ -115,7 +143,9 @@ class ProgrammeState(BaseModel):
     status: ProgrammeStatus = "proposed"
     view_scale: ProgrammeScale = "month"
     pmp_embed_visible: bool = True
+    collapsed_stage_keys: list[str] = Field(default_factory=list, max_length=200)
     activities: list[ProgrammeActivityInput] = Field(default_factory=list)
+    dependencies: list[ProgrammeDependencyInput] = Field(default_factory=list)
 
 
 class ProgrammeViewUpdate(BaseModel):
@@ -123,11 +153,20 @@ class ProgrammeViewUpdate(BaseModel):
 
     view_scale: ProgrammeScale | None = None
     pmp_embed_visible: bool | None = None
+    collapsed_stage_keys: list[str] | None = Field(default=None, max_length=200)
 
     @model_validator(mode="after")
     def require_one_field(self) -> "ProgrammeViewUpdate":
-        if self.view_scale is None and self.pmp_embed_visible is None:
-            raise ValueError("view_scale or pmp_embed_visible is required")
+        if (
+            self.view_scale is None
+            and self.pmp_embed_visible is None
+            and self.collapsed_stage_keys is None
+        ):
+            raise ValueError(
+                "view_scale, pmp_embed_visible, or collapsed_stage_keys is required"
+            )
+        if self.collapsed_stage_keys is not None:
+            self.collapsed_stage_keys = list(dict.fromkeys(self.collapsed_stage_keys))
         return self
 
 

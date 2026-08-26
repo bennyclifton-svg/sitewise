@@ -39,3 +39,8 @@ def test_view_request_requires_a_field() -> None:
         view_scale="week",
     )
     assert body.view_scale == "week"
+    collapsed = SetProgrammeViewRequest(
+        expected_base_version=2,
+        collapsed_stage_keys=["planning"],
+    )
+    assert collapsed.collapsed_stage_keys == ["planning"]

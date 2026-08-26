@@ -127,8 +127,8 @@ conventions, they are for software agents — ignore them.
      under the same parent immediately after it (placement after,
      predecessor_key set) so linked successors move. Do not edit PMP markdown
      for programme dates.
-   - set_programme_view - change the Gantt scale (week/month/quarter) or whether
-     the read-only figure appears in the PMP.
+   - set_programme_view - change the Gantt scale (week/month/quarter), collapsed
+     parent stages, or whether the read-only figure appears in the PMP.
    - For construction sequencing, read program-scheduling-guide.md via platform
      knowledge and label it guidance, not project evidence. Duration phrases
      such as "about three months" or "two years" become duration_days 90 or 730.

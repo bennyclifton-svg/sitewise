@@ -296,6 +296,10 @@ def test_update_pmp_skips_retrieval_and_model_when_inputs_unchanged() -> None:
             "app.workflows.update_pmp.get_latest_draft_artifact",
             new=AsyncMock(return_value=baseline),
         ),
+        patch(
+            "app.workflows.update_pmp.list_current_pmp_corpus_documents",
+            new=AsyncMock(return_value=SimpleNamespace(documents=())),
+        ),
         patch("app.workflows.update_pmp.retrieve_create_pmp_sources", new=retrieve),
         patch("app.workflows.update_pmp.run_update_pmp_model", new=model),
         patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),

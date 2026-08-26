@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from app.programme.schemas import (
     MAX_PROGRAMME_OPERATIONS,
     ProgrammeActivityInput,
+    ProgrammeDependencyInput,
     ProgrammeOperation,
     ProgrammeOperationsBatch,
     ProgrammeState,
@@ -60,6 +61,42 @@ def test_milestone_duration_must_be_zero() -> None:
         )
 
 
+def test_dependency_validates_endpoints_lag_and_self_links() -> None:
+    dependency = ProgrammeDependencyInput(
+        dependency_key="planning:start->procurement:finish",
+        source_activity_key="planning",
+        target_activity_key="procurement",
+        source_endpoint="start",
+        target_endpoint="finish",
+        lag_days=4,
+    )
+    assert dependency.lag_days == 4
+    with pytest.raises(ValidationError, match="itself"):
+        ProgrammeDependencyInput(
+            dependency_key="planning:start->planning:finish",
+            source_activity_key="planning",
+            target_activity_key="planning",
+            source_endpoint="start",
+            target_endpoint="finish",
+        )
+
+
+def test_dependency_operation_preserves_typed_values() -> None:
+    operation = ProgrammeOperation(
+        operation="ADD",
+        target_type="dependency",
+        values={
+            "dependency_key": "planning:finish->delivery:start",
+            "source_activity_key": "planning",
+            "target_activity_key": "delivery",
+            "source_endpoint": "finish",
+            "target_endpoint": "start",
+            "lag_days": 0,
+        },
+    )
+    assert operation.values["target_endpoint"] == "start"
+
+
 def test_add_and_update_require_values() -> None:
     with pytest.raises(ValidationError, match="values"):
         ProgrammeOperation(operation="ADD", target_type="stage")
@@ -86,7 +123,7 @@ def test_operation_accepts_flattened_activity_fields() -> None:
     assert operation.values["name"] == "Concept design"
     assert operation.values["parent_key"] == "planning"
     assert operation.values["duration_days"] == 42
-    assert operation.values["predecessor_key"] == "brief"
+    assert "predecessor_key" not in operation.values
 
 
 def test_operation_accepts_artefact_style_target() -> None:
@@ -144,6 +181,7 @@ def test_valid_operation_and_state() -> None:
     assert operation.target_type == "activity"
     assert state.view_scale == "month"
     assert state.pmp_embed_visible is True
+    assert state.collapsed_stage_keys == []
 
 
 def test_operations_batch_rejects_more_than_eighty() -> None:
@@ -170,3 +208,7 @@ def test_view_update_requires_a_field() -> None:
         ProgrammeViewUpdate()
     update = ProgrammeViewUpdate(view_scale="quarter")
     assert update.view_scale == "quarter"
+    collapsed = ProgrammeViewUpdate(
+        collapsed_stage_keys=["planning", "planning", "delivery"]
+    )
+    assert collapsed.collapsed_stage_keys == ["planning", "delivery"]

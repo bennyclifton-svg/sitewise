@@ -20,6 +20,8 @@ vi.mock("@/lib/api", () => ({
 }));
 
 const deleteDraftMutateAsync = vi.fn();
+const batchClassificationMutateAsync = vi.fn();
+let batchClassificationIsPending = false;
 
 vi.mock("@/lib/queries/project-data", () => ({
   useDeleteEvidence: () => ({
@@ -31,6 +33,10 @@ vi.mock("@/lib/queries/project-data", () => ({
     mutateAsync: vi.fn(),
     isPending: false,
     variables: undefined,
+  }),
+  useBatchSetDocumentClassification: () => ({
+    mutateAsync: batchClassificationMutateAsync,
+    isPending: batchClassificationIsPending,
   }),
   useDeleteDraft: () => ({
     mutateAsync: deleteDraftMutateAsync,
@@ -506,7 +512,21 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
     );
     expect(documentNumberHeader).toHaveTextContent("#");
     expect(documentNumberHeader.closest("table")?.querySelector("col")).toHaveClass(
-      "w-[5rem]",
+      "w-[4.5rem]",
+    );
+    expect(
+      Array.from(documentNumberHeader.closest("thead")?.querySelectorAll("th") ?? []).map(
+        (header) => header.textContent?.trim() ?? "",
+      ),
+    ).toEqual(["#", "Title", "Rev", "Cat", "Type", ""]);
+    expect(screen.getByRole("columnheader", { name: "Rev" })).toHaveClass(
+      "document-repository-col-revision",
+    );
+    expect(screen.getByRole("columnheader", { name: "Category" })).toHaveClass(
+      "document-repository-col-category",
+    );
+    expect(screen.getByRole("columnheader", { name: "Document type" })).toHaveClass(
+      "document-repository-col-type",
     );
     expect(screen.getByText("A-100").closest("td")).toHaveAttribute(
       "title",
@@ -642,6 +662,141 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
       "aria-sort",
       "ascending",
     );
+  });
+
+  it("shows and sorts the document type column", () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "doc-report",
+        title: "Site Report",
+        document_number: "A-100",
+        document_class: "report",
+      }),
+      evidenceRow({
+        id: "doc-drawing",
+        title: "Site Plan",
+        document_number: "A-200",
+        document_class: "drawing",
+      }),
+    ]);
+
+    expect(screen.getByText("Report")).toBeInTheDocument();
+    expect(screen.getByText("Drawing")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Document type" }));
+
+    expect(scheduleTitles()).toEqual(["Site Plan", "Site Report"]);
+    expect(screen.getByRole("columnheader", { name: "Document type" })).toHaveAttribute(
+      "aria-sort",
+      "ascending",
+    );
+  });
+});
+
+describe("DocumentRepositoryPanel bulk classification", () => {
+  beforeEach(() => {
+    batchClassificationMutateAsync.mockReset();
+    batchClassificationMutateAsync.mockResolvedValue({ documents: [] });
+    batchClassificationIsPending = false;
+  });
+
+  it("changes the category for the selected source documents from the context menu", async () => {
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[
+          evidenceRow({ id: "doc-1", title: "Ground Floor", document_class: "drawing" }),
+          evidenceRow({ id: "doc-2", title: "First Floor", document_class: "drawing" }),
+        ]}
+        selectedEvidenceId="doc-1"
+        selectedEvidenceIds={new Set(["doc-1", "doc-2"])}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectedEvidenceIdsChange={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText("Ground Floor"));
+    const documentTypeMenu = await screen.findByRole("menuitem", {
+      name: "Change document type",
+    });
+    const categoryMenu = await screen.findByRole("menuitem", {
+      name: "Change category",
+    });
+    await waitFor(() => expect(documentTypeMenu).toHaveFocus());
+    fireEvent.keyDown(documentTypeMenu, { key: "ArrowDown" });
+    expect(categoryMenu).toHaveFocus();
+    fireEvent.keyDown(categoryMenu, { key: "ArrowRight" });
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: /^Architect$/ }),
+    );
+
+    await waitFor(() => {
+      expect(batchClassificationMutateAsync).toHaveBeenCalledOnce();
+    });
+    const change = batchClassificationMutateAsync.mock.calls[0]?.[0];
+    expect(change?.documentSubject).toBe("architect");
+    expect(new Set(change?.documentIds)).toEqual(new Set(["doc-1", "doc-2"]));
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Category updated for 2 documents",
+    );
+  });
+
+  it("allows a different selection to be classified while an earlier batch is pending", async () => {
+    const firstBatch = deferred<{ documents: EvidencePreview[] }>();
+    batchClassificationMutateAsync.mockImplementationOnce(() => firstBatch.promise);
+    const evidence = [
+      evidenceRow({ id: "doc-1", title: "Ground Floor", document_class: "drawing" }),
+      evidenceRow({ id: "doc-2", title: "First Floor", document_class: "drawing" }),
+      evidenceRow({ id: "doc-3", title: "Elevations", document_class: "drawing" }),
+      evidenceRow({ id: "doc-4", title: "Sections", document_class: "drawing" }),
+    ];
+    const commonProps = {
+      projectId: "project-1",
+      evidence,
+      selectedEvidenceId: "doc-1",
+      workspaceTree: [],
+      selectedWorkspacePath: null,
+      onSelectEvidence: vi.fn(),
+      onSelectedEvidenceIdsChange: vi.fn(),
+      onSelectWorkspacePath: vi.fn(),
+      onOpenWorkflow: vi.fn(),
+      onViewWorkbench: vi.fn(),
+      onViewFolder: vi.fn(),
+      onUploadComplete: vi.fn().mockResolvedValue(undefined),
+    };
+    const view = render(
+      <DocumentRepositoryPanel
+        {...commonProps}
+        selectedEvidenceIds={new Set(["doc-1", "doc-2"])}
+      />,
+    );
+
+    fireEvent.contextMenu(screen.getByText("Ground Floor"));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Change category" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /^Architect$/ }));
+    await waitFor(() => expect(batchClassificationMutateAsync).toHaveBeenCalledOnce());
+
+    batchClassificationIsPending = true;
+    view.rerender(
+      <DocumentRepositoryPanel
+        {...commonProps}
+        selectedEvidenceId="doc-3"
+        selectedEvidenceIds={new Set(["doc-3", "doc-4"])}
+      />,
+    );
+    fireEvent.contextMenu(screen.getByText("Elevations"));
+
+    expect(
+      await screen.findByRole("menuitem", { name: "Change category" }),
+    ).toBeEnabled();
+    firstBatch.resolve({ documents: [] });
   });
 });
 

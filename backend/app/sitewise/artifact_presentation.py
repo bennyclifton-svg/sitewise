@@ -6,6 +6,7 @@ import re
 from typing import TypedDict
 
 from app.projects.artefact_blocks import detach_block_marker, strip_block_markers
+from app.sitewise.discipline_catalog import alphanumeric_label_key
 from app.sitewise.taxonomy import DESIGN_LEAD_UNCONFIRMED_LABEL
 
 _H2_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
@@ -449,7 +450,29 @@ def _clean_primary_section(
     cleaned_section = _drop_consultants_scope_column(cleaned_section)
     cleaned_section = _blank_consultants_fee_not_evidenced(cleaned_section)
     cleaned_section = _normalise_register_citation_columns(cleaned_section)
+    if cleaned_section.lstrip().casefold().startswith("## consultants"):
+        cleaned_section = _sort_consultants_table_rows(cleaned_section)
     return cleaned_section, internal, unresolved
+
+
+def _sort_consultants_table_rows(section: str) -> str:
+    lines = section.splitlines()
+    for header_index, line in enumerate(lines):
+        if not line.strip().startswith("|"):
+            continue
+        cells, _ = _split_table_row(line)
+        if not cells or cells[0].casefold() not in {"consultant", "discipline", "role"}:
+            continue
+        data_start = header_index + 2
+        data_end = data_start
+        while data_end < len(lines) and lines[data_end].strip().startswith("|"):
+            data_end += 1
+        lines[data_start:data_end] = sorted(
+            lines[data_start:data_end],
+            key=lambda row: alphanumeric_label_key(_split_table_row(row)[0][0]),
+        )
+        break
+    return "\n".join(lines)
 
 
 _CITATION_TOKEN_RE = re.compile(r"\[(\d+)\]")

@@ -798,7 +798,9 @@ class TradeProcurementDocument(ProcurementDocument):
         artefact_context: ProcurementArtefactContext | None,
         generation_brief: ArtefactGenerationBrief | None,
         on_progress: ProgressPublisher | None,
+        render_context: dict[str, Any] | None = None,
     ) -> str:
+        del render_context
         rft_context = (
             artefact_context if isinstance(artefact_context, RftContext) else None
         )

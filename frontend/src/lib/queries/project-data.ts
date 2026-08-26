@@ -147,6 +147,77 @@ export function useBatchDeleteEvidence(projectId: string) {
   });
 }
 
+export function useBatchSetDocumentClassification(projectId: string) {
+  const queryClient = useQueryClient();
+  const mutationKey = ["project", projectId, "batch-document-classification"];
+
+  return useMutation({
+    mutationKey,
+    mutationFn: (change: {
+      documentIds: string[];
+      documentClass?: string;
+      documentSubject?: string;
+    }) =>
+      api.putDocumentClassifications(projectId, {
+        document_ids: change.documentIds,
+        document_class: change.documentClass,
+        document_subject: change.documentSubject,
+        reason: "Changed from the document repository",
+      }),
+    onMutate: async (change) => {
+      await queryClient.cancelQueries({ queryKey: projectKeys.evidence(projectId) });
+      const selected = new Set(change.documentIds);
+      const previous = (
+        queryClient.getQueryData<EvidencePreview[]>(projectKeys.evidence(projectId)) ?? []
+      ).filter((document) => selected.has(document.id));
+      queryClient.setQueryData<EvidencePreview[]>(
+        projectKeys.evidence(projectId),
+        (current) =>
+          (current ?? []).map((document) =>
+            selected.has(document.id)
+              ? {
+                  ...document,
+                  document_class: change.documentClass ?? document.document_class,
+                  document_subject:
+                    change.documentSubject ?? document.document_subject,
+                  classification_basis: "user",
+                  confidence: 1,
+                }
+              : document,
+          ),
+      );
+      return { previous };
+    },
+    onSuccess: (result) => {
+      const updated = new Map(result.documents.map((document) => [document.id, document]));
+      queryClient.setQueryData<EvidencePreview[]>(
+        projectKeys.evidence(projectId),
+        (current) =>
+          (current ?? []).map((document) => updated.get(document.id) ?? document),
+      );
+    },
+    onError: (_error, _change, context) => {
+      if (context?.previous) {
+        const previous = new Map(
+          context.previous.map((document) => [document.id, document]),
+        );
+        queryClient.setQueryData<EvidencePreview[]>(
+          projectKeys.evidence(projectId),
+          (current) =>
+            (current ?? []).map((document) => previous.get(document.id) ?? document),
+        );
+      }
+    },
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey }) > 1) return;
+      invalidateAfterEvidenceChange(queryClient, projectId);
+      void queryClient.invalidateQueries({
+        queryKey: projectActivityKeys.root(projectId),
+      });
+    },
+  });
+}
+
 export function useDeleteDraft(projectId: string) {
   const queryClient = useQueryClient();
 

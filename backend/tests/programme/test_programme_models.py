@@ -4,6 +4,8 @@ from app.programme.models import ProgrammeActivity, ProgrammeVersion
 def test_programme_table_names() -> None:
     assert ProgrammeVersion.__tablename__ == "programme_versions"
     assert ProgrammeActivity.__tablename__ == "programme_activities"
+    assert "dependencies" in ProgrammeVersion.__table__.columns
+    assert "predecessor_key" not in ProgrammeActivity.__table__.columns
 
 
 def test_programme_constraint_names() -> None:

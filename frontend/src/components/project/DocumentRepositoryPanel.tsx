@@ -1,7 +1,10 @@
 import {
   Activity,
   AlertCircle,
+  CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ChevronUp,
   FolderTree,
   Folders,
@@ -14,16 +17,19 @@ import {
 } from "lucide-react";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ChangeEvent,
   type DragEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { ActivityFeed } from "@/components/project/ActivityFeed";
-import { attentionHeadline, PulsePanel } from "@/components/project/PulsePanel";
+import { PulsePanel } from "@/components/project/PulsePanel";
 import {
   IngestProgressStrip,
   type IngestUploadProgress,
@@ -36,12 +42,20 @@ import {
 import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { documentCategoryLabel } from "@/lib/classification";
+import {
+  DOCUMENT_CATEGORIES,
+  DOCUMENT_CLASSES,
+  classificationLabel,
+  documentCategoryLabel,
+  documentTypeLabel,
+  resolveCategorySlug,
+} from "@/lib/classification";
 import { ApiError } from "@/lib/http";
 import { IngestBatchEstimator, type IngestBatchSnapshot } from "@/lib/ingest-progress";
 import { MARKDOWN_EXTENSIONS } from "@/lib/markdown";
 import {
   useBatchDeleteEvidence,
+  useBatchSetDocumentClassification,
   useDeleteDraft,
   useDeleteEvidence,
 } from "@/lib/queries/project-data";
@@ -67,6 +81,7 @@ import type {
   WorkspaceTreeNode,
 } from "@/lib/types/project";
 import { cn } from "@/lib/utils";
+import { attentionHeadline } from "@/lib/pulse-format";
 
 const COMPLETION_MESSAGE_MS = 2_000;
 
@@ -92,7 +107,12 @@ type SplitProposal = {
 type RepositoryPanelView = "schedule" | "tree";
 type RepositoryTreeSectionId = "activity" | "skills" | "knowledge" | "admin";
 type SelectionUpdater = Set<string> | ((current: Set<string>) => Set<string>);
-type ScheduleSortKey = "document_number" | "title" | "revision" | "category";
+type ScheduleSortKey =
+  | "document_number"
+  | "title"
+  | "revision"
+  | "document_type"
+  | "category";
 type SortDirection = "asc" | "desc";
 
 type PendingUploadStage = "queued" | "uploading" | "ingesting";
@@ -116,6 +136,21 @@ type IngestQueueItem =
 type ScheduleRow =
   | { kind: "artefact"; id: string; draft: DraftArtifactSummary; title: string }
   | { kind: "source"; id: string; evidence: EvidencePreview; title: string };
+
+const CLASSIFICATION_COLLATOR = new Intl.Collator("en-AU", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+const DOCUMENT_TYPE_OPTIONS = DOCUMENT_CLASSES.map((value) => ({
+  value,
+  label: documentTypeLabel(value),
+})).sort((left, right) => CLASSIFICATION_COLLATOR.compare(left.label, right.label));
+
+const DOCUMENT_CATEGORY_OPTIONS = DOCUMENT_CATEGORIES.map((value) => ({
+  value,
+  label: classificationLabel(value),
+})).sort((left, right) => CLASSIFICATION_COLLATOR.compare(left.label, right.label));
 
 function isPdfFile(file: File): boolean {
   return file.name.toLowerCase().endsWith(".pdf");
@@ -215,6 +250,7 @@ export function DocumentRepositoryPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteEvidence = useDeleteEvidence(projectId);
   const batchDeleteEvidence = useBatchDeleteEvidence(projectId);
+  const batchSetClassification = useBatchSetDocumentClassification(projectId);
   const deleteDraft = useDeleteDraft(projectId);
   const [activePanelView, setActivePanelView] =
     useState<RepositoryPanelView>("schedule");
@@ -226,6 +262,7 @@ export function DocumentRepositoryPanel({
   const [uploadProgress, setUploadProgress] = useState<IngestUploadProgress | null>(null);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [classificationNotice, setClassificationNotice] = useState<string | null>(null);
   const estimatorRef = useRef<IngestBatchEstimator | null>(null);
   const queuedUploadBatchesRef = useRef<UploadEntry[][]>([]);
   const isProcessingUploadsRef = useRef(false);
@@ -235,6 +272,15 @@ export function DocumentRepositoryPanel({
     () => new Set<string>(),
   );
   const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [classificationTargetIds, setClassificationTargetIds] = useState<string[]>([]);
+  const [classificationMenuPosition, setClassificationMenuPosition] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [classificationMenuOpen, setClassificationMenuOpen] = useState(false);
+  const [classificationPendingIds, setClassificationPendingIds] = useState<Set<string>>(
+    () => new Set<string>(),
+  );
   const [bulkDeletingIds, setBulkDeletingIds] = useState<Set<string>>(
     () => new Set<string>(),
   );
@@ -283,6 +329,11 @@ export function DocumentRepositoryPanel({
   const selectedScheduleRows = useMemo(
     () => scheduleRows.filter((row) => selectedIds.has(row.id)),
     [scheduleRows, selectedIds],
+  );
+  const classificationTargets = useMemo(
+    () =>
+      evidence.filter((document) => classificationTargetIds.includes(document.id)),
+    [classificationTargetIds, evidence],
   );
   const inboxCount = useMemo(
     () => evidence.filter((item) => isInboxEvidence(item)).length,
@@ -419,6 +470,69 @@ export function DocumentRepositoryPanel({
     }
     setSelectionAnchorId(row.id);
     activateScheduleRow(row);
+  }
+
+  function openClassificationMenu(
+    event: MouseEvent<HTMLTableRowElement>,
+    row: EvidencePreview,
+  ) {
+    event.preventDefault();
+    const rowAlreadySelected = selectedIds.has(row.id);
+    const targetIds = rowAlreadySelected
+      ? scheduleRows.flatMap((scheduleRow) =>
+          scheduleRow.kind === "source" && selectedIds.has(scheduleRow.id)
+            ? [scheduleRow.id]
+            : [],
+        )
+      : [row.id];
+
+    if (!rowAlreadySelected) {
+      setSelectedIds(new Set([row.id]));
+      setSelectionAnchorId(row.id);
+    }
+    setClassificationTargetIds(targetIds);
+    const rowBounds = event.currentTarget.getBoundingClientRect();
+    setClassificationMenuPosition({
+      x: event.clientX || rowBounds.left + 16,
+      y: event.clientY || rowBounds.top + rowBounds.height / 2,
+    });
+    setClassificationMenuOpen(true);
+  }
+
+  async function handleClassificationChange(change: {
+    documentClass?: string;
+    documentSubject?: string;
+  }) {
+    const targetIds = [...classificationTargetIds];
+    if (
+      !targetIds.length ||
+      targetIds.some((documentId) => classificationPendingIds.has(documentId))
+    ) {
+      return;
+    }
+    setUploadError(null);
+    setClassificationNotice(null);
+    setClassificationPendingIds((current) => new Set([...current, ...targetIds]));
+    try {
+      await batchSetClassification.mutateAsync({
+        documentIds: targetIds,
+        ...change,
+      });
+      const count = targetIds.length;
+      const field = change.documentClass ? "document type" : "category";
+      setClassificationNotice(
+        `${field.charAt(0).toUpperCase() + field.slice(1)} updated for ${count} ${count === 1 ? "document" : "documents"}.`,
+      );
+    } catch (error) {
+      const detail = error instanceof ApiError ? error.message : "Please try again.";
+      setUploadError(`Could not update document classification: ${detail}`);
+    } finally {
+      setClassificationPendingIds((current) => {
+        const next = new Set(current);
+        for (const documentId of targetIds) next.delete(documentId);
+        return next;
+      });
+    }
   }
 
   async function handleDeleteEvidence(row: EvidencePreview) {
@@ -776,7 +890,7 @@ export function DocumentRepositoryPanel({
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden transition-colors",
+        "document-repository-panel relative flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden transition-colors",
         isDragging && "bg-primary/5",
       )}
       onDragEnter={handleDragEnter}
@@ -792,6 +906,22 @@ export function DocumentRepositoryPanel({
         accept={ACCEPT_ATTRIBUTE}
         onChange={handleFileInputChange}
       />
+      {classificationMenuOpen ? (
+        <DocumentClassificationContextMenu
+          position={classificationMenuPosition}
+          documents={classificationTargets}
+          disabled={classificationTargets.some((document) =>
+            classificationPendingIds.has(document.id),
+          )}
+          onClose={() => setClassificationMenuOpen(false)}
+          onDocumentTypeChange={(documentClass) =>
+            handleClassificationChange({ documentClass })
+          }
+          onCategoryChange={(documentSubject) =>
+            handleClassificationChange({ documentSubject })
+          }
+        />
+      ) : null}
 
       {isDragging ? (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-primary/10 p-6 text-center">
@@ -924,6 +1054,16 @@ export function DocumentRepositoryPanel({
         >
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>{uploadError}</span>
+        </div>
+      ) : null}
+
+      {classificationNotice ? (
+        <div
+          className="mx-3 mt-3 flex items-start gap-2 rounded-md bg-[var(--ok-bg)] px-3 py-2 text-xs text-[var(--ok-text)]"
+          role="status"
+        >
+          <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>{classificationNotice}</span>
         </div>
       ) : null}
 
@@ -1110,11 +1250,12 @@ export function DocumentRepositoryPanel({
         ) : scheduleRows.length || pendingUploads.length ? (
           <table className="w-full min-w-0 table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
-              <col className="w-[5rem]" />
+              <col className="w-[4.5rem]" />
               <col />
-              <col className="w-[2rem]" />
-              <col className="w-[7.5rem]" />
-              <col className="w-5" />
+              <col className="document-repository-col-revision w-[2.75rem]" />
+              <col className="document-repository-col-category w-[5rem]" />
+              <col className="document-repository-col-type w-[4.75rem]" />
+              <col className="w-6" />
             </colgroup>
             <thead className="sticky top-0 z-[1] border-b bg-[var(--sw-panel)]">
               <tr className="text-muted-foreground">
@@ -1140,7 +1281,7 @@ export function DocumentRepositoryPanel({
                   columnKey="revision"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-0.5 py-2"
+                  className="document-repository-col-revision px-1 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <SortableScheduleHeader
@@ -1149,7 +1290,16 @@ export function DocumentRepositoryPanel({
                   columnKey="category"
                   sortKey={sortKey}
                   sortDirection={sortDirection}
-                  className="px-0.5 py-2"
+                  className="document-repository-col-category px-1 py-2"
+                  onSort={handleSortHeaderClick}
+                />
+                <SortableScheduleHeader
+                  label="Type"
+                  accessibleLabel="Document type"
+                  columnKey="document_type"
+                  sortKey={sortKey}
+                  sortDirection={sortDirection}
+                  className="document-repository-col-type px-1 py-2"
                   onSort={handleSortHeaderClick}
                 />
                 <th className="w-5 px-0 py-1 text-center" aria-label="Actions">
@@ -1204,20 +1354,18 @@ export function DocumentRepositoryPanel({
                           {title}
                         </span>
                       </td>
-                      <td className="truncate px-0.5 py-2">v{draft.version}</td>
-                      <td className="truncate px-0.5 py-2" title={artefactScheduleLabel(draft.workflow_type)}>
+                      <td className="document-repository-col-revision truncate px-1 py-2">v{draft.version}</td>
+                      <td className="document-repository-col-category truncate px-1 py-2" title={artefactScheduleLabel(draft.workflow_type)}>
                         {artefactScheduleLabel(draft.workflow_type)}
+                      </td>
+                      <td className="document-repository-col-type truncate px-1 py-2" title="Generated document">
+                        Generated
                       </td>
                       <td className="px-0 py-1.5 text-center">
                         <button
                           type="button"
                           disabled={deletingRow}
-                          className={cn(
-                            "inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-opacity hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50",
-                            deletingRow
-                              ? "opacity-100"
-                              : "opacity-0 group-hover/repo-row:opacity-100 focus-visible:opacity-100",
-                          )}
+                          className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
                           aria-label={`Delete ${title}`}
                           title="Delete document"
                           onClick={(event) => {
@@ -1248,14 +1396,15 @@ export function DocumentRepositoryPanel({
                   (deleteEvidence.isPending && deleteEvidence.variables === row.id);
                 const highlighted = active || selected;
                 return (
-                  <tr
-                    key={row.id}
-                    className={cn(
-                      "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
-                      highlighted && "sw-table-row--active",
-                    )}
-                    onClick={(event) => handleRowClick(event, scheduleRow)}
-                  >
+                      <tr
+                        key={row.id}
+                        className={cn(
+                          "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
+                          highlighted && "sw-table-row--active",
+                        )}
+                        onClick={(event) => handleRowClick(event, scheduleRow)}
+                        onContextMenu={(event) => openClassificationMenu(event, row)}
+                      >
                     <td
                       className="truncate px-0.5 py-2 tabular-nums"
                       title={plainMetadataText(row.document_number) || undefined}
@@ -1274,25 +1423,26 @@ export function DocumentRepositoryPanel({
                         />
                       </div>
                     </td>
-                    <td className="truncate px-0.5 py-2">
+                    <td className="document-repository-col-revision truncate px-1 py-2">
                       {displayValue(row.revision)}
                     </td>
                     <td
-                      className="truncate px-0.5 py-2"
+                      className="document-repository-col-category truncate px-1 py-2"
                       title={categoryLabel || undefined}
                     >
                       {displayValue(categoryLabel)}
+                    </td>
+                    <td
+                      className="document-repository-col-type truncate px-1 py-2"
+                      title={documentTypeLabel(row.document_class)}
+                    >
+                      {documentTypeLabel(row.document_class)}
                     </td>
                     <td className="px-0 py-1.5 text-center">
                       <button
                         type="button"
                         disabled={deletingRow}
-                        className={cn(
-                          "inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-opacity hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-50",
-                          deletingRow
-                            ? "opacity-100"
-                            : "opacity-0 group-hover/repo-row:opacity-100 focus-visible:opacity-100",
-                        )}
+                        className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
                         aria-label={`Delete ${row.title}`}
                         title="Delete document"
                         onClick={(event) => {
@@ -1307,7 +1457,7 @@ export function DocumentRepositoryPanel({
                         )}
                       </button>
                     </td>
-                  </tr>
+                      </tr>
                 );
               })}
               {pendingUploads.map((pending) => (
@@ -1324,14 +1474,17 @@ export function DocumentRepositoryPanel({
                   >
                     {pending.filename}
                   </td>
-                  <td className="px-0.5 py-2">
+                  <td className="document-repository-col-revision px-1 py-2">
                     <span className="cockpit-skeleton block h-2.5 w-4" aria-hidden />
                   </td>
                   <td
-                    className="truncate px-0.5 py-2"
+                    className="document-repository-col-category truncate px-1 py-2"
                     title={pendingStageLabel(pending)}
                   >
                     {pendingStageLabel(pending)}
+                  </td>
+                  <td className="document-repository-col-type px-1 py-2">
+                    <span className="cockpit-skeleton block h-2.5 w-10" aria-hidden />
                   </td>
                   <td className="px-0 py-1.5 text-center">
                     <Loader2
@@ -1368,6 +1521,206 @@ export function DocumentRepositoryPanel({
       </div>
     </div>
   );
+}
+
+function DocumentClassificationContextMenu({
+  position,
+  documents,
+  disabled,
+  onClose,
+  onDocumentTypeChange,
+  onCategoryChange,
+}: {
+  position: { x: number; y: number };
+  documents: EvidencePreview[];
+  disabled: boolean;
+  onClose: () => void;
+  onDocumentTypeChange: (documentClass: string) => Promise<void> | void;
+  onCategoryChange: (documentSubject: string) => Promise<void> | void;
+}) {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [section, setSection] = useState<"document_type" | "category" | null>(null);
+  const selectedDocumentType = sharedValue(
+    documents.map((document) => document.document_class),
+  );
+  const selectedCategory = sharedValue(
+    documents.map((document) =>
+      resolveCategorySlug({
+        documentSubject: document.document_subject,
+        category: document.category,
+      }),
+    ),
+  );
+  const count = documents.length;
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) onClose();
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    const focusFrame = requestAnimationFrame(() => {
+      const selector = section
+        ? "[data-classification-option]:not(:disabled)"
+        : "[role='menuitem']:not(:disabled)";
+      menuRef.current?.querySelector<HTMLElement>(selector)?.focus();
+    });
+    return () => cancelAnimationFrame(focusFrame);
+  }, [section]);
+
+  const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
+  const viewportHeight = typeof window === "undefined" ? 768 : window.innerHeight;
+  const menuHeight = section ? 320 : 126;
+  const left = Math.max(8, Math.min(position.x, viewportWidth - 232));
+  const top = Math.max(8, Math.min(position.y, viewportHeight - menuHeight - 8));
+  const itemClassName =
+    "flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted disabled:pointer-events-none disabled:opacity-50";
+
+  function handleMenuKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft" && section) {
+      event.preventDefault();
+      setSection(null);
+      return;
+    }
+    if (event.key === "ArrowRight" && !section) {
+      const targetSection = (event.target as HTMLElement).dataset.menuSection;
+      if (targetSection === "document_type" || targetSection === "category") {
+        event.preventDefault();
+        setSection(targetSection);
+      }
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    const items = Array.from(
+      menuRef.current?.querySelectorAll<HTMLElement>(
+        "[role='menuitem']:not(:disabled)",
+      ) ?? [],
+    );
+    if (!items.length) return;
+    event.preventDefault();
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement);
+    let nextIndex: number;
+    if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = items.length - 1;
+    else if (event.key === "ArrowDown") nextIndex = (currentIndex + 1) % items.length;
+    else nextIndex = (currentIndex - 1 + items.length) % items.length;
+    items[nextIndex]?.focus();
+  }
+
+  const content = (
+    <div
+      ref={menuRef}
+      role="menu"
+      aria-label="Change document classification"
+      className="sw-surface sw-contact fixed z-50 w-56 overflow-hidden p-1 text-popover-foreground outline-none"
+      style={{ left, top }}
+      onContextMenu={(event) => event.preventDefault()}
+      onKeyDown={handleMenuKeyDown}
+    >
+      {section ? (
+        <>
+          <button
+            type="button"
+            role="menuitem"
+            className={itemClassName}
+            onClick={() => setSection(null)}
+          >
+            <ChevronLeft className="size-4 text-muted-foreground" aria-hidden />
+            Back
+          </button>
+          <div className="my-1 h-px bg-border" />
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            {section === "document_type" ? "Document type" : "Category"}
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {(section === "document_type"
+              ? DOCUMENT_TYPE_OPTIONS
+              : DOCUMENT_CATEGORY_OPTIONS
+            ).map((option) => {
+              const selected =
+                section === "document_type"
+                  ? selectedDocumentType === option.value
+                  : selectedCategory === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="menuitem"
+                  data-classification-option
+                  className={itemClassName}
+                  disabled={disabled}
+                  onClick={() => {
+                    onClose();
+                    if (section === "document_type") {
+                      void onDocumentTypeChange(option.value);
+                    } else {
+                      void onCategoryChange(option.value);
+                    }
+                  }}
+                >
+                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
+                  {selected ? (
+                    <CheckCircle2
+                      className="size-3.5 shrink-0 text-muted-foreground"
+                      aria-label="Current value"
+                    />
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
+            {count} {count === 1 ? "document" : "documents"} selected
+          </div>
+          <div className="my-1 h-px bg-border" />
+          <button
+            type="button"
+            role="menuitem"
+            aria-haspopup="menu"
+            data-menu-section="document_type"
+            className={itemClassName}
+            disabled={disabled || count === 0}
+            onClick={() => setSection("document_type")}
+          >
+            Change document type
+            <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden />
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            aria-haspopup="menu"
+            data-menu-section="category"
+            className={itemClassName}
+            disabled={disabled || count === 0}
+            onClick={() => setSection("category")}
+          >
+            Change category
+            <ChevronRight className="ml-auto size-4 text-muted-foreground" aria-hidden />
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  return createPortal(content, document.body);
+}
+
+function sharedValue(values: string[]): string | null {
+  if (!values.length) return null;
+  return values.every((value) => value === values[0]) ? values[0] : null;
 }
 
 function artefactScheduleLabel(workflowType: string): string {
@@ -1587,6 +1940,8 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
         return row.title;
       case "revision":
         return String(row.draft.version);
+      case "document_type":
+        return "Generated";
       case "category":
         return artefactScheduleLabel(row.draft.workflow_type);
     }
@@ -1599,6 +1954,8 @@ function scheduleSortValue(row: ScheduleRow, key: ScheduleSortKey): string {
       return row.title;
     case "revision":
       return plainMetadataText(row.evidence.revision);
+    case "document_type":
+      return documentTypeLabel(row.evidence.document_class);
     case "category":
       return documentCategoryLabel({
         documentSubject: row.evidence.document_subject,

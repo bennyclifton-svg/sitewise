@@ -10,6 +10,7 @@ import subprocess
 import uuid
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -109,6 +110,12 @@ class PiTurnError(Exception):
 
 class PiTurnTimeout(PiTurnError):
     pass
+
+
+@dataclass(slots=True)
+class _PiStreamState:
+    emitted_text: bool = False
+    terminal_error: str | None = None
 
 
 class _Stream(Protocol):
@@ -340,6 +347,42 @@ def text_delta_from_pi_event(raw_line: str) -> str | None:
     return delta if isinstance(delta, str) and delta else None
 
 
+def _update_pi_stream_state(raw_line: str, state: _PiStreamState) -> None:
+    line = raw_line.strip()
+    if not line.startswith("{"):
+        return
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return
+
+    if event.get("type") == "message_end":
+        message = event.get("message") or {}
+        if message.get("role") != "assistant":
+            return
+        if message.get("stopReason") == "error":
+            error = message.get("errorMessage")
+            state.terminal_error = (
+                " ".join(error.split())[:1000]
+                if isinstance(error, str) and error.strip()
+                else "Pi provider request failed"
+            )
+        else:
+            state.terminal_error = None
+        return
+
+    if event.get("type") == "auto_retry_end":
+        if event.get("success") is False:
+            error = event.get("finalError")
+            state.terminal_error = (
+                " ".join(error.split())[:1000]
+                if isinstance(error, str) and error.strip()
+                else "Pi exhausted its provider retries"
+            )
+        elif event.get("success") is True:
+            state.terminal_error = None
+
+
 async def _read_stderr(stream: _Stream | None, tail: deque[str]) -> None:
     if stream is None:
         return
@@ -367,6 +410,7 @@ async def _iter_pi_stdout(
     stream: _Stream | None,
     *,
     deadline: float | None = None,
+    state: _PiStreamState | None = None,
 ) -> AsyncIterator[str]:
     if stream is None:
         return
@@ -375,8 +419,12 @@ async def _iter_pi_stdout(
         if not raw:
             return
         line = raw.decode(errors="replace")
+        if state is not None:
+            _update_pi_stream_state(line, state)
         delta = text_delta_from_pi_event(line)
         if delta:
+            if state is not None:
+                state.emitted_text = True
             yield delta
 
 
@@ -412,6 +460,7 @@ async def stream_pi_turn(
         )
         env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
         stderr_tail: deque[str] = deque(maxlen=20)
+        stream_state = _PiStreamState()
 
         try:
             process = await spawn(argv=argv, env=env, cwd=str(workspace))
@@ -435,6 +484,7 @@ async def stream_pi_turn(
                 async for chunk in _iter_pi_stdout(
                     process.stdout,
                     deadline=deadline,
+                    state=stream_state,
                 ):
                     yield chunk
                 remaining = deadline - asyncio.get_running_loop().time()
@@ -457,6 +507,12 @@ async def stream_pi_turn(
                 if tail:
                     message = f"{message}: {tail}"
                 raise PiTurnError(message)
+            if stream_state.terminal_error:
+                raise PiTurnError(
+                    f"Pi provider request failed: {stream_state.terminal_error}"
+                )
+            if not stream_state.emitted_text:
+                raise PiTurnError("Pi exited without an assistant response")
         except BaseException:
             if process.returncode is None:
                 await _kill_and_wait(process)

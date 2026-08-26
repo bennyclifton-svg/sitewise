@@ -143,6 +143,9 @@ async def set_document_classification(
         raise DocumentClassificationNotFound(str(document_id))
 
     previous_class = document.document_class
+    previous_subject = canonical_category(
+        (document.document_metadata or {}).get("subject")
+    )
     if document.content_hash:
         key_basis = "content_hash"
         content_hash = document.content_hash
@@ -210,6 +213,7 @@ async def set_document_classification(
             "document_class": document_class,
             "document_subject": subject,
             "previous_class": previous_class,
+            "previous_subject": previous_subject,
             "key_basis": key_basis,
         },
         changes_context=False,
@@ -222,13 +226,17 @@ async def set_document_classification(
         reference_type="source_document",
         reference_id=document.id,
         message=(
-            f"Reclassified {document.filename} from {previous_class} to {document_class}"
+            f"Reclassified {document.filename} from "
+            f"{previous_class}/{previous_subject} to {document_class}/{subject}"
         ),
         deduplication_key=verb_dedup_key(
             "document.reclassified",
             reference_type="source_document",
             reference_id=document.id,
-            extra=f"{previous_class}:{document_class}:{document.content_hash or ''}",
+            extra=(
+                f"{previous_class}:{previous_subject}:"
+                f"{document_class}:{subject}:{document.content_hash or ''}"
+            ),
         ),
         metadata={
             "filename": document.filename,
@@ -239,3 +247,64 @@ async def set_document_classification(
     )
     await session.flush()
     return document
+
+
+async def set_document_classifications(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    document_ids: list[uuid.UUID],
+    document_class: DocumentClass | None,
+    document_subject: DocumentSubject | None,
+    actor_id: uuid.UUID,
+    reason: str | None = None,
+) -> list[SourceDocument]:
+    """Apply one field-level correction to a tenant-scoped document selection."""
+    if document_class is None and document_subject is None:
+        raise DocumentClassificationInvalid(
+            "document_class or document_subject is required"
+        )
+
+    unique_ids = list(dict.fromkeys(document_ids))
+    result = await session.execute(
+        select(SourceDocument).where(
+            SourceDocument.project_id == project_id,
+            SourceDocument.id.in_(unique_ids),
+        )
+    )
+    by_id = {document.id: document for document in result.scalars().all()}
+    missing = [document_id for document_id in unique_ids if document_id not in by_id]
+    if missing:
+        raise DocumentClassificationNotFound(str(missing[0]))
+
+    updated: list[SourceDocument] = []
+    for document_id in unique_ids:
+        document = by_id[document_id]
+        metadata = (
+            document.document_metadata
+            if isinstance(document.document_metadata, dict)
+            else {}
+        )
+        effective_class = cast(
+            DocumentClass, document_class or document.document_class
+        )
+        effective_subject = (
+            document_subject
+            if document_subject is not None
+            else cast(
+                DocumentSubject,
+                canonical_category(metadata.get("subject") or metadata.get("discipline")),
+            )
+        )
+        updated.append(
+            await set_document_classification(
+                session,
+                project_id=project_id,
+                document_id=document_id,
+                document_class=effective_class,
+                document_subject=effective_subject,
+                actor_id=actor_id,
+                reason=reason,
+            )
+        )
+    return updated

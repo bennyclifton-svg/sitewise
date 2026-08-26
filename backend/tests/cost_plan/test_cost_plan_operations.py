@@ -102,6 +102,50 @@ def test_move_and_category_operations_publish_once() -> None:
     assert result.state.narrative["categories"] == ["Construction", "Provisional"]
 
 
+def test_add_category_can_place_it_after_an_existing_section() -> None:
+    base = _state([_item("joinery", "C-01")]).model_copy(
+        update={
+            "narrative": {
+                "categories": ["Fees and Charges", "Construction", "Contingency"]
+            }
+        }
+    )
+
+    async def publish(*args, state: CostPlanState, **kwargs) -> CostPlanState:
+        return state.model_copy(update={"version": 2, "totals": _totals(state)})
+
+    with (
+        patch(
+            "app.cost_plan.service._base_for_mutation", new=AsyncMock(return_value=base)
+        ),
+        patch("app.cost_plan.service._publish_state", new=AsyncMock(side_effect=publish)),
+    ):
+        result = asyncio.run(
+            apply_cost_plan_operations(
+                AsyncMock(),
+                project=Project(id=PROJECT_ID, owner_user_id=USER_ID),
+                author_user_id=USER_ID,
+                expected_base_version=1,
+                operations=[
+                    CostPlanOperation(
+                        operation="ADD",
+                        target_type="cost_category",
+                        values={"category": "New category"},
+                        reference_id="Construction",
+                        placement="after",
+                    )
+                ],
+            )
+        )
+
+    assert result.state.narrative["categories"] == [
+        "Fees and Charges",
+        "Construction",
+        "New category",
+        "Contingency",
+    ]
+
+
 def test_batch_operations_publish_once_and_return_a_delta() -> None:
     base = _state([_item("joinery", "C-01"), _item("ffe", "C-02")])
 

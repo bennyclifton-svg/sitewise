@@ -1,5 +1,6 @@
 export type ProgrammeScale = "week" | "month" | "quarter";
 export type ProgrammeKind = "stage" | "activity" | "milestone";
+export type DependencyEndpoint = "start" | "finish";
 
 export type ProgrammeActivity = {
   activity_key: string;
@@ -10,8 +11,6 @@ export type ProgrammeActivity = {
   start_date: string;
   duration_days: number;
   finish_date: string | null;
-  predecessor_key: string | null;
-  lag_days: number;
   assumption: boolean;
   notes: string;
 };
@@ -23,12 +22,23 @@ export type ProgrammeState = {
   status: "proposed" | "accepted" | "superseded";
   view_scale: ProgrammeScale;
   pmp_embed_visible: boolean;
+  collapsed_stage_keys: string[];
   activities: ProgrammeActivity[];
+  dependencies?: ProgrammeDependency[];
+};
+
+export type ProgrammeDependency = {
+  dependency_key: string;
+  source_activity_key: string;
+  target_activity_key: string;
+  source_endpoint: DependencyEndpoint;
+  target_endpoint: DependencyEndpoint;
+  lag_days: number;
 };
 
 export type ProgrammeOperation = {
   operation: "ADD" | "UPDATE" | "DELETE" | "MOVE";
-  target_type: ProgrammeKind;
+  target_type: ProgrammeKind | "dependency";
   target_id?: string;
   values?: Record<string, unknown>;
   reference_id?: string;
@@ -99,6 +109,7 @@ export function coalesceProgrammeOperations(
     if (
       operation.operation === "UPDATE" &&
       last?.operation === "UPDATE" &&
+      last.target_type === operation.target_type &&
       last.target_id &&
       last.target_id === operation.target_id
     ) {
@@ -118,10 +129,35 @@ export function applyProgrammeOperationsLocally(
   operations: ProgrammeOperation[],
 ): ProgrammeState {
   let activities = state.activities;
-  for (const operation of operations) {
+  let dependencies = state.dependencies ?? [];
+  for (let operation of operations) {
+    if (operation.target_type === "dependency") {
+      dependencies = applyDependencyLocally(dependencies, activities, operation);
+      continue;
+    }
+    if (operation.operation === "UPDATE" && operation.values?.start_date) {
+      const adjusted = adjustMoveLagLocally(activities, dependencies, operation);
+      dependencies = adjusted.dependencies;
+      if (adjusted.linked) {
+        const values = { ...operation.values };
+        delete values.start_date;
+        if (Object.keys(values).length === 0) continue;
+        operation = { ...operation, values };
+      }
+    }
     activities = applyOneLocally(activities, operation);
+    if (operation.operation === "DELETE") {
+      const keys = new Set(activities.map((item) => item.activity_key));
+      dependencies = dependencies.filter(
+        (item) => keys.has(item.source_activity_key) && keys.has(item.target_activity_key),
+      );
+    }
   }
-  return { ...state, activities: rollupStages(scheduleActivities(activities)) };
+  return {
+    ...state,
+    activities: rollupStages(scheduleActivities(activities, dependencies)),
+    dependencies,
+  };
 }
 
 function applyOneLocally(
@@ -169,15 +205,13 @@ function addLocally(
         : 14;
   const item: ProgrammeActivity = {
     activity_key: key,
-    kind: operation.target_type,
+    kind: operation.target_type as ProgrammeKind,
     parent_key: parentKey,
     name,
     display_order: activities.length,
     start_date: start,
     duration_days: duration,
     finish_date: operation.target_type === "milestone" ? start : addDays(start, duration),
-    predecessor_key: null,
-    lag_days: 0,
     assumption: true,
     notes: "",
   };
@@ -210,17 +244,6 @@ function updateLocally(
     }
     if (typeof values.start_date === "string" && values.start_date) {
       next.start_date = values.start_date;
-      if (item.predecessor_key) {
-        next.predecessor_key = null;
-        next.lag_days = 0;
-      }
-    }
-    if ("predecessor_key" in values && !("start_date" in values)) {
-      next.predecessor_key =
-        typeof values.predecessor_key === "string" && values.predecessor_key
-          ? values.predecessor_key
-          : null;
-      next.lag_days = typeof values.lag_days === "number" ? values.lag_days : 0;
     }
     next.finish_date =
       next.kind === "milestone" ? next.start_date : addDays(next.start_date, next.duration_days);
@@ -234,13 +257,9 @@ function deleteLocally(
 ): ProgrammeActivity[] {
   if (!targetId) return activities;
   return treeOrder(
-    activities
-      .filter((item) => item.activity_key !== targetId && item.parent_key !== targetId)
-      .map((item) =>
-        item.predecessor_key === targetId
-          ? { ...item, predecessor_key: null, lag_days: 0 }
-          : item,
-      ),
+    activities.filter(
+      (item) => item.activity_key !== targetId && item.parent_key !== targetId,
+    ),
   );
 }
 
@@ -310,8 +329,140 @@ function moveLocally(
   ]);
 }
 
-function scheduleActivities(activities: ProgrammeActivity[]): ProgrammeActivity[] {
+export function programmeDependencyKey(
+  sourceActivityKey: string,
+  sourceEndpoint: DependencyEndpoint,
+  targetActivityKey: string,
+  targetEndpoint: DependencyEndpoint,
+): string {
+  return `${sourceActivityKey}:${sourceEndpoint}->${targetActivityKey}:${targetEndpoint}`;
+}
+
+function applyDependencyLocally(
+  dependencies: ProgrammeDependency[],
+  activities: ProgrammeActivity[],
+  operation: ProgrammeOperation,
+): ProgrammeDependency[] {
+  if (operation.operation === "ADD") {
+    const values = operation.values ?? {};
+    const source_activity_key = String(values.source_activity_key ?? "");
+    const target_activity_key = String(values.target_activity_key ?? "");
+    const source_endpoint = values.source_endpoint === "start" ? "start" : "finish";
+    const target_endpoint = values.target_endpoint === "finish" ? "finish" : "start";
+    if (!source_activity_key || !target_activity_key) return dependencies;
+    if (
+      programmeDependencyWouldCycle(
+        activities,
+        dependencies,
+        source_activity_key,
+        target_activity_key,
+      )
+    ) {
+      return dependencies;
+    }
+    const dependency: ProgrammeDependency = {
+      dependency_key: String(
+        values.dependency_key ??
+          programmeDependencyKey(
+            source_activity_key,
+            source_endpoint,
+            target_activity_key,
+            target_endpoint,
+          ),
+      ),
+      source_activity_key,
+      target_activity_key,
+      source_endpoint,
+      target_endpoint,
+      lag_days: Math.max(0, Number(values.lag_days ?? 0)),
+    };
+    return dependencies.some((item) => item.dependency_key === dependency.dependency_key)
+      ? dependencies
+      : [...dependencies, dependency];
+  }
+  const targetId = operation.target_id;
+  if (!targetId) return dependencies;
+  if (operation.operation === "DELETE") {
+    return dependencies.filter((item) => item.dependency_key !== targetId);
+  }
+  if (operation.operation === "UPDATE") {
+    return dependencies.map((item) =>
+      item.dependency_key === targetId
+        ? {
+            ...item,
+            lag_days:
+              typeof operation.values?.lag_days === "number"
+                ? Math.max(0, operation.values.lag_days)
+                : item.lag_days,
+          }
+        : item,
+    );
+  }
+  return dependencies;
+}
+
+function adjustMoveLagLocally(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+  operation: ProgrammeOperation,
+): { dependencies: ProgrammeDependency[]; linked: boolean } {
+  const target = activities.find((item) => item.activity_key === operation.target_id);
+  const desiredStart = operation.values?.start_date;
+  if (!target || typeof desiredStart !== "string") return { dependencies, linked: false };
   const byKey = new Map(activities.map((item) => [item.activity_key, item]));
+  const incoming = dependencies
+    .filter((item) => item.target_activity_key === target.activity_key)
+    .map((item) => {
+      const source = byKey.get(item.source_activity_key);
+      return source
+        ? { item, constraint: dependencyConstraintStart(item, source, target.duration_days) }
+        : null;
+    })
+    .filter((item): item is { item: ProgrammeDependency; constraint: string } => item !== null)
+    .sort((left, right) =>
+      left.constraint === right.constraint
+        ? left.item.dependency_key.localeCompare(right.item.dependency_key)
+        : left.constraint.localeCompare(right.constraint),
+    );
+  const driving = incoming.at(-1)?.item;
+  if (!driving) return { dependencies, linked: false };
+  const delta = daysBetween(target.start_date, desiredStart);
+  return {
+    dependencies: dependencies.map((item) =>
+      item.dependency_key === driving.dependency_key
+        ? { ...item, lag_days: Math.max(0, item.lag_days + delta) }
+        : item,
+    ),
+    linked: true,
+  };
+}
+
+function dependencyConstraintStart(
+  dependency: ProgrammeDependency,
+  source: ProgrammeActivity,
+  targetDuration: number,
+): string {
+  const sourceAnchor =
+    dependency.source_endpoint === "start"
+      ? source.start_date
+      : (source.finish_date ?? source.start_date);
+  return addDays(
+    sourceAnchor,
+    dependency.lag_days - (dependency.target_endpoint === "finish" ? targetDuration : 0),
+  );
+}
+
+function scheduleActivities(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+): ProgrammeActivity[] {
+  const byKey = new Map(activities.map((item) => [item.activity_key, item]));
+  const incoming = new Map<string, ProgrammeDependency[]>();
+  for (const dependency of dependencies) {
+    const bucket = incoming.get(dependency.target_activity_key) ?? [];
+    bucket.push(dependency);
+    incoming.set(dependency.target_activity_key, bucket);
+  }
   const resolved = new Map<string, ProgrammeActivity>();
   const visiting = new Set<string>();
 
@@ -320,12 +471,16 @@ function scheduleActivities(activities: ProgrammeActivity[]): ProgrammeActivity[
     if (cached) return cached;
     const row = byKey.get(key);
     if (!row) throw new Error(`activity ${key} was not found`);
-    if (visiting.has(key)) return row;
+    if (visiting.has(key)) throw new Error(`dependency cycle involving ${key}`);
     visiting.add(key);
     let start = row.start_date;
-    if (row.predecessor_key && byKey.has(row.predecessor_key)) {
-      const predecessor = resolve(row.predecessor_key);
-      start = addDays(predecessor.finish_date || predecessor.start_date, row.lag_days);
+    const constraints = incoming.get(key) ?? [];
+    if (constraints.length) {
+      start = constraints.reduce((latest, dependency) => {
+        const source = resolve(dependency.source_activity_key);
+        const candidate = dependencyConstraintStart(dependency, source, row.duration_days);
+        return candidate > latest ? candidate : latest;
+      }, "0000-00-00");
     }
     const finish = row.kind === "milestone" ? start : addDays(start, row.duration_days);
     const scheduled = { ...row, start_date: start, finish_date: finish };
@@ -438,24 +593,36 @@ export function previousProgrammeKey(
   return activities[index - 1]?.activity_key ?? null;
 }
 
-export function programmeLinkWouldCycle(
+export function programmeDependencyWouldCycle(
   activities: ProgrammeActivity[],
-  activityKey: string,
-  predecessorKey: string,
+  dependencies: ProgrammeDependency[],
+  sourceActivityKey: string,
+  targetActivityKey: string,
 ): boolean {
+  const activityKeys = new Set(activities.map((item) => item.activity_key));
+  if (
+    sourceActivityKey === targetActivityKey ||
+    !activityKeys.has(sourceActivityKey) ||
+    !activityKeys.has(targetActivityKey)
+  ) {
+    return true;
+  }
+  const outgoing = new Map<string, string[]>();
+  for (const dependency of dependencies) {
+    const bucket = outgoing.get(dependency.source_activity_key) ?? [];
+    bucket.push(dependency.target_activity_key);
+    outgoing.set(dependency.source_activity_key, bucket);
+  }
+  const pending = [targetActivityKey];
   const seen = new Set<string>();
-  let cursor: string | null = predecessorKey;
-  while (cursor) {
-    if (cursor === activityKey || seen.has(cursor)) return true;
-    seen.add(cursor);
-    cursor =
-      activities.find((item) => item.activity_key === cursor)?.predecessor_key ?? null;
+  while (pending.length) {
+    const key = pending.pop()!;
+    if (key === sourceActivityKey) return true;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pending.push(...(outgoing.get(key) ?? []));
   }
   return false;
-}
-
-export function isLinked(activity: ProgrammeActivity): boolean {
-  return Boolean(activity.predecessor_key);
 }
 
 export type ProgrammeLink = {
@@ -464,6 +631,10 @@ export type ProgrammeLink = {
   toOffset: number;
   fromIndex: number;
   toIndex: number;
+  sourceEndpoint: DependencyEndpoint;
+  targetEndpoint: DependencyEndpoint;
+  lagDays: number;
+  laneIndex: number;
 };
 
 export function programmeActivitySpan(
@@ -480,26 +651,42 @@ export function programmeActivitySpan(
 
 export function programmeLinks(
   activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
   spanStart: string,
 ): ProgrammeLink[] {
+  const positions = new Map(
+    activities.map((item, index) => [
+      item.activity_key,
+      { item, index, span: programmeActivitySpan(spanStart, item) },
+    ]),
+  );
   const links: ProgrammeLink[] = [];
-  activities.forEach((activity, toIndex) => {
-    if (!activity.predecessor_key) return;
-    const fromIndex = activities.findIndex(
-      (item) => item.activity_key === activity.predecessor_key,
-    );
-    const predecessor = activities[fromIndex];
-    if (!predecessor) return;
-    const from = programmeActivitySpan(spanStart, predecessor);
-    const to = programmeActivitySpan(spanStart, activity);
+  const lanes = new Map<string, number>();
+  for (const dependency of dependencies) {
+    const source = positions.get(dependency.source_activity_key);
+    const target = positions.get(dependency.target_activity_key);
+    if (!source || !target) continue;
+    const fromOffset =
+      dependency.source_endpoint === "start" ? source.span.start : source.span.end;
+    const toOffset =
+      dependency.target_endpoint === "start" ? target.span.start : target.span.end;
+    const laneKey = `${dependency.source_endpoint}:${dependency.target_endpoint}:${Math.round(
+      Math.min(fromOffset, toOffset) / 7,
+    )}`;
+    const laneIndex = lanes.get(laneKey) ?? 0;
+    lanes.set(laneKey, laneIndex + 1);
     links.push({
-      key: `${predecessor.activity_key}->${activity.activity_key}`,
-      fromOffset: from.end,
-      toOffset: to.start,
-      fromIndex,
-      toIndex,
+      key: dependency.dependency_key,
+      fromOffset,
+      toOffset,
+      fromIndex: source.index,
+      toIndex: target.index,
+      sourceEndpoint: dependency.source_endpoint,
+      targetEndpoint: dependency.target_endpoint,
+      lagDays: dependency.lag_days,
+      laneIndex,
     });
-  });
+  }
   return links;
 }
 
@@ -514,9 +701,30 @@ export function ganttLinkPath(
   const x2 = link.toOffset * xScale;
   const y1 = link.fromIndex * rowHeight + linkY;
   const y2 = link.toIndex * rowHeight + linkY;
-  if (x1 === x2) return `M ${x1} ${y1} V ${y2}`;
-  if (y1 === y2) return `M ${x1} ${y1} H ${x2}`;
-  return `M ${x1} ${y1} H ${x1 + stubX} V ${y2} H ${x2}`;
+  const sourceStub = x1 + (link.sourceEndpoint === "start" ? -stubX : stubX);
+  const targetStub = x2 + (link.targetEndpoint === "start" ? -stubX : stubX);
+  let trunk: number;
+  if (link.sourceEndpoint === "start" && link.targetEndpoint === "start") {
+    trunk = Math.min(sourceStub, targetStub) - stubX;
+  } else if (link.sourceEndpoint === "finish" && link.targetEndpoint === "finish") {
+    trunk = Math.max(sourceStub, targetStub) + stubX;
+  } else if (link.sourceEndpoint === "finish" && link.targetEndpoint === "start") {
+    trunk = sourceStub <= targetStub
+      ? (sourceStub + targetStub) / 2
+      : Math.max(sourceStub, targetStub) + stubX;
+  } else {
+    trunk = Math.min(sourceStub, targetStub) - stubX;
+  }
+  if (link.laneIndex > 0) {
+    const laneOffset = link.laneIndex * Math.max(3, stubX * 0.55);
+    const routesLeft =
+      link.sourceEndpoint === "start" ||
+      (link.sourceEndpoint === "finish" &&
+        link.targetEndpoint === "start" &&
+        sourceStub <= targetStub);
+    trunk += routesLeft ? -laneOffset : laneOffset;
+  }
+  return `M ${x1} ${y1} H ${sourceStub} H ${trunk} V ${y2} H ${targetStub} H ${x2}`;
 }
 
 export function addDays(iso: string, days: number): string {

@@ -16,18 +16,12 @@ Provide a concise return brief with the tender response, identifying amendments,
 
 1. Tailor the requested services to the evidenced project spaces and systems. [2] <!-- clerk:block id=blk_c6ac3c7f4ccf806eeeab89e958aebc89 -->
 
-<!-- clerk:block id=blk_d473131661971025d05ba9b4417c3c67 -->
-**Required deliverables**
-1. Planning report / statement of environmental effects fee proposal. <!-- clerk:block id=blk_378a18d71cfd1872c02b5d2d4ee6bf62 -->
-2. Assumptions on council pre-lodgement meetings and authority response timeframes. <!-- clerk:block id=blk_36ddba1c8f7f3c5c10e93ab38097770f -->
-3. Hourly rates for RFIs, design changes, and section 4.55 modifications. <!-- clerk:block id=blk_f8184c79a5bca0d0bf26204e69fb440b -->
+## Programme
 
-## Programme and submission
-
-- State earliest availability, stage durations and programme dependencies. <!-- clerk:block id=blk_645daad154ed6a9218c0472a5f2927a3 -->
-- Submit one PDF response with company details, insurances, proposed personnel and proposed terms. <!-- clerk:block id=blk_6b5f7916dd1ce49c705a3a279d4d02b4 -->
+- State earliest availability, proposed service-stage durations, and dependencies against the current project programme. <!-- clerk:block id=blk_645daad154ed6a9218c0472a5f2927a3 -->
 
 ## Fee response
+- Submit one PDF fee response with company details, insurances, proposed personnel and proposed terms. <!-- clerk:block id=blk_6b5f7916dd1ce49c705a3a279d4d02b4 -->
 - Submit a lump-sum fee excluding GST, with GST shown separately. <!-- clerk:block id=blk_69aa604d5f25a3a4684541594bf28d0e -->
 - Use the indicative breakdown below (mark stages N/A where not applicable), or an equivalent schedule that preserves these stages, to support like-for-like fee comparison. <!-- clerk:block id=blk_952115bae1b493ec4a136f4871c79ddb -->
 

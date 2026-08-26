@@ -16,7 +16,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -41,6 +41,12 @@ class ProgrammeVersion(Base):
     view_scale: Mapped[str] = mapped_column(String(16), nullable=False, default="month")
     pmp_embed_visible: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True
+    )
+    collapsed_stage_keys: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list
+    )
+    dependencies: Mapped[list[dict[str, object]]] = mapped_column(
+        JSONB, nullable=False, default=list
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -88,8 +94,6 @@ class ProgrammeActivity(Base):
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     duration_days: Mapped[int] = mapped_column(Integer, nullable=False)
     finish_date: Mapped[date] = mapped_column(Date, nullable=False)
-    predecessor_key: Mapped[str | None] = mapped_column(String(255))
-    lag_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     assumption: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(

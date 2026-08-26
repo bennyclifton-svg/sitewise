@@ -2047,8 +2047,9 @@ async def set_programme_view(
     expected_base_version: int,
     view_scale: str | None = None,
     pmp_embed_visible: bool | None = None,
+    collapsed_stage_keys: list[str] | None = None,
 ) -> dict:
-    """Update the Programme Gantt scale or whether it appears in the PMP."""
+    """Update the Programme Gantt scale, visibility, or collapsed parent stages."""
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
         try:
@@ -2063,6 +2064,7 @@ async def set_programme_view(
                 update=ProgrammeViewUpdate(
                     view_scale=view_scale,  # type: ignore[arg-type]
                     pmp_embed_visible=pmp_embed_visible,
+                    collapsed_stage_keys=collapsed_stage_keys,
                 ),
             )
             await session.commit()

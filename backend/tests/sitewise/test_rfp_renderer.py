@@ -1,3 +1,4 @@
+from datetime import date
 import re
 from types import SimpleNamespace
 import uuid
@@ -10,6 +11,11 @@ from app.sitewise.rfp_renderer import (
     detect_rfp_identity_conflicts,
     render_rfp_scaffold,
     replace_transmittal_section,
+)
+from app.programme.schemas import (
+    ProgrammeActivityInput,
+    ProgrammeDependencyInput,
+    ProgrammeState,
 )
 from app.workflows.consultant_procurement import normalise_discipline
 
@@ -188,11 +194,14 @@ def test_rfp_scaffold_has_narrative_markers_and_a_stable_document_register() -> 
     assert "Client instruction:" not in summary_body
     assert after_summary.lstrip().startswith(BACKGROUND_PLACEHOLDER)
     services = scaffold.split("## Services and deliverables", maxsplit=1)[1].split(
-        "## Programme and submission", maxsplit=1
+        "## Programme", maxsplit=1
     )[0]
-    assert re.search(r"^1\. ", services, flags=re.MULTILINE)
-    assert "**Required deliverables**" in services
-    assert not re.search(r"^- ", services.split("**Required deliverables**", maxsplit=1)[1])
+    assert REQUESTED_SERVICES_PLACEHOLDER in services
+    assert "**Required deliverables**" not in services
+    assert "fee proposal with" not in services.casefold()
+    assert "## Programme and submission" not in scaffold
+    assert "## Programme" in scaffold
+    assert scaffold.index("## Programme") < scaffold.index("## Fee response")
 
 
 def test_rfp_summary_cites_evidence_that_corroborates_profile_identity() -> None:
@@ -429,7 +438,7 @@ def test_certifier_evidence_queries_prioritise_approvals() -> None:
     assert not any(query.key == "project_scope" for query in queries)
 
 
-def test_certifier_rfp_uses_pca_fee_stages_and_numbered_deliverables() -> None:
+def test_certifier_rfp_uses_pca_fee_stages_without_returnables_as_deliverables() -> None:
     scaffold = render_rfp_scaffold(
         project=_project(),
         target=normalise_discipline("certifier"),
@@ -443,11 +452,11 @@ def test_certifier_rfp_uses_pca_fee_stages_and_numbered_deliverables() -> None:
     assert "| Construction approval support" in scaffold
     assert "| Critical-stage inspection regime" in scaffold
     assert "| Occupation certificate / completion" in scaffold
-    assert "1. Certification fee proposal with statutory role" in scaffold
-    assert "- Certification fee proposal with statutory role" not in scaffold
+    assert "Certification fee proposal with statutory role" not in scaffold
+    assert "**Required deliverables**" not in scaffold
 
 
-def test_consultant_rfp_does_not_truncate_deliverables_to_one_page() -> None:
+def test_consultant_rfp_does_not_repeat_fee_returnables_as_service_deliverables() -> None:
     scaffold = render_rfp_scaffold(
         project=_project(),
         target=normalise_discipline("mechanical engineer"),
@@ -456,11 +465,76 @@ def test_consultant_rfp_does_not_truncate_deliverables_to_one_page() -> None:
         max_pages=1,
     )
 
-    assert (
-        "Fee breakdown by stage with personnel, meetings, site visits, "
-        "disbursements, hourly rates, programme, exclusions, optional services, "
-        "and required client inputs."
-    ) in scaffold
+    services = scaffold.split("## Services and deliverables", maxsplit=1)[1].split(
+        "## Programme", maxsplit=1
+    )[0]
+    assert "Fee breakdown by stage" not in services
+    assert "**Required deliverables**" not in services
+
+
+def test_rfp_programme_section_includes_static_current_programme_snapshot() -> None:
+    programme = ProgrammeState(
+        project_id=_project().id,
+        version=4,
+        status="accepted",
+        view_scale="month",
+        activities=[
+            ProgrammeActivityInput(
+                activity_key="design",
+                kind="stage",
+                name="Design",
+                start_date=date(2026, 9, 1),
+                duration_days=30,
+                finish_date=date(2026, 10, 1),
+            ),
+            ProgrammeActivityInput(
+                activity_key="services-dd",
+                kind="activity",
+                parent_key="design",
+                name="Services design development",
+                start_date=date(2026, 9, 8),
+                duration_days=14,
+                finish_date=date(2026, 9, 22),
+            ),
+            ProgrammeActivityInput(
+                activity_key="design-lock",
+                kind="milestone",
+                parent_key="design",
+                name="Design lock",
+                start_date=date(2026, 10, 1),
+                duration_days=0,
+                finish_date=date(2026, 10, 1),
+            ),
+        ],
+        dependencies=[
+            ProgrammeDependencyInput(
+                dependency_key="services-dd:finish->design-lock:start",
+                source_activity_key="services-dd",
+                target_activity_key="design-lock",
+                source_endpoint="finish",
+                target_endpoint="start",
+            )
+        ],
+    )
+
+    scaffold = render_rfp_scaffold(
+        project=_project(),
+        target=normalise_discipline("services engineering"),
+        citation_index=build_rfp_citation_index([]),
+        forecast={"used": False},
+        max_pages=3,
+        programme=programme,
+    )
+
+    programme_section = scaffold.split("## Programme", maxsplit=1)[1].split(
+        "## Fee response", maxsplit=1
+    )[0]
+    assert "Current Programme v4 — static snapshot" in programme_section
+    assert "| Stage / activity | Start | Finish | Duration | Dependency |" in programme_section
+    assert "| **Design** | 1 Sep 2026 | 1 Oct 2026 | 30 days | — |" in programme_section
+    assert "Services design development" in programme_section
+    assert "Design lock" in programme_section
+    assert "Services design development" in programme_section.split("Design lock", maxsplit=1)[1]
 
 
 def test_consultant_rft_keeps_citations_prominent_and_qa_out_of_issue_body() -> None:

@@ -62,6 +62,7 @@ import type {
   TenderCellItemsResponse,
 } from "@/lib/types/tender";
 import type {
+  BatchDocumentClassificationResponse,
   BatchDeleteEvidenceResponse,
   DeleteDraftResponse,
   DeleteProjectActivityResponse,
@@ -705,6 +706,20 @@ export const api = {
   ): Promise<EvidencePreview> =>
     api.get<EvidencePreview>(`/projects/${projectId}/evidence/${evidenceId}`),
 
+  putDocumentClassifications: async (
+    projectId: string,
+    input: {
+      document_ids: string[];
+      document_class?: string;
+      document_subject?: string;
+      reason?: string | null;
+    },
+  ): Promise<BatchDocumentClassificationResponse> =>
+    api.put<BatchDocumentClassificationResponse>(
+      `/projects/${projectId}/documents/classification/batch`,
+      input,
+    ),
+
   putDocumentClassification: async (
     projectId: string,
     documentId: string,
@@ -911,7 +926,11 @@ export const api = {
   setProgrammeView: async (
     projectId: string,
     expectedBaseVersion: number,
-    update: { view_scale?: ProgrammeScale; pmp_embed_visible?: boolean },
+    update: {
+      view_scale?: ProgrammeScale;
+      pmp_embed_visible?: boolean;
+      collapsed_stage_keys?: string[];
+    },
   ): Promise<ProgrammeState> =>
     api.patch(`/projects/${projectId}/programme/view`, {
       expected_base_version: expectedBaseVersion,

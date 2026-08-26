@@ -511,6 +511,23 @@ class SetDocumentClassificationRequest(BaseModel):
     reason: str | None = Field(default=None, max_length=4000)
 
 
+class BatchSetDocumentClassificationRequest(BaseModel):
+    document_ids: list[uuid.UUID] = Field(min_length=1, max_length=100)
+    document_class: DocumentClass | None = None
+    document_subject: DocumentSubject | None = None
+    reason: str | None = Field(default=None, max_length=4000)
+
+    @model_validator(mode="after")
+    def require_classification_field(self) -> Self:
+        if self.document_class is None and self.document_subject is None:
+            raise ValueError("document_class or document_subject is required")
+        return self
+
+
+class BatchSetDocumentClassificationResponse(BaseModel):
+    documents: list[EvidencePreview]
+
+
 class ProjectDetail(ProjectSummary):
     metadata: dict[str, Any] | None
     evidence_preview: EvidencePreview | None
@@ -686,6 +703,7 @@ class ProjectDisciplineView(BaseModel):
     participant_type: ProcurementParticipantType
     request_kind: ProcurementRequestKind
     workspace_slug: str
+    picker_visible: bool
 
 
 class ProjectDisciplineListResponse(BaseModel):
@@ -931,11 +949,18 @@ class SetProgrammeViewRequest(BaseModel):
     expected_base_version: int = Field(ge=1)
     view_scale: ProgrammeScale | None = None
     pmp_embed_visible: bool | None = None
+    collapsed_stage_keys: list[str] | None = Field(default=None, max_length=200)
 
     @model_validator(mode="after")
     def require_view_field(self) -> Self:
-        if self.view_scale is None and self.pmp_embed_visible is None:
-            raise ValueError("view_scale or pmp_embed_visible is required")
+        if (
+            self.view_scale is None
+            and self.pmp_embed_visible is None
+            and self.collapsed_stage_keys is None
+        ):
+            raise ValueError(
+                "view_scale, pmp_embed_visible, or collapsed_stage_keys is required"
+            )
         return self
 
 

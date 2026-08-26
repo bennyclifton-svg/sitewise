@@ -92,7 +92,7 @@ export function ClassificationChip({
       onKeyDown={(event) => event.stopPropagation()}
     >
       <MenuSelect
-        aria-label="Document class"
+        aria-label="Document type"
         value={classValue}
         options={CLASS_OPTIONS}
         disabled={disabled}

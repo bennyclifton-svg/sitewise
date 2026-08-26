@@ -1958,15 +1958,15 @@ Beta changed
     ).not.toBeInTheDocument();
   });
 
-  it("embeds a read-only Gantt under Programme and can hide it", async () => {
-    const user = userEvent.setup();
+  it("always embeds a read-only Gantt under the PMP Programme heading", async () => {
     const programme = {
       id: "prog-1",
       project_id: PROJECT_ID,
       version: 1,
       status: "proposed" as const,
       view_scale: "month" as const,
-      pmp_embed_visible: true,
+      pmp_embed_visible: false,
+      collapsed_stage_keys: [],
       activities: [
         {
           activity_key: "planning",
@@ -1977,19 +1977,12 @@ Beta changed
           start_date: "2026-08-16",
           duration_days: 90,
           finish_date: "2026-11-14",
-          predecessor_key: null,
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
       ],
     };
     vi.mocked(api.getProgrammeState).mockResolvedValue(programme);
-    vi.mocked(api.setProgrammeView).mockResolvedValue({
-      ...programme,
-      version: 2,
-      pmp_embed_visible: false,
-    });
 
     render(
       <DraftReviewPanel
@@ -2002,29 +1995,15 @@ Beta changed
       />,
     );
     await waitForPmpDecisions();
-    const heading = await screen.findByRole("heading", { name: "Programme" });
-    const toggle = await screen.findByRole("button", {
-      name: "Hide programme from PMP",
-    });
-    expect(heading.parentElement).toContainElement(toggle);
+    await screen.findByRole("heading", { name: "Programme" });
     const figure = document.querySelector("[data-programme-figure]");
     expect(figure).toBeTruthy();
-    expect(heading.parentElement?.contains(figure)).toBe(false);
-    expect(heading.closest("div")?.nextElementSibling).toBe(figure);
     expect(document.querySelector("[data-interactive]")).toBeNull();
     expect(screen.getByText("16 Aug 26")).toBeInTheDocument();
     expect(screen.getByText("90")).toBeInTheDocument();
-
-    await user.click(toggle);
-    expect(api.setProgrammeView).toHaveBeenCalledWith(PROJECT_ID, 1, {
-      pmp_embed_visible: false,
-    });
-    await waitFor(() => {
-      expect(document.querySelector("[data-programme-figure]")).toBeNull();
-    });
     expect(
-      screen.getByRole("button", { name: "Show programme in PMP" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /programme in PMP/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides leftover Programme prose and tables under the Gantt", async () => {
@@ -2035,6 +2014,7 @@ Beta changed
       status: "proposed",
       view_scale: "month",
       pmp_embed_visible: true,
+      collapsed_stage_keys: [],
       activities: [
         {
           activity_key: "planning",
@@ -2045,8 +2025,6 @@ Beta changed
           start_date: "2026-08-16",
           duration_days: 90,
           finish_date: "2026-11-14",
-          predecessor_key: null,
-          lag_days: 0,
           assumption: true,
           notes: "",
         },
@@ -2097,5 +2075,130 @@ Budget follows.
     expect(screen.queryByText("Single stage delivery")).not.toBeInTheDocument();
     expect(screen.queryByText("Setup / brief confirmation")).not.toBeInTheDocument();
     expect(screen.getByText("Budget follows.")).toBeInTheDocument();
+  });
+
+  it("renders an RFT programme as the persisted collapsed Gantt instead of a table", async () => {
+    vi.mocked(api.getProgrammeState).mockResolvedValue({
+      id: "prog-1",
+      project_id: PROJECT_ID,
+      version: 3,
+      status: "proposed",
+      view_scale: "month",
+      pmp_embed_visible: false,
+      collapsed_stage_keys: ["planning"],
+      activities: [
+        {
+          activity_key: "planning",
+          kind: "stage",
+          parent_key: null,
+          name: "Planning",
+          display_order: 0,
+          start_date: "2026-08-16",
+          duration_days: 90,
+          finish_date: "2026-11-14",
+          assumption: true,
+          notes: "",
+        },
+        {
+          activity_key: "concept-design",
+          kind: "activity",
+          parent_key: "planning",
+          name: "Concept design",
+          display_order: 1,
+          start_date: "2026-08-16",
+          duration_days: 30,
+          finish_date: "2026-09-15",
+          assumption: true,
+          notes: "",
+        },
+      ],
+    });
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: "trade_rft_main_works",
+          title: "Request for Tender - Main Works",
+          content_markdown: `# Request for Tender - Main Works
+
+## Programme
+
+| Stage / activity | Start | Finish |
+| --- | --- | --- |
+| Concept design | 16 Aug 2026 | 15 Sep 2026 |
+
+## Tender conditions
+
+Return by the stated close.`,
+        })}
+        workflowType="trade_rft_main_works"
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "Programme" });
+    expect(document.querySelector("[data-programme-figure]")).toBeTruthy();
+    expect(screen.getByText("Planning")).toBeInTheDocument();
+    expect(screen.queryByText("Concept design")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /programme in PMP/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Return by the stated close.")).toBeInTheDocument();
+  });
+
+  it("renders an architect request programme as a Gantt instead of the markdown table", async () => {
+    vi.mocked(api.getProgrammeState).mockResolvedValue({
+      id: "prog-1",
+      project_id: PROJECT_ID,
+      version: 4,
+      status: "proposed",
+      view_scale: "month",
+      pmp_embed_visible: false,
+      collapsed_stage_keys: [],
+      activities: [
+        {
+          activity_key: "concept-design",
+          kind: "stage",
+          parent_key: null,
+          name: "Concept design",
+          display_order: 0,
+          start_date: "2026-08-16",
+          duration_days: 30,
+          finish_date: "2026-09-15",
+          assumption: true,
+          notes: "",
+        },
+      ],
+    });
+
+    render(
+      <DraftReviewPanel
+        projectId={PROJECT_ID}
+        draft={draft({
+          workflow_type: "consultant_procurement_architect",
+          title: "Request for Proposal - Architect",
+          content_markdown: `# Request for Proposal - Architect
+
+## Programme
+
+| Stage | Start | Finish | Duration | Dependency |
+| --- | --- | --- | --- | --- |
+| Concept design | 16 Aug 2026 | 15 Sep 2026 | 30 days | Appointment |
+
+## Submission requirements
+
+Return the completed fee schedule.`,
+        })}
+        workflowType="consultant_procurement_architect"
+        onDraftUpdated={vi.fn()}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "Programme" });
+    expect(document.querySelector("[data-programme-figure]")).toBeTruthy();
+    expect(screen.getByText("Concept design")).toBeInTheDocument();
+    expect(screen.queryByText("Appointment")).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Stage" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /programme in PMP/i })).not.toBeInTheDocument();
+    expect(screen.getByText("Return the completed fee schedule.")).toBeInTheDocument();
   });
 });

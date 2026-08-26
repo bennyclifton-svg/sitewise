@@ -34,7 +34,7 @@ function countOf(summary: SortFilesSummary, key: keyof SortFilesSummary): number
   return summary[key] ?? 0;
 }
 
-export function sortFilesHeadline(summary: SortFilesSummary): string {
+function sortFilesHeadline(summary: SortFilesSummary): string {
   const waiting = countOf(summary, "waiting");
   const moved = countOf(summary, "moved");
   if (waiting > 0 && moved === 0) {

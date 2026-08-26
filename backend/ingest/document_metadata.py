@@ -621,28 +621,31 @@ def _parse_from_markdown_table(preview: str) -> dict[str, str | Confidence] | No
         frontmatter_match.group(1).strip() if frontmatter_match else None
     )
 
-    drawing_number_match = re.search(
-        r"\*\*Drawing number\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
-    ) or re.search(r"\*\*Drawing No\.?\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
-    drawing_number = (
-        strip_markdown_emphasis(drawing_number_match.group(1))
-        if drawing_number_match
-        else None
-    )
+    fields: dict[str, str] = {}
+    for line in preview.splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("|") or not stripped.endswith("|"):
+            continue
+        cells = [
+            strip_markdown_emphasis(cell.strip())
+            for cell in stripped.strip("|").split("|")
+        ]
+        if len(cells) < 2:
+            continue
+        label = re.sub(r"\s+", " ", cells[0]).strip().rstrip(".").casefold()
+        value = cells[1].strip()
+        if not value or re.fullmatch(r":?-{3,}:?", value):
+            continue
+        if label in {"drawing number", "drawing no", "drawing #"}:
+            fields.setdefault("document_number", value)
+        elif label in {"drawing title", "title"}:
+            fields.setdefault("title", value)
+        elif label in {"revision", "rev"}:
+            fields.setdefault("revision", value)
 
-    drawing_title_match = re.search(
-        r"\*\*Drawing title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I
-    ) or re.search(r"\*\*Title\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
-    drawing_title = (
-        strip_markdown_emphasis(drawing_title_match.group(1))
-        if drawing_title_match
-        else None
-    )
-
-    revision_match = re.search(
-        r"\*\*Revision\*\*\s*\|\s*\*?\*?(.+?)\*?\*?\s*\|", preview, re.I
-    ) or re.search(r"\*\*Rev(?:ision)?\*\*\s*\|\s*(.+?)\s*\|", preview, re.I)
-    revision_raw = revision_match.group(1).strip() if revision_match else None
+    drawing_number = fields.get("document_number")
+    drawing_title = fields.get("title")
+    revision_raw = fields.get("revision")
 
     if not drawing_number and not drawing_title and not frontmatter_title:
         return None

@@ -4,7 +4,7 @@ import pytest
 
 from app.programme.schedule import (
     ActivityDraft,
-    apply_link_move,
+    DependencyDraft,
     rollup_stages,
     schedule_activities,
 )
@@ -52,10 +52,17 @@ def test_linked_successor_starts_at_predecessor_finish_plus_lag() -> None:
                 kind="stage",
                 start_date=date(2026, 1, 1),
                 duration_days=60,
-                predecessor_key="planning",
-                lag_days=0,
             ),
-        ]
+        ],
+        [
+            DependencyDraft(
+                dependency_key="planning:finish->procurement:start",
+                source_activity_key="planning",
+                target_activity_key="procurement",
+                source_endpoint="finish",
+                target_endpoint="start",
+            )
+        ],
     )
     by_key = {row.activity_key: row for row in rows}
     assert by_key["procurement"].start_date == date(2026, 11, 14)
@@ -82,19 +89,37 @@ def test_floating_activity_keeps_its_start() -> None:
     assert rows[1].start_date == date(2026, 7, 1)
 
 
-def test_drag_clears_predecessor() -> None:
-    moved = apply_link_move(
-        ActivityDraft(
-            activity_key="procurement",
-            kind="stage",
-            start_date=date(2026, 11, 14),
-            duration_days=60,
-            predecessor_key="planning",
-        ),
-        new_start=date(2026, 12, 1),
+@pytest.mark.parametrize(
+    ("source_endpoint", "target_endpoint", "expected_start"),
+    [
+        ("start", "start", date(2026, 8, 21)),
+        ("start", "finish", date(2026, 8, 11)),
+        ("finish", "finish", date(2026, 8, 21)),
+        ("finish", "start", date(2026, 8, 31)),
+    ],
+)
+def test_schedules_all_four_relationships(
+    source_endpoint: str,
+    target_endpoint: str,
+    expected_start: date,
+) -> None:
+    rows = schedule_activities(
+        [
+            ActivityDraft("source", "activity", date(2026, 8, 16), 10),
+            ActivityDraft("target", "activity", date(2026, 1, 1), 10),
+        ],
+        [
+            DependencyDraft(
+                dependency_key="link",
+                source_activity_key="source",
+                target_activity_key="target",
+                source_endpoint=source_endpoint,  # type: ignore[arg-type]
+                target_endpoint=target_endpoint,  # type: ignore[arg-type]
+                lag_days=5,
+            )
+        ],
     )
-    assert moved.predecessor_key is None
-    assert moved.start_date == date(2026, 12, 1)
+    assert rows[1].start_date == expected_start
 
 
 def test_stage_rollup_uses_children() -> None:
@@ -138,16 +163,18 @@ def test_cycle_detection_raises() -> None:
                     kind="stage",
                     start_date=date(2026, 8, 16),
                     duration_days=90,
-                    predecessor_key="procurement",
                 ),
                 ActivityDraft(
                     activity_key="procurement",
                     kind="stage",
                     start_date=date(2026, 11, 14),
                     duration_days=60,
-                    predecessor_key="planning",
                 ),
-            ]
+            ],
+            [
+                DependencyDraft("one", "planning", "procurement", "finish", "start"),
+                DependencyDraft("two", "procurement", "planning", "finish", "start"),
+            ],
         )
 
 
@@ -160,9 +187,11 @@ def test_missing_predecessor_raises() -> None:
                     kind="stage",
                     start_date=date(2026, 8, 16),
                     duration_days=60,
-                    predecessor_key="planning",
                 )
-            ]
+            ],
+            [
+                DependencyDraft("missing", "planning", "procurement", "finish", "start")
+            ],
         )
 
 

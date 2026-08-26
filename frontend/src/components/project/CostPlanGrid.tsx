@@ -3,7 +3,6 @@ import {
   ArrowUpDown,
   Copy,
   Loader2,
-  MoreHorizontal,
   Plus,
   Trash,
 } from "lucide-react";
@@ -19,12 +18,6 @@ import {
 
 import { CostInvoiceRegister } from "@/components/project/CostInvoiceRegister";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
@@ -34,6 +27,7 @@ import {
   amount,
   applyCostPlanDelta,
   buildCostPlanViewRows,
+  canonicalCostPlanCategory,
   claimedAmountsByItem,
   COST_PLAN_VIRTUALIZE_THRESHOLD,
   costPlanCategories,
@@ -129,7 +123,6 @@ export function CostPlanGrid({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [addingCategory, setAddingCategory] = useState(false);
   const [tab, setTab] = useState<CostPlanTab>(() =>
     reviewInvoiceId ? "invoices" : readCostPlanTab(projectId),
   );
@@ -370,9 +363,6 @@ export function CostPlanGrid({
                 if (event.target.value) setSelectedMonth(event.target.value);
               }}
             />
-            <Button size="sm" variant="outline" onClick={() => setAddingCategory(true)}>
-              <Plus aria-hidden /> Add category
-            </Button>
           </div>
         ) : null}
       </div>
@@ -394,46 +384,6 @@ export function CostPlanGrid({
       </CostPlanTabPane>
 
       <CostPlanTabPane id="cost-plan" active={tab === "cost-plan"}>
-          {addingCategory ? (
-            <form
-              className="flex flex-wrap items-end gap-2 border-b p-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const data = new FormData(event.currentTarget);
-                const category = String(data.get("category") ?? "").trim();
-                if (!category) return;
-                setAddingCategory(false);
-                void mutate(
-                  {
-                    operation: "ADD",
-                    target_type: "cost_category",
-                    values: { category },
-                  },
-                  {
-                    ...state,
-                    categories: Array.from(new Set([...categories, category])),
-                    narrative: {
-                      ...state.narrative,
-                      categories: Array.from(new Set([...categories, category])),
-                    },
-                  },
-                );
-              }}
-            >
-              <div className="min-w-48 flex-1">
-                <label className="mb-1 block text-xs text-muted-foreground" htmlFor="new-category">
-                  New category
-                </label>
-                <Input id="new-category" name="category" required className="cost-plan-field" />
-              </div>
-              <Button type="button" size="sm" variant="outline" onClick={() => setAddingCategory(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm">
-                Save category
-              </Button>
-            </form>
-          ) : null}
           {error ? <p className="border-b p-3 text-xs text-destructive">{error}</p> : null}
           <datalist id="cost-plan-categories">
             {categories.map((category) => (
@@ -701,7 +651,13 @@ function CostPlanItemsTable({
                 }}
               />
             ) : (
-              <SummaryRow key={row.key} row={row} />
+              <SummaryRow
+                key={row.key}
+                row={row}
+                state={state}
+                saving={saving}
+                onMutate={onMutate}
+              />
             ),
           )}
           {paddingBottom > 0 ? (
@@ -757,9 +713,139 @@ function SortableHeader({
   );
 }
 
-function SummaryRow({ row }: { row: Extract<CostPlanViewRow, { kind: "subtotal" | "grandtotal" }> }) {
+function SummaryRow({
+  row,
+  state,
+  saving,
+  onMutate,
+}: {
+  row: Extract<CostPlanViewRow, { kind: "subtotal" | "grandtotal" }>;
+  state: CostPlanState;
+  saving: boolean;
+  onMutate: (
+    operations: CostPlanOperation | CostPlanOperation[],
+    optimistic: CostPlanState,
+  ) => Promise<void>;
+}) {
   const label =
     row.kind === "grandtotal" ? "Grand total" : `${row.category} subtotal`;
+  const referenceCategory =
+    row.kind === "subtotal" ? row.category : costPlanCategories(state).at(-1);
+
+  function addSection() {
+    const categories = costPlanCategories(state);
+    const category = uniqueCategoryName(categories, "New category");
+    const referenceItem = lastItemInCategory(state, referenceCategory);
+    const stamp = Date.now();
+    const newItem = createBlankCostItem(category, stamp);
+    const nextCategories = insertCategoryAfter(categories, referenceCategory, category);
+    const added = addCostItemOptimistically(
+      withCostPlanCategories(state, nextCategories),
+      newItem,
+      referenceItem?.item_key,
+      "after",
+    );
+    const operations: CostPlanOperation[] = [
+      {
+        operation: "ADD",
+        target_type: "cost_category",
+        values: { category },
+        ...(referenceCategory
+          ? { reference_id: referenceCategory, placement: "after" as const }
+          : {}),
+      },
+      {
+        operation: "ADD",
+        target_type: "cost_item",
+        values: newItem,
+      },
+    ];
+    if (referenceItem) {
+      operations.push({
+        operation: "MOVE",
+        target_type: "cost_item",
+        target_id: newItem.item_key,
+        reference_id: referenceItem.item_key,
+        placement: "after",
+      });
+    }
+    void onMutate(operations, {
+      ...added,
+      items: renumberCostPlanItems(added.items),
+    });
+  }
+
+  function copySection(category: string) {
+    const categories = costPlanCategories(state);
+    const copyCategory = uniqueCategoryName(categories, `${category} copy`);
+    const sourceItems = itemsInCategory(state, category);
+    let optimistic = withCostPlanCategories(
+      state,
+      insertCategoryAfter(categories, category, copyCategory),
+    );
+    const stamp = Date.now();
+    const operations: CostPlanOperation[] = [
+      {
+        operation: "ADD",
+        target_type: "cost_category",
+        values: { category: copyCategory },
+        reference_id: category,
+        placement: "after",
+      },
+    ];
+    sourceItems.forEach((item, index) => {
+      const values = {
+        item_key: `${item.item_key}-copy-${stamp}-${index}`,
+        cost_code: `${stamp}-${index}`,
+        category: copyCategory,
+      };
+      optimistic = duplicateCostItemOptimistically(
+        optimistic,
+        item.item_key,
+        values,
+      );
+      operations.push({
+        operation: "DUPLICATE",
+        target_type: "cost_item",
+        target_id: item.item_key,
+        values,
+      });
+    });
+    void onMutate(operations, {
+      ...optimistic,
+      items: renumberCostPlanItems(optimistic.items),
+    });
+  }
+
+  function deleteSection(category: string) {
+    const sectionItems = itemsInCategory(state, category);
+    const confirmed = window.confirm(
+      `Delete "${category}" and ${sectionItems.length} ${sectionItems.length === 1 ? "item" : "items"}?`,
+    );
+    if (!confirmed) return;
+    const categories = costPlanCategories(state).filter(
+      (value) => !sameCategory(value, category),
+    );
+    void onMutate(
+      sectionItems.map((item) => ({
+        operation: "DELETE" as const,
+        target_type: "cost_item" as const,
+        target_id: item.item_key,
+      })),
+      withOptimisticTotals(
+        withCostPlanCategories(
+          {
+            ...state,
+            items: renumberCostPlanItems(
+              state.items.filter((item) => !sameCategory(item.category, category)),
+            ),
+          },
+          categories,
+        ),
+      ),
+    );
+  }
+
   return (
     <tr>
       {/* Keep Code blank so the label lines up under Category. */}
@@ -776,8 +862,164 @@ function SummaryRow({ row }: { row: Extract<CostPlanViewRow, { kind: "subtotal" 
       <MoneyCell value={row.rollup.claimedToDate} summary />
       <MoneyCell value={row.rollup.thisMonth} summary />
       <MoneyCell value={row.rollup.remaining} summary />
-      <td className="cost-plan-grid-cell--summary" />
+      <td className="cost-plan-grid-cell--summary">
+        <CostPlanRowActions
+          saving={saving}
+          addLabel={
+            row.kind === "subtotal"
+              ? `Add section after ${row.category}`
+              : "Add section at end"
+          }
+          onAdd={addSection}
+          {...(row.kind === "subtotal"
+            ? {
+                copyLabel: `Copy ${row.category} section`,
+                deleteLabel: `Delete ${row.category} section`,
+                onCopy: () => copySection(row.category),
+                onDelete: () => deleteSection(row.category),
+              }
+            : {})}
+        />
+      </td>
     </tr>
+  );
+}
+
+function sameCategory(left: string, right: string): boolean {
+  return (
+    canonicalCostPlanCategory(left).toLowerCase() ===
+    canonicalCostPlanCategory(right).toLowerCase()
+  );
+}
+
+function itemsInCategory(state: CostPlanState, category: string): CostPlanItem[] {
+  return state.items
+    .filter((item) => sameCategory(item.category, category))
+    .sort((left, right) => left.display_order - right.display_order);
+}
+
+function lastItemInCategory(
+  state: CostPlanState,
+  category: string | undefined,
+): CostPlanItem | undefined {
+  if (!category) return undefined;
+  return itemsInCategory(state, category).at(-1);
+}
+
+function uniqueCategoryName(categories: string[], base: string): string {
+  const taken = new Set(categories.map((category) => category.toLowerCase()));
+  if (!taken.has(base.toLowerCase())) return base;
+  let suffix = 2;
+  while (taken.has(`${base} ${suffix}`.toLowerCase())) suffix += 1;
+  return `${base} ${suffix}`;
+}
+
+function insertCategoryAfter(
+  categories: string[],
+  reference: string | undefined,
+  category: string,
+): string[] {
+  if (!reference) return [...categories, category];
+  const index = categories.findIndex((value) => sameCategory(value, reference));
+  if (index < 0) return [...categories, category];
+  const next = [...categories];
+  next.splice(index + 1, 0, category);
+  return next;
+}
+
+function withCostPlanCategories(
+  state: CostPlanState,
+  categories: string[],
+): CostPlanState {
+  return {
+    ...state,
+    categories,
+    narrative: { ...state.narrative, categories },
+  };
+}
+
+function createBlankCostItem(category: string, stamp: number): CostPlanItem {
+  return {
+    item_key: `item-${stamp}`,
+    cost_code: String(stamp),
+    category,
+    item: "New item",
+    display_order: stamp,
+    budget: "0",
+    committed: "0",
+    forecast: "0",
+    paid: "0",
+    allowance_type: "none",
+    basis: "User-added allowance",
+    source_refs: [{ kind: "user" }],
+    status: "manual",
+    locked: false,
+  };
+}
+
+function CostPlanRowActions({
+  saving,
+  addLabel,
+  copyLabel,
+  deleteLabel,
+  onAdd,
+  onCopy,
+  onDelete,
+}: {
+  saving: boolean;
+  addLabel: string;
+  copyLabel?: string;
+  deleteLabel?: string;
+  onAdd: () => void;
+  onCopy?: () => void;
+  onDelete?: () => void;
+}) {
+  return (
+    <div className="cost-plan-grid-actions">
+      <button
+        type="button"
+        className="cost-plan-grid-action"
+        aria-label={addLabel}
+        title={addLabel}
+        disabled={saving}
+        onClick={(event) => {
+          event.stopPropagation();
+          onAdd();
+        }}
+      >
+        <Plus className="size-3.5" aria-hidden />
+      </button>
+      {onCopy && copyLabel ? (
+        <button
+          type="button"
+          className="cost-plan-grid-action"
+          aria-label={copyLabel}
+          title={copyLabel}
+          disabled={saving}
+          onClick={(event) => {
+            event.stopPropagation();
+            onCopy();
+          }}
+        >
+          <Copy className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+      {onDelete && deleteLabel ? (
+        <button
+          type="button"
+          className="cost-plan-grid-action cost-plan-grid-action--danger"
+          aria-label={deleteLabel}
+          title={deleteLabel}
+          disabled={saving}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash className="size-3.5" aria-hidden />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -980,123 +1222,66 @@ function ItemRow({
       <MoneyCell value={rollup.thisMonth} />
       <MoneyCell value={rollup.remaining} />
       <td className="cost-plan-grid-cell">
-        <div className="cost-plan-grid-actions">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                className="cost-plan-grid-action"
-                aria-label={`More actions for ${item.item}`}
-                disabled={saving}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <MoreHorizontal className="size-3.5" aria-hidden />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="min-w-0 w-auto"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <DropdownMenuItem
-                disabled={saving}
-                aria-label="Copy"
-                title="Copy"
-                className="justify-center px-2 py-2"
-                onSelect={() => {
-                  const values = {
-                    item_key: `${item.item_key}-copy`,
-                    cost_code: `${Date.now()}`,
-                  };
-                  const duplicated = duplicateCostItemOptimistically(
-                    state,
-                    item.item_key,
-                    values,
-                  );
-                  void onMutate(
-                    {
-                      operation: "DUPLICATE",
-                      target_type: "cost_item",
-                      target_id: item.item_key,
-                      values,
-                    },
-                    withOptimisticTotals({
-                      ...duplicated,
-                      items: renumberCostPlanItems(duplicated.items),
-                    }),
-                  );
-                }}
-              >
-                <Copy className="size-3.5" aria-hidden />
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={saving}
-                aria-label="Add row below"
-                title="Add row below"
-                className="justify-center px-2 py-2"
-                onSelect={() => {
-                  const stamp = Date.now();
-                  const newItem: CostPlanItem = {
-                    item_key: `item-${stamp}`,
-                    cost_code: String(stamp),
-                    category: item.category,
-                    item: "New item",
-                    display_order: item.display_order + 1,
-                    budget: "0",
-                    committed: "0",
-                    forecast: "0",
-                    paid: "0",
-                    allowance_type: "none",
-                    basis: "User-added allowance",
-                    source_refs: [{ kind: "user" }],
-                    status: "manual",
-                    locked: false,
-                  };
-                  const added = addCostItemOptimistically(
-                    state,
-                    newItem,
-                    item.item_key,
-                    "after",
-                  );
-                  void onMutate(
-                    [
-                      {
-                        operation: "ADD",
-                        target_type: "cost_item",
-                        values: newItem,
-                      },
-                      {
-                        operation: "MOVE",
-                        target_type: "cost_item",
-                        target_id: newItem.item_key,
-                        reference_id: item.item_key,
-                        placement: "after",
-                      },
-                    ],
-                    withOptimisticTotals({
-                      ...added,
-                      items: renumberCostPlanItems(added.items),
-                    }),
-                  );
-                }}
-              >
-                <Plus className="size-3.5" aria-hidden />
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <button
-            type="button"
-            className="cost-plan-grid-action cost-plan-grid-action--danger"
-            aria-label={`Delete ${item.item}`}
-            disabled={saving}
-            onClick={(event) => {
-              event.stopPropagation();
-              deleteItem();
-            }}
-          >
-            <Trash className="size-3.5" aria-hidden />
-          </button>
-        </div>
+        <CostPlanRowActions
+          saving={saving}
+          addLabel={`Add row below ${item.item}`}
+          copyLabel={`Copy ${item.item}`}
+          deleteLabel={`Delete ${item.item}`}
+          onAdd={() => {
+            const stamp = Date.now();
+            const newItem = createBlankCostItem(item.category, stamp);
+            const added = addCostItemOptimistically(
+              state,
+              newItem,
+              item.item_key,
+              "after",
+            );
+            void onMutate(
+              [
+                {
+                  operation: "ADD",
+                  target_type: "cost_item",
+                  values: newItem,
+                },
+                {
+                  operation: "MOVE",
+                  target_type: "cost_item",
+                  target_id: newItem.item_key,
+                  reference_id: item.item_key,
+                  placement: "after",
+                },
+              ],
+              {
+                ...added,
+                items: renumberCostPlanItems(added.items),
+              },
+            );
+          }}
+          onCopy={() => {
+            const values = {
+              item_key: `${item.item_key}-copy-${Date.now()}`,
+              cost_code: `${Date.now()}`,
+            };
+            const duplicated = duplicateCostItemOptimistically(
+              state,
+              item.item_key,
+              values,
+            );
+            void onMutate(
+              {
+                operation: "DUPLICATE",
+                target_type: "cost_item",
+                target_id: item.item_key,
+                values,
+              },
+              withOptimisticTotals({
+                ...duplicated,
+                items: renumberCostPlanItems(duplicated.items),
+              }),
+            );
+          }}
+          onDelete={deleteItem}
+        />
       </td>
     </tr>
   );

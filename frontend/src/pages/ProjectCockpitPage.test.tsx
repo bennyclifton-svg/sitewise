@@ -334,6 +334,7 @@ describe("ProjectCockpitPage cost plan workflow", () => {
       status: "proposed",
       view_scale: "month",
       pmp_embed_visible: true,
+      collapsed_stage_keys: [],
       activities: [],
     });
     mocks.api.listProcurementRequests.mockResolvedValue([]);

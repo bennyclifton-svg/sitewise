@@ -23,6 +23,43 @@ def test_catalogue_codes_and_aliases_are_validated() -> None:
     ).code == "trade.electrical"
 
 
+def test_procurement_picker_uses_concise_consultant_labels() -> None:
+    entries = {entry.code: entry for entry in discipline_catalog()}
+
+    assert {
+        code
+        for code, entry in entries.items()
+        if entry.participant_type == "consultant" and not entry.picker_visible
+    } == {
+        "consultant.building",
+        "consultant.commissioning",
+        "consultant.construction_manager",
+        "consultant.demolition",
+        "consultant.expert_witness",
+        "consultant.specialist",
+    }
+    assert {
+        code: entries[code].label
+        for code in (
+            "consultant.environmental",
+            "consultant.hazmat",
+            "consultant.programming",
+            "consultant.security",
+            "consultant.vertical_transport",
+            "consultant.waterproofing",
+        )
+    } == {
+        "consultant.environmental": "Environmental",
+        "consultant.hazmat": "Hazmat",
+        "consultant.programming": "Programmer",
+        "consultant.security": "Security",
+        "consultant.vertical_transport": "Vertical Transport",
+        "consultant.waterproofing": "Waterproofing",
+    }
+    assert resolve_discipline("Environmental Consultant").label == "Environmental"
+    assert resolve_discipline("Programming Consultant").label == "Programmer"
+
+
 def test_civil_and_stormwater_pmp_label_resolves_to_civil() -> None:
     assert (
         resolve_discipline("civil & stormwater", participant_type="consultant").code
@@ -61,9 +98,9 @@ def test_house_roster_is_shared_and_stably_coded() -> None:
 
     assert [row.code for row in rows] == [
         "consultant.architect",
+        "consultant.civil",
         "consultant.structural",
         "consultant.town_planner",
-        "consultant.civil",
     ]
     assert all(row.sources == ("typical",) for row in rows)
 

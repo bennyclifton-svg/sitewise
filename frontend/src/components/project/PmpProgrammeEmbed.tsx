@@ -25,6 +25,7 @@ type ProgrammeContextValue = {
   state: ProgrammeState | null;
   setVisible: (visible: boolean) => Promise<void>;
   setScale: (scale: ProgrammeScale) => Promise<void>;
+  setCollapsed: (stageKeys: string[]) => Promise<void>;
 };
 
 const ProgrammeContext = createContext<ProgrammeContextValue | null>(null);
@@ -74,6 +75,14 @@ export function PmpProgrammeProvider({
           }),
         );
       },
+      setCollapsed: async (collapsed_stage_keys: string[]) => {
+        if (!state) return;
+        setState(
+          await api.setProgrammeView(projectId, state.version, {
+            collapsed_stage_keys,
+          }),
+        );
+      },
     }),
     [projectId, state],
   );
@@ -86,9 +95,11 @@ export function PmpProgrammeProvider({
 export function PmpProgrammeFigure({
   host,
   contentKey,
+  alwaysVisible = false,
 }: {
   host: HTMLElement | null;
   contentKey?: string;
+  alwaysVisible?: boolean;
 }) {
   const context = useContext(ProgrammeContext);
   const state = context?.state ?? null;
@@ -120,18 +131,23 @@ export function PmpProgrammeFigure({
       return;
     }
     const section = programmeSectionRoot(heading);
-    const iconNode = document.createElement("div");
-    iconNode.dataset.programmeToggle = "true";
-    iconNode.className = "print:hidden shrink-0";
-    if (heading.parentElement === section) {
-      section.append(iconNode);
+    let iconNode: HTMLElement | null = null;
+    if (!alwaysVisible) {
+      iconNode = document.createElement("div");
+      iconNode.dataset.programmeToggle = "true";
+      iconNode.className = "print:hidden shrink-0";
+      if (heading.parentElement === section) {
+        section.append(iconNode);
+      } else {
+        heading.after(iconNode);
+      }
+      setIconMount(iconNode);
     } else {
-      heading.after(iconNode);
+      setIconMount(null);
     }
-    setIconMount(iconNode);
 
     let figureNode: HTMLElement | null = null;
-    if (state.pmp_embed_visible) {
+    if (alwaysVisible || state.pmp_embed_visible) {
       figureNode = document.createElement("div");
       figureNode.dataset.programmeFigure = "true";
       section.after(figureNode);
@@ -141,17 +157,17 @@ export function PmpProgrammeFigure({
     }
 
     return () => {
-      iconNode.remove();
+      iconNode?.remove();
       figureNode?.remove();
       setIconMount(null);
       setFigureMount(null);
     };
-  }, [host, contentKey, state, state?.pmp_embed_visible, state?.version]);
+  }, [alwaysVisible, host, contentKey, state, state?.pmp_embed_visible, state?.version]);
 
   if (!state) return null;
   return (
     <>
-      {iconMount
+      {iconMount && !alwaysVisible
         ? createPortal(
             <Button
               type="button"
@@ -171,13 +187,16 @@ export function PmpProgrammeFigure({
             iconMount,
           )
         : null}
-      {state.pmp_embed_visible && figureMount
+      {(alwaysVisible || state.pmp_embed_visible) && figureMount
         ? createPortal(
             <div className="my-4 min-w-0">
               <ProgramGantt
                 state={state}
                 mode="figure"
                 onScaleChange={(scale) => void context?.setScale(scale)}
+                onCollapsedChange={(stageKeys) =>
+                  void context?.setCollapsed(stageKeys)
+                }
               />
             </div>,
             figureMount,

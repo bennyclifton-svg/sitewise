@@ -16,7 +16,7 @@ describe("ClassificationChip", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /document class/i }),
+      screen.getByRole("button", { name: /document type/i }),
     ).toHaveTextContent("Report");
     expect(
       screen.getByRole("button", { name: /category/i }),
@@ -37,7 +37,7 @@ describe("ClassificationChip", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: /document class/i }));
+    await user.click(screen.getByRole("button", { name: /document type/i }));
     await user.click(await screen.findByRole("menuitem", { name: "Certificate" }));
 
     expect(onChange).toHaveBeenCalledWith({
@@ -46,7 +46,7 @@ describe("ClassificationChip", () => {
     });
 
     expect(
-      await screen.findByRole("button", { name: /document class/i }),
+      await screen.findByRole("button", { name: /document type/i }),
     ).toHaveTextContent("Report");
   });
 
@@ -91,7 +91,7 @@ describe("ClassificationChip", () => {
       />,
     );
 
-    const classTrigger = screen.getByRole("button", { name: /document class/i });
+    const classTrigger = screen.getByRole("button", { name: /document type/i });
     const categoryTrigger = screen.getByRole("button", { name: /category/i });
 
     expect(classTrigger).toHaveTextContent("Statutory Instrument");

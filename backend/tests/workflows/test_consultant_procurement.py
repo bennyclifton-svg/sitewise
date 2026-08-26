@@ -15,6 +15,7 @@ from app.workflows.consultant_procurement import (
     run_validated_rfp_narrative,
 )
 from app.sitewise.rfp_renderer import build_rfp_citation_index
+from app.programme.schemas import ProgrammeActivityInput, ProgrammeState
 from app.workflows.create_pmp import WorkflowValidationError
 from app.workflows.rfp_narrative import RfpNarrativeOutput
 from app.retrieval.generation import RetrievalLevel
@@ -183,6 +184,11 @@ def _install(
     cost_plan: Any = None,
 ) -> tuple[AsyncMock, AsyncMock]:
     monkeypatch.setattr(workflow, "DocumentRetriever", lambda session: retriever)
+    monkeypatch.setattr(
+        workflow,
+        "get_programme",
+        AsyncMock(side_effect=workflow.ProgrammeNotFound("programme not found")),
+    )
     monkeypatch.setattr(
         procurement_request,
         "load_sections",
@@ -409,7 +415,7 @@ def test_basix_alias_happy_path_uses_basix_scope_and_path(monkeypatch) -> None:
     assert result.draft.workspace_path.endswith(
         "/consultant_procurement_basix_energy_assessor_v01.draft.md"
     )
-    assert "BASIX / energy assessment fee proposal" in result.draft.content_markdown
+    assert "Price BASIX, NatHERS, energy modelling" in result.draft.content_markdown
     assert result.source_trace["forecast"]["used"] is True
 
 
@@ -523,7 +529,7 @@ def test_mechanical_rfp_consults_technical_guide_and_targeted_evidence(
         in result.draft.provenance_metadata["seed_consulted"]
     )
     assert "Establish the mechanical design basis" in result.draft.content_markdown
-    assert "Commissioning plan and records" in result.draft.content_markdown
+    assert "commissioning, and handover" in result.draft.content_markdown
     assert any(
         "car park ventilation smoke control" in call["query"]
         for call in retriever.calls
@@ -569,7 +575,7 @@ def test_mechanical_rfp_uses_evidence_tailored_requested_services(monkeypatch) -
 
     requested = result.draft.content_markdown.split(
         "## Services and deliverables", maxsplit=1
-    )[1].split("## Programme and submission", maxsplit=1)[0]
+    )[1].split("## Programme", maxsplit=1)[0]
     assert (
         "Tailor the requested services to the evidenced project spaces and systems. [2]"
         in requested
@@ -584,6 +590,48 @@ def test_hydraulic_profile_uses_discipline_guide_and_fitout_controls() -> None:
     assert "sanitary drainage" in profile.knowledge_query_terms
     assert any("landlord" in item.lower() for item in profile.requested_services)
     assert any("design-basis" in item.lower() for item in profile.deliverables)
+
+
+@pytest.mark.parametrize(
+    "discipline",
+    [
+        "services engineering",
+        "services engineer",
+        "building services engineering",
+        "building services engineer",
+    ],
+)
+def test_building_services_phrasings_use_composite_technical_profile(
+    discipline: str,
+) -> None:
+    profile = normalise_discipline(discipline)
+
+    assert profile.name == "Building Services Engineer"
+    assert profile.slug == "building_services_engineer"
+    assert profile.knowledge_paths == (
+        "seed/hydraulic-services-guide.md",
+        "seed/electrical-services-guide.md",
+        "seed/mechanical-services-guide.md",
+    )
+    assert len(profile.requested_services) == 8
+    assert any("hydraulic" in item.lower() for item in profile.requested_services)
+    assert any("electrical" in item.lower() for item in profile.requested_services)
+    assert any("mechanical" in item.lower() for item in profile.requested_services)
+    assert all("fee proposal" not in item.lower() for item in profile.deliverables)
+
+
+def test_building_services_rfp_loads_all_three_discipline_guides(monkeypatch) -> None:
+    retriever = _StubRetriever()
+    _install(monkeypatch, retriever=retriever, cost_plan=None)
+
+    result = _run(session=_Session(), discipline="services engineering")
+
+    paths = {item["path"] for item in result.source_trace["platform_knowledge"]}
+    assert {
+        "seed/hydraulic-services-guide.md",
+        "seed/electrical-services-guide.md",
+        "seed/mechanical-services-guide.md",
+    } <= paths
 
 
 @pytest.mark.parametrize(
@@ -883,6 +931,45 @@ def test_evidenced_programme_replaces_summary_tbc(monkeypatch) -> None:
 
     assert "- Target possession is 1 November 2026. [2]" in (
         result.draft.content_markdown
+    )
+
+
+def test_current_programme_state_is_rendered_into_rfp_and_refresh_version(
+    monkeypatch,
+) -> None:
+    _install(monkeypatch, retriever=_StubRetriever(), cost_plan=None)
+    programme = ProgrammeState(
+        project_id=PROJECT_ID,
+        version=6,
+        status="accepted",
+        activities=[
+            ProgrammeActivityInput(
+                activity_key="design",
+                kind="stage",
+                name="Design",
+                start_date=date(2026, 9, 1),
+                duration_days=30,
+                finish_date=date(2026, 10, 1),
+            )
+        ],
+    )
+    monkeypatch.setattr(workflow, "get_programme", AsyncMock(return_value=programme))
+
+    result = _run(session=_Session(), discipline="services engineering")
+
+    assert "Current Programme v6 — static snapshot" in result.draft.content_markdown
+    assert result.source_trace["structured_render_context"] == "programme-v6"
+
+
+def test_legacy_deliverables_scaffold_requires_full_replacement() -> None:
+    assert workflow.CONSULTANT_DOCUMENT.requires_full_replace(
+        "## Services and deliverables\n\n**Required deliverables**\n"
+    )
+    assert workflow.CONSULTANT_DOCUMENT.requires_full_replace(
+        "## Programme and submission\n"
+    )
+    assert not workflow.CONSULTANT_DOCUMENT.requires_full_replace(
+        "## Programme\n\n## Fee response\n"
     )
 
 

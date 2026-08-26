@@ -15,6 +15,7 @@ from app.sitewise.discipline_catalog import discipline_by_code
 from app.web_research.brave import BraveSearchProvider
 from app.web_research.factory import WebResearchDisabled
 from app.web_research.service import SearchProvider, WebSearchResult
+from app.web_research.tavily import TavilySearchProvider
 
 
 class ProcurementCandidateResearch:
@@ -38,7 +39,12 @@ class ProcurementCandidateResearch:
             "trade": "contractor",
             "supplier": "supplier",
         }[discipline.participant_type]
-        query = f"{discipline.pmp_label} {role} {normalized_location} company services"
+        search_term = (
+            "accessibility consultants"
+            if discipline.code == "consultant.access"
+            else f"{discipline.pmp_label} {role}"
+        )
+        query = f"{search_term} {normalized_location} Australia company services"
         raw_results = await self._search_provider.search(
             query,
             country="AU",
@@ -80,16 +86,23 @@ def get_procurement_candidate_research() -> ProcurementCandidateResearch:
             "This does not affect existing Tenderer slots; read the Procurement "
             "Strategy and continue with project appointment facts or user-provided firms."
         )
-    if settings.web_search_provider != "brave" or not settings.brave_search_api_key:
-        raise WebResearchDisabled(
-            "Commercial candidate research requires a configured Brave search provider. "
-            "This does not affect existing Tenderer slots; read the Procurement "
-            "Strategy and continue with project appointment facts or user-provided firms."
-        )
-    return ProcurementCandidateResearch(
-        search_provider=BraveSearchProvider(
+    provider: SearchProvider | None = None
+    if settings.web_search_provider == "brave" and settings.brave_search_api_key:
+        provider = BraveSearchProvider(
             api_key=settings.brave_search_api_key,
             timeout_seconds=settings.web_fetch_timeout_seconds,
             site_filter=None,
         )
-    )
+    elif settings.web_search_provider == "tavily" and settings.tavily_api_key:
+        provider = TavilySearchProvider(
+            api_key=settings.tavily_api_key,
+            timeout_seconds=settings.web_fetch_timeout_seconds,
+            include_domains=None,
+        )
+    if provider is None:
+        raise WebResearchDisabled(
+            "Commercial candidate research requires a configured broad web search provider. "
+            "This does not affect existing Tenderer slots; read the Procurement "
+            "Strategy and continue with project appointment facts or user-provided firms."
+        )
+    return ProcurementCandidateResearch(search_provider=provider)

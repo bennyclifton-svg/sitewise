@@ -62,6 +62,16 @@ def test_procurement_strategy_population_grants_narrow_scope() -> None:
     assert intent.requires_confirmation is False
 
 
+def test_procurement_consultant_population_grants_scope_without_table_noun() -> None:
+    intent = classify_mutation_intent(
+        "research and populate 3 access consultants suitable for this project"
+    )
+
+    assert intent.scopes == (PROCUREMENT_STRATEGY_MUTATION_SCOPE,)
+    assert intent.profile_patch == {}
+    assert intent.requires_confirmation is False
+
+
 def test_procurement_strategy_research_alone_is_read_only() -> None:
     intent = classify_mutation_intent(
         "Research three structural engineers for the procurement strategy."

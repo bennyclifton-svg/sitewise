@@ -9,7 +9,10 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.api import chat as chat_api
-from app.agent.mutation_intent import classify_mutation_intent
+from app.agent.mutation_intent import (
+    PROCUREMENT_STRATEGY_MUTATION_SCOPE,
+    classify_mutation_intent,
+)
 from app.agent.turn_context import (
     _DOCUMENT_ACCESS_GUIDANCE,
     _PROCUREMENT_STRATEGY_GUIDANCE,
@@ -1328,6 +1331,70 @@ def test_agent_stream_persists_timeout_error_when_pi_stalls(
     assert assistant_calls[0].kwargs["content"] == (
         "Pi took too long to respond. Please try again."
     )
+
+
+def test_agent_stream_persists_failed_error_for_pi_provider_failure(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    async def fake_stream_pi_turn(**_kwargs):
+        if False:
+            yield ""
+        raise chat_api.PiTurnError("Pi provider request failed: Connection error.")
+
+    _patch_agent_stream_turn(monkeypatch, tmp_path, stream_pi_turn=fake_stream_pi_turn)
+
+    with client.stream("POST", "/chat/agent/stream", json=BODY) as response:
+        body = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert "Pi could not complete this turn" in body
+    assert "This turn was interrupted" not in body
+    assistant_calls = [
+        call
+        for call in chat_api.create_message.await_args_list
+        if call.kwargs["role"] == "assistant"
+    ]
+    assert assistant_calls[0].kwargs["content"] == (
+        "Pi could not complete this turn. Please try again."
+    )
+
+
+def test_agent_stream_binds_candidate_population_scope_from_exact_prompt(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    async def fake_stream_pi_turn(**_kwargs):
+        yield "Done"
+
+    _patch_agent_stream_turn(monkeypatch, tmp_path, stream_pi_turn=fake_stream_pi_turn)
+    body = {
+        **BODY,
+        "messages": [
+            {
+                "role": "user",
+                "parts": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "research and populate 3 access consultants "
+                            "suitable for this project"
+                        ),
+                    }
+                ],
+            }
+        ],
+    }
+
+    with client.stream("POST", "/chat/agent/stream", json=body) as response:
+        _ = "".join(response.iter_text())
+
+    assert response.status_code == 200
+    assert chat_api.reserve_agent_turn.await_args.kwargs["mutation_scopes"] == [
+        PROCUREMENT_STRATEGY_MUTATION_SCOPE
+    ]
 
 
 def test_agent_cancel_requires_thread_owner_and_cancels(

@@ -160,7 +160,9 @@ class ContractorEoiDocument(ProcurementDocument):
         artefact_context: ProcurementArtefactContext | None,
         generation_brief: ArtefactGenerationBrief | None,
         on_progress: ProgressPublisher | None,
+        render_context: dict[str, Any] | None = None,
     ) -> str:
+        del render_context
         del issued_documents, artefact_context, generation_brief
         state = getattr(project, "state", None) or "TBC"
         identity = resolve_project_identity(project, evidence=project_evidence)

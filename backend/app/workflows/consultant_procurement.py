@@ -46,6 +46,8 @@ from app.sitewise.rfp_renderer import (
     render_rfp_scaffold,
 )
 from app.projects.identity import resolve_project_identity
+from app.programme.schemas import ProgrammeState
+from app.programme.service import ProgrammeNotFound, get_programme
 from app.workflows.create_cost_plan import (
     WORKFLOW_TYPE as CREATE_COST_PLAN_WORKFLOW_TYPE,
 )
@@ -206,6 +208,55 @@ DISCIPLINE_PROFILES: dict[str, DisciplineProfile] = {
             "Tender and construction support including tender queries, addenda, RFIs, submittal/shop-drawing reviews, site inspections, defects, and revision registers.",
             "Testing and commissioning requirements, witness records, as-built and O&M review, training, handover inputs, and outstanding-items schedule.",
             "Fee breakdown by stage with personnel, meetings, investigations, site visits, disbursements, hourly rates, programme, exclusions, optional services, and required client inputs.",
+        ),
+    ),
+    _normalise_key("building services engineer"): _profile(
+        "Building Services Engineer",
+        discipline_code="consultant.services",
+        slug="building_services_engineer",
+        benchmark_terms=(
+            "building services",
+            "hydraulic",
+            "electrical",
+            "mechanical",
+        ),
+        knowledge_paths=(
+            "seed/hydraulic-services-guide.md",
+            "seed/electrical-services-guide.md",
+            "seed/mechanical-services-guide.md",
+        ),
+        knowledge_query_terms=(
+            "building services engineering",
+            "hydraulic services",
+            "electrical services",
+            "mechanical services",
+            "multidisciplinary coordination",
+            "testing",
+            "commissioning",
+            "handover",
+        ),
+        evidence_query_terms=(
+            "building services hydraulic electrical mechanical fire interfaces",
+            "water sanitary drainage stormwater power lighting HVAC ventilation exhaust",
+            "utility capacity existing services risers plant spatial coordination",
+            "testing commissioning certification handover as built O&M",
+        ),
+        requested_services=(
+            "Review the brief, current design, existing-services records, site and utility information, approval pathway, and service constraints; issue a coordinated existing-services due-diligence and building-services design-basis report identifying missing investigations and unresolved decisions.",
+            "Develop the applicable hydraulic-services design, calculations, schematics, drawings, specifications, schedules, connection and capacity requirements, with explicit boundaries for stormwater, trade waste, gas, fire water, civil, landlord and contractor-designed work.",
+            "Develop the applicable electrical-services design, calculations and studies, single-line diagrams, drawings, specifications, schedules, utility submissions, controls descriptions, metering, emergency-power and life-safety interface requirements.",
+            "Develop the applicable mechanical-services design, calculations, schematics, drawings, specifications, equipment and controls schedules for HVAC, ventilation, exhaust, smoke-control interfaces, condensate, plant access, energy and acoustic criteria.",
+            "Coordinate hydraulic, electrical and mechanical services with architecture, structure, civil, fire, facade, acoustic, sustainability, ICT, security, vertical transport and equipment; maintain composite coordination information, penetration and builder's-work schedules, and a responsibility/interface matrix.",
+            "Prepare the design-stage, approval, utility, landlord, certifier and authority submission documents, compliance matrices, certificates, declarations and revision registers required for the confirmed project pathway.",
+            "Provide procurement and construction-phase services including coordinated tender documentation, tender queries and addenda, design meetings, RFIs, technical-submittal and shop-drawing reviews, inspections, witness points, defects advice and construction-issue revisions.",
+            "Define and administer discipline and integrated testing, commissioning, witnessing, training and handover requirements, including commissioning plans and records, as-built and O&M review, asset information, completion evidence and outstanding-items schedules; state exclusions, optional services, required inputs and responsibility boundaries.",
+        ),
+        deliverables=(
+            "Coordinated existing-services due-diligence and building-services design-basis report.",
+            "Hydraulic, electrical and mechanical calculations, schematics, drawings, specifications and schedules appropriate to each agreed stage.",
+            "Multidisciplinary responsibility matrix, interface schedules, composite coordination information, penetration and builder's-work requirements.",
+            "Approval, utility, landlord, certifier and authority submission packages, compliance matrices, certificates and revision registers.",
+            "Tender, construction, testing, commissioning and handover documentation and review records.",
         ),
     ),
     _normalise_key("electrical services engineer"): _profile(
@@ -613,6 +664,20 @@ DISCIPLINE_ALIASES: dict[str, str] = {
     _normalise_key("building certifier pca"): _normalise_key("certifier"),
     _normalise_key("principal certifying authority"): _normalise_key("certifier"),
     _normalise_key("hydraulic consultant"): _normalise_key("hydraulic engineer"),
+    _normalise_key("services engineering"): _normalise_key(
+        "building services engineer"
+    ),
+    _normalise_key("services engineer"): _normalise_key(
+        "building services engineer"
+    ),
+    _normalise_key("building services engineering"): _normalise_key(
+        "building services engineer"
+    ),
+    _normalise_key("building services"): _normalise_key(
+        "building services engineer"
+    ),
+    _normalise_key("mep engineer"): _normalise_key("building services engineer"),
+    _normalise_key("mep consultant"): _normalise_key("building services engineer"),
     _normalise_key("electrical engineer"): _normalise_key(
         "electrical services engineer"
     ),
@@ -887,6 +952,33 @@ class ConsultantDocument(ProcurementDocument):
     )
     trace_guidance_purpose = "Gathered SiteWise consultant procurement guidance."
     load_required_seed_content = True
+    scaffold_version = "2"
+
+    async def build_render_context(
+        self,
+        session: AsyncSession,
+        *,
+        project: Project,
+        target: ProcurementTarget,
+    ) -> dict[str, Any]:
+        del target
+        try:
+            programme = await get_programme(session, project_id=project.id)
+        except ProgrammeNotFound:
+            return {}
+        return {"programme": programme}
+
+    def render_context_version(self, context: dict[str, Any]) -> str:
+        programme = context.get("programme")
+        if isinstance(programme, ProgrammeState):
+            return f"programme-v{programme.version}"
+        return "no-programme"
+
+    def requires_full_replace(self, baseline_markdown: str) -> bool:
+        return (
+            "**Required deliverables**" in baseline_markdown
+            or "## Programme and submission" in baseline_markdown
+        )
 
     def resolve_target(self, raw: str) -> ProcurementTarget:
         return normalise_discipline(raw)
@@ -1007,12 +1099,14 @@ class ConsultantDocument(ProcurementDocument):
         artefact_context: ProcurementArtefactContext | None,
         generation_brief: ArtefactGenerationBrief | None,
         on_progress: ProgressPublisher | None,
+        render_context: dict[str, Any] | None = None,
     ) -> str:
         rfp_context = (
             artefact_context if isinstance(artefact_context, RfpContext) else None
         )
         rfp_evidence = _reviewable_evidence(project_evidence, target)
         citation_index = build_rfp_citation_index(rfp_evidence)
+        programme = (render_context or {}).get("programme")
         scaffold = render_rfp_scaffold(
             project=project,
             target=target,
@@ -1024,6 +1118,7 @@ class ConsultantDocument(ProcurementDocument):
             missing_inputs=missing_inputs,
             project_evidence=rfp_evidence,
             issued_documents=issued_documents,
+            programme=(programme if isinstance(programme, ProgrammeState) else None),
         )
         await publish_procurement_progress(
             on_progress,

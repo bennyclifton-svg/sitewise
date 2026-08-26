@@ -68,7 +68,7 @@
             {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Electrical"]},
             {"value": "lighting", "label": "Lighting", "consultants": ["Lighting Designer", "Electrical"]},
             {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Hydraulic"]},
-            {"value": "fire_services", "label": "Fire Services", "consultants": ["Fire Services"]},
+            {"value": "fire_services", "label": "Fire Services", "consultants": ["Fire Engineer"]},
             {"value": "vertical_transport", "label": "Vertical Transport", "consultants": ["Vertical Transport Consultant"]},
             {"value": "bms_controls", "label": "BMS/Controls", "consultants": ["BMS Consultant"]},
             {"value": "security_systems", "label": "Security Systems", "consultants": ["Security Consultant"]},
@@ -140,7 +140,7 @@
             {"value": "electrical_power", "label": "Electrical/Power", "consultants": ["Electrical"]},
             {"value": "lighting", "label": "Lighting", "consultants": ["Lighting Designer", "Electrical"]},
             {"value": "hydraulic_plumbing", "label": "Hydraulic/Plumbing", "consultants": ["Hydraulic"]},
-            {"value": "fire_services", "label": "Fire Services Upgrade", "consultants": ["Fire Services"]},
+            {"value": "fire_services", "label": "Fire Services Upgrade", "consultants": ["Fire Engineer"]},
             {"value": "accessibility_upgrade", "label": "Accessibility Upgrade", "consultants": ["Access", "Certifier"]},
             {"value": "energy_generation_storage", "label": "Energy Generation / Storage", "consultants": ["Electrical", "Structural"]}
           ]

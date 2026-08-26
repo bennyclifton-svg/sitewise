@@ -14,8 +14,10 @@ describe("resolveWorkflowTileId", () => {
     expect(resolveWorkflowTileId(["rfq"])).toBe("procurement-requests");
   });
 
-  it("keeps tender evaluation on Tender Comparison", () => {
-    expect(resolveWorkflowTileId(["tender_evaluation"])).toBe("procurement");
+  it("keeps tender evaluation within Procurement", () => {
+    expect(resolveWorkflowTileId(["tender_evaluation"])).toBe(
+      "procurement-requests",
+    );
   });
 
   it("routes the programme folder to Program", () => {

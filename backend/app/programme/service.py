@@ -12,11 +12,12 @@ from app.programme.models import ProgrammeActivity, ProgrammeVersion
 from app.programme.mutate import apply_operations, reschedule
 from app.programme.schemas import (
     ProgrammeActivityInput,
+    ProgrammeDependencyInput,
     ProgrammeOperation,
     ProgrammeState,
     ProgrammeViewUpdate,
 )
-from app.programme.seed import default_stage_inputs
+from app.programme.seed import default_dependencies, default_stage_inputs
 
 
 class ProgrammeNotFound(LookupError):
@@ -48,14 +49,19 @@ async def ensure_programme(
     current = await _load_current(session, project.id)
     if current is not None:
         return _state(current)
-    activities = reschedule(default_stage_inputs(start=start or date.today()))
+    dependencies = default_dependencies()
+    activities = reschedule(
+        default_stage_inputs(start=start or date.today()), dependencies
+    )
     row = _new_version(
         project_id=project.id,
         author_user_id=author_user_id,
         version=1,
         view_scale="month",
         pmp_embed_visible=True,
+        collapsed_stage_keys=[],
         activities=activities,
+        dependencies=dependencies,
     )
     session.add(row)
     await session.flush()
@@ -71,7 +77,9 @@ async def apply_programme_operations(
     operations: list[ProgrammeOperation],
 ) -> ProgrammeState:
     base = await _require_current(session, project.id, expected_base_version)
-    activities = apply_operations(_activities(base), operations)
+    activities, dependencies = apply_operations(
+        _activities(base), _dependencies(base), operations
+    )
     return await _publish(
         session,
         base=base,
@@ -80,6 +88,10 @@ async def apply_programme_operations(
         activities=activities,
         view_scale=base.view_scale,
         pmp_embed_visible=base.pmp_embed_visible,
+        collapsed_stage_keys=_valid_collapsed_keys(
+            base.collapsed_stage_keys, activities
+        ),
+        dependencies=dependencies,
     )
 
 
@@ -104,6 +116,15 @@ async def set_programme_view(
             if update.pmp_embed_visible is None
             else update.pmp_embed_visible
         ),
+        collapsed_stage_keys=_valid_collapsed_keys(
+            (
+                base.collapsed_stage_keys
+                if update.collapsed_stage_keys is None
+                else update.collapsed_stage_keys
+            ),
+            _activities(base),
+        ),
+        dependencies=_dependencies(base),
     )
 
 
@@ -131,6 +152,8 @@ async def _publish(
     activities: list[ProgrammeActivityInput],
     view_scale: str,
     pmp_embed_visible: bool,
+    collapsed_stage_keys: list[str],
+    dependencies: list[ProgrammeDependencyInput],
 ) -> ProgrammeState:
     base.status = "superseded"
     row = _new_version(
@@ -139,7 +162,9 @@ async def _publish(
         version=base.version + 1,
         view_scale=view_scale,
         pmp_embed_visible=pmp_embed_visible,
+        collapsed_stage_keys=collapsed_stage_keys,
         activities=activities,
+        dependencies=dependencies,
     )
     session.add(row)
     await session.flush()
@@ -166,7 +191,9 @@ def _new_version(
     version: int,
     view_scale: str,
     pmp_embed_visible: bool,
+    collapsed_stage_keys: list[str],
     activities: list[ProgrammeActivityInput],
+    dependencies: list[ProgrammeDependencyInput],
 ) -> ProgrammeVersion:
     row = ProgrammeVersion(
         project_id=project_id,
@@ -175,6 +202,8 @@ def _new_version(
         status="proposed",
         view_scale=view_scale,
         pmp_embed_visible=pmp_embed_visible,
+        collapsed_stage_keys=collapsed_stage_keys,
+        dependencies=[item.model_dump(mode="json") for item in dependencies],
     )
     row.activities = [
         ProgrammeActivity(
@@ -186,8 +215,6 @@ def _new_version(
             start_date=item.start_date,
             duration_days=item.duration_days,
             finish_date=item.finish_date or item.start_date,
-            predecessor_key=item.predecessor_key,
-            lag_days=item.lag_days,
             assumption=item.assumption,
             notes=item.notes,
         )
@@ -207,13 +234,24 @@ def _activities(row: ProgrammeVersion) -> list[ProgrammeActivityInput]:
             start_date=item.start_date,
             duration_days=item.duration_days,
             finish_date=item.finish_date,
-            predecessor_key=item.predecessor_key,
-            lag_days=item.lag_days,
             assumption=item.assumption,
             notes=item.notes,
         )
         for item in row.activities
     ]
+
+
+def _dependencies(row: ProgrammeVersion) -> list[ProgrammeDependencyInput]:
+    return [ProgrammeDependencyInput.model_validate(item) for item in row.dependencies]
+
+
+def _valid_collapsed_keys(
+    keys: list[str], activities: list[ProgrammeActivityInput]
+) -> list[str]:
+    stages = {
+        item.activity_key for item in activities if item.kind == "stage"
+    }
+    return list(dict.fromkeys(key for key in keys if key in stages))
 
 
 def _state(row: ProgrammeVersion) -> ProgrammeState:
@@ -224,5 +262,7 @@ def _state(row: ProgrammeVersion) -> ProgrammeState:
         status=row.status,  # type: ignore[arg-type]
         view_scale=row.view_scale,  # type: ignore[arg-type]
         pmp_embed_visible=row.pmp_embed_visible,
+        collapsed_stage_keys=row.collapsed_stage_keys,
         activities=_activities(row),
+        dependencies=_dependencies(row),
     )

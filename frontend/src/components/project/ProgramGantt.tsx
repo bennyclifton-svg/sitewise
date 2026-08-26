@@ -7,25 +7,36 @@ import {
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { GripVertical, Link2, Plus, Trash, Unlink } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  Plus,
+  Trash,
+  X,
+} from "lucide-react";
 
 import { ProgrammeDateField } from "@/components/project/ProgrammeDateField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   addDays,
+  applyProgrammeOperationsLocally,
   daysBetween,
   formatCompactDate,
-  previousProgrammeKey,
   programmeBulkDeleteOperations,
-  programmeLinkWouldCycle,
+  programmeDependencyKey,
+  programmeDependencyWouldCycle,
   programmeRowMove,
   programmeHeaderLayers,
   programmeSpan,
+  programmeActivitySpan,
   programmeLinks,
   ganttLinkPath,
   type ProgrammeActivity,
   type ProgrammeAxisBand,
+  type ProgrammeDependency,
+  type DependencyEndpoint,
   type ProgrammeOperation,
   type ProgrammeScale,
   type ProgrammeState,
@@ -47,7 +58,6 @@ const GRID_ROW =
 const NAME_WIDTH = 220;
 const DATE_WIDTH = 88;
 const DURATION_WIDTH = 48;
-const LINK_WIDTH = 24;
 const PLUS_WIDTH = 24;
 const TRASH_WIDTH = 24;
 const GRIP_WIDTH = 18;
@@ -58,8 +68,13 @@ const SCALE_PX: Record<ProgrammeScale, number> = {
 };
 const FIGURE_SCALES: ProgrammeScale[] = ["month", "quarter"];
 const SCHEDULE_PANE = NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH;
-const ACTION_PANE = LINK_WIDTH + PLUS_WIDTH + TRASH_WIDTH;
+const ACTION_PANE = PLUS_WIDTH + TRASH_WIDTH;
 const ROW_TEXT = "text-[10px] leading-5 md:text-[10px]";
+
+type DependencyAnchor = {
+  activityKey: string;
+  endpoint: DependencyEndpoint;
+};
 
 function chartBoxStyle(
   fitted: boolean,
@@ -77,9 +92,29 @@ function chartBoxStyle(
     };
   }
   const span = Math.max(spanDays, 1);
+  if (sizeDays <= 0 && minUnfittedPx > 0) {
+    return {
+      left: `calc(${panePx}px + (100% - ${panePx}px) * ${offsetDays / span})`,
+      width: minUnfittedPx,
+    };
+  }
   return {
     left: `calc(${panePx}px + (100% - ${panePx}px) * ${offsetDays / span})`,
     width: `calc((100% - ${panePx}px) * ${sizeDays / span})`,
+  };
+}
+
+function milestoneBoxStyle(
+  milestone: boolean,
+  style: { left: number | string; width: number | string },
+): { left: number | string; width: number | string } {
+  if (!milestone) return style;
+  return {
+    left:
+      typeof style.left === "number"
+        ? style.left - 6
+        : `calc(${style.left} - 6px)`,
+    width: 12,
   };
 }
 
@@ -88,12 +123,14 @@ export function ProgramGantt({
   mode,
   onOperate,
   onScaleChange,
+  onCollapsedChange,
   active = true,
 }: {
   state: ProgrammeState;
   mode: "edit" | "figure";
   onOperate?: (operations: ProgrammeOperation[]) => void;
   onScaleChange?: (scale: ProgrammeScale) => void;
+  onCollapsedChange?: (stageKeys: string[]) => void;
   /** False while the workbench is kept mounted but hidden. */
   active?: boolean;
 }) {
@@ -101,6 +138,13 @@ export function ProgramGantt({
   const [surfaceWidth, setSurfaceWidth] = useState(0);
   const [fitToScreen, setFitToScreen] = useState(mode === "edit");
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [modifierLinking, setModifierLinking] = useState(false);
+  const [pendingAnchor, setPendingAnchor] = useState<DependencyAnchor | null>(null);
+  const [selectedDependencyKey, setSelectedDependencyKey] = useState<string | null>(null);
+  const [previewUpdate, setPreviewUpdate] = useState<{
+    activityKey: string;
+    values: Record<string, unknown>;
+  } | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const [rowDrag, setRowDrag] = useState<{
@@ -108,9 +152,55 @@ export function ProgramGantt({
     overKey: string;
     placement: "before" | "after";
   } | null>(null);
-  const activityKeys = useMemo(
-    () => new Set(state.activities.map((item) => item.activity_key)),
+  const stageKeys = useMemo(
+    () => state.activities.filter((item) => item.kind === "stage").map((item) => item.activity_key),
     [state.activities],
+  );
+  const dependencies = state.dependencies ?? [];
+  const collapsedStages = useMemo(
+    () =>
+      new Set(
+        state.collapsed_stage_keys.filter((key) => stageKeys.includes(key)),
+      ),
+    [stageKeys, state.collapsed_stage_keys],
+  );
+  const visibleActivities = useMemo(
+    () =>
+      state.activities.filter(
+        (item) => item.kind === "stage" || !item.parent_key || !collapsedStages.has(item.parent_key),
+      ),
+    [collapsedStages, state.activities],
+  );
+  const previewState = useMemo(() => {
+    if (!previewUpdate) return state;
+    const activity = state.activities.find(
+      (item) => item.activity_key === previewUpdate.activityKey,
+    );
+    if (!activity) return state;
+    return applyProgrammeOperationsLocally(state, [
+      {
+        operation: "UPDATE",
+        target_type: activity.kind,
+        target_id: activity.activity_key,
+        values: previewUpdate.values,
+      },
+    ]);
+  }, [previewUpdate, state]);
+  const previewByKey = useMemo(
+    () => new Map(previewState.activities.map((item) => [item.activity_key, item])),
+    [previewState.activities],
+  );
+  const linkActivities = useMemo(
+    () => visibleActivities.map((item) => previewByKey.get(item.activity_key) ?? item),
+    [previewByKey, visibleActivities],
+  );
+  const renderedActivities = useMemo(
+    () => visibleActivities.map((item) => previewByKey.get(item.activity_key) ?? item),
+    [previewByKey, visibleActivities],
+  );
+  const activityKeys = useMemo(
+    () => new Set(visibleActivities.map((item) => item.activity_key)),
+    [visibleActivities],
   );
   const visibleSelected = useMemo(() => {
     const next = new Set([...selectedKeys].filter((key) => activityKeys.has(key)));
@@ -147,13 +237,28 @@ export function ProgramGantt({
   }, [active]);
 
   useEffect(() => {
-    if (visibleSelected.size === 0) return;
+    if (mode !== "edit") return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedKeys(new Set());
+      if (event.key === "Control" || event.key === "Meta") setModifierLinking(true);
+      if (event.key === "Escape") {
+        setSelectedKeys(new Set());
+        setPendingAnchor(null);
+        setSelectedDependencyKey(null);
+      }
     };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Control" || event.key === "Meta") setModifierLinking(false);
+    };
+    const onBlur = () => setModifierLinking(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [visibleSelected.size]);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, [mode]);
 
   function update(activity: ProgrammeActivity, values: Record<string, unknown>) {
     onOperate?.([
@@ -201,7 +306,7 @@ export function ProgramGantt({
       setFocusKey(key);
       return;
     }
-    const keys = state.activities.map((item) => item.activity_key);
+    const keys = visibleActivities.map((item) => item.activity_key);
     if (event.shiftKey) {
       const anchor =
         visibleAnchor && keys.includes(visibleAnchor) ? visibleAnchor : key;
@@ -234,8 +339,24 @@ export function ProgramGantt({
     setFocusKey(key);
   }
 
-  function addActivityBelow(row: ProgrammeActivity) {
-    const parent = row.kind === "stage" ? row.activity_key : row.parent_key;
+  function addRowAfter(row: ProgrammeActivity) {
+    if (row.kind === "stage") {
+      onOperate?.([
+        {
+          operation: "ADD",
+          target_type: "stage",
+          reference_id: row.activity_key,
+          placement: "after",
+          values: {
+            name: "New parent group",
+            start_date: row.finish_date || row.start_date,
+            duration_days: 30,
+          },
+        },
+      ]);
+      return;
+    }
+    const parent = row.parent_key;
     if (!parent) return;
     onOperate?.([
       {
@@ -253,35 +374,86 @@ export function ProgramGantt({
     ]);
   }
 
-  function addStage() {
-    const last =
-      [...state.activities].reverse().find((item) => item.kind === "stage") ??
-      state.activities.at(-1);
+  function toggleStage(stageKey: string) {
+    const next = new Set(collapsedStages);
+    if (next.has(stageKey)) next.delete(stageKey);
+    else next.add(stageKey);
+    onCollapsedChange?.(stageKeys.filter((key) => next.has(key)));
+  }
+
+  function toggleAllStages() {
+    const allCollapsed = stageKeys.length > 0 && stageKeys.every((key) => collapsedStages.has(key));
+    onCollapsedChange?.(allCollapsed ? [] : stageKeys);
+  }
+
+  function chooseDependencyAnchor(anchor: DependencyAnchor) {
+    if (!pendingAnchor) {
+      setPendingAnchor(anchor);
+      setSelectedDependencyKey(null);
+      return;
+    }
+    if (
+      pendingAnchor.activityKey === anchor.activityKey &&
+      pendingAnchor.endpoint === anchor.endpoint
+    ) {
+      setPendingAnchor(null);
+      return;
+    }
+    if (
+      programmeDependencyWouldCycle(
+        state.activities,
+        dependencies,
+        pendingAnchor.activityKey,
+        anchor.activityKey,
+      )
+    ) {
+      setPendingAnchor(anchor);
+      return;
+    }
+    const dependencyKey = programmeDependencyKey(
+      pendingAnchor.activityKey,
+      pendingAnchor.endpoint,
+      anchor.activityKey,
+      anchor.endpoint,
+    );
     onOperate?.([
       {
         operation: "ADD",
-        target_type: "stage",
-        reference_id: last?.activity_key,
-        placement: "after",
+        target_type: "dependency",
         values: {
-          name: "New stage",
-          start_date: last?.finish_date || span.end,
-          duration_days: 30,
+          dependency_key: dependencyKey,
+          source_activity_key: pendingAnchor.activityKey,
+          target_activity_key: anchor.activityKey,
+          source_endpoint: pendingAnchor.endpoint,
+          target_endpoint: anchor.endpoint,
+          lag_days: 0,
         },
+      },
+    ]);
+    setPendingAnchor(null);
+    setSelectedDependencyKey(dependencyKey);
+  }
+
+  function updateDependency(dependency: ProgrammeDependency, lagDays: number) {
+    onOperate?.([
+      {
+        operation: "UPDATE",
+        target_type: "dependency",
+        target_id: dependency.dependency_key,
+        values: { lag_days: Math.max(0, lagDays) },
       },
     ]);
   }
 
-  function toggleLink(row: ProgrammeActivity) {
-    if (row.predecessor_key) {
-      update(row, { predecessor_key: null, lag_days: 0 });
-      return;
-    }
-    const predecessor = previousProgrammeKey(state.activities, row.activity_key);
-    if (!predecessor || programmeLinkWouldCycle(state.activities, row.activity_key, predecessor)) {
-      return;
-    }
-    update(row, { predecessor_key: predecessor, lag_days: 0 });
+  function removeDependency(dependency: ProgrammeDependency) {
+    onOperate?.([
+      {
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: dependency.dependency_key,
+      },
+    ]);
+    setSelectedDependencyKey(null);
   }
 
   function beginRowDrag(event: ReactPointerEvent, sourceKey: string) {
@@ -292,9 +464,9 @@ export function ProgramGantt({
     const readTarget = (clientY: number) => {
       const top = surface.getBoundingClientRect().top + headerHeight;
       const raw = (clientY - top) / ROW_HEIGHT;
-      const index = Math.max(0, Math.min(state.activities.length - 1, Math.floor(raw)));
+      const index = Math.max(0, Math.min(visibleActivities.length - 1, Math.floor(raw)));
       return {
-        overKey: state.activities[index]?.activity_key ?? sourceKey,
+        overKey: visibleActivities[index]?.activity_key ?? sourceKey,
         placement: raw - index < 0.5 ? ("before" as const) : ("after" as const),
       };
     };
@@ -332,7 +504,7 @@ export function ProgramGantt({
         className="relative"
         style={{
           minWidth: fitted ? "100%" : leftPane + chartWidth,
-          height: headerHeight + ROW_HEIGHT * Math.max(state.activities.length, 1),
+          height: headerHeight + ROW_HEIGHT * Math.max(visibleActivities.length, 1),
         }}
       >
         <GanttAxis
@@ -344,7 +516,10 @@ export function ProgramGantt({
           fitted={fitted}
           pxPerDay={pxPerDay}
           showScheduleColumns
-          onAddStage={mode === "edit" ? addStage : undefined}
+          allStagesCollapsed={
+            stageKeys.length > 0 && stageKeys.every((key) => collapsedStages.has(key))
+          }
+          onToggleAllStages={mode === "edit" ? toggleAllStages : undefined}
           selectedCount={mode === "edit" ? visibleSelected.size : 0}
           onDeleteSelected={mode === "edit" ? removeSelected : undefined}
         />
@@ -356,18 +531,22 @@ export function ProgramGantt({
           headerHeight={headerHeight}
           fitted={fitted}
           pxPerDay={pxPerDay}
-          rowCount={state.activities.length}
+          rowCount={visibleActivities.length}
         />
         <GanttLinks
-          activities={state.activities}
+          activities={linkActivities}
+          dependencies={previewState.dependencies ?? dependencies}
           spanStart={span.start}
           spanDays={spanDays}
           fitted={fitted}
           pxPerDay={pxPerDay}
           leftPane={leftPane}
           headerHeight={headerHeight}
+          interactive={mode === "edit"}
+          selectedDependencyKey={selectedDependencyKey}
+          onSelectDependency={setSelectedDependencyKey}
         />
-        {state.activities.map((activity, index) => (
+        {renderedActivities.map((activity, index) => (
           <GanttRow
             key={activity.activity_key}
             activity={activity}
@@ -376,12 +555,14 @@ export function ProgramGantt({
             spanDays={spanDays}
             focused={focusKey === activity.activity_key}
             selected={visibleSelected.has(activity.activity_key)}
+            previewed={previewUpdate?.activityKey === activity.activity_key}
             interactive={mode === "edit"}
             fitted={fitted}
             pxPerDay={pxPerDay}
             leftPane={leftPane}
             headerHeight={headerHeight}
             hideRowDelete={visibleSelected.size > 1}
+            collapsed={collapsedStages.has(activity.activity_key)}
             onRowClick={
               mode === "edit"
                 ? (event) => handleRowClick(event, activity.activity_key)
@@ -397,12 +578,40 @@ export function ProgramGantt({
             onResizeStart={(start, days) =>
               update(activity, { start_date: start, duration_days: days })
             }
+            onPreview={(values) =>
+              setPreviewUpdate(
+                values ? { activityKey: activity.activity_key, values } : null,
+              )
+            }
             onDelete={() => remove(activity)}
-            onAddActivity={() => addActivityBelow(activity)}
-            onToggleLink={() => toggleLink(activity)}
+            onAdd={() => addRowAfter(activity)}
+            onToggleCollapse={() => toggleStage(activity.activity_key)}
+            linkingActive={modifierLinking || pendingAnchor !== null}
+            pendingAnchor={pendingAnchor}
+            onChooseAnchor={(endpoint) =>
+              chooseDependencyAnchor({ activityKey: activity.activity_key, endpoint })
+            }
             onReorder={(event) => beginRowDrag(event, activity.activity_key)}
           />
         ))}
+        {mode === "edit" ? (
+          <DependencyEditor
+            key={selectedDependencyKey ?? "no-dependency"}
+            dependency={dependencies.find(
+              (item) => item.dependency_key === selectedDependencyKey,
+            )}
+            activities={visibleActivities}
+            spanStart={span.start}
+            spanDays={spanDays}
+            fitted={fitted}
+            pxPerDay={pxPerDay}
+            leftPane={leftPane}
+            headerHeight={headerHeight}
+            onChangeLag={updateDependency}
+            onRemove={removeDependency}
+            onClose={() => setSelectedDependencyKey(null)}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -472,7 +681,8 @@ function GanttAxis({
   fitted,
   pxPerDay,
   showScheduleColumns,
-  onAddStage,
+  allStagesCollapsed,
+  onToggleAllStages,
   selectedCount,
   onDeleteSelected,
 }: {
@@ -484,7 +694,8 @@ function GanttAxis({
   fitted: boolean;
   pxPerDay: number;
   showScheduleColumns: boolean;
-  onAddStage?: () => void;
+  allStagesCollapsed: boolean;
+  onToggleAllStages?: () => void;
   selectedCount?: number;
   onDeleteSelected?: () => void;
 }) {
@@ -496,18 +707,23 @@ function GanttAxis({
       className="program-gantt-header absolute inset-x-0 top-0 z-[1] border-b text-[10px] leading-none text-[var(--sw-text-tertiary)]"
       style={{ height: headerHeight }}
     >
-      <div className="absolute bottom-1 left-2 flex items-center gap-0.5">
-        <span className="program-gantt-header-label">Activity</span>
-        {onAddStage ? (
+      <div className="absolute bottom-1 left-1 flex items-center gap-0.5">
+        {onToggleAllStages ? (
           <button
             type="button"
-            aria-label="Add stage"
-            className="flex size-5 items-center justify-center text-[var(--sw-text-tertiary)] hover:text-[var(--sw-text-primary)]"
-            onClick={onAddStage}
+            aria-label={allStagesCollapsed ? "Expand all stages" : "Collapse all stages"}
+            aria-expanded={!allStagesCollapsed}
+            className="flex size-5 items-center justify-center rounded-sm text-[var(--sw-text-tertiary)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_72%,transparent)] hover:text-[var(--sw-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sw-beam)]"
+            onClick={onToggleAllStages}
           >
-            <Plus className="size-3.5" aria-hidden />
+            {allStagesCollapsed ? (
+              <ChevronRight className="size-3.5" aria-hidden />
+            ) : (
+              <ChevronDown className="size-3.5" aria-hidden />
+            )}
           </button>
         ) : null}
+        <span className="program-gantt-header-label">Activity</span>
       </div>
       {showScheduleColumns ? (
         <>
@@ -530,7 +746,7 @@ function GanttAxis({
               title={`Delete ${selectedCount} selected`}
               className="absolute bottom-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
               style={{
-                left: NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH + LINK_WIDTH + PLUS_WIDTH,
+                left: NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH + PLUS_WIDTH,
               }}
               onClick={onDeleteSelected}
             >
@@ -673,12 +889,14 @@ const GanttRow = memo(function GanttRow({
   spanDays,
   focused,
   selected,
+  previewed,
   interactive,
   fitted,
   pxPerDay,
   leftPane,
   headerHeight,
   hideRowDelete,
+  collapsed,
   dropPlacement,
   dragging,
   onRowClick,
@@ -686,9 +904,13 @@ const GanttRow = memo(function GanttRow({
   onMove,
   onResize,
   onResizeStart,
+  onPreview,
   onDelete,
-  onAddActivity,
-  onToggleLink,
+  onAdd,
+  onToggleCollapse,
+  linkingActive,
+  pendingAnchor,
+  onChooseAnchor,
   onReorder,
 }: {
   activity: ProgrammeActivity;
@@ -697,12 +919,14 @@ const GanttRow = memo(function GanttRow({
   spanDays: number;
   focused: boolean;
   selected: boolean;
+  previewed: boolean;
   interactive: boolean;
   fitted: boolean;
   pxPerDay: number;
   leftPane: number;
   headerHeight: number;
   hideRowDelete: boolean;
+  collapsed: boolean;
   dropPlacement: "before" | "after" | null;
   dragging: boolean;
   onRowClick?: (event: ReactMouseEvent) => void;
@@ -710,9 +934,13 @@ const GanttRow = memo(function GanttRow({
   onMove: (start: string) => void;
   onResize: (days: number) => void;
   onResizeStart: (start: string, days: number) => void;
+  onPreview: (values: Record<string, unknown> | null) => void;
   onDelete: () => void;
-  onAddActivity: () => void;
-  onToggleLink: () => void;
+  onAdd: () => void;
+  onToggleCollapse: () => void;
+  linkingActive: boolean;
+  pendingAnchor: DependencyAnchor | null;
+  onChooseAnchor: (endpoint: DependencyEndpoint) => void;
   onReorder: (event: ReactPointerEvent) => void;
 }) {
   const [drag, setDrag] = useState<{
@@ -721,27 +949,22 @@ const GanttRow = memo(function GanttRow({
   } | null>(null);
   const minDuration = activity.kind === "milestone" ? 0 : 1;
   const startDelta =
-    drag?.kind === "move"
+    !previewed && drag?.kind === "move"
       ? drag.delta
-      : drag?.kind === "resize-start"
+      : !previewed && drag?.kind === "resize-start"
         ? Math.min(drag.delta, activity.duration_days - minDuration)
         : 0;
   const offset = daysBetween(spanStart, activity.start_date) + startDelta;
   const duration = Math.max(
     activity.duration_days +
-      (drag?.kind === "resize"
+      (!previewed && drag?.kind === "resize"
         ? drag.delta
-        : drag?.kind === "resize-start"
+        : !previewed && drag?.kind === "resize-start"
           ? -startDelta
           : 0),
     minDuration,
   );
   const top = headerHeight + index * ROW_HEIGHT;
-  const barFill =
-    activity.kind === "stage"
-      ? "bg-[color-mix(in_oklch,var(--sw-text-tertiary)_70%,transparent)]"
-      : "bg-[color-mix(in_oklch,var(--sw-beam)_45%,transparent)]";
-
   function beginDrag(
     event: ReactPointerEvent,
     kind: "move" | "resize" | "resize-start",
@@ -750,16 +973,41 @@ const GanttRow = memo(function GanttRow({
     event.preventDefault();
     event.stopPropagation();
     const originX = event.clientX;
+    let previewFrame: number | null = null;
+    let previewDelta = 0;
+    let lastDelta: number | null = null;
+    const previewValues = (delta: number): Record<string, unknown> => {
+      if (kind === "move") return { start_date: addDays(activity.start_date, delta) };
+      if (kind === "resize-start") {
+        const bounded = Math.min(delta, activity.duration_days - minDuration);
+        return {
+          start_date: addDays(activity.start_date, bounded),
+          duration_days: activity.duration_days - bounded,
+        };
+      }
+      return { duration_days: Math.max(minDuration, activity.duration_days + delta) };
+    };
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const onMovePointer = (moveEvent: PointerEvent) => {
-      setDrag({
-        kind,
-        delta: Math.round((moveEvent.clientX - originX) / Math.max(pxPerDay, 0.25)),
-      });
+      const nextDelta = Math.round(
+        (moveEvent.clientX - originX) / Math.max(pxPerDay, 0.25),
+      );
+      if (nextDelta === lastDelta) return;
+      lastDelta = nextDelta;
+      previewDelta = nextDelta;
+      setDrag({ kind, delta: previewDelta });
+      if (previewFrame === null) {
+        previewFrame = window.requestAnimationFrame(() => {
+          previewFrame = null;
+          onPreview(previewValues(previewDelta));
+        });
+      }
     };
     const onUp = (upEvent: PointerEvent) => {
       window.removeEventListener("pointermove", onMovePointer);
       window.removeEventListener("pointerup", onUp);
+      if (previewFrame !== null) window.cancelAnimationFrame(previewFrame);
+      onPreview(null);
       const raw = Math.round((upEvent.clientX - originX) / Math.max(pxPerDay, 0.25));
       setDrag(null);
       if (raw === 0) return;
@@ -807,8 +1055,9 @@ const GanttRow = memo(function GanttRow({
           onMove={onMove}
           onResize={onResize}
           onDelete={onDelete}
-          onAddActivity={onAddActivity}
-          onToggleLink={onToggleLink}
+          onAdd={onAdd}
+          collapsed={collapsed}
+          onToggleCollapse={onToggleCollapse}
           onReorder={onReorder}
           hideDelete={hideRowDelete}
         />
@@ -817,27 +1066,55 @@ const GanttRow = memo(function GanttRow({
       )}
       <div
         className={cn(
-          "absolute overflow-hidden rounded",
-          activity.kind !== "milestone" && barFill,
+          "absolute overflow-visible",
+          activity.kind === "activity" && "program-gantt-activity-bar",
         )}
         data-gantt-bar={activity.activity_key}
         style={{
-          ...chartBoxStyle(fitted, leftPane, offset, duration, spanDays, pxPerDay, 8),
+          ...milestoneBoxStyle(
+            activity.kind === "milestone",
+            chartBoxStyle(fitted, leftPane, offset, duration, spanDays, pxPerDay, 8),
+          ),
           top: BAR_TOP,
           height: BAR_HEIGHT,
         }}
       >
-        {activity.kind === "milestone" ? (
+        {activity.kind === "stage" ? (
+          <>
+            <span
+              aria-hidden
+              data-gantt-summary=""
+              className="program-gantt-summary-bar pointer-events-none absolute inset-x-0 top-1.5 h-[3px]"
+            />
+            <span
+              aria-hidden
+              className="program-gantt-summary-bar pointer-events-none absolute top-1.5 left-0 h-2.5 w-[3px]"
+            />
+            <span
+              aria-hidden
+              className="program-gantt-summary-bar pointer-events-none absolute top-1.5 right-0 h-2.5 w-[3px]"
+            />
+            {interactive ? (
+              <button
+                type="button"
+                aria-label={`Move ${activity.name}`}
+                className="absolute inset-0 block h-full w-full bg-transparent p-0 leading-none"
+                onPointerDown={(event) => beginDrag(event, "move")}
+                data-interactive="true"
+              />
+            ) : null}
+          </>
+        ) : activity.kind === "milestone" ? (
           interactive ? (
             <button
               type="button"
               aria-label={`Move ${activity.name}`}
-              className="size-2.5 rotate-45 bg-[var(--sw-beam)] p-0 leading-none"
+              className="absolute top-1/2 left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[var(--sw-beam)] p-0 leading-none"
               onPointerDown={(event) => beginDrag(event, "move")}
               data-interactive="true"
             />
           ) : (
-            <span className="block size-2.5 rotate-45 bg-[var(--sw-beam)]" aria-hidden />
+            <span className="absolute top-1/2 left-1/2 block size-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-[var(--sw-beam)]" aria-hidden />
           )
         ) : interactive ? (
           <button
@@ -852,22 +1129,26 @@ const GanttRow = memo(function GanttRow({
         )}
         {interactive && activity.kind !== "milestone" ? (
           <>
-            <span
-              aria-hidden
-              data-gantt-handle="start"
-              className={cn(
-                "pointer-events-none absolute top-1/2 left-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
-                HANDLE_FILL,
-              )}
-            />
-            <span
-              aria-hidden
-              data-gantt-handle="end"
-              className={cn(
-                "pointer-events-none absolute top-1/2 right-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
-                HANDLE_FILL,
-              )}
-            />
+            {activity.kind === "activity" ? (
+              <>
+                <span
+                  aria-hidden
+                  data-gantt-handle="start"
+                  className={cn(
+                    "pointer-events-none absolute top-1/2 left-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
+                    HANDLE_FILL,
+                  )}
+                />
+                <span
+                  aria-hidden
+                  data-gantt-handle="end"
+                  className={cn(
+                    "pointer-events-none absolute top-1/2 right-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
+                    HANDLE_FILL,
+                  )}
+                />
+              </>
+            ) : null}
             <span
               role="separator"
               aria-label={`Resize start of ${activity.name}`}
@@ -884,37 +1165,96 @@ const GanttRow = memo(function GanttRow({
             />
           </>
         ) : null}
+        {interactive ? (
+          <DependencyAnchors
+            activity={activity}
+            active={linkingActive}
+            pendingAnchor={pendingAnchor}
+            onChoose={onChooseAnchor}
+          />
+        ) : null}
       </div>
     </div>
   );
 });
 
+function DependencyAnchors({
+  activity,
+  active,
+  pendingAnchor,
+  onChoose,
+}: {
+  activity: ProgrammeActivity;
+  active: boolean;
+  pendingAnchor: DependencyAnchor | null;
+  onChoose: (endpoint: DependencyEndpoint) => void;
+}) {
+  return (
+    <>
+      {(["start", "finish"] as const).map((endpoint) => {
+        const selected =
+          pendingAnchor?.activityKey === activity.activity_key &&
+          pendingAnchor.endpoint === endpoint;
+        return (
+          <button
+            key={endpoint}
+            type="button"
+            tabIndex={active ? 0 : -1}
+            aria-label={`Choose ${endpoint} of ${activity.name} for dependency`}
+            data-gantt-anchor={endpoint}
+            data-gantt-anchor-active={active ? "true" : "false"}
+            className={cn(
+              "absolute top-1/2 z-20 size-3 -translate-y-1/2 rounded-full border-2 border-[var(--sw-void)] bg-[var(--sw-text-tertiary)] opacity-0 transition-[opacity,transform,background-color] duration-100",
+              endpoint === "start" ? "-left-1.5" : "-right-1.5",
+              active && "pointer-events-auto scale-100 opacity-100 bg-[var(--sw-beam)]",
+              selected && "scale-125 bg-[var(--sw-text-primary)] ring-2 ring-[var(--sw-beam)]",
+            )}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              if (active) onChoose(endpoint);
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 function GanttLinks({
   activities,
+  dependencies,
   spanStart,
   spanDays,
   fitted,
   pxPerDay,
   leftPane,
   headerHeight,
+  interactive,
+  selectedDependencyKey,
+  onSelectDependency,
 }: {
   activities: ProgrammeActivity[];
+  dependencies: ProgrammeDependency[];
   spanStart: string;
   spanDays: number;
   fitted: boolean;
   pxPerDay: number;
   leftPane: number;
   headerHeight: number;
+  interactive: boolean;
+  selectedDependencyKey: string | null;
+  onSelectDependency: (dependencyKey: string | null) => void;
 }) {
   const height = ROW_HEIGHT * Math.max(activities.length, 1);
   const width = fitted ? undefined : Math.max(spanDays * pxPerDay, 8);
-  const links = programmeLinks(activities, spanStart);
+  const links = programmeLinks(activities, dependencies, spanStart);
   if (!links.length) return null;
   const xScale = fitted ? 1 : pxPerDay;
   const stubX = fitted ? Math.max(2, spanDays * 0.012) : 8;
   return (
     <svg
-      className="pointer-events-none absolute"
+      className="absolute"
       data-gantt-links=""
       style={{
         left: leftPane,
@@ -925,19 +1265,189 @@ function GanttLinks({
       viewBox={fitted ? `0 0 ${spanDays} ${height}` : undefined}
       preserveAspectRatio={fitted ? "none" : undefined}
     >
+      <defs>
+        <marker
+          id="programme-dependency-arrow"
+          viewBox="0 0 6 6"
+          refX="5"
+          refY="3"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 6 3 L 0 6 Z" fill="var(--sw-beam)" />
+        </marker>
+      </defs>
       {links.map((link) => (
-        <path
-          key={link.key}
-          data-gantt-link={link.key}
-          d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
-          fill="none"
-          stroke="var(--sw-beam)"
-          strokeOpacity="0.55"
-          strokeWidth="1.25"
-          vectorEffect="non-scaling-stroke"
-        />
+        <g key={link.key}>
+          {interactive ? (
+            <path
+              data-gantt-link-hit={link.key}
+              d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
+              fill="none"
+              stroke="transparent"
+              strokeWidth="12"
+              vectorEffect="non-scaling-stroke"
+              pointerEvents="stroke"
+              className="cursor-pointer"
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelectDependency(link.key);
+              }}
+            />
+          ) : null}
+          <path
+            data-gantt-link={link.key}
+            d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
+            fill="none"
+            stroke="var(--sw-beam)"
+            strokeOpacity={selectedDependencyKey === link.key ? "0.95" : "0.55"}
+            strokeWidth={selectedDependencyKey === link.key ? "2" : "1.25"}
+            markerEnd="url(#programme-dependency-arrow)"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
+          />
+          {link.lagDays > 0 ? (
+            <text
+              x={((link.fromOffset + link.toOffset) / 2) * xScale}
+              y={((link.fromIndex + link.toIndex) / 2) * ROW_HEIGHT + LINK_Y - 3}
+              textAnchor="middle"
+              fill="var(--sw-beam)"
+              stroke="var(--sw-void)"
+              strokeWidth="3"
+              paintOrder="stroke"
+              fontSize="9"
+              fontFamily="ui-monospace, monospace"
+              pointerEvents="none"
+              vectorEffect="non-scaling-stroke"
+            >
+              +{link.lagDays}d
+            </text>
+          ) : null}
+        </g>
       ))}
     </svg>
+  );
+}
+
+function DependencyEditor({
+  dependency,
+  activities,
+  spanStart,
+  spanDays,
+  fitted,
+  pxPerDay,
+  leftPane,
+  headerHeight,
+  onChangeLag,
+  onRemove,
+  onClose,
+}: {
+  dependency: ProgrammeDependency | undefined;
+  activities: ProgrammeActivity[];
+  spanStart: string;
+  spanDays: number;
+  fitted: boolean;
+  pxPerDay: number;
+  leftPane: number;
+  headerHeight: number;
+  onChangeLag: (dependency: ProgrammeDependency, lagDays: number) => void;
+  onRemove: (dependency: ProgrammeDependency) => void;
+  onClose: () => void;
+}) {
+  const [lagDraft, setLagDraft] = useState(dependency?.lag_days ?? 0);
+  if (!dependency) return null;
+  const sourceIndex = activities.findIndex(
+    (item) => item.activity_key === dependency.source_activity_key,
+  );
+  const targetIndex = activities.findIndex(
+    (item) => item.activity_key === dependency.target_activity_key,
+  );
+  const source = activities[sourceIndex];
+  const target = activities[targetIndex];
+  if (!source || !target) return null;
+  const sourceSpan = programmeActivitySpan(spanStart, source);
+  const targetSpan = programmeActivitySpan(spanStart, target);
+  const sourceOffset =
+    dependency.source_endpoint === "start" ? sourceSpan.start : sourceSpan.end;
+  const targetOffset =
+    dependency.target_endpoint === "start" ? targetSpan.start : targetSpan.end;
+  const midpoint = (sourceOffset + targetOffset) / 2;
+  const position = chartBoxStyle(
+    fitted,
+    leftPane,
+    midpoint,
+    0,
+    spanDays,
+    pxPerDay,
+  );
+  const relationship = `${dependency.source_endpoint[0]?.toUpperCase()}${dependency.target_endpoint[0]?.toUpperCase()}`;
+  function commitLag() {
+    const next = Math.max(0, Number.isFinite(lagDraft) ? lagDraft : 0);
+    setLagDraft(next);
+    if (next !== dependency!.lag_days) onChangeLag(dependency!, next);
+  }
+  return (
+    <div
+      role="dialog"
+      aria-label={`Edit ${relationship} dependency`}
+      className="program-gantt-dependency-editor absolute z-30 w-44 border p-2 shadow-md"
+      style={{
+        left: position.left,
+        top: headerHeight + ((sourceIndex + targetIndex) / 2) * ROW_HEIGHT + ROW_HEIGHT / 2,
+        transform: "translate(-50%, 6px)",
+      }}
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="font-mono text-[10px] font-semibold tracking-wider text-[var(--sw-text-primary)]">
+          {relationship} dependency
+        </span>
+        <button
+          type="button"
+          aria-label="Close dependency editor"
+          className="inline-flex size-5 items-center justify-center rounded-sm text-[var(--sw-text-tertiary)] hover:text-[var(--sw-text-primary)]"
+          onClick={onClose}
+        >
+          <X className="size-3" aria-hidden />
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-[10px] text-[var(--sw-text-secondary)]">
+        <span>Lag</span>
+        <Input
+          type="number"
+          min={0}
+          value={lagDraft}
+          aria-label="Dependency lag in days"
+          className="program-gantt-field h-6 min-w-0 flex-1 px-1 text-center text-[10px]"
+          onChange={(event) => setLagDraft(Math.max(0, Number(event.target.value)))}
+          onBlur={commitLag}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") commitLag();
+          }}
+        />
+        <span>days</span>
+      </label>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          className="text-[10px] text-[var(--sw-beam)] hover:underline"
+          onClick={() => {
+            setLagDraft(0);
+            onChangeLag(dependency, 0);
+          }}
+        >
+          Reset to ASAP
+        </button>
+        <button
+          type="button"
+          className="text-[10px] text-destructive hover:underline"
+          onClick={() => onRemove(dependency)}
+        >
+          Remove
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -976,8 +1486,9 @@ function RowFields({
   onMove,
   onResize,
   onDelete,
-  onAddActivity,
-  onToggleLink,
+  onAdd,
+  collapsed,
+  onToggleCollapse,
   onReorder,
   hideDelete,
 }: {
@@ -986,8 +1497,9 @@ function RowFields({
   onMove: (start: string) => void;
   onResize: (days: number) => void;
   onDelete: () => void;
-  onAddActivity: () => void;
-  onToggleLink: () => void;
+  onAdd: () => void;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   onReorder: (event: ReactPointerEvent) => void;
   hideDelete: boolean;
 }) {
@@ -1003,9 +1515,8 @@ function RowFields({
     else setDraftName(activity.name);
   }
 
-  const nameLeft = GRIP_WIDTH + (activity.kind === "stage" ? 2 : 12);
+  const nameLeft = GRIP_WIDTH + (activity.kind === "stage" ? 20 : 12);
   const actionsLeft = NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH;
-  const linked = Boolean(activity.predecessor_key);
 
   return (
     <>
@@ -1018,6 +1529,25 @@ function RowFields({
       >
         <GripVertical className="size-3.5" aria-hidden />
       </button>
+      {activity.kind === "stage" ? (
+        <button
+          type="button"
+          aria-label={collapsed ? `Expand ${activity.name}` : `Collapse ${activity.name}`}
+          aria-expanded={!collapsed}
+          className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-[var(--sw-text-tertiary)] hover:bg-[color-mix(in_oklch,var(--sw-panel)_72%,transparent)] hover:text-[var(--sw-text-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--sw-beam)]"
+          style={{ left: GRIP_WIDTH }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleCollapse();
+          }}
+        >
+          {collapsed ? (
+            <ChevronRight className="size-3.5" aria-hidden />
+          ) : (
+            <ChevronDown className="size-3.5" aria-hidden />
+          )}
+        </button>
+      ) : null}
       {editingName ? (
         <Input
           autoFocus
@@ -1091,34 +1621,16 @@ function RowFields({
       <button
         type="button"
         aria-label={
-          linked
-            ? `Unlink ${activity.name}`
-            : `Link ${activity.name} to the previous row`
+          activity.kind === "stage"
+            ? `Add parent group after ${activity.name}`
+            : `Add activity after ${activity.name}`
         }
-        aria-pressed={linked}
-        title={linked ? "Linked — click to float" : "Floating — click to link to the row above"}
-        className={cn(
-          "absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:text-[var(--sw-text-primary)]",
-          linked
-            ? "text-[var(--sw-beam)] opacity-100"
-            : "opacity-0 group-hover/row:opacity-100 group-focus-within/row:opacity-100",
-        )}
+        title={activity.kind === "stage" ? "Add parent group" : "Add activity"}
+        className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-70 hover:bg-[color-mix(in_oklch,var(--sw-panel)_72%,transparent)] hover:text-[var(--sw-text-primary)] hover:opacity-100 focus-visible:opacity-100"
         style={{ left: actionsLeft }}
         onClick={(event) => {
           event.stopPropagation();
-          onToggleLink();
-        }}
-      >
-        {linked ? <Link2 className="size-3.5" aria-hidden /> : <Unlink className="size-3.5" aria-hidden />}
-      </button>
-      <button
-        type="button"
-        aria-label={`Add activity below ${activity.name}`}
-        className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 hover:text-[var(--sw-text-primary)] group-hover/row:opacity-100 group-focus-within/row:opacity-100"
-        style={{ left: actionsLeft + LINK_WIDTH }}
-        onClick={(event) => {
-          event.stopPropagation();
-          onAddActivity();
+          onAdd();
         }}
       >
         <Plus className="size-3.5" aria-hidden />
@@ -1129,7 +1641,7 @@ function RowFields({
           aria-label={`Delete ${activity.name}`}
           title="Delete"
           className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/row:opacity-100 group-focus-within/row:opacity-100"
-          style={{ left: actionsLeft + LINK_WIDTH + PLUS_WIDTH }}
+          style={{ left: actionsLeft + PLUS_WIDTH }}
           onClick={(event) => {
             event.stopPropagation();
             onDelete();

@@ -499,7 +499,19 @@ async def apply_cost_plan_operations(
             if not category:
                 raise ValueError("cost category name is required")
             if operation.operation == "ADD":
-                if category not in categories:
+                if category in categories:
+                    continue
+                if operation.reference_id and operation.placement:
+                    try:
+                        reference_index = categories.index(operation.reference_id)
+                    except ValueError:
+                        categories.append(category)
+                    else:
+                        destination = reference_index + (
+                            1 if operation.placement == "after" else 0
+                        )
+                        categories.insert(destination, category)
+                else:
                     categories.append(category)
                 continue
             if operation.operation == "DELETE":

@@ -21,6 +21,7 @@ from app.database.procurement_strategy import (
 )
 from app.sitewise.discipline_catalog import (
     RequiredProjectDiscipline,
+    alphanumeric_label_key,
     discipline_by_code,
     required_project_disciplines,
     resolve_discipline,
@@ -528,7 +529,15 @@ async def strategy_snapshot(
             else:
                 live_labels.add(_label_key(requirement.label))
     rows = []
-    for row in sorted(strategy.rows, key=lambda item: item.display_order):
+    participant_order = {"consultant": 0, "trade": 1, "supplier": 1}
+    for row in sorted(
+        strategy.rows,
+        key=lambda item: (
+            participant_order.get(item.participant_type, 99),
+            alphanumeric_label_key(item.discipline_label),
+            item.display_order,
+        ),
+    ):
         no_longer_required = False
         if project is not None and row.origin == "derived" and not row.locked:
             no_longer_required = (

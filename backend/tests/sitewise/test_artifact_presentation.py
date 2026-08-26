@@ -436,3 +436,21 @@ def test_prepare_issue_markdown_blanks_consultants_fee_not_evidenced() -> None:
     assert "services not yet appointed" not in prepared
     assert "| Structural engineer | — |  | Not evidenced | — |" in prepared
     assert "| Surveyor | Acme Survey | $4,200 | Partial | [1] |" in prepared
+
+
+def test_prepare_issue_markdown_sorts_consultants_alphanumerically() -> None:
+    source = """# Project Management Plan
+
+## Consultants
+
+| Discipline | Firm | Fee | Status | Citation |
+| --- | --- | --- | --- | --- |
+| Structural 10 | Firm C | $3 | Appointed | [3] |
+| Civil | Firm A | $1 | Appointed | [1] |
+| Structural 2 | Firm B | $2 | Appointed | [2] |
+"""
+
+    prepared = prepare_issue_markdown(source)
+
+    assert prepared.index("| Civil |") < prepared.index("| Structural 2 |")
+    assert prepared.index("| Structural 2 |") < prepared.index("| Structural 10 |")

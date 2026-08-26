@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -13,6 +13,25 @@ function state(overrides: Partial<ProgrammeState> = {}): ProgrammeState {
     status: "proposed",
     view_scale: "month",
     pmp_embed_visible: true,
+    collapsed_stage_keys: [],
+    dependencies: [
+      {
+        dependency_key: "planning:finish->procurement:start",
+        source_activity_key: "planning",
+        target_activity_key: "procurement",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 0,
+      },
+      {
+        dependency_key: "procurement:finish->delivery:start",
+        source_activity_key: "procurement",
+        target_activity_key: "delivery",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 0,
+      },
+    ],
     activities: [
       {
         activity_key: "planning",
@@ -23,8 +42,6 @@ function state(overrides: Partial<ProgrammeState> = {}): ProgrammeState {
         start_date: "2026-08-16",
         duration_days: 90,
         finish_date: "2026-11-14",
-        predecessor_key: null,
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
@@ -37,8 +54,6 @@ function state(overrides: Partial<ProgrammeState> = {}): ProgrammeState {
         start_date: "2026-11-14",
         duration_days: 60,
         finish_date: "2027-01-13",
-        predecessor_key: "planning",
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
@@ -51,11 +66,33 @@ function state(overrides: Partial<ProgrammeState> = {}): ProgrammeState {
         start_date: "2027-01-13",
         duration_days: 365,
         finish_date: "2028-01-13",
-        predecessor_key: "procurement",
-        lag_days: 0,
         assumption: true,
         notes: "",
       },
+    ],
+    ...overrides,
+  };
+}
+
+function stateWithChildren(overrides: Partial<ProgrammeState> = {}): ProgrammeState {
+  const base = state();
+  return {
+    ...base,
+    activities: [
+      base.activities[0]!,
+      {
+        activity_key: "concept-design",
+        kind: "activity",
+        parent_key: "planning",
+        name: "Concept design",
+        display_order: 1,
+        start_date: "2026-08-16",
+        duration_days: 30,
+        finish_date: "2026-09-15",
+        assumption: true,
+        notes: "",
+      },
+      ...base.activities.slice(1),
     ],
     ...overrides,
   };
@@ -257,12 +294,16 @@ describe("ProgramGantt", () => {
       );
       expect(path.getAttribute("d") ?? "").not.toMatch(/\bL\b/);
     }
-    expect(document.querySelector("[data-gantt-link='planning->procurement']")?.getAttribute("d")).toBe(
-      "M 90 12 V 36",
-    );
-    expect(document.querySelector("[data-gantt-link='procurement->delivery']")?.getAttribute("d")).toBe(
-      "M 150 36 V 60",
-    );
+    expect(
+      document
+        .querySelector("[data-gantt-link='planning:finish->procurement:start']")
+        ?.getAttribute("d"),
+    ).toMatch(/^M 90 12 .* V 36 .* H 90$/);
+    expect(
+      document
+        .querySelector("[data-gantt-link='procurement:finish->delivery:start']")
+        ?.getAttribute("d"),
+    ).toMatch(/^M 150 36 .* V 60 .* H 150$/);
   });
 
   it("shows compact start dates", () => {
@@ -312,12 +353,16 @@ describe("ProgramGantt", () => {
       );
       expect(path.getAttribute("d") ?? "").not.toMatch(/\bL\b/);
     }
-    expect(document.querySelector("[data-gantt-link='planning->procurement']")?.getAttribute("d")).toBe(
-      "M 90 12 V 36",
-    );
-    expect(document.querySelector("[data-gantt-link='procurement->delivery']")?.getAttribute("d")).toBe(
-      "M 150 36 V 60",
-    );
+    expect(
+      document
+        .querySelector("[data-gantt-link='planning:finish->procurement:start']")
+        ?.getAttribute("d"),
+    ).toMatch(/^M 90 12 .* V 36 .* H 90$/);
+    expect(
+      document
+        .querySelector("[data-gantt-link='procurement:finish->delivery:start']")
+        ?.getAttribute("d"),
+    ).toMatch(/^M 150 36 .* V 60 .* H 150$/);
   });
 
   it("shows compact month letters under the year when fitted", () => {
@@ -354,41 +399,170 @@ describe("ProgramGantt", () => {
     expect(screen.queryByRole("button", { name: "Fit to screen" })).not.toBeInTheDocument();
   });
 
-  it("adds an activity from the row plus and a stage from the header plus", async () => {
+  it("adds a parent group from a stage plus and an activity from an activity plus", async () => {
     const user = userEvent.setup();
     const onOperate = vi.fn();
-    render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
+    render(<ProgramGantt state={stateWithChildren()} mode="edit" onOperate={onOperate} />);
     expect(screen.queryByRole("menuitem", { name: "Activity" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Add activity below Planning" }));
-    expect(onOperate).toHaveBeenCalledWith([
-      expect.objectContaining({
-        operation: "ADD",
-        target_type: "activity",
-        reference_id: "planning",
-        values: expect.objectContaining({ parent_key: "planning" }),
-      }),
-    ]);
-    await user.click(screen.getByRole("button", { name: "Add stage" }));
+    expect(screen.queryByRole("button", { name: "Add stage" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Add parent group after Planning" }));
     expect(onOperate).toHaveBeenCalledWith([
       expect.objectContaining({
         operation: "ADD",
         target_type: "stage",
+        reference_id: "planning",
+      }),
+    ]);
+    await user.click(screen.getByRole("button", { name: "Add activity after Concept design" }));
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "ADD",
+        target_type: "activity",
+        reference_id: "concept-design",
+        values: expect.objectContaining({ parent_key: "planning" }),
       }),
     ]);
   });
 
-  it("toggles a finish-to-start link on the row", async () => {
+  it("collapses one parent or all parents and persists the selected stage keys", async () => {
+    const user = userEvent.setup();
+    const onCollapsedChange = vi.fn();
+    const view = render(
+      <ProgramGantt
+        state={stateWithChildren()}
+        mode="edit"
+        onCollapsedChange={onCollapsedChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Collapse Planning" }));
+    expect(onCollapsedChange).toHaveBeenLastCalledWith(["planning"]);
+
+    await user.click(screen.getByRole("button", { name: "Collapse all stages" }));
+    expect(onCollapsedChange).toHaveBeenLastCalledWith([
+      "planning",
+      "procurement",
+      "delivery",
+    ]);
+
+    view.rerender(
+      <ProgramGantt
+        state={stateWithChildren({ collapsed_stage_keys: ["planning"] })}
+        mode="edit"
+        onCollapsedChange={onCollapsedChange}
+      />,
+    );
+    expect(screen.queryByText("Concept design")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand Planning" })).toBeInTheDocument();
+  });
+
+  it("uses the persisted collapsed form in a rendered figure", () => {
+    render(
+      <ProgramGantt
+        state={stateWithChildren({ collapsed_stage_keys: ["planning"] })}
+        mode="figure"
+      />,
+    );
+    expect(screen.getByText("Planning")).toBeInTheDocument();
+    expect(screen.queryByText("Concept design")).not.toBeInTheDocument();
+  });
+
+  it("creates the relationship implied by two control-clicked endpoints", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    render(
+      <ProgramGantt
+        state={state({ dependencies: [] })}
+        mode="edit"
+        onOperate={onOperate}
+      />,
+    );
+    fireEvent.keyDown(window, { key: "Control" });
+    await user.click(
+      screen.getByRole("button", { name: "Choose start of Planning for dependency" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Choose finish of Procurement for dependency" }),
+    );
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "ADD",
+        target_type: "dependency",
+        values: expect.objectContaining({
+          dependency_key: "planning:start->procurement:finish",
+          source_activity_key: "planning",
+          target_activity_key: "procurement",
+          source_endpoint: "start",
+          target_endpoint: "finish",
+          lag_days: 0,
+        }),
+      }),
+    ]);
+    fireEvent.keyUp(window, { key: "Control" });
+  });
+
+  it("edits lag and removes a selected dependency from its line", async () => {
     const user = userEvent.setup();
     const onOperate = vi.fn();
     render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
-    await user.click(screen.getByRole("button", { name: "Unlink Procurement" }));
+    const hit = document.querySelector(
+      "[data-gantt-link-hit='planning:finish->procurement:start']",
+    );
+    expect(hit).toBeTruthy();
+    fireEvent.click(hit!);
+    expect(screen.getByRole("dialog", { name: "Edit FS dependency" })).toBeInTheDocument();
+    const lag = screen.getByLabelText("Dependency lag in days");
+    await user.clear(lag);
+    await user.type(lag, "7{enter}");
     expect(onOperate).toHaveBeenCalledWith([
       expect.objectContaining({
         operation: "UPDATE",
-        target_id: "procurement",
-        values: { predecessor_key: null, lag_days: 0 },
+        target_type: "dependency",
+        target_id: "planning:finish->procurement:start",
+        values: { lag_days: 7 },
       }),
     ]);
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: "planning:finish->procurement:start",
+      }),
+    ]);
+  });
+
+  it("centres milestones as unclipped diamonds at their exact date", () => {
+    const base = stateWithChildren();
+    render(
+      <ProgramGantt
+        state={{
+          ...base,
+          activities: [
+            ...base.activities,
+            {
+              activity_key: "approval",
+              kind: "milestone",
+              parent_key: "planning",
+              name: "Approval",
+              display_order: base.activities.length,
+              start_date: "2026-10-01",
+              duration_days: 0,
+              finish_date: "2026-10-01",
+              assumption: false,
+              notes: "",
+            },
+          ],
+        }}
+        mode="edit"
+      />,
+    );
+    const bar = document.querySelector("[data-gantt-bar='approval']");
+    const diamond = screen.getByRole("button", { name: "Move Approval" });
+    expect(bar?.className).toContain("overflow-visible");
+    expect(bar?.getAttribute("style")).toContain("width: 12px");
+    expect(diamond.className).toContain("left-1/2");
+    expect(diamond.className).toContain("rotate-45");
   });
 
   it("shift-clicks a range and deletes the selection from the header", async () => {
@@ -437,11 +611,15 @@ describe("ProgramGantt", () => {
     expect(screen.queryByRole("button", { name: "Reorder Planning" })).not.toBeInTheDocument();
   });
 
-  it("draws inbound resize ticks on edit bars and a time grid", () => {
-    render(<ProgramGantt state={state()} mode="edit" />);
-    const bar = document.querySelector("[data-gantt-bar='planning']");
-    expect(bar?.querySelector("[data-gantt-handle='start']")).toBeTruthy();
-    expect(bar?.querySelector("[data-gantt-handle='end']")).toBeTruthy();
+  it("draws summary brackets for parents, tighter activity bars, and a time grid", () => {
+    render(<ProgramGantt state={stateWithChildren()} mode="edit" />);
+    const parentBar = document.querySelector("[data-gantt-bar='planning']");
+    const activityBar = document.querySelector("[data-gantt-bar='concept-design']");
+    expect(parentBar?.querySelector("[data-gantt-summary]")).toBeTruthy();
+    expect(parentBar?.className).not.toContain("rounded");
+    expect(activityBar?.querySelector("[data-gantt-handle='start']")).toBeTruthy();
+    expect(activityBar?.querySelector("[data-gantt-handle='end']")).toBeTruthy();
+    expect(activityBar?.className).toContain("program-gantt-activity-bar");
     expect(screen.getByRole("separator", { name: "Resize start of Planning" })).toBeInTheDocument();
     expect(screen.getByRole("separator", { name: "Resize Planning" })).toBeInTheDocument();
     expect(document.querySelector("[data-gantt-grid]")).toBeTruthy();
@@ -463,5 +641,44 @@ describe("ProgramGantt", () => {
         values: { start_date: "2026-08-06", duration_days: 100 },
       }),
     ]);
+  });
+
+  it("recomputes dependency y-coordinates from stable activity ids after reorder", () => {
+    const initial = state();
+    const view = render(<ProgramGantt state={initial} mode="edit" />);
+    const selector = "[data-gantt-link='planning:finish->procurement:start']";
+    const before = document.querySelector(selector)?.getAttribute("d");
+    view.rerender(
+      <ProgramGantt
+        state={{
+          ...initial,
+          activities: [
+            { ...initial.activities[1]!, display_order: 0 },
+            { ...initial.activities[0]!, display_order: 1 },
+            initial.activities[2]!,
+          ],
+        }}
+        mode="edit"
+      />,
+    );
+    const after = document.querySelector(selector)?.getAttribute("d");
+    expect(after).not.toBe(before);
+    expect(after).toMatch(/^M 90 36 .* V 12 .* H 90$/);
+  });
+
+  it("keeps connected lines attached during a throttled bar preview", async () => {
+    const user = userEvent.setup();
+    render(<ProgramGantt state={state()} mode="edit" />);
+    await user.click(screen.getByRole("button", { name: "Fit to screen" }));
+    const move = screen.getByRole("button", { name: "Move Planning" });
+    const line = document.querySelector(
+      "[data-gantt-link='planning:finish->procurement:start']",
+    );
+    const before = line?.getAttribute("d");
+    fireEvent.pointerDown(move, { clientX: 400, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 460, pointerId: 1 });
+    await waitFor(() => expect(line?.getAttribute("d")).not.toBe(before));
+    expect(line?.getAttribute("d")).toMatch(/^M 600 12 .* V 36 .* H 600$/);
+    fireEvent.pointerUp(window, { clientX: 460, pointerId: 1 });
   });
 });

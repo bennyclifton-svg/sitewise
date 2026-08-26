@@ -40,7 +40,7 @@ def test_candidate_research_uses_canonical_discipline_and_marks_leads() -> None:
     )
 
     assert provider.call == (
-        "Structural consultant Sydney NSW company services",
+        "Structural consultant Sydney NSW Australia company services",
         "AU",
         "en",
         3,
@@ -48,6 +48,26 @@ def test_candidate_research_uses_canonical_discipline_and_marks_leads() -> None:
     assert result["discipline_label"] == "Structural"
     assert result["results"][0]["source_type"] == "candidate_web_result"
     assert "Discovery leads only" in result["disclaimer"]
+
+
+def test_access_candidate_research_uses_accessibility_search_term() -> None:
+    provider = _Provider()
+    service = ProcurementCandidateResearch(search_provider=provider)
+
+    run_async(
+        service.search(
+            discipline_code="consultant.access",
+            location="Sydney NSW",
+            max_results=3,
+        )
+    )
+
+    assert provider.call == (
+        "accessibility consultants Sydney NSW Australia company services",
+        "AU",
+        "en",
+        3,
+    )
 
 
 def test_disabled_candidate_research_distinguishes_config_from_table_capacity(
