@@ -20,6 +20,10 @@ import {
   programmeHeaderLayers,
   ganttLinkPath,
   programmeDependencyWouldCycle,
+  programmeSequentialDependencies,
+  programmeSequentialLagOperations,
+  programmeSequentialLinkOperations,
+  programmeSequentialUnlinkOperations,
   programmeLinks,
   programmeRowMove,
   programmeScaleBands,
@@ -86,6 +90,171 @@ describe("programme helpers", () => {
   it("adds calendar days", () => {
     expect(addDays("2026-08-16", 90)).toBe("2026-11-14");
     expect(daysBetween("2026-08-16", "2026-11-14")).toBe(90);
+  });
+
+  it("links selected rows in visible order while replacing type and preserving lag", () => {
+    const activities = ["a", "b", "c", "d"].map((key, index) => ({
+      activity_key: key,
+      kind: "stage" as const,
+      parent_key: null,
+      name: key,
+      display_order: index,
+      start_date: "2026-08-16",
+      duration_days: 10,
+      finish_date: "2026-08-26",
+      assumption: true,
+      notes: "",
+    }));
+    const dependencies: ProgrammeDependency[] = [
+      {
+        dependency_key: "a:start->b:start",
+        source_activity_key: "a",
+        target_activity_key: "b",
+        source_endpoint: "start",
+        target_endpoint: "start",
+        lag_days: 3,
+      },
+      {
+        dependency_key: "b:finish->c:start",
+        source_activity_key: "b",
+        target_activity_key: "c",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 5,
+      },
+    ];
+
+    expect(
+      programmeSequentialLinkOperations(
+        activities,
+        dependencies,
+        ["d", "b", "a", "c"],
+        "finish",
+        "start",
+      ),
+    ).toEqual({
+      wouldCycle: false,
+      exceedsLimit: false,
+      operations: [
+        {
+          operation: "DELETE",
+          target_type: "dependency",
+          target_id: "a:start->b:start",
+        },
+        {
+          operation: "ADD",
+          target_type: "dependency",
+          values: {
+            dependency_key: "a:finish->b:start",
+            source_activity_key: "a",
+            target_activity_key: "b",
+            source_endpoint: "finish",
+            target_endpoint: "start",
+            lag_days: 3,
+          },
+        },
+        {
+          operation: "ADD",
+          target_type: "dependency",
+          values: {
+            dependency_key: "c:finish->d:start",
+            source_activity_key: "c",
+            target_activity_key: "d",
+            source_endpoint: "finish",
+            target_endpoint: "start",
+            lag_days: 0,
+          },
+        },
+      ],
+    });
+  });
+
+  it("preflights sequential cycles without returning a partial batch", () => {
+    const activities = ["a", "b"].map((key, index) => ({
+      activity_key: key,
+      kind: "stage" as const,
+      parent_key: null,
+      name: key,
+      display_order: index,
+      start_date: "2026-08-16",
+      duration_days: 10,
+      finish_date: "2026-08-26",
+      assumption: true,
+      notes: "",
+    }));
+    const reverse: ProgrammeDependency[] = [
+      {
+        dependency_key: "b:finish->a:start",
+        source_activity_key: "b",
+        target_activity_key: "a",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 0,
+      },
+    ];
+    expect(
+      programmeSequentialLinkOperations(
+        activities,
+        reverse,
+        ["a", "b"],
+        "finish",
+        "start",
+      ),
+    ).toEqual({ operations: [], wouldCycle: true, exceedsLimit: false });
+  });
+
+  it("finds, updates, and removes only adjacent selected dependencies", () => {
+    const activities = ["a", "b", "c"].map((key, index) => ({
+      activity_key: key,
+      kind: "stage" as const,
+      parent_key: null,
+      name: key,
+      display_order: index,
+      start_date: "2026-08-16",
+      duration_days: 10,
+      finish_date: "2026-08-26",
+      assumption: true,
+      notes: "",
+    }));
+    const dependencies: ProgrammeDependency[] = [
+      {
+        dependency_key: "a:finish->b:start",
+        source_activity_key: "a",
+        target_activity_key: "b",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 2,
+      },
+      {
+        dependency_key: "a:finish->c:start",
+        source_activity_key: "a",
+        target_activity_key: "c",
+        source_endpoint: "finish",
+        target_endpoint: "start",
+        lag_days: 7,
+      },
+    ];
+    expect(programmeSequentialDependencies(activities, dependencies, ["a", "b", "c"]))
+      .toHaveLength(1);
+    expect(
+      programmeSequentialLagOperations(activities, dependencies, ["a", "b", "c"], 6),
+    ).toEqual([
+      {
+        operation: "UPDATE",
+        target_type: "dependency",
+        target_id: "a:finish->b:start",
+        values: { lag_days: 6 },
+      },
+    ]);
+    expect(
+      programmeSequentialUnlinkOperations(activities, dependencies, ["a", "b", "c"]),
+    ).toEqual([
+      {
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: "a:finish->b:start",
+      },
+    ]);
   });
 
   it("spans the earliest start and latest finish", () => {

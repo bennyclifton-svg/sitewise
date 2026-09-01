@@ -51,7 +51,7 @@ export function ProjectSwitcher({
   }
 
   return (
-    <div className="shrink-0 px-3 pt-3 pb-2">
+    <div className="shrink-0 border-y border-[var(--cockpit-border)] px-6 py-6">
       {renaming ? (
         <form
           className="grid gap-1 px-1.5"
@@ -60,8 +60,8 @@ export function ProjectSwitcher({
             void commitRename();
           }}
         >
-          <label className="text-xs font-medium tracking-[0.08em] text-muted-foreground">
-            PROJECT
+          <label className="sr-only">
+            Project name
           </label>
           <Input
             value={draftTitle}
@@ -87,27 +87,21 @@ export function ProjectSwitcher({
             <button
               type="button"
               className={cn(
-                "flex w-full cursor-pointer items-start gap-2 rounded-md px-1.5 py-1.5 text-left text-sm transition-colors outline-none",
-                "text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
-                "focus-visible:bg-muted/30 focus-visible:text-foreground",
-                "aria-expanded:bg-muted/30 aria-expanded:text-foreground",
+                "flex w-full cursor-pointer items-center gap-3 rounded-[calc(var(--cockpit-card-radius)+0.25rem)] border border-[var(--cockpit-selected-border)] bg-[var(--cockpit-selected-surface)] px-4 py-3.5 text-left text-base transition-colors outline-none",
+                "text-foreground hover:border-[var(--cockpit-accent)]",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               )}
               aria-label={`Project: ${activeProject.title}`}
               title={activeProject.title}
             >
               <FolderOpen
-                className="mt-0.5 size-4 shrink-0 text-[var(--cockpit-workflow-icon)]"
+                className="size-5 shrink-0 text-[var(--cockpit-workflow-icon)]"
                 aria-hidden
               />
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-medium tracking-[0.08em] text-muted-foreground">
-                  PROJECT
-                </span>
-                <span className="mt-0.5 block line-clamp-2 leading-snug text-foreground">
-                  {activeProject.title}
-                </span>
+              <span className="min-w-0 flex-1 truncate leading-snug text-foreground">
+                {activeProject.title}
               </span>
-              <ChevronDown className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <ChevronDown className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[16rem] max-w-[20rem]">

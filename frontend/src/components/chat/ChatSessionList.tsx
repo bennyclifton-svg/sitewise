@@ -198,7 +198,7 @@ export function ChatSessionList({
         className={cn(
           isNav
             ? cn(
-                "flex w-full min-w-0 items-center gap-1 rounded-sm px-1.5 py-1 transition-colors",
+                "flex w-full min-w-0 items-center gap-1 rounded-lg px-3 py-1.5 transition-colors",
                 thread.id === activeThreadId
                   ? "bg-[var(--brand-subtle)] font-medium text-foreground"
                   : "font-normal text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
@@ -245,7 +245,7 @@ export function ChatSessionList({
                 aria-busy={isLive || undefined}
                 className={cn(
                   "min-w-0 flex-1 truncate text-left",
-                  isNav ? "text-sm leading-5 hover:text-foreground" : "text-sm hover:underline",
+                  isNav ? "text-base leading-6 hover:text-foreground" : "text-sm hover:underline",
                   isLive && "streaming-status-live",
                 )}
                 onClick={() => openThread(thread.id)}
@@ -419,7 +419,7 @@ export function ChatSessionList({
 
   if (isNav) {
     return (
-      <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-2" aria-label="Chat sessions">
+      <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto px-5 pb-3" aria-label="Chat sessions">
         {content}
       </div>
     );

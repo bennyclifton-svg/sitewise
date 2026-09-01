@@ -1,15 +1,15 @@
 import * as React from "react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
+import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-/** Floating SiteWise menu surface — contact shadow, specular edge, no hover lift. */
 export const dropdownMenuContentClassName =
-  "sw-surface sw-contact z-50 min-w-[8rem] overflow-hidden rounded-lg p-1 text-popover-foreground outline-none hover:translate-y-0";
+  "z-50 min-w-[8rem] overflow-hidden rounded-[var(--cockpit-card-radius)] border border-[var(--cockpit-card-border)] bg-[var(--cockpit-card-surface)] p-1.5 text-popover-foreground shadow-[0_18px_48px_-24px_rgb(0_0_0_/_0.48)] outline-none";
 
 /** Shared item treatment for every menu in the app. */
 export const dropdownMenuItemClassName =
-  "flex w-full cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus:bg-muted data-[highlighted]:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
+  "flex w-full cursor-default select-none items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm outline-none hover:bg-[var(--cockpit-selected-surface)] focus:bg-[var(--cockpit-selected-surface)] data-[highlighted]:bg-[var(--cockpit-selected-surface)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50";
 
 function DropdownMenu({
   ...props
@@ -103,11 +103,33 @@ function DropdownMenuLabel({
   );
 }
 
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      className={cn(dropdownMenuItemClassName, "pr-8", className)}
+      {...props}
+    >
+      <span className="flex size-3.5 shrink-0 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="size-3" aria-hidden />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  );
+}
+
 export {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuPortal,
   DropdownMenuContent,
+  DropdownMenuCheckboxItem,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,

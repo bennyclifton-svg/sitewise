@@ -1,4 +1,5 @@
 import { useMemo, useSyncExternalStore, useState, type ReactNode } from "react";
+import { ColorThemeButton } from "@/components/ColorThemeButton";
 import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
 import { CockpitShellResizeProvider } from "@/components/project/CockpitShellResizeProvider";
 import { InstructionTray } from "@/components/project/InstructionTray";
@@ -43,21 +44,22 @@ function CockpitRibbonContent({
   if (!projectTitle) return null;
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-0.5">
-        <h1 className="truncate font-display text-[1.3rem] font-light leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
+        <h1 className="truncate font-display text-[clamp(1.75rem,2.2vw,2.5rem)] font-semibold leading-[1.05] tracking-[-0.025em] text-[var(--sw-text-primary)]">
           {projectTitle}
         </h1>
         <p
           className={
             projectAddress
-              ? "truncate text-sm font-normal leading-[1.35] text-[var(--sw-text-secondary)]"
-              : "truncate text-sm font-normal leading-[1.35] text-[var(--sw-text-tertiary)]"
+              ? "truncate text-base font-normal leading-[1.35] text-[var(--sw-text-secondary)]"
+              : "truncate text-base font-normal leading-[1.35] text-[var(--sw-text-tertiary)]"
           }
         >
           {projectAddress ?? "Site address TBC"}
         </p>
       </div>
+      <ColorThemeButton className="shrink-0" />
     </div>
   );
 }
@@ -82,10 +84,18 @@ export function ProjectShell({
   projectAddress?: string;
 }) {
   const [leftWidth, setLeftWidth] = useState(() =>
-    readStoredPanelWidth(COCKPIT_LEFT_PANEL_WIDTH_KEY, COCKPIT_LEFT_PANEL_DEFAULT_WIDTH),
+    clampPanelWidth(
+      readStoredPanelWidth(COCKPIT_LEFT_PANEL_WIDTH_KEY, COCKPIT_LEFT_PANEL_DEFAULT_WIDTH),
+      COCKPIT_LEFT_PANEL_MIN_WIDTH,
+      COCKPIT_LEFT_PANEL_MAX_WIDTH,
+    ),
   );
   const [repoWidth, setRepoWidth] = useState(() =>
-    readStoredPanelWidth(COCKPIT_REPO_PANEL_WIDTH_KEY, COCKPIT_REPO_PANEL_DEFAULT_WIDTH),
+    clampPanelWidth(
+      readStoredPanelWidth(COCKPIT_REPO_PANEL_WIDTH_KEY, COCKPIT_REPO_PANEL_DEFAULT_WIDTH),
+      COCKPIT_REPO_PANEL_MIN_WIDTH,
+      COCKPIT_REPO_PANEL_MAX_WIDTH,
+    ),
   );
   const [instructionTray, setInstructionTray] = useState<InstructionTraySlot | null>(
     null,
@@ -122,7 +132,7 @@ export function ProjectShell({
   }
 
   const shellColumns = largeLayout
-    ? `${leftWidth}px minmax(0, 1fr) ${repoWidth}px`
+    ? `min(${leftWidth}px, 26vw) minmax(0, 1fr) ${repoWidth}px`
     : undefined;
 
   return (
@@ -163,16 +173,23 @@ export function ProjectShell({
           />
         </div>
 
-        <main className="project-main-panel relative flex min-h-[48rem] min-w-0 flex-col overflow-hidden lg:col-start-2 lg:row-start-2 lg:h-full lg:min-h-0 lg:max-h-full">
+        <main className="project-main-panel relative flex min-h-[48rem] min-w-0 flex-col overflow-hidden lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-0 lg:max-h-full">
           <div className="cockpit-shell-header shrink-0 lg:hidden">
             <CockpitRibbonContent
               projectTitle={projectTitle}
               projectAddress={projectAddress}
             />
           </div>
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div
+            className={cn(
+              "flex min-h-0 flex-1 flex-col",
+              chatFullScreen && "lg:pt-[var(--cockpit-ribbon-height)]",
+            )}
+          >
             {!chatFullScreen ? (
-              <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>
+              <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto lg:pt-[var(--cockpit-ribbon-height)]">
+                {children}
+              </div>
             ) : null}
             {chatPanel ? (
               <div
@@ -188,7 +205,7 @@ export function ProjectShell({
           </div>
         </main>
 
-        <aside className="project-side-panel relative flex min-h-0 min-w-0 flex-col overflow-hidden border-t lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0 lg:border-t-0 lg:border-l">
+        <aside className="project-side-panel relative flex min-h-0 min-w-0 flex-col overflow-hidden lg:col-start-3 lg:row-start-2 lg:h-full lg:min-h-0">
           <CockpitPanelResizeHandle
             ariaLabel="Resize documents panel"
             edge="start"
@@ -206,7 +223,9 @@ export function ProjectShell({
               />
             ) : null}
           </div>
-          <div className="relative min-h-0 flex-1 overflow-hidden">{repository}</div>
+          <div className="relative min-h-0 flex-1 overflow-hidden p-3 pt-0">
+            {repository}
+          </div>
         </aside>
       </div>
     </div>

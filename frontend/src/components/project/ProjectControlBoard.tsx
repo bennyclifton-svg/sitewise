@@ -36,7 +36,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { ProfileProposalStrip } from "@/components/project/ProfileProposalStrip";
-import { ProgramWorkbench } from "@/components/project/ProgramWorkbench";
 import type { RunnableProcurementRequestKind } from "@/components/project/ProcurementRequestPanel";
 import { SortFilesResultPanel } from "@/components/project/SortFilesResultPanel";
 import {
@@ -91,6 +90,11 @@ const ProcurementRequestPanel = lazy(() =>
     default: module.ProcurementRequestPanel,
   })),
 );
+const ProgramWorkbench = lazy(() =>
+  import("@/components/project/ProgramWorkbench").then((module) => ({
+    default: module.ProgramWorkbench,
+  })),
+);
 
 const WARM_WORKFLOW_IDS = [
   "create-pmp",
@@ -121,6 +125,7 @@ export function ProjectControlBoard({
   procurementError = null,
   isRunningProcurement = false,
   procurementRefreshToken = 0,
+  openProcurementDraftId = null,
   selectedWorkflowId,
   onSelectWorkflow,
   onRunCreatePmp,
@@ -176,6 +181,7 @@ export function ProjectControlBoard({
   procurementError?: string | null;
   isRunningProcurement?: boolean;
   procurementRefreshToken?: number;
+  openProcurementDraftId?: string | null;
   selectedWorkflowId: string;
   onSelectWorkflow?: (workflowId: string) => void;
   onRunCreatePmp: () => void;
@@ -266,6 +272,7 @@ export function ProjectControlBoard({
     procurementError,
     isRunningProcurement,
     procurementRefreshToken,
+    openProcurementDraftId,
     onSelectWorkflow,
     onRunCreatePmp,
     onRunUpdatePmp,
@@ -954,6 +961,7 @@ function WorkflowDetail({
   costPlanWorkflowError,
   procurementError,
   procurementRefreshToken,
+  openProcurementDraftId,
   onSelectWorkflow,
   onRunCreatePmp,
   onRunUpdatePmp,
@@ -1000,6 +1008,7 @@ function WorkflowDetail({
   procurementError: string | null;
   isRunningProcurement: boolean;
   procurementRefreshToken: number;
+  openProcurementDraftId: string | null;
   onRunCreatePmp: () => void;
   onRunUpdatePmp: () => void;
   onRunCreateCostPlan: () => void;
@@ -1136,7 +1145,13 @@ function WorkflowDetail({
   }, [isProcurement, onOpenTenderComparison]);
 
   return (
-    <div className="min-w-0">
+    <div
+      className={cn(
+        "min-w-0",
+        isProjectProfile &&
+          "rounded-[var(--cockpit-card-radius)] border border-[var(--cockpit-card-border)] bg-[var(--cockpit-card-surface)] p-5 lg:p-6",
+      )}
+    >
       <div className="space-y-4">
         {isProjectProfile ? (
           <ProjectProfilePanel
@@ -1459,7 +1474,9 @@ function WorkflowDetail({
             (!project.workflow_capabilities?.capabilities.edit_programme ||
               project.workflow_capabilities.capabilities.edit_programme.status ===
                 "supported") ? (
-              <ProgramWorkbench projectId={project.id} active={active} />
+              <Suspense fallback={<p className="text-sm text-muted-foreground">Loading programme...</p>}>
+                <ProgramWorkbench projectId={project.id} active={active} />
+              </Suspense>
             ) : null}
           </>
         ) : isProcurementRequests ? (
@@ -1475,6 +1492,7 @@ function WorkflowDetail({
               isRunning={false}
               error={procurementError}
               refreshToken={procurementRefreshToken}
+              openDraftId={openProcurementDraftId}
               renderGate={(kind) => {
                 const capability =
                   kind === "consultant_rfp"

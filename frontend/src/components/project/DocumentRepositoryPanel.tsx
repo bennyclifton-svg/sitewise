@@ -6,11 +6,13 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Filter,
   FolderTree,
   Folders,
   Inbox,
   Loader2,
   LoaderCircle,
+  Send,
   TableProperties,
   Trash,
   Upload,
@@ -25,6 +27,7 @@ import {
   type DragEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent,
+  type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 
@@ -41,6 +44,14 @@ import {
 } from "@/components/project/PlatformKnowledgePanel";
 import { WorkspaceExplorer } from "@/components/project/WorkspaceExplorer";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
 import {
   DOCUMENT_CATEGORIES,
@@ -95,9 +106,9 @@ const ACCEPT_ATTRIBUTE = Array.from(SUPPORTED_INBOX_EXTENSIONS).join(",");
 
 /** Ghost Button merges className before twMerge, so hover needs ! to win. */
 const toolbarIconButtonClass =
-  "text-[var(--cockpit-workflow-icon)] hover:!bg-[color-mix(in_oklch,var(--sw-beam)_12%,transparent)] hover:!text-[var(--cockpit-workflow-icon)]";
+  "text-muted-foreground hover:!bg-[var(--cockpit-selected-surface)] hover:!text-foreground";
 const toolbarIconButtonActiveClass =
-  "bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)]";
+  "bg-[var(--cockpit-selected-surface)] !text-[var(--cockpit-accent)]";
 
 type SplitProposal = {
   sourceFile: File;
@@ -114,6 +125,13 @@ type ScheduleSortKey =
   | "document_type"
   | "category";
 type SortDirection = "asc" | "desc";
+type ScheduleFilters = {
+  title: string;
+  revisions: Set<string> | null;
+  categories: Set<string> | null;
+  documentTypes: Set<string> | null;
+};
+type ScheduleFilterOption = { value: string; label: string };
 
 type PendingUploadStage = "queued" | "uploading" | "ingesting";
 
@@ -210,6 +228,7 @@ export function DocumentRepositoryPanel({
   artefactDrafts = [],
   onOpenDraft,
   onArtefactDeleted,
+  onCreateTransmittal,
   usageHighlightArtefactId = null,
 }: {
   projectId: string;
@@ -244,6 +263,7 @@ export function DocumentRepositoryPanel({
   artefactDrafts?: DraftArtifactSummary[];
   onOpenDraft?: (draft: DraftArtifactSummary) => void;
   onArtefactDeleted?: (result: DeleteDraftResponse) => void;
+  onCreateTransmittal?: () => void;
   /** When set, show source-doc dots only for this displayed artefact (e.g. open PMP). */
   usageHighlightArtefactId?: string | null;
 }) {
@@ -286,9 +306,15 @@ export function DocumentRepositoryPanel({
   );
   const [sortKey, setSortKey] = useState<ScheduleSortKey>("document_number");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [scheduleFilters, setScheduleFilters] = useState<ScheduleFilters>(() => ({
+    title: "",
+    revisions: null,
+    categories: null,
+    documentTypes: null,
+  }));
   const [pulseOpen, setPulseOpen] = useState(false);
   const dragDepthRef = useRef(0);
-  const scheduleRows = useMemo<ScheduleRow[]>(
+  const allScheduleRows = useMemo<ScheduleRow[]>(
     () =>
       sortScheduleRows(
         [
@@ -313,8 +339,24 @@ export function DocumentRepositoryPanel({
     [artefactDrafts, evidence, sortDirection, sortKey],
   );
   const scheduleRowIds = useMemo(
-    () => new Set(scheduleRows.map((row) => row.id)),
-    [scheduleRows],
+    () => new Set(allScheduleRows.map((row) => row.id)),
+    [allScheduleRows],
+  );
+  const revisionFilterOptions = useMemo(
+    () => scheduleRevisionOptions(evidence),
+    [evidence],
+  );
+  const categoryFilterOptions = useMemo(
+    () => scheduleCategoryOptions(evidence),
+    [evidence],
+  );
+  const documentTypeFilterOptions = useMemo(
+    () => scheduleDocumentTypeOptions(evidence),
+    [evidence],
+  );
+  const scheduleRows = useMemo(
+    () => allScheduleRows.filter((row) => scheduleRowMatchesFilters(row, scheduleFilters)),
+    [allScheduleRows, scheduleFilters],
   );
 
   function handleSortHeaderClick(key: ScheduleSortKey) {
@@ -325,10 +367,25 @@ export function DocumentRepositoryPanel({
     setSortKey(key);
     setSortDirection("asc");
   }
+
+  function setTitleFilter(title: string) {
+    setScheduleFilters((current) => ({ ...current, title }));
+  }
+
+  function setMultiSelectFilter(
+    key: "revisions" | "categories" | "documentTypes",
+    values: Set<string> | null,
+  ) {
+    setScheduleFilters((current) => ({ ...current, [key]: values }));
+  }
   const selectedIds = selectedEvidenceIds ?? internalSelectedIds;
   const selectedScheduleRows = useMemo(
-    () => scheduleRows.filter((row) => selectedIds.has(row.id)),
-    [scheduleRows, selectedIds],
+    () => allScheduleRows.filter((row) => selectedIds.has(row.id)),
+    [allScheduleRows, selectedIds],
+  );
+  const selectedTransmittalCount = useMemo(
+    () => evidence.filter((document) => selectedIds.has(document.id)).length,
+    [evidence, selectedIds],
   );
   const classificationTargets = useMemo(
     () =>
@@ -1029,6 +1086,28 @@ export function DocumentRepositoryPanel({
                 ) : null}
               </Button>
             ) : null}
+            {onCreateTransmittal ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className={toolbarIconButtonClass}
+                aria-label={
+                  selectedTransmittalCount
+                    ? `Create transmittal from ${selectedTransmittalCount} selected ${selectedTransmittalCount === 1 ? "document" : "documents"}`
+                    : "Create transmittal"
+                }
+                title={
+                  selectedTransmittalCount
+                    ? `Create transmittal from ${selectedTransmittalCount} selected`
+                    : "Select documents to create a transmittal"
+                }
+                disabled={!selectedTransmittalCount}
+                onClick={onCreateTransmittal}
+              >
+                <Send className="size-3.5" aria-hidden />
+              </Button>
+            ) : null}
           </div>
           {activePanelView === "schedule" && selectedScheduleRows.length ? (
             <span className="shrink-0 text-xs text-muted-foreground">
@@ -1247,7 +1326,7 @@ export function DocumentRepositoryPanel({
               </NavAccordionSection>
             </div>
           </div>
-        ) : scheduleRows.length || pendingUploads.length ? (
+        ) : allScheduleRows.length || pendingUploads.length ? (
           <table className="w-full min-w-0 table-fixed border-collapse text-left text-[0.7rem]">
             <colgroup>
               <col className="w-[4.5rem]" />
@@ -1275,6 +1354,12 @@ export function DocumentRepositoryPanel({
                   sortDirection={sortDirection}
                   className="min-w-0 px-1 py-2"
                   onSort={handleSortHeaderClick}
+                  filter={
+                    <TitleScheduleFilter
+                      value={scheduleFilters.title}
+                      onValueChange={setTitleFilter}
+                    />
+                  }
                 />
                 <SortableScheduleHeader
                   label="Rev"
@@ -1283,6 +1368,16 @@ export function DocumentRepositoryPanel({
                   sortDirection={sortDirection}
                   className="document-repository-col-revision px-1 py-2"
                   onSort={handleSortHeaderClick}
+                  filter={
+                    <MultiSelectScheduleFilter
+                      label="Revision"
+                      options={revisionFilterOptions}
+                      selectedValues={scheduleFilters.revisions}
+                      onSelectedValuesChange={(values) =>
+                        setMultiSelectFilter("revisions", values)
+                      }
+                    />
+                  }
                 />
                 <SortableScheduleHeader
                   label="Cat"
@@ -1292,6 +1387,16 @@ export function DocumentRepositoryPanel({
                   sortDirection={sortDirection}
                   className="document-repository-col-category px-1 py-2"
                   onSort={handleSortHeaderClick}
+                  filter={
+                    <MultiSelectScheduleFilter
+                      label="Category"
+                      options={categoryFilterOptions}
+                      selectedValues={scheduleFilters.categories}
+                      onSelectedValuesChange={(values) =>
+                        setMultiSelectFilter("categories", values)
+                      }
+                    />
+                  }
                 />
                 <SortableScheduleHeader
                   label="Type"
@@ -1301,6 +1406,16 @@ export function DocumentRepositoryPanel({
                   sortDirection={sortDirection}
                   className="document-repository-col-type px-1 py-2"
                   onSort={handleSortHeaderClick}
+                  filter={
+                    <MultiSelectScheduleFilter
+                      label="Document type"
+                      options={documentTypeFilterOptions}
+                      selectedValues={scheduleFilters.documentTypes}
+                      onSelectedValuesChange={(values) =>
+                        setMultiSelectFilter("documentTypes", values)
+                      }
+                    />
+                  }
                 />
                 <th className="w-5 px-0 py-1 text-center" aria-label="Actions">
                   <button
@@ -1334,6 +1449,13 @@ export function DocumentRepositoryPanel({
               </tr>
             </thead>
             <tbody>
+              {!scheduleRows.length && allScheduleRows.length ? (
+                <tr>
+                  <td colSpan={6} className="px-2 py-5 text-center text-xs text-muted-foreground">
+                    No documents match these filters.
+                  </td>
+                </tr>
+              ) : null}
               {scheduleRows.map((scheduleRow) => {
                 if (scheduleRow.kind === "artefact") {
                   const { draft, title } = scheduleRow;
@@ -1766,6 +1888,7 @@ function SortableScheduleHeader({
   sortDirection,
   className,
   onSort,
+  filter,
 }: {
   label: string;
   accessibleLabel?: string;
@@ -1774,6 +1897,7 @@ function SortableScheduleHeader({
   sortDirection: SortDirection;
   className?: string;
   onSort: (key: ScheduleSortKey) => void;
+  filter?: ReactNode;
 }) {
   const active = sortKey === columnKey;
   const ariaSort = active
@@ -1787,25 +1911,145 @@ function SortableScheduleHeader({
       aria-label={accessibleLabel}
       aria-sort={ariaSort}
     >
-      <button
-        type="button"
-        className={cn(
-          "inline-flex max-w-full items-center gap-0.5 rounded-sm text-left transition-colors hover:text-foreground",
-          active ? "text-foreground" : "text-muted-foreground",
-        )}
-        aria-label={accessibleLabel}
-        onClick={() => onSort(columnKey)}
-      >
-        <span className="truncate">{label}</span>
-        {active ? (
-          sortDirection === "asc" ? (
-            <ChevronUp className="size-3 shrink-0" aria-hidden />
-          ) : (
-            <ChevronDown className="size-3 shrink-0" aria-hidden />
-          )
-        ) : null}
-      </button>
+      <div className="flex max-w-full items-center gap-0.5">
+        <button
+          type="button"
+          className={cn(
+            "inline-flex min-w-0 items-center gap-0.5 rounded-sm text-left transition-colors hover:text-foreground",
+            active ? "text-foreground" : "text-muted-foreground",
+          )}
+          aria-label={accessibleLabel}
+          onClick={() => onSort(columnKey)}
+        >
+          <span className="truncate">{label}</span>
+          {active ? (
+            sortDirection === "asc" ? (
+              <ChevronUp className="size-3 shrink-0" aria-hidden />
+            ) : (
+              <ChevronDown className="size-3 shrink-0" aria-hidden />
+            )
+          ) : null}
+        </button>
+        {filter}
+      </div>
     </th>
+  );
+}
+
+function TitleScheduleFilter({
+  value,
+  onValueChange,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            value && "text-[var(--sw-beam)]",
+          )}
+          aria-label="Filter title"
+          title="Filter title"
+        >
+          <Filter className="size-3" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-52 p-2">
+        <label className="block">
+          <span className="px-1 text-xs text-muted-foreground">Title contains</span>
+          <input
+            autoFocus
+            value={value}
+            onChange={(event) => onValueChange(event.target.value)}
+            placeholder="Find documents"
+            className="mt-1 h-8 w-full rounded-sm border border-input bg-background px-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </label>
+        {value ? (
+          <button
+            type="button"
+            className="mt-2 px-1 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => onValueChange("")}
+          >
+            Clear filter
+          </button>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function MultiSelectScheduleFilter({
+  label,
+  options,
+  selectedValues,
+  onSelectedValuesChange,
+}: {
+  label: string;
+  options: ScheduleFilterOption[];
+  /** null means all values are included, as shown by Excel's checked Select all. */
+  selectedValues: Set<string> | null;
+  onSelectedValuesChange: (values: Set<string> | null) => void;
+}) {
+  const allSelected = selectedValues === null;
+
+  function setValue(value: string, checked: boolean) {
+    const nextValues = new Set(selectedValues ?? options.map((option) => option.value));
+    if (checked) nextValues.add(value);
+    else nextValues.delete(value);
+    onSelectedValuesChange(
+      nextValues.size === options.length ? null : nextValues,
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "inline-flex size-4 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+            !allSelected && "text-[var(--sw-beam)]",
+          )}
+          aria-label={`Filter ${label.toLowerCase()}`}
+          title={`Filter ${label.toLowerCase()}`}
+        >
+          <Filter className="size-3" aria-hidden />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="max-h-72 min-w-48 overflow-y-auto">
+        <DropdownMenuLabel>{label}</DropdownMenuLabel>
+        {options.length ? (
+          <>
+            <DropdownMenuCheckboxItem
+              checked={allSelected}
+              onCheckedChange={(checked) =>
+                onSelectedValuesChange(checked ? null : new Set<string>())
+              }
+              onSelect={(event) => event.preventDefault()}
+            >
+              Select all
+            </DropdownMenuCheckboxItem>
+            {options.map((option) => (
+              <DropdownMenuCheckboxItem
+                key={option.value || "empty"}
+                checked={selectedValues?.has(option.value) ?? true}
+                onCheckedChange={(checked) => setValue(option.value, checked)}
+                onSelect={(event) => event.preventDefault()}
+              >
+                {option.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </>
+        ) : (
+          <DropdownMenuItem disabled>No values in this repository</DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -1911,6 +2155,80 @@ function sortScheduleRows(
       { sensitivity: "base" },
     );
   });
+}
+
+function scheduleRevisionOptions(evidence: EvidencePreview[]): ScheduleFilterOption[] {
+  return sortScheduleFilterOptions(
+    evidence.map((document) => ({
+      value: plainMetadataText(document.revision),
+      label: plainMetadataText(document.revision) || "No revision",
+    })),
+  );
+}
+
+function scheduleCategoryOptions(evidence: EvidencePreview[]): ScheduleFilterOption[] {
+  return sortScheduleFilterOptions(
+    evidence.map((document) => {
+      const value = resolveCategorySlug({
+        documentSubject: document.document_subject,
+        category: document.category,
+      });
+      return {
+        value,
+        label:
+          documentCategoryLabel({
+            documentSubject: document.document_subject,
+            category: document.category,
+          }) || "Uncategorised",
+      };
+    }),
+  );
+}
+
+function scheduleDocumentTypeOptions(evidence: EvidencePreview[]): ScheduleFilterOption[] {
+  return sortScheduleFilterOptions(
+    evidence.map((document) => ({
+      value: document.document_class,
+      label: documentTypeLabel(document.document_class),
+    })),
+  );
+}
+
+function sortScheduleFilterOptions(
+  options: ScheduleFilterOption[],
+): ScheduleFilterOption[] {
+  const unique = new Map<string, ScheduleFilterOption>();
+  for (const option of options) unique.set(option.value, option);
+  return [...unique.values()].sort((left, right) =>
+    CLASSIFICATION_COLLATOR.compare(left.label, right.label),
+  );
+}
+
+function scheduleRowMatchesFilters(row: ScheduleRow, filters: ScheduleFilters): boolean {
+  const title = filters.title.trim().toLocaleLowerCase();
+  if (title && !row.title.toLocaleLowerCase().includes(title)) return false;
+
+  if (row.kind === "artefact") {
+    return (
+      filters.revisions === null &&
+      filters.categories === null &&
+      filters.documentTypes === null
+    );
+  }
+
+  const revision = plainMetadataText(row.evidence.revision);
+  if (filters.revisions && !filters.revisions.has(revision)) return false;
+
+  const category = resolveCategorySlug({
+    documentSubject: row.evidence.document_subject,
+    category: row.evidence.category,
+  });
+  if (filters.categories && !filters.categories.has(category)) return false;
+
+  return (
+    filters.documentTypes === null ||
+    filters.documentTypes.has(row.evidence.document_class)
+  );
 }
 
 function compareScheduleSortValues(

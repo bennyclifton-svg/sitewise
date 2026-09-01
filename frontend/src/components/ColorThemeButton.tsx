@@ -13,7 +13,7 @@ export function ColorThemeButton({ className }: { className?: string }) {
     <button
       type="button"
       className={cn(
-        "inline-flex size-8 cursor-pointer items-center justify-center text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+        "inline-flex size-14 cursor-pointer items-center justify-center rounded-full border border-[var(--cockpit-border)] bg-[var(--cockpit-card-surface)] text-muted-foreground shadow-[var(--cockpit-floating-shadow)] outline-none transition-[color,background-color,border-color,box-shadow] hover:border-[var(--cockpit-selected-border)] hover:bg-[var(--cockpit-selected-surface)] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         className,
       )}
       aria-label={nextLabel}
@@ -21,7 +21,7 @@ export function ColorThemeButton({ className }: { className?: string }) {
         toggleTheme();
       }}
     >
-      <Icon className="size-4" aria-hidden />
+      <Icon className="size-6" aria-hidden />
     </button>
   );
 }

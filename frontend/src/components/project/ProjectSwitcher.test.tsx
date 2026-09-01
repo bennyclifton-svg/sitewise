@@ -38,7 +38,7 @@ describe("ProjectSwitcher", () => {
   it("shows the full project name without a nav-row spacer", () => {
     renderSwitcher();
 
-    expect(screen.getByText("PROJECT")).toBeInTheDocument();
+    expect(screen.queryByText("PROJECT")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Project: Newtown Heritage Extension" }),
     ).toHaveTextContent("Newtown Heritage Extension");

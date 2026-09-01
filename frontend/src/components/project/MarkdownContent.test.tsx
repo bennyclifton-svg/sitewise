@@ -122,12 +122,14 @@ describe("MarkdownContent", () => {
       "Provide a concise return brief identifying amendments.",
     );
     expect(paragraph.textContent).not.toMatch(/\[\d+\]/);
+    expect(paragraph).toHaveClass("max-w-none");
     const paragraphRow =
       paragraph.closest<HTMLElement>(".group\\/block") ?? paragraph.parentElement;
     expect(paragraphRow).not.toBeNull();
     const paragraphCitations = within(paragraphRow!).getByTestId("block-citation-slot");
     expect(paragraphCitations).toHaveTextContent("[2]");
     expect(paragraphCitations).toHaveTextContent("[4]");
+    expect(paragraphCitations).toHaveClass("ml-auto");
     expect(paragraphRow).toContainElement(
       within(paragraphRow!).getByRole("button", { name: "paragraph actions" }),
     );
@@ -136,10 +138,13 @@ describe("MarkdownContent", () => {
       "Design the extension structure to the approved DA drawings",
     );
     expect(listItem.textContent).not.toMatch(/\[\d+\]/);
+    expect(listItem).toHaveClass("max-w-none");
     const listRow = listItem.closest("li");
     expect(listRow).not.toBeNull();
     const listCitations = within(listRow!).getByTestId("block-citation-slot");
     expect(listCitations).toHaveTextContent("[3]");
+    expect(listCitations).toHaveClass("ml-auto");
+    expect(listRow?.closest("ul")).toHaveClass("w-full", "max-w-none");
 
     expect(screen.getByText("[2] Geotech report.pdf")).toBeInTheDocument();
     expect(

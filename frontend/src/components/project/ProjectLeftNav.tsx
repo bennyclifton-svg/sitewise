@@ -49,14 +49,17 @@ export function ProjectLeftNav({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-3">
+      <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-10">
         <Link
           to="/"
           aria-label="SiteWise home"
           title="SiteWise"
-          className="inline-flex sw-transition opacity-95 hover:opacity-100"
+          className="inline-flex items-center gap-3 sw-transition opacity-95 hover:opacity-100"
         >
-          <SitewiseMark size={32} padded={false} />
+          <SitewiseMark size={40} padded={false} />
+          <span className="font-display text-[1.65rem] font-bold leading-none tracking-[-0.03em] text-foreground">
+            SiteWise
+          </span>
         </Link>
       </div>
 
@@ -123,7 +126,7 @@ export function ProjectLeftNav({
         ) : null}
       </div>
 
-      <AppSystemFooter className="border-t-0" />
+      <AppSystemFooter />
     </div>
   );
 }

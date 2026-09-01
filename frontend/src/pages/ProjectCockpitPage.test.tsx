@@ -166,6 +166,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     onRunRefreshCostPlan,
     onRunProcessInvoices,
     latestCostPlanDraft,
+    openProcurementDraftId,
     onRunProcurement,
     onSelectWorkflow,
     onDraftSelected,
@@ -175,6 +176,7 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
     onRunRefreshCostPlan?: () => void;
     onRunProcessInvoices?: () => void;
     latestCostPlanDraft: DraftArtifactSummary | null;
+    openProcurementDraftId?: string | null;
     onRunProcurement?: (kind: string, targetName: string) => void;
     onSelectWorkflow?: (workflowId: string) => void;
     onDraftSelected?: (draft: DraftArtifactSummary) => void;
@@ -185,6 +187,9 @@ vi.mock("@/components/project/ProjectControlBoard", () => ({
       {selectedWorkflowId ? (
         <div data-testid="selected-workflow">{selectedWorkflowId}</div>
       ) : null}
+      <div data-testid="open-procurement-draft">
+        {openProcurementDraftId ?? "no-procurement-draft"}
+      </div>
       <button type="button" onClick={onRunCreateCostPlan}>
         Create cost plan
       </button>
@@ -400,6 +405,9 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     await waitFor(() => {
       expect(screen.getByTestId("repository")).toHaveTextContent(rftDraft.id);
     });
+    expect(screen.getByTestId("open-procurement-draft")).toHaveTextContent(
+      rftDraft.id,
+    );
   });
 
   it("highlights documents for the RFT selected in the procurement workbench", async () => {

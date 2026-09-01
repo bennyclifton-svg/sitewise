@@ -693,6 +693,124 @@ describe("DocumentRepositoryPanel schedule sorting", () => {
   });
 });
 
+describe("DocumentRepositoryPanel schedule filters", () => {
+  function visibleScheduleTitles(): string[] {
+    return screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.querySelector("td:nth-child(2)")?.textContent?.trim() ?? "");
+  }
+
+  it("combines multi-select categories with document type filters", async () => {
+    renderWithEvidence([
+      evidenceRow({
+        id: "architect-drawing",
+        title: "Architectural drawing",
+        document_subject: "architect",
+        document_class: "drawing",
+      }),
+      evidenceRow({
+        id: "structural-drawing",
+        title: "Structural drawing",
+        document_subject: "structural",
+        document_class: "drawing",
+      }),
+      evidenceRow({
+        id: "architect-report",
+        title: "Architectural report",
+        document_subject: "architect",
+        document_class: "report",
+      }),
+    ]);
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Filter category" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const selectAll = await screen.findByRole("menuitemcheckbox", { name: "Select all" });
+    expect(selectAll).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Architect" }),
+    ).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(selectAll);
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Architect" }));
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Structural" }));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    expect(visibleScheduleTitles()).toEqual([
+      "Architectural drawing",
+      "Architectural report",
+      "Structural drawing",
+    ]);
+
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Filter document type" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(
+      await screen.findByRole("menuitemcheckbox", { name: "Select all" }),
+    );
+    fireEvent.click(await screen.findByRole("menuitemcheckbox", { name: "Drawing" }));
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+
+    expect(visibleScheduleTitles()).toEqual([
+      "Architectural drawing",
+      "Structural drawing",
+    ]);
+  });
+
+  it("keeps the transmittal action disabled until source documents are selected", () => {
+    const onCreateTransmittal = vi.fn();
+    const { rerender } = render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[evidenceRow({ id: "doc-1" })]}
+        selectedEvidenceId={null}
+        selectedEvidenceIds={new Set()}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectedEvidenceIdsChange={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        onCreateTransmittal={onCreateTransmittal}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Create transmittal" })).toBeDisabled();
+
+    rerender(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[evidenceRow({ id: "doc-1" })]}
+        selectedEvidenceId={null}
+        selectedEvidenceIds={new Set(["doc-1"])}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectedEvidenceIdsChange={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        onCreateTransmittal={onCreateTransmittal}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Create transmittal from 1 selected document",
+      }),
+    );
+    expect(onCreateTransmittal).toHaveBeenCalledOnce();
+  });
+});
+
 describe("DocumentRepositoryPanel bulk classification", () => {
   beforeEach(() => {
     batchClassificationMutateAsync.mockReset();

@@ -508,7 +508,7 @@ const BLOCK_ACTIONS_SLOT_CLASS =
 
 /** Trailing citation column, left of the ⋯ menu, matching PMP table registers. */
 const BLOCK_CITATION_SLOT_CLASS =
-  "flex min-h-6 min-w-[3.25rem] shrink-0 flex-wrap items-start justify-end gap-1";
+  "ml-auto flex min-h-6 min-w-[3.25rem] shrink-0 flex-wrap items-start justify-end gap-1";
 
 function isCitationKeyEntry(text: string): boolean {
   return /^\s*\[\d+\]\s+\S/.test(text);
@@ -993,7 +993,7 @@ function baseComponents(): Components {
           paragraphTarget,
           <div className="group/block relative my-3 flex items-start gap-2">
             <p
-              className="min-w-0 flex-1 leading-relaxed"
+              className="min-w-0 max-w-none flex-1 leading-relaxed"
               {...attributes}
               onDoubleClick={(event) => {
                 if (!editOptions?.onEditSelection) return;
@@ -1014,13 +1014,13 @@ function baseComponents(): Components {
 
       const staticParagraph = citationTokens ? (
         <div className="group/block relative my-3 flex items-start gap-2">
-          <p className="min-w-0 flex-1 leading-relaxed" {...attributes}>
+          <p className="min-w-0 max-w-none flex-1 leading-relaxed" {...attributes}>
             {paragraphBody}
           </p>
           <BlockCitationSlot tokens={citationTokens} />
         </div>
       ) : (
-        <p className="my-3 leading-relaxed" {...attributes}>
+        <p className="my-3 max-w-none leading-relaxed" {...attributes}>
           {paragraphBody}
         </p>
       );
@@ -1051,14 +1051,14 @@ function baseComponents(): Components {
       const options = useMarkdownRender();
       if (isProgrammeSectionBody(node, options)) return null;
       return (
-        <ul className="my-3 list-disc space-y-1.5 pl-5 leading-relaxed">{children}</ul>
+        <ul className="my-3 w-full max-w-none list-disc space-y-1.5 pl-5 leading-relaxed">{children}</ul>
       );
     },
     ol: function MarkdownOl({ children, node }) {
       const options = useMarkdownRender();
       if (isProgrammeSectionBody(node, options)) return null;
       return (
-        <ol className="my-3 list-decimal space-y-1.5 pl-5 leading-relaxed">{children}</ol>
+        <ol className="my-3 w-full max-w-none list-decimal space-y-1.5 pl-5 leading-relaxed">{children}</ol>
       );
     },
     li: function MarkdownListItem({ children, node }) {
@@ -1133,7 +1133,7 @@ function baseComponents(): Components {
           }
         >
           <span className="flex items-start gap-2">
-            <span className="min-w-0 flex-1">
+            <span className="min-w-0 max-w-none flex-1">
               {listBody}
             </span>
             {citationTokens || (target && !isCitationKeyEntry(displayText)) ? (

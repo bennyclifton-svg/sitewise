@@ -4,7 +4,6 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
-import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 vi.mock("@/lib/supabase", () => ({
   supabase: {
@@ -27,33 +26,16 @@ function renderFooter() {
   );
 }
 
-describe("AppSystemFooter theme toggle", () => {
+describe("AppSystemFooter", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    document.documentElement.removeAttribute("data-theme");
-    document.documentElement.style.colorScheme = "";
   });
 
-  it("offers Light from the settings cog and applies the invert", async () => {
+  it("keeps appearance controls out of the account menu", async () => {
     const user = userEvent.setup();
     renderFooter();
 
     await user.click(screen.getByRole("button", { name: "Account menu" }));
-    await user.click(screen.getByRole("menuitem", { name: "Light" }));
-
-    expect(document.documentElement.dataset.theme).toBe("light");
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");
-  });
-
-  it("offers Dark once light is active", async () => {
-    window.localStorage.setItem(THEME_STORAGE_KEY, "light");
-    document.documentElement.dataset.theme = "light";
-    const user = userEvent.setup();
-    renderFooter();
-
-    await user.click(screen.getByRole("button", { name: "Account menu" }));
-    await user.click(screen.getByRole("menuitem", { name: "Dark" }));
-
-    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(screen.queryByRole("menuitem", { name: /light|dark/i })).not.toBeInTheDocument();
   });
 });

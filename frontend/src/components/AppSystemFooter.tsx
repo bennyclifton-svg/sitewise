@@ -1,5 +1,5 @@
-import { CreditCard, Globe, LogOut, Moon, Settings, Sun, User } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { CreditCard, Globe, LogOut, Settings, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import {
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { signOut } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { readStoredTheme, subscribeTheme, toggleTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 function userDisplayName(email: string | null): string {
@@ -31,10 +30,7 @@ function userInitials(email: string | null): string | null {
 
 export function AppSystemFooter({ className }: { className?: string }) {
   const [email, setEmail] = useState<string | null>(null);
-  const theme = useSyncExternalStore(subscribeTheme, readStoredTheme, () => "dark");
   const initials = userInitials(email);
-  const nextThemeLabel = theme === "light" ? "Dark" : "Light";
-  const NextThemeIcon = theme === "light" ? Moon : Sun;
 
   useEffect(() => {
     let cancelled = false;
@@ -58,7 +54,7 @@ export function AppSystemFooter({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "app-system-footer flex shrink-0 items-center gap-2 border-t border-border bg-card px-3 py-2",
+        "app-system-footer flex shrink-0 items-center gap-2 border-t border-border bg-transparent px-5 py-3",
         className,
       )}
     >
@@ -66,7 +62,7 @@ export function AppSystemFooter({ className }: { className?: string }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex min-w-0 flex-1 items-center gap-2 rounded-sm text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-w-0 flex-1 items-center gap-2 rounded-full px-1.5 py-1 text-left outline-none transition-colors hover:bg-[var(--cockpit-selected-surface)] focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Account menu"
           >
             <div
@@ -102,14 +98,6 @@ export function AppSystemFooter({ className }: { className?: string }) {
               <Globe className="size-3.5" aria-hidden />
               Landing page
             </a>
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onSelect={() => {
-              toggleTheme();
-            }}
-          >
-            <NextThemeIcon className="size-3.5" aria-hidden />
-            {nextThemeLabel}
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {

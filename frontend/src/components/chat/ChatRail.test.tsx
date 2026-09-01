@@ -54,7 +54,7 @@ describe("ChatRail failure boundary", () => {
     expect(retry).toHaveBeenCalledOnce();
   });
 
-  it("keeps the workbench left gutter and sits closer to the repository", () => {
+  it("keeps balanced workbench gutters beside the repository", () => {
     const { container } = render(
       <ChatRail
         layout="main"
@@ -69,8 +69,8 @@ describe("ChatRail failure boundary", () => {
       />,
     );
 
-    const frame = container.querySelector(".pl-4.lg\\:pl-6");
-    expect(frame).toHaveClass("w-full", "min-w-0", "pl-4", "pr-2", "lg:pl-6", "lg:pr-2");
+    const frame = container.querySelector(".px-4.lg\\:px-6");
+    expect(frame).toHaveClass("w-full", "min-w-0", "px-4", "lg:px-6");
     expect(frame).not.toHaveClass("max-w-6xl");
   });
 });

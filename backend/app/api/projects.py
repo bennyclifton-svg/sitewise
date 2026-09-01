@@ -290,6 +290,11 @@ from app.procurement.strategy import (
     refresh_procurement_strategy,
     strategy_snapshot,
 )
+from app.procurement.strategy_exports import (
+    procurement_strategy_export_csv,
+    procurement_strategy_export_markdown,
+    procurement_strategy_export_rows,
+)
 from app.sitewise.discipline_catalog import discipline_catalog
 from app.schemas.project_events import ProjectEventListResponse, ProjectEventView
 from app.schemas.project_snapshot import ProjectNextAction, ProjectSnapshot
@@ -326,6 +331,7 @@ from app.inbox.paths import build_storage_key, is_inbox_workspace_path
 from app.sitewise.artifact_exports import (
     EXPORT_RENDERER_VERSION,
     render_artifact_export,
+    render_table_workbook,
     render_workbook_pdf,
 )
 from app.sitewise.office_pdf import OfficeConversionError
@@ -3617,6 +3623,65 @@ async def get_project_procurement_strategy(
     except ProcurementStrategyNotFound as exc:
         raise HTTPException(status_code=404, detail="Procurement strategy not found") from exc
     return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
+@router.get("/{project_id}/procurement-strategy/export")
+async def export_project_procurement_strategy(
+    project_id: uuid.UUID,
+    format: Literal["csv", "docx", "xlsx"] = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Render the current Procurement Strategy with the standard artefact renderers."""
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        strategy = await get_procurement_strategy(session, project_id=project.id)
+    except ProcurementStrategyNotFound as exc:
+        raise HTTPException(status_code=404, detail="Procurement strategy not found") from exc
+    view = await _procurement_strategy_view(session, strategy=strategy, project=project)
+    filename = f"Procurement_Strategy_v{view.revision:02d}.{format}"
+
+    try:
+        if format == "csv":
+            content = procurement_strategy_export_csv(view).encode("utf-8")
+            media_type = "text/csv"
+        elif format == "xlsx":
+            table = procurement_strategy_export_rows(view)
+            content = await asyncio.to_thread(
+                render_table_workbook,
+                project_title=project.title,
+                artifact_title="Procurement Strategy",
+                version=view.revision,
+                sheet_title="Procurement",
+                headers=table[0],
+                rows=table[1:],
+            )
+            media_type = (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        else:
+            content = await asyncio.to_thread(
+                render_artifact_export,
+                procurement_strategy_export_markdown(view),
+                export_format="docx",
+                project_title=project.title,
+                artifact_title="Procurement Strategy",
+                version=view.revision,
+            )
+            media_type = (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            )
+    except (ImportError, OSError, RuntimeError) as exc:
+        log.exception(
+            "procurement_strategy_export_failed",
+            extra={"project_id": str(project.id), "export_type": format},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{format.upper()} export is temporarily unavailable. Please try again.",
+        ) from exc
+    return Response(content=content, media_type=media_type, headers=_download_headers(filename))
 
 
 @router.post("/{project_id}/procurement-strategy/ensure")

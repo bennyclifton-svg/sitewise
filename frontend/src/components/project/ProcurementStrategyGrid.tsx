@@ -1,7 +1,7 @@
 import {
   ArrowDownToLine,
   ArrowUpToLine,
-  ExternalLink,
+  Download,
   FileText,
   GitCompareArrows,
   LoaderCircle,
@@ -15,6 +15,11 @@ import {
 import { useMemo, useState } from "react";
 
 import { SitewiseMark } from "@/components/SitewiseMark";
+import {
+  ExcelFileIcon,
+  WordFileIcon,
+} from "@/components/icons/OfficeFileIcons";
+import { CopyContentButton } from "@/components/project/CopyContentButton";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -23,6 +28,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
+import { ApiError } from "@/lib/http";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { cn } from "@/lib/utils";
 import type {
@@ -34,19 +41,16 @@ import type {
   ProjectDiscipline,
 } from "@/lib/types/project";
 
-const STATUS_OPTIONS: Array<{
+const STATUS_MILESTONES: Array<{
   value: ProcurementStrategyStatus;
   label: string;
+  shortLabel: string;
 }> = [
-  { value: "issued", label: "Issued" },
-  { value: "responses_received", label: "Received" },
-  { value: "evaluating", label: "Recommendation" },
-  { value: "awarded", label: "Awarded" },
+  { value: "issued", label: "Issued", shortLabel: "Issued" },
+  { value: "responses_received", label: "Submitted", shortLabel: "Submitted" },
+  { value: "evaluating", label: "Recommendation", shortLabel: "Rec." },
+  { value: "awarded", label: "Contract", shortLabel: "Contract" },
 ];
-
-const VISIBLE_STATUSES = new Set<ProcurementStrategyStatus>(
-  STATUS_OPTIONS.map((option) => option.value),
-);
 
 type InsertTarget = {
   anchorId: string | null;
@@ -89,6 +93,10 @@ export function ProcurementStrategyGrid({
 }) {
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
   const [insertCode, setInsertCode] = useState("");
+  const [exportAction, setExportAction] = useState<"csv" | "docx" | "xlsx" | null>(
+    null,
+  );
+  const [exportError, setExportError] = useState<string | null>(null);
   const usedCodes = useMemo(
     () => new Set(strategy.rows.flatMap((row) => (row.discipline_code ? [row.discipline_code] : []))),
     [strategy.rows],
@@ -152,16 +160,35 @@ export function ProcurementStrategyGrid({
       }
     }
   }
+
+  async function downloadStrategyExport(format: "csv" | "docx" | "xlsx") {
+    setExportAction(format);
+    setExportError(null);
+    try {
+      const blob = await api.downloadProcurementStrategy(strategy.project_id, format);
+      downloadBlob(
+        blob,
+        `Procurement_Strategy_v${String(strategy.revision).padStart(2, "0")}.${format}`,
+      );
+    } catch (error) {
+      setExportError(
+        error instanceof ApiError
+          ? error.message
+          : `Could not export ${format.toUpperCase()}.`,
+      );
+    } finally {
+      setExportAction(null);
+    }
+  }
   if (insertTarget?.anchorId === null) {
     tableRows.push({ type: "insert", key: "end" });
   }
 
+  const exportContent = procurementStrategyExport(strategy, "\t");
+
   return (
     <section aria-label="Procurement Strategy" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm text-muted-foreground">
-          {strategy.rows.length} {strategy.rows.length === 1 ? "discipline" : "disciplines"}
-        </div>
         <div className="flex items-center gap-1.5">
           <Button
             type="button"
@@ -172,33 +199,77 @@ export function ProcurementStrategyGrid({
             <Plus className="size-3.5" aria-hidden />
             Add discipline
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={saving || refreshing}
+            onClick={() => void onRefresh()}
+          >
+            {refreshing ? (
+              <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <RefreshCw className="size-3.5" aria-hidden />
+            )}
+            Sync
+          </Button>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          {exportError ? (
+            <span className="self-center text-xs text-destructive" role="alert">
+              {exportError}
+            </span>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
-                size="icon-sm"
-                variant="outline"
-                aria-label="Procurement strategy actions"
-                title="More actions"
-                disabled={refreshing}
+                size="icon"
+                variant="ghost"
+                className="size-9 text-muted-foreground hover:text-foreground"
+                aria-label="Download procurement strategy"
+                title="Download"
+                disabled={exportAction !== null}
               >
-                {refreshing ? (
-                  <LoaderCircle className="size-3.5 animate-spin" aria-hidden />
-                ) : (
-                  <MoreHorizontal className="size-3.5" aria-hidden />
-                )}
+                <Download
+                  className={cn("size-5", exportAction !== null && "animate-pulse")}
+                  aria-hidden
+                />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="min-w-[11rem]">
               <DropdownMenuItem
-                disabled={saving || refreshing}
-                onSelect={() => void onRefresh()}
+                className="gap-2.5 py-2"
+                disabled={exportAction !== null}
+                onSelect={() => void downloadStrategyExport("xlsx")}
               >
-                <RefreshCw className="size-3.5" aria-hidden />
-                Sync disciplines
+                <ExcelFileIcon className="size-6" />
+                <span>Excel</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={exportAction !== null}
+                onSelect={() => void downloadStrategyExport("csv")}
+              >
+                <FileText className="size-5 text-[var(--sw-positive)]" aria-hidden />
+                <span>CSV</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={exportAction !== null}
+                onSelect={() => void downloadStrategyExport("docx")}
+              >
+                <WordFileIcon className="size-6" />
+                <span>Word</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          <CopyContentButton
+            content={exportContent}
+            label="Copy procurement strategy"
+            size="icon"
+            className="size-9"
+          />
         </div>
       </div>
 
@@ -254,9 +325,7 @@ export function ProcurementStrategyGrid({
                   </div>
                 </th>
               ))}
-              <th className="px-1.5 py-2.5 normal-case tracking-normal">
-                Status &amp; notes
-              </th>
+              <th className="px-1.5 py-2.5 normal-case tracking-normal">Status</th>
               <th className="px-1 py-2.5"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
@@ -312,6 +381,53 @@ export function ProcurementStrategyGrid({
       </div>
     </section>
   );
+}
+
+function procurementStrategyExport(
+  strategy: ProcurementStrategy,
+  delimiter: "," | "\t",
+): string {
+  return procurementStrategyRows(strategy)
+    .map((row) => row.map((value) => escapeExportCell(value, delimiter)).join(delimiter))
+    .join("\n");
+}
+
+function procurementStrategyRows(strategy: ProcurementStrategy): string[][] {
+  return [[
+    "Discipline",
+    ...Array.from(
+      { length: strategy.tenderer_column_count },
+      (_, index) => `Firm ${index + 1}`,
+    ),
+    "Status",
+  ], ...strategy.rows.map((row) => [
+    row.discipline_label,
+    ...Array.from(
+      { length: strategy.tenderer_column_count },
+      (_, index) =>
+        row.candidates.find((candidate) => candidate.slot === index + 1)
+          ?.company_name ?? "",
+    ),
+    row.status,
+  ])];
+}
+
+function escapeExportCell(value: string, delimiter: "," | "\t"): string {
+  if (!value.includes('"') && !value.includes("\n") && !value.includes(delimiter)) {
+    return value;
+  }
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function StrategyRow({
@@ -389,66 +505,38 @@ function StrategyRow({
                 ])
               }
             />
-            {candidate?.source_url ? (
-              <a
-                href={candidate.source_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-1 inline-flex items-center gap-1 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-              >
-                Source <ExternalLink className="size-3" aria-hidden />
-              </a>
-            ) : null}
           </td>
         );
       })}
       <td className="px-1.5 py-1.5 align-top">
-        <div className="grid grid-cols-[minmax(7rem,0.8fr)_minmax(8rem,1.2fr)] gap-1.5">
-          <MenuSelect
-            value={VISIBLE_STATUSES.has(row.status) ? row.status : ""}
-            options={STATUS_OPTIONS}
-            placeholder="—"
+        <div className="flex items-center gap-1">
+          <StatusMilestones
+            row={row}
             disabled={protectedCell}
-            aria-label={`${row.discipline_label} status`}
-            className="h-8 min-w-0 rounded-none border-transparent bg-transparent px-1.5 text-xs hover:border-input"
-            onChange={(value) =>
-              void onApply([
-                {
-                  operation: "UPDATE_ROW",
-                  row_id: row.id,
-                  status: value as ProcurementStrategyStatus,
-                },
-              ])
-            }
+            onApply={onApply}
           />
-          <EditableCell
-            key={row.notes}
-            ariaLabel={`${row.discipline_label} notes`}
-            value={row.notes}
-            placeholder="Add note"
-            disabled={protectedCell}
-            onCommit={(notes) =>
-              onApply([{ operation: "UPDATE_ROW", row_id: row.id, notes }])
-            }
-          />
-        </div>
-        {request?.current_draft ? (
-          <button
-            type="button"
-            className="mt-1 inline-flex max-w-full items-center gap-1 px-1.5 text-[11px] text-[var(--sw-beam-hex)] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => onOpenRequest?.(request)}
-          >
-            <FileText className="size-3 shrink-0" aria-hidden />
-            <span className="truncate">
-              {requestLabel} v{request.current_draft.version} · {requestStatusLabel(request)}
+          {request?.current_draft ? (
+            <Button
+              type="button"
+              size="icon-xs"
+              variant="ghost"
+              className="shrink-0 rounded-sm text-[var(--sw-beam-hex)]"
+              aria-label={`Open ${row.discipline_label} ${requestLabel}`}
+              title={`${requestLabel} v${request.current_draft.version} · ${requestStatusLabel(request)}`}
+              onClick={() => onOpenRequest?.(request)}
+            >
+              <FileText className="size-3.5" aria-hidden />
+            </Button>
+          ) : request ? (
+            <span
+              className="inline-flex size-6 shrink-0 items-center justify-center text-muted-foreground"
+              aria-label={`Preparing ${row.discipline_label} ${requestLabel}`}
+              title={`Preparing ${requestLabel}`}
+            >
+              <LoaderCircle className="size-3 animate-spin" aria-hidden />
             </span>
-          </button>
-        ) : request ? (
-          <span className="mt-1 inline-flex items-center gap-1 px-1.5 text-[11px] text-muted-foreground">
-            <LoaderCircle className="size-3" aria-hidden />
-            Preparing {requestLabel}
-          </span>
-        ) : null}
+          ) : null}
+        </div>
       </td>
       <td className="px-1 py-1.5 align-top text-center">
         <DropdownMenu>
@@ -559,6 +647,64 @@ function StrategyRow({
         </DropdownMenu>
       </td>
     </tr>
+  );
+}
+
+function StatusMilestones({
+  row,
+  disabled,
+  onApply,
+}: {
+  row: ProcurementStrategyRow;
+  disabled: boolean;
+  onApply: (operations: ProcurementStrategyOperation[]) => Promise<void>;
+}) {
+  const currentIndex = STATUS_MILESTONES.findIndex(
+    (milestone) => milestone.value === row.status,
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={`${row.discipline_label} status`}
+      className="grid min-w-0 flex-1 grid-cols-4 overflow-hidden rounded-sm border border-border"
+    >
+      {STATUS_MILESTONES.map((milestone, index) => {
+        const fulfilled = currentIndex >= index;
+        return (
+          <button
+            key={milestone.value}
+            type="button"
+            aria-label={`${row.discipline_label}: ${milestone.label}`}
+            aria-pressed={fulfilled}
+            title={milestone.label}
+            disabled={disabled}
+            className={cn(
+              "h-7 min-w-0 border-r border-border px-1 text-[10px] font-medium text-muted-foreground outline-none transition-colors last:border-r-0 hover:bg-muted hover:text-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+              fulfilled &&
+                "bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] text-foreground",
+            )}
+            onClick={() => {
+              const status =
+                currentIndex === index
+                  ? index === 0
+                    ? "not_started"
+                    : STATUS_MILESTONES[index - 1].value
+                  : milestone.value;
+              void onApply([
+                {
+                  operation: "UPDATE_ROW",
+                  row_id: row.id,
+                  status,
+                },
+              ]);
+            }}
+          >
+            <span className="block truncate">{milestone.shortLabel}</span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 

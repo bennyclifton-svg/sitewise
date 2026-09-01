@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
+import { ColorThemeButton } from "@/components/ColorThemeButton";
 import { SitewiseMark } from "@/components/SitewiseMark";
 import { Button } from "@/components/ui/button";
 import { CreateProjectPanel } from "@/components/project/CreateProjectPanel";
@@ -112,11 +113,14 @@ export function HomePage() {
   return (
     <div className="cockpit-page min-h-screen">
       <header className="cockpit-shell-header">
-        <div className="mx-auto flex w-full max-w-7xl items-center gap-3">
-          <SitewiseMark size={36} padded={false} />
-          <h1 className="truncate font-display text-[1.3rem] font-light leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
-            SiteWise
-          </h1>
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <SitewiseMark size={36} padded={false} />
+            <h1 className="truncate font-display text-[1.3rem] font-light leading-[1.05] tracking-tight text-[var(--sw-text-primary)]">
+              SiteWise
+            </h1>
+          </div>
+          <ColorThemeButton className="shrink-0" />
         </div>
       </header>
 

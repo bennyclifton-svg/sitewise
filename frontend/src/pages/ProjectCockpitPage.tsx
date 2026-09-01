@@ -1152,6 +1152,9 @@ function ProjectCockpitContents() {
             ]);
           }}
           onRunSortFiles={() => void runSortFiles()}
+          onCreateTransmittal={() =>
+            submitChatInstruction("Create a transmittal with the selected documents.")
+          }
           isRunningSortFiles={isRunningSortFiles}
           overlayReady={project.overlay_status.ready}
           pulseFeed={pulseQuery.data ?? EMPTY_PULSE_FEED}
@@ -1211,6 +1214,11 @@ function ProjectCockpitContents() {
           procurementError={procurementError}
           isRunningProcurement={false}
           procurementRefreshToken={procurementRefreshToken}
+          openProcurementDraftId={
+            reviewDraft && isProcurementDraftWorkflow(reviewDraft.workflow_type)
+              ? reviewDraft.id
+              : null
+          }
           selectedWorkflowId={selectedWorkflowId}
           onSelectWorkflow={selectWorkflow}
           onRunCreatePmp={() => submitChatInstruction(workflowChatCommand("create_pmp"))}

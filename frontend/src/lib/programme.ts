@@ -100,6 +100,143 @@ export function programmeBulkDeleteOperations(
     }));
 }
 
+export type ProgrammeSequencePlan = {
+  operations: ProgrammeOperation[];
+  wouldCycle: boolean;
+  exceedsLimit: boolean;
+};
+
+const MAX_PROGRAMME_SEQUENCE_OPERATIONS = 80;
+
+function selectedProgrammeSequence(
+  activities: ProgrammeActivity[],
+  selectedKeys: Iterable<string>,
+): ProgrammeActivity[] {
+  const selected = new Set(selectedKeys);
+  return activities.filter((item) => selected.has(item.activity_key));
+}
+
+function programmeSequencePairs(
+  activities: ProgrammeActivity[],
+  selectedKeys: Iterable<string>,
+): Array<[ProgrammeActivity, ProgrammeActivity]> {
+  const sequence = selectedProgrammeSequence(activities, selectedKeys);
+  return sequence.slice(0, -1).map((source, index) => [source, sequence[index + 1]!]);
+}
+
+export function programmeSequentialDependencies(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+  selectedKeys: Iterable<string>,
+): ProgrammeDependency[] {
+  const pairKeys = new Set(
+    programmeSequencePairs(activities, selectedKeys).map(
+      ([source, target]) => `${source.activity_key}->${target.activity_key}`,
+    ),
+  );
+  return dependencies.filter((dependency) =>
+    pairKeys.has(
+      `${dependency.source_activity_key}->${dependency.target_activity_key}`,
+    ),
+  );
+}
+
+export function programmeSequentialLinkOperations(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+  selectedKeys: Iterable<string>,
+  sourceEndpoint: DependencyEndpoint,
+  targetEndpoint: DependencyEndpoint,
+): ProgrammeSequencePlan {
+  let working = [...dependencies];
+  const operations: ProgrammeOperation[] = [];
+  for (const [source, target] of programmeSequencePairs(activities, selectedKeys)) {
+    const direct = working.filter(
+      (dependency) =>
+        dependency.source_activity_key === source.activity_key &&
+        dependency.target_activity_key === target.activity_key,
+    );
+    const nextKey = programmeDependencyKey(
+      source.activity_key,
+      sourceEndpoint,
+      target.activity_key,
+      targetEndpoint,
+    );
+    const matching = direct.find((dependency) => dependency.dependency_key === nextKey);
+    const preservedLag = matching?.lag_days ?? direct[0]?.lag_days ?? 0;
+    const removed = direct.filter((dependency) => dependency !== matching);
+    const removedKeys = new Set(removed.map((dependency) => dependency.dependency_key));
+    for (const dependency of removed) {
+      operations.push({
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: dependency.dependency_key,
+      });
+    }
+    working = working.filter((dependency) => !removedKeys.has(dependency.dependency_key));
+    if (matching) continue;
+    if (
+      programmeDependencyWouldCycle(
+        activities,
+        working,
+        source.activity_key,
+        target.activity_key,
+      )
+    ) {
+      return { operations: [], wouldCycle: true, exceedsLimit: false };
+    }
+    const dependency: ProgrammeDependency = {
+      dependency_key: nextKey,
+      source_activity_key: source.activity_key,
+      target_activity_key: target.activity_key,
+      source_endpoint: sourceEndpoint,
+      target_endpoint: targetEndpoint,
+      lag_days: preservedLag,
+    };
+    operations.push({
+      operation: "ADD",
+      target_type: "dependency",
+      values: dependency,
+    });
+    working.push(dependency);
+  }
+  if (operations.length > MAX_PROGRAMME_SEQUENCE_OPERATIONS) {
+    return { operations: [], wouldCycle: false, exceedsLimit: true };
+  }
+  return { operations, wouldCycle: false, exceedsLimit: false };
+}
+
+export function programmeSequentialLagOperations(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+  selectedKeys: Iterable<string>,
+  lagDays: number,
+): ProgrammeOperation[] {
+  const lag = Math.max(0, Math.round(lagDays));
+  return programmeSequentialDependencies(activities, dependencies, selectedKeys)
+    .filter((dependency) => dependency.lag_days !== lag)
+    .map((dependency) => ({
+      operation: "UPDATE" as const,
+      target_type: "dependency" as const,
+      target_id: dependency.dependency_key,
+      values: { lag_days: lag },
+    }));
+}
+
+export function programmeSequentialUnlinkOperations(
+  activities: ProgrammeActivity[],
+  dependencies: ProgrammeDependency[],
+  selectedKeys: Iterable<string>,
+): ProgrammeOperation[] {
+  return programmeSequentialDependencies(activities, dependencies, selectedKeys).map(
+    (dependency) => ({
+      operation: "DELETE" as const,
+      target_type: "dependency" as const,
+      target_id: dependency.dependency_key,
+    }),
+  );
+}
+
 export function coalesceProgrammeOperations(
   operations: ProgrammeOperation[],
 ): ProgrammeOperation[] {

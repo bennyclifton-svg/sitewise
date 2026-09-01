@@ -1030,6 +1030,15 @@ export const api = {
   ): Promise<ProcurementStrategy> =>
     api.get<ProcurementStrategy>(`/projects/${projectId}/procurement-strategy`),
 
+  downloadProcurementStrategy: async (
+    projectId: string,
+    format: "csv" | "docx" | "xlsx",
+  ): Promise<Blob> =>
+    apiBlobRequest(
+      `/projects/${projectId}/procurement-strategy/export?format=${format}`,
+      120_000,
+    ),
+
   ensureProcurementStrategy: async (
     projectId: string,
   ): Promise<ProcurementStrategy> =>

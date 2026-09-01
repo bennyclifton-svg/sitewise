@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactElement,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -11,13 +12,25 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Link2,
   Plus,
+  Timer,
   Trash,
+  Unlink,
   X,
 } from "lucide-react";
 
 import { ProgrammeDateField } from "@/components/project/ProgrammeDateField";
+import { ProgrammeSequenceLagDialog } from "@/components/project/ProgrammeSequenceLagDialog";
 import { Button } from "@/components/ui/button";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Input } from "@/components/ui/input";
 import {
   addDays,
@@ -29,6 +42,10 @@ import {
   programmeDependencyWouldCycle,
   programmeRowMove,
   programmeHeaderLayers,
+  programmeSequentialDependencies,
+  programmeSequentialLagOperations,
+  programmeSequentialLinkOperations,
+  programmeSequentialUnlinkOperations,
   programmeSpan,
   programmeActivitySpan,
   programmeLinks,
@@ -39,6 +56,7 @@ import {
   type DependencyEndpoint,
   type ProgrammeOperation,
   type ProgrammeScale,
+  type ProgrammeSequencePlan,
   type ProgrammeState,
 } from "@/lib/programme";
 import { cn } from "@/lib/utils";
@@ -47,8 +65,8 @@ const ROW_HEIGHT = 24;
 const BAR_HEIGHT = 16;
 const BAR_TOP = 4;
 const LINK_Y = 12;
-const HANDLE_FILL =
-  "bg-[color-mix(in_oklch,var(--sw-void)_62%,var(--sw-text-primary))]";
+const DEPENDENCY_EDITOR_SPACE = 168;
+const DEPENDENCY_EDITOR_HALF_WIDTH = 96;
 const GRID_MINOR =
   "bg-[color-mix(in_oklch,var(--sw-text-tertiary)_11%,transparent)]";
 const GRID_MAJOR =
@@ -75,6 +93,35 @@ type DependencyAnchor = {
   activityKey: string;
   endpoint: DependencyEndpoint;
 };
+
+const DEPENDENCY_RELATIONSHIPS = [
+  {
+    code: "FF",
+    label: "Finish to finish",
+    sourceEndpoint: "finish",
+    targetEndpoint: "finish",
+  },
+  {
+    code: "SF",
+    label: "Start to finish",
+    sourceEndpoint: "start",
+    targetEndpoint: "finish",
+  },
+  {
+    code: "FS",
+    label: "Finish to start",
+    sourceEndpoint: "finish",
+    targetEndpoint: "start",
+  },
+  {
+    code: "SS",
+    label: "Start to start",
+    sourceEndpoint: "start",
+    targetEndpoint: "start",
+  },
+] as const;
+
+type DependencyRelationshipCode = (typeof DEPENDENCY_RELATIONSHIPS)[number]["code"];
 
 function chartBoxStyle(
   fitted: boolean,
@@ -147,6 +194,7 @@ export function ProgramGantt({
   } | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [sequenceLagOpen, setSequenceLagOpen] = useState(false);
   const [rowDrag, setRowDrag] = useState<{
     key: string;
     overKey: string;
@@ -156,7 +204,7 @@ export function ProgramGantt({
     () => state.activities.filter((item) => item.kind === "stage").map((item) => item.activity_key),
     [state.activities],
   );
-  const dependencies = state.dependencies ?? [];
+  const dependencies = useMemo(() => state.dependencies ?? [], [state.dependencies]);
   const collapsedStages = useMemo(
     () =>
       new Set(
@@ -208,6 +256,38 @@ export function ProgramGantt({
   }, [selectedKeys, activityKeys]);
   const visibleAnchor =
     selectionAnchor && activityKeys.has(selectionAnchor) ? selectionAnchor : null;
+  const sequenceDependencies = useMemo(
+    () =>
+      programmeSequentialDependencies(
+        state.activities,
+        dependencies,
+        visibleSelected,
+      ),
+    [dependencies, state.activities, visibleSelected],
+  );
+  const sequencePlans = useMemo(
+    () =>
+      new Map<DependencyRelationshipCode, ProgrammeSequencePlan>(
+        DEPENDENCY_RELATIONSHIPS.map((option) => [
+          option.code,
+          programmeSequentialLinkOperations(
+            state.activities,
+            dependencies,
+            visibleSelected,
+            option.sourceEndpoint,
+            option.targetEndpoint,
+          ),
+        ]),
+      ),
+    [dependencies, state.activities, visibleSelected],
+  );
+  const commonSequenceLag =
+    sequenceDependencies.length > 0 &&
+    sequenceDependencies.every(
+      (dependency) => dependency.lag_days === sequenceDependencies[0]?.lag_days,
+    )
+      ? (sequenceDependencies[0]?.lag_days ?? null)
+      : null;
   const span = useMemo(() => programmeSpan(state.activities), [state.activities]);
   const spanDays = Math.max(daysBetween(span.start, span.end), 1);
   const fitted = mode === "figure" || fitToScreen;
@@ -216,6 +296,8 @@ export function ProgramGantt({
   const measuredChart = Math.max((surfaceWidth || 720) - leftPane, 80);
   const pxPerDay = fitted ? measuredChart / spanDays : SCALE_PX[state.view_scale];
   const chartWidth = fitted ? measuredChart : Math.max(spanDays * pxPerDay, 320);
+  const editorSpace =
+    mode === "edit" && selectedDependencyKey ? DEPENDENCY_EDITOR_SPACE : 0;
 
   useEffect(() => {
     const node = surfaceRef.current;
@@ -294,6 +376,66 @@ export function ProgramGantt({
     onOperate?.(operations);
     setSelectedKeys(new Set());
     setFocusKey(null);
+  }
+
+  function confirmRemoveSelected() {
+    const operations = programmeBulkDeleteOperations(state.activities, visibleSelected);
+    if (!operations.length) return;
+    const selectedStages = new Set(
+      state.activities
+        .filter(
+          (activity) =>
+            activity.kind === "stage" && visibleSelected.has(activity.activity_key),
+        )
+        .map((activity) => activity.activity_key),
+    );
+    const childCount = state.activities.filter(
+      (activity) => activity.parent_key && selectedStages.has(activity.parent_key),
+    ).length;
+    const rowLabel = `${visibleSelected.size} selected row${visibleSelected.size === 1 ? "" : "s"}`;
+    const childLabel = childCount
+      ? ` and ${childCount} child row${childCount === 1 ? "" : "s"}`
+      : "";
+    if (
+      window.confirm(
+        `Delete ${rowLabel}${childLabel}? This action cannot be undone.`,
+      )
+    ) {
+      removeSelected();
+    }
+  }
+
+  function handleRowContextMenu(key: string) {
+    if (!visibleSelected.has(key)) setSelectedKeys(new Set([key]));
+    setSelectionAnchor(key);
+    setFocusKey(key);
+    setPendingAnchor(null);
+    setSelectedDependencyKey(null);
+  }
+
+  function linkSelected(code: DependencyRelationshipCode) {
+    const plan = sequencePlans.get(code);
+    if (!plan || plan.wouldCycle || plan.exceedsLimit || !plan.operations.length) return;
+    onOperate?.(plan.operations);
+  }
+
+  function applySequenceLag(lagDays: number) {
+    const operations = programmeSequentialLagOperations(
+      state.activities,
+      dependencies,
+      visibleSelected,
+      lagDays,
+    );
+    if (operations.length) onOperate?.(operations);
+  }
+
+  function unlinkSelected() {
+    const operations = programmeSequentialUnlinkOperations(
+      state.activities,
+      dependencies,
+      visibleSelected,
+    );
+    if (operations.length) onOperate?.(operations);
   }
 
   function handleRowClick(event: ReactMouseEvent, key: string) {
@@ -445,6 +587,40 @@ export function ProgramGantt({
     ]);
   }
 
+  function changeDependencyRelationship(
+    dependency: ProgrammeDependency,
+    sourceEndpoint: DependencyEndpoint,
+    targetEndpoint: DependencyEndpoint,
+  ) {
+    const nextKey = programmeDependencyKey(
+      dependency.source_activity_key,
+      sourceEndpoint,
+      dependency.target_activity_key,
+      targetEndpoint,
+    );
+    if (nextKey === dependency.dependency_key) return;
+    onOperate?.([
+      {
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: dependency.dependency_key,
+      },
+      {
+        operation: "ADD",
+        target_type: "dependency",
+        values: {
+          dependency_key: nextKey,
+          source_activity_key: dependency.source_activity_key,
+          target_activity_key: dependency.target_activity_key,
+          source_endpoint: sourceEndpoint,
+          target_endpoint: targetEndpoint,
+          lag_days: dependency.lag_days,
+        },
+      },
+    ]);
+    setSelectedDependencyKey(nextKey);
+  }
+
   function removeDependency(dependency: ProgrammeDependency) {
     onOperate?.([
       {
@@ -504,7 +680,10 @@ export function ProgramGantt({
         className="relative"
         style={{
           minWidth: fitted ? "100%" : leftPane + chartWidth,
-          height: headerHeight + ROW_HEIGHT * Math.max(visibleActivities.length, 1),
+          height:
+            headerHeight +
+            ROW_HEIGHT * Math.max(visibleActivities.length, 1) +
+            editorSpace,
         }}
       >
         <GanttAxis
@@ -543,56 +722,73 @@ export function ProgramGantt({
           leftPane={leftPane}
           headerHeight={headerHeight}
           interactive={mode === "edit"}
+          linkingActive={modifierLinking || pendingAnchor !== null}
           selectedDependencyKey={selectedDependencyKey}
           onSelectDependency={setSelectedDependencyKey}
         />
         {renderedActivities.map((activity, index) => (
-          <GanttRow
+          <ProgrammeRowContextMenu
             key={activity.activity_key}
-            activity={activity}
-            index={index}
-            spanStart={span.start}
-            spanDays={spanDays}
-            focused={focusKey === activity.activity_key}
-            selected={visibleSelected.has(activity.activity_key)}
-            previewed={previewUpdate?.activityKey === activity.activity_key}
             interactive={mode === "edit"}
-            fitted={fitted}
-            pxPerDay={pxPerDay}
-            leftPane={leftPane}
-            headerHeight={headerHeight}
-            hideRowDelete={visibleSelected.size > 1}
-            collapsed={collapsedStages.has(activity.activity_key)}
-            onRowClick={
-              mode === "edit"
-                ? (event) => handleRowClick(event, activity.activity_key)
-                : undefined
-            }
-            dropPlacement={
-              rowDrag?.overKey === activity.activity_key ? rowDrag.placement : null
-            }
-            dragging={rowDrag?.key === activity.activity_key}
-            onRename={(name) => update(activity, { name })}
-            onMove={(start) => update(activity, { start_date: start })}
-            onResize={(days) => update(activity, { duration_days: days })}
-            onResizeStart={(start, days) =>
-              update(activity, { start_date: start, duration_days: days })
-            }
-            onPreview={(values) =>
-              setPreviewUpdate(
-                values ? { activityKey: activity.activity_key, values } : null,
-              )
-            }
-            onDelete={() => remove(activity)}
-            onAdd={() => addRowAfter(activity)}
-            onToggleCollapse={() => toggleStage(activity.activity_key)}
-            linkingActive={modifierLinking || pendingAnchor !== null}
-            pendingAnchor={pendingAnchor}
-            onChooseAnchor={(endpoint) =>
-              chooseDependencyAnchor({ activityKey: activity.activity_key, endpoint })
-            }
-            onReorder={(event) => beginRowDrag(event, activity.activity_key)}
-          />
+            selectedCount={visibleSelected.size}
+            sequencePlans={sequencePlans}
+            sequenceLinkCount={sequenceDependencies.length}
+            onLink={linkSelected}
+            onSetLag={() => setSequenceLagOpen(true)}
+            onUnlink={unlinkSelected}
+            onDelete={confirmRemoveSelected}
+          >
+            <GanttRow
+              activity={activity}
+              index={index}
+              spanStart={span.start}
+              spanDays={spanDays}
+              focused={focusKey === activity.activity_key}
+              selected={visibleSelected.has(activity.activity_key)}
+              previewed={previewUpdate?.activityKey === activity.activity_key}
+              interactive={mode === "edit"}
+              fitted={fitted}
+              pxPerDay={pxPerDay}
+              leftPane={leftPane}
+              headerHeight={headerHeight}
+              hideRowDelete={visibleSelected.size > 1}
+              collapsed={collapsedStages.has(activity.activity_key)}
+              onRowClick={
+                mode === "edit"
+                  ? (event) => handleRowClick(event, activity.activity_key)
+                  : undefined
+              }
+              onContextMenu={
+                mode === "edit"
+                  ? () => handleRowContextMenu(activity.activity_key)
+                  : undefined
+              }
+              dropPlacement={
+                rowDrag?.overKey === activity.activity_key ? rowDrag.placement : null
+              }
+              dragging={rowDrag?.key === activity.activity_key}
+              onRename={(name) => update(activity, { name })}
+              onMove={(start) => update(activity, { start_date: start })}
+              onResize={(days) => update(activity, { duration_days: days })}
+              onResizeStart={(start, days) =>
+                update(activity, { start_date: start, duration_days: days })
+              }
+              onPreview={(values) =>
+                setPreviewUpdate(
+                  values ? { activityKey: activity.activity_key, values } : null,
+                )
+              }
+              onDelete={() => remove(activity)}
+              onAdd={() => addRowAfter(activity)}
+              onToggleCollapse={() => toggleStage(activity.activity_key)}
+              linkingActive={modifierLinking || pendingAnchor !== null}
+              pendingAnchor={pendingAnchor}
+              onChooseAnchor={(endpoint) =>
+                chooseDependencyAnchor({ activityKey: activity.activity_key, endpoint })
+              }
+              onReorder={(event) => beginRowDrag(event, activity.activity_key)}
+            />
+          </ProgrammeRowContextMenu>
         ))}
         {mode === "edit" ? (
           <DependencyEditor
@@ -607,6 +803,7 @@ export function ProgramGantt({
             pxPerDay={pxPerDay}
             leftPane={leftPane}
             headerHeight={headerHeight}
+            onChangeRelationship={changeDependencyRelationship}
             onChangeLag={updateDependency}
             onRemove={removeDependency}
             onClose={() => setSelectedDependencyKey(null)}
@@ -668,7 +865,103 @@ export function ProgramGantt({
         </Button>
       </div>
       {chart}
+      {sequenceLagOpen ? (
+        <ProgrammeSequenceLagDialog
+          open
+          rowCount={visibleSelected.size}
+          linkCount={sequenceDependencies.length}
+          initialLag={commonSequenceLag}
+          onOpenChange={setSequenceLagOpen}
+          onApply={applySequenceLag}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ProgrammeRowContextMenu({
+  children,
+  interactive,
+  selectedCount,
+  sequencePlans,
+  sequenceLinkCount,
+  onLink,
+  onSetLag,
+  onUnlink,
+  onDelete,
+}: {
+  children: ReactElement;
+  interactive: boolean;
+  selectedCount: number;
+  sequencePlans: ReadonlyMap<DependencyRelationshipCode, ProgrammeSequencePlan>;
+  sequenceLinkCount: number;
+  onLink: (code: DependencyRelationshipCode) => void;
+  onSetLag: () => void;
+  onUnlink: () => void;
+  onDelete: () => void;
+}) {
+  if (!interactive) return children;
+  const pairCount = Math.max(0, selectedCount - 1);
+  const cycleBlocked = [...sequencePlans.values()].some((plan) => plan.wouldCycle);
+  const limitBlocked = [...sequencePlans.values()].every((plan) => plan.exceedsLimit);
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-64">
+        <ContextMenuLabel>
+          {selectedCount} row{selectedCount === 1 ? "" : "s"} selected
+        </ContextMenuLabel>
+        <ContextMenuSeparator />
+        <ContextMenuLabel className="flex items-center gap-2 py-1 text-[10px] uppercase tracking-[0.12em]">
+          <Link2 className="size-3" aria-hidden />
+          Link in sequence · {pairCount} link{pairCount === 1 ? "" : "s"}
+        </ContextMenuLabel>
+        {DEPENDENCY_RELATIONSHIPS.map((option) => {
+          const plan = sequencePlans.get(option.code);
+          return (
+            <ContextMenuItem
+              key={option.code}
+              disabled={
+                selectedCount < 2 ||
+                cycleBlocked ||
+                !plan ||
+                plan.exceedsLimit
+              }
+              onSelect={() => onLink(option.code)}
+            >
+              <span className="w-6 font-mono text-[10px] font-semibold text-[var(--sw-text-primary)]">
+                {option.code}
+              </span>
+              <span>{option.label}</span>
+            </ContextMenuItem>
+          );
+        })}
+        {cycleBlocked ? (
+          <ContextMenuLabel className="py-1 text-[10px] leading-4 text-[var(--sw-warning)]">
+            Linking these rows would create a cycle.
+          </ContextMenuLabel>
+        ) : limitBlocked ? (
+          <ContextMenuLabel className="py-1 text-[10px] leading-4">
+            This selection is too large to link at once.
+          </ContextMenuLabel>
+        ) : null}
+        <ContextMenuSeparator />
+        <ContextMenuItem disabled={sequenceLinkCount === 0} onSelect={onSetLag}>
+          <Timer className="size-3.5" aria-hidden />
+          Set lag on sequence…
+        </ContextMenuItem>
+        <ContextMenuItem disabled={sequenceLinkCount === 0} onSelect={onUnlink}>
+          <Unlink className="size-3.5" aria-hidden />
+          Unlink sequence
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash className="size-3.5" aria-hidden />
+          Delete selected rows…
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -900,6 +1193,7 @@ const GanttRow = memo(function GanttRow({
   dropPlacement,
   dragging,
   onRowClick,
+  onContextMenu,
   onRename,
   onMove,
   onResize,
@@ -912,6 +1206,7 @@ const GanttRow = memo(function GanttRow({
   pendingAnchor,
   onChooseAnchor,
   onReorder,
+  ...contextMenuTriggerProps
 }: {
   activity: ProgrammeActivity;
   index: number;
@@ -930,6 +1225,7 @@ const GanttRow = memo(function GanttRow({
   dropPlacement: "before" | "after" | null;
   dragging: boolean;
   onRowClick?: (event: ReactMouseEvent) => void;
+  onContextMenu?: (event: ReactMouseEvent) => void;
   onRename: (name: string) => void;
   onMove: (start: string) => void;
   onResize: (days: number) => void;
@@ -1029,6 +1325,7 @@ const GanttRow = memo(function GanttRow({
 
   return (
     <div
+      {...contextMenuTriggerProps}
       className={cn(
         "group/row absolute inset-x-0 select-none border-b",
         GRID_ROW,
@@ -1039,8 +1336,24 @@ const GanttRow = memo(function GanttRow({
       style={{ top, height: ROW_HEIGHT }}
       data-activity-key={activity.activity_key}
       role="row"
+      tabIndex={interactive ? 0 : undefined}
       aria-selected={selected}
       onClick={onRowClick}
+      onContextMenu={onContextMenu}
+      onKeyDown={(event) => {
+        if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+          return;
+        }
+        event.preventDefault();
+        const bounds = event.currentTarget.getBoundingClientRect();
+        event.currentTarget.dispatchEvent(
+          new MouseEvent("contextmenu", {
+            bubbles: true,
+            clientX: bounds.left + 12,
+            clientY: bounds.top + ROW_HEIGHT / 2,
+          }),
+        );
+      }}
     >
       {dropPlacement ? (
         <span
@@ -1088,11 +1401,27 @@ const GanttRow = memo(function GanttRow({
             />
             <span
               aria-hidden
-              className="program-gantt-summary-bar pointer-events-none absolute top-1.5 left-0 h-2.5 w-[3px]"
+              data-gantt-endpoint-stroke="start"
+              data-gantt-endpoint-active={linkingActive ? "true" : "false"}
+              data-gantt-endpoint-selected={
+                pendingAnchor?.activityKey === activity.activity_key &&
+                pendingAnchor.endpoint === "start"
+                  ? "true"
+                  : "false"
+              }
+              className="program-gantt-summary-bar program-gantt-endpoint-stroke pointer-events-none absolute top-1.5 left-0 h-2.5 w-[3px]"
             />
             <span
               aria-hidden
-              className="program-gantt-summary-bar pointer-events-none absolute top-1.5 right-0 h-2.5 w-[3px]"
+              data-gantt-endpoint-stroke="finish"
+              data-gantt-endpoint-active={linkingActive ? "true" : "false"}
+              data-gantt-endpoint-selected={
+                pendingAnchor?.activityKey === activity.activity_key &&
+                pendingAnchor.endpoint === "finish"
+                  ? "true"
+                  : "false"
+              }
+              className="program-gantt-summary-bar program-gantt-endpoint-stroke pointer-events-none absolute top-1.5 right-0 h-2.5 w-[3px]"
             />
             {interactive ? (
               <button
@@ -1134,18 +1463,28 @@ const GanttRow = memo(function GanttRow({
                 <span
                   aria-hidden
                   data-gantt-handle="start"
-                  className={cn(
-                    "pointer-events-none absolute top-1/2 left-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
-                    HANDLE_FILL,
-                  )}
+                  data-gantt-endpoint-stroke="start"
+                  data-gantt-endpoint-active={linkingActive ? "true" : "false"}
+                  data-gantt-endpoint-selected={
+                    pendingAnchor?.activityKey === activity.activity_key &&
+                    pendingAnchor.endpoint === "start"
+                      ? "true"
+                      : "false"
+                  }
+                  className="program-gantt-endpoint-stroke pointer-events-none absolute top-1/2 left-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm"
                 />
                 <span
                   aria-hidden
                   data-gantt-handle="end"
-                  className={cn(
-                    "pointer-events-none absolute top-1/2 right-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm",
-                    HANDLE_FILL,
-                  )}
+                  data-gantt-endpoint-stroke="finish"
+                  data-gantt-endpoint-active={linkingActive ? "true" : "false"}
+                  data-gantt-endpoint-selected={
+                    pendingAnchor?.activityKey === activity.activity_key &&
+                    pendingAnchor.endpoint === "finish"
+                      ? "true"
+                      : "false"
+                  }
+                  className="program-gantt-endpoint-stroke pointer-events-none absolute top-1/2 right-1 h-2.5 w-0.5 -translate-y-1/2 rounded-sm"
                 />
               </>
             ) : null}
@@ -1204,10 +1543,10 @@ function DependencyAnchors({
             data-gantt-anchor={endpoint}
             data-gantt-anchor-active={active ? "true" : "false"}
             className={cn(
-              "absolute top-1/2 z-20 size-3 -translate-y-1/2 rounded-full border-2 border-[var(--sw-void)] bg-[var(--sw-text-tertiary)] opacity-0 transition-[opacity,transform,background-color] duration-100",
+              "program-gantt-dependency-anchor absolute inset-y-0 z-20 w-3 bg-transparent p-0 opacity-0 focus-visible:opacity-100 focus-visible:outline-1 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--sw-text-primary)]",
               endpoint === "start" ? "-left-1.5" : "-right-1.5",
-              active && "pointer-events-auto scale-100 opacity-100 bg-[var(--sw-beam)]",
-              selected && "scale-125 bg-[var(--sw-text-primary)] ring-2 ring-[var(--sw-beam)]",
+              active ? "pointer-events-auto cursor-crosshair" : "pointer-events-none",
+              selected && "focus-visible:outline-2",
             )}
             onClick={(event) => {
               event.preventDefault();
@@ -1231,6 +1570,7 @@ function GanttLinks({
   leftPane,
   headerHeight,
   interactive,
+  linkingActive,
   selectedDependencyKey,
   onSelectDependency,
 }: {
@@ -1243,6 +1583,7 @@ function GanttLinks({
   leftPane: number;
   headerHeight: number;
   interactive: boolean;
+  linkingActive: boolean;
   selectedDependencyKey: string | null;
   onSelectDependency: (dependencyKey: string | null) => void;
 }) {
@@ -1254,7 +1595,7 @@ function GanttLinks({
   const stubX = fitted ? Math.max(2, spanDays * 0.012) : 8;
   return (
     <svg
-      className="absolute"
+      className="pointer-events-none absolute z-20"
       data-gantt-links=""
       style={{
         left: leftPane,
@@ -1277,55 +1618,79 @@ function GanttLinks({
         >
           <path d="M 0 0 L 6 3 L 0 6 Z" fill="var(--sw-beam)" />
         </marker>
+        <marker
+          id="programme-dependency-arrow-illuminated"
+          viewBox="0 0 6 6"
+          refX="5"
+          refY="3"
+          markerWidth="5"
+          markerHeight="5"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 6 3 L 0 6 Z" fill="var(--sw-text-primary)" />
+        </marker>
       </defs>
-      {links.map((link) => (
-        <g key={link.key}>
-          {interactive ? (
+      {links.map((link) => {
+        const illuminated = linkingActive || selectedDependencyKey === link.key;
+        return (
+          <g
+            key={link.key}
+            data-gantt-link-illuminated={illuminated ? "true" : "false"}
+          >
+            {interactive ? (
+              <path
+                data-gantt-link-hit={link.key}
+                d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
+                fill="none"
+                stroke="transparent"
+                strokeWidth="12"
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="stroke"
+                className="pointer-events-auto cursor-pointer"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSelectDependency(link.key);
+                }}
+              />
+            ) : null}
             <path
-              data-gantt-link-hit={link.key}
+              data-gantt-link={link.key}
               d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
               fill="none"
-              stroke="transparent"
-              strokeWidth="12"
+              stroke={illuminated ? "var(--sw-text-primary)" : "var(--sw-beam)"}
+              strokeOpacity={illuminated ? "1" : "0.55"}
+              strokeWidth={
+                selectedDependencyKey === link.key ? "2" : illuminated ? "1.75" : "1.25"
+              }
+              markerEnd={
+                illuminated
+                  ? "url(#programme-dependency-arrow-illuminated)"
+                  : "url(#programme-dependency-arrow)"
+              }
               vectorEffect="non-scaling-stroke"
-              pointerEvents="stroke"
-              className="cursor-pointer"
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelectDependency(link.key);
-              }}
-            />
-          ) : null}
-          <path
-            data-gantt-link={link.key}
-            d={ganttLinkPath(link, ROW_HEIGHT, LINK_Y, xScale, stubX)}
-            fill="none"
-            stroke="var(--sw-beam)"
-            strokeOpacity={selectedDependencyKey === link.key ? "0.95" : "0.55"}
-            strokeWidth={selectedDependencyKey === link.key ? "2" : "1.25"}
-            markerEnd="url(#programme-dependency-arrow)"
-            vectorEffect="non-scaling-stroke"
-            pointerEvents="none"
-          />
-          {link.lagDays > 0 ? (
-            <text
-              x={((link.fromOffset + link.toOffset) / 2) * xScale}
-              y={((link.fromIndex + link.toIndex) / 2) * ROW_HEIGHT + LINK_Y - 3}
-              textAnchor="middle"
-              fill="var(--sw-beam)"
-              stroke="var(--sw-void)"
-              strokeWidth="3"
-              paintOrder="stroke"
-              fontSize="9"
-              fontFamily="ui-monospace, monospace"
               pointerEvents="none"
-              vectorEffect="non-scaling-stroke"
-            >
-              +{link.lagDays}d
-            </text>
-          ) : null}
-        </g>
-      ))}
+              className="transition-[stroke,stroke-opacity] duration-100"
+            />
+            {link.lagDays > 0 ? (
+              <text
+                x={((link.fromOffset + link.toOffset) / 2) * xScale}
+                y={((link.fromIndex + link.toIndex) / 2) * ROW_HEIGHT + LINK_Y - 3}
+                textAnchor="middle"
+                fill={illuminated ? "var(--sw-text-primary)" : "var(--sw-beam)"}
+                stroke="var(--sw-void)"
+                strokeWidth="3"
+                paintOrder="stroke"
+                fontSize="9"
+                fontFamily="ui-monospace, monospace"
+                pointerEvents="none"
+                vectorEffect="non-scaling-stroke"
+              >
+                +{link.lagDays}d
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -1339,6 +1704,7 @@ function DependencyEditor({
   pxPerDay,
   leftPane,
   headerHeight,
+  onChangeRelationship,
   onChangeLag,
   onRemove,
   onClose,
@@ -1351,6 +1717,11 @@ function DependencyEditor({
   pxPerDay: number;
   leftPane: number;
   headerHeight: number;
+  onChangeRelationship: (
+    dependency: ProgrammeDependency,
+    sourceEndpoint: DependencyEndpoint,
+    targetEndpoint: DependencyEndpoint,
+  ) => void;
   onChangeLag: (dependency: ProgrammeDependency, lagDays: number) => void;
   onRemove: (dependency: ProgrammeDependency) => void;
   onClose: () => void;
@@ -1381,6 +1752,9 @@ function DependencyEditor({
     spanDays,
     pxPerDay,
   );
+  const unclampedLeft =
+    typeof position.left === "number" ? `${position.left}px` : position.left;
+  const editorLeft = `clamp(${DEPENDENCY_EDITOR_HALF_WIDTH}px, ${unclampedLeft}, calc(100% - ${DEPENDENCY_EDITOR_HALF_WIDTH}px))`;
   const relationship = `${dependency.source_endpoint[0]?.toUpperCase()}${dependency.target_endpoint[0]?.toUpperCase()}`;
   function commitLag() {
     const next = Math.max(0, Number.isFinite(lagDraft) ? lagDraft : 0);
@@ -1391,35 +1765,65 @@ function DependencyEditor({
     <div
       role="dialog"
       aria-label={`Edit ${relationship} dependency`}
-      className="program-gantt-dependency-editor absolute z-30 w-44 border p-2 shadow-md"
+      className="program-gantt-dependency-editor absolute z-30 w-48 rounded-md border p-2.5 shadow-md"
       style={{
-        left: position.left,
+        left: editorLeft,
         top: headerHeight + ((sourceIndex + targetIndex) / 2) * ROW_HEIGHT + ROW_HEIGHT / 2,
         transform: "translate(-50%, 6px)",
       }}
       onClick={(event) => event.stopPropagation()}
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="font-mono text-[10px] font-semibold tracking-wider text-[var(--sw-text-primary)]">
-          {relationship} dependency
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-medium text-[var(--sw-text-primary)]">
+          Dependency
         </span>
-        <button
+        <Button
           type="button"
+          size="icon-xs"
+          variant="ghost"
           aria-label="Close dependency editor"
-          className="inline-flex size-5 items-center justify-center rounded-sm text-[var(--sw-text-tertiary)] hover:text-[var(--sw-text-primary)]"
+          className="rounded-sm text-[var(--sw-text-tertiary)] hover:bg-[color-mix(in_oklch,var(--sw-void)_65%,transparent)] hover:text-[var(--sw-text-primary)]"
           onClick={onClose}
         >
           <X className="size-3" aria-hidden />
-        </button>
+        </Button>
       </div>
-      <label className="flex items-center gap-2 text-[10px] text-[var(--sw-text-secondary)]">
+      <div
+        role="group"
+        aria-label="Dependency type"
+        className="program-gantt-dependency-types grid grid-cols-4 overflow-hidden rounded-sm"
+      >
+        {DEPENDENCY_RELATIONSHIPS.map((option) => {
+          const selected = relationship === option.code;
+          return (
+            <button
+              key={option.code}
+              type="button"
+              aria-label={`${option.label} (${option.code})`}
+              aria-pressed={selected}
+              title={option.label}
+              className="program-gantt-dependency-type h-7 font-mono text-[10px] font-medium"
+              onClick={() =>
+                onChangeRelationship(
+                  dependency,
+                  option.sourceEndpoint,
+                  option.targetEndpoint,
+                )
+              }
+            >
+              {option.code}
+            </button>
+          );
+        })}
+      </div>
+      <label className="mt-2.5 flex items-center gap-2 text-[10px] text-[var(--sw-text-secondary)]">
         <span>Lag</span>
         <Input
           type="number"
           min={0}
           value={lagDraft}
           aria-label="Dependency lag in days"
-          className="program-gantt-field h-6 min-w-0 flex-1 px-1 text-center text-[10px]"
+          className="program-gantt-dependency-lag h-7 min-w-0 flex-1 rounded-sm px-1 text-center text-[10px]"
           onChange={(event) => setLagDraft(Math.max(0, Number(event.target.value)))}
           onBlur={commitLag}
           onKeyDown={(event) => {
@@ -1428,24 +1832,30 @@ function DependencyEditor({
         />
         <span>days</span>
       </label>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <button
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--sw-edge)] pt-2">
+        <Button
           type="button"
-          className="text-[10px] text-[var(--sw-beam)] hover:underline"
+          size="xs"
+          variant="ghost"
+          className="h-6 rounded-sm px-1.5 text-[10px] font-normal text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] hover:text-[var(--sw-text-primary)]"
           onClick={() => {
             setLagDraft(0);
             onChangeLag(dependency, 0);
           }}
         >
           Reset to ASAP
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          className="text-[10px] text-destructive hover:underline"
+          size="icon-xs"
+          variant="ghost"
+          aria-label="Remove dependency"
+          title="Remove dependency"
+          className="rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
           onClick={() => onRemove(dependency)}
         >
-          Remove
-        </button>
+          <Trash className="size-3.5" aria-hidden />
+        </Button>
       </div>
     </div>
   );

@@ -18,8 +18,8 @@ export function ProjectWorkflowNav({
   leading,
 }: ProjectWorkflowNavProps) {
   return (
-    <nav className="shrink-0 px-3 pt-1 pb-2" aria-label="Project workflows">
-      <ul className="flex flex-col gap-0.5">
+    <nav className="shrink-0 px-6 py-6" aria-label="Project workflows">
+      <ul className="flex flex-col gap-1">
         {leading ? <li>{leading}</li> : null}
         {tiles.map((tile) => {
           const Icon = tile.icon;
@@ -30,25 +30,24 @@ export function ProjectWorkflowNav({
               <button
                 type="button"
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-sm transition-colors",
+                  "flex min-h-12 w-full items-center gap-4 rounded-lg px-3 py-2.5 text-left text-base transition-colors",
                   selected
-                    ? "bg-[var(--brand-subtle)] font-medium text-foreground"
-                    : "font-normal text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
+                    ? "bg-transparent font-medium text-foreground"
+                    : "font-normal text-muted-foreground hover:bg-[var(--cockpit-selected-surface)] hover:text-foreground",
                 )}
                 aria-current={selected ? "page" : undefined}
                 onClick={() => onSelectWorkflow(tile.id)}
               >
                 <Icon
-                  className="size-4 shrink-0 text-[var(--cockpit-workflow-icon)]"
+                  className={cn(
+                    "size-5 shrink-0",
+                    selected
+                      ? "text-[var(--cockpit-accent)]"
+                      : "text-muted-foreground",
+                  )}
                   aria-hidden
                 />
                 <span className="truncate">{tile.label}</span>
-                {tile.attention ? (
-                  <span
-                    aria-label="Profile details need review"
-                    className="size-1.5 shrink-0 rounded-full bg-[var(--sw-caution)]"
-                  />
-                ) : null}
               </button>
             </li>
           );

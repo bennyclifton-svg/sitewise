@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectControlBoard } from "@/components/project/ProjectControlBoard";
 import { api } from "@/lib/api";
 import { ApiError } from "@/lib/http";
+import { queryClient } from "@/lib/query-client";
 import { useTaxonomy } from "@/lib/queries/taxonomy";
 import type {
   DraftArtifact,
@@ -105,6 +106,7 @@ const catalog: TaxonomyCatalog = {
 describe("ProjectControlBoard project profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    queryClient.clear();
     vi.mocked(api.listProcurementRequests).mockResolvedValue([]);
     vi.mocked(api.listProjectDisciplines).mockResolvedValue([]);
     vi.mocked(api.ensureProcurementStrategy).mockResolvedValue({

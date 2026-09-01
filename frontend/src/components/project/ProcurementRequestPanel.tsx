@@ -156,6 +156,7 @@ export function ProcurementRequestPanel({
   project,
   error,
   refreshToken,
+  openDraftId = null,
   renderGate,
   onCreate,
   onUpdate,
@@ -175,6 +176,7 @@ export function ProcurementRequestPanel({
   isRunning?: boolean;
   error: string | null;
   refreshToken: number;
+  openDraftId?: string | null;
   renderGate: (kind: ProcurementRequestKind) => ReactNode;
   onCreate: (kind: RunnableProcurementRequestKind, targetName: string) => void;
   onUpdate?: (kind: RunnableProcurementRequestKind, targetName: string) => void;
@@ -194,7 +196,9 @@ export function ProcurementRequestPanel({
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
   const [view, setView] = useState<"request" | "strategy">("strategy");
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [strategySaving, setStrategySaving] = useState(false);
+  const [dismissedOpenDraftId, setDismissedOpenDraftId] = useState<string | null>(
+    null,
+  );
   const [strategyRefreshing, setStrategyRefreshing] = useState(false);
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -203,11 +207,41 @@ export function ProcurementRequestPanel({
   );
   const [draftExportError, setDraftExportError] = useState<string | null>(null);
   const reportedDraftId = useRef<string | null>(null);
+  const confirmedStrategyRef = useRef<ProcurementStrategy | null>(null);
+  const strategySaveQueue = useRef(Promise.resolve());
+  const pendingStrategyOperationsRef = useRef<
+    Array<{ id: string; operations: ProcurementStrategyOperation[] }>
+  >([]);
+  const [pendingStrategyOperations, setPendingStrategyOperations] = useState<
+    Array<{ id: string; operations: ProcurementStrategyOperation[] }>
+  >([]);
   const strategyQuery = useQuery({
     queryKey: workbenchKeys.procurementStrategy(project.id),
     queryFn: () => api.ensureProcurementStrategy(project.id),
+    structuralSharing: (previous, next) => {
+      const current = previous as ProcurementStrategy | undefined;
+      const incoming = next as ProcurementStrategy;
+      return current && current.revision > incoming.revision ? current : incoming;
+    },
   }, queryClient);
-  const strategy = strategyQuery.data ?? null;
+  const confirmedStrategy = strategyQuery.data ?? null;
+  useEffect(() => {
+    if (
+      confirmedStrategy &&
+      (!confirmedStrategyRef.current ||
+        confirmedStrategy.revision >= confirmedStrategyRef.current.revision)
+    ) {
+      confirmedStrategyRef.current = confirmedStrategy;
+    }
+  }, [confirmedStrategy]);
+  const strategy = useMemo(() => {
+    if (!confirmedStrategy) return null;
+    return pendingStrategyOperations.reduce(
+      (current, pending) =>
+        optimisticallyApplyStrategyOperations(current, disciplines, pending.operations),
+      confirmedStrategy,
+    );
+  }, [confirmedStrategy, disciplines, pendingStrategyOperations]);
   const strategyLoading = strategyQuery.isFetching && !strategy;
 
   useEffect(() => {
@@ -252,8 +286,19 @@ export function ProcurementRequestPanel({
     () => disciplines.filter((item) => item.picker_visible !== false),
     [disciplines],
   );
+  const deepLinkedRequest =
+    openDraftId && dismissedOpenDraftId !== openDraftId
+      ? requests.find(
+          (request) =>
+            request.current_draft_artifact_id === openDraftId ||
+            request.current_draft?.id === openDraftId,
+        ) ?? null
+      : null;
   const selectedRequest =
-    requests.find((request) => request.id === selectedRequestId) ?? null;
+    deepLinkedRequest ??
+    requests.find((request) => request.id === selectedRequestId) ??
+    null;
+  const activeView = deepLinkedRequest ? "request" : view;
   const requestsByRowId = useMemo(() => {
     if (!strategy) return {};
     return Object.fromEntries(
@@ -266,7 +311,7 @@ export function ProcurementRequestPanel({
   const activeKind = selectedRequest?.kind ?? "consultant_rfp";
 
   useEffect(() => {
-    if (view !== "request") return;
+    if (activeView !== "request") return;
     const draft = selectedRequest?.current_draft ?? null;
     if (!draft) {
       reportedDraftId.current = null;
@@ -275,7 +320,7 @@ export function ProcurementRequestPanel({
     if (draft.id === reportedDraftId.current) return;
     reportedDraftId.current = draft.id;
     onDraftSelected?.(draft);
-  }, [onDraftSelected, selectedRequest?.current_draft, view]);
+  }, [activeView, onDraftSelected, selectedRequest?.current_draft]);
 
   const updateCapability =
     selectedRequest?.kind === "consultant_rfp"
@@ -333,56 +378,49 @@ export function ProcurementRequestPanel({
   async function applyStrategyOperations(
     operations: ProcurementStrategyOperation[],
   ) {
-    if (!strategy) return;
-    const strategyBeforeSave = strategy;
-    const optimisticStrategy = optimisticallyApplyStrategyOperations(
-      strategyBeforeSave,
-      disciplines,
-      operations,
-    );
-    setStrategySaving(true);
+    if (!confirmedStrategy) return;
+    const pending = { id: crypto.randomUUID(), operations };
+    pendingStrategyOperationsRef.current = [
+      ...pendingStrategyOperationsRef.current,
+      pending,
+    ];
+    setPendingStrategyOperations(pendingStrategyOperationsRef.current);
     setStrategyError(null);
-    if (optimisticStrategy !== strategyBeforeSave) {
-      queryClient.setQueryData(
-        workbenchKeys.procurementStrategy(project.id),
-        optimisticStrategy,
-      );
-    }
-    try {
-      const next = await api.applyProcurementStrategyOperations(
-        project.id,
-        strategyBeforeSave.revision,
-        operations,
-      );
-      queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), next);
-    } catch (nextError) {
-      queryClient.setQueryData(
-        workbenchKeys.procurementStrategy(project.id),
-        strategyBeforeSave,
-      );
-      setStrategyError(
-        nextError instanceof ApiError
-          ? nextError.message
-          : "Could not save the Procurement Strategy change.",
-      );
-      if (nextError instanceof ApiError && nextError.status === 409) {
-        await queryClient.invalidateQueries({
-          queryKey: workbenchKeys.procurementStrategy(project.id),
-          exact: true,
-        });
-        try {
-          const current = await api.getProcurementStrategy(project.id);
-          queryClient.setQueryData(
-            workbenchKeys.procurementStrategy(project.id),
-            current,
-          );
-        } catch {
-          // Preserve the last readable snapshot when conflict recovery also fails.
+    strategySaveQueue.current = strategySaveQueue.current.then(async () => {
+      try {
+        const saved = await api.applyProcurementStrategyOperations(
+          project.id,
+          (confirmedStrategyRef.current ?? confirmedStrategy).revision,
+          pending.operations,
+        );
+        confirmedStrategyRef.current = saved;
+        queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), saved);
+      } catch (nextError) {
+        setStrategyError(
+          nextError instanceof ApiError
+            ? nextError.message
+            : "Could not save the Procurement Strategy change.",
+        );
+        if (nextError instanceof ApiError && nextError.status === 409) {
+          try {
+            const current = await api.getProcurementStrategy(project.id);
+            confirmedStrategyRef.current = current;
+            queryClient.setQueryData(
+              workbenchKeys.procurementStrategy(project.id),
+              current,
+            );
+          } catch {
+            // Preserve the last readable snapshot when conflict recovery also fails.
+          }
         }
+      } finally {
+        pendingStrategyOperationsRef.current = pendingStrategyOperationsRef.current.filter(
+          (item) => item.id !== pending.id,
+        );
+        setPendingStrategyOperations(pendingStrategyOperationsRef.current);
       }
-    } finally {
-      setStrategySaving(false);
-    }
+    });
+    await strategySaveQueue.current;
   }
 
   async function refreshStrategy() {
@@ -417,21 +455,21 @@ export function ProcurementRequestPanel({
         </p>
       ) : null}
 
-      {view === "request" ? renderGate(activeKind) : null}
+      {activeView === "request" ? renderGate(activeKind) : null}
 
-      {view === "request" && !supported ? (
+      {activeView === "request" && !supported ? (
         <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
           {updateCapability?.reasons.join(" ") || "This request is not supported yet."}
         </p>
       ) : null}
 
-      {view === "strategy" ? (
+      {activeView === "strategy" ? (
         strategy ? (
           <ProcurementStrategyGrid
             strategy={strategy}
             disciplines={selectableDisciplines}
             requestsByRowId={requestsByRowId}
-            saving={strategySaving}
+            saving={false}
             refreshing={strategyRefreshing}
             onApply={applyStrategyOperations}
             onRefresh={refreshStrategy}
@@ -453,7 +491,10 @@ export function ProcurementRequestPanel({
                 type="button"
                 variant="ghost"
                 size="sm"
-                onClick={() => setView("strategy")}
+                onClick={() => {
+                  setDismissedOpenDraftId(openDraftId);
+                  setView("strategy");
+                }}
               >
                 <ArrowLeft className="size-4" aria-hidden />
                 Procurement

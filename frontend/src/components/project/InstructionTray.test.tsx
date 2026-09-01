@@ -422,8 +422,7 @@ describe("SelectionInstructionCard", () => {
     const card = screen.getByRole("dialog", {
       name: "Add an instruction for the selected text",
     });
-    expect(card).toHaveClass("sw-surface");
-    expect(card).toHaveClass("sw-contact");
+    expect(card).toHaveClass("bg-[var(--cockpit-card-surface)]");
     expect(card.className).not.toMatch(/\bbg-background\b/);
   });
 });

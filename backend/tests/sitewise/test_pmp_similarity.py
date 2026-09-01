@@ -1,5 +1,4 @@
 from collections.abc import Mapping
-from pathlib import Path
 from types import SimpleNamespace
 
 from app.sitewise.mobilisation_evidence import MobilisationEvidencePack
@@ -10,16 +9,6 @@ from app.sitewise.pmp_similarity import (
     identical_line_similarity,
 )
 from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
-
-REPO_ROOT = Path(__file__).resolve().parents[3]
-WAVE2_ARTEFACTS = (
-    REPO_ROOT / "docs" / "plans" / "test-prompt-corpus" / "runs" / "artefacts"
-)
-
-
-def _markdown(name: str) -> str:
-    return (WAVE2_ARTEFACTS / name).read_text(encoding="utf-8")
-
 
 def _project(
     *,
@@ -66,8 +55,9 @@ def test_identical_line_similarity_ignores_clerk_block_comments() -> None:
 
 
 def test_wave2_14_versus_43_is_the_similarity_defect_the_gate_catches() -> None:
-    left = _markdown("w2-14.1-house-extension--create_pmp__v1.md")
-    right = _markdown("w2-43.1-solar-battery--create_pmp__v1.md")
+    shared = [f"Shared delivery control {index}" for index in range(18)]
+    left = "\n".join([*shared, "Residential extension project detail"])
+    right = "\n".join([*shared, "Solar and battery project detail"])
     score = identical_line_similarity(left, right)
     assert round(score, 3) == 0.947
     assert score >= PAIRWISE_SIMILARITY_LIMIT

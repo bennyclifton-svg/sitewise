@@ -501,6 +501,44 @@ describe("ProgramGantt", () => {
     fireEvent.keyUp(window, { key: "Control" });
   });
 
+  it("illuminates existing endpoint strokes and dependency lines without round anchors", () => {
+    render(<ProgramGantt state={state()} mode="edit" />);
+    const startAnchor = screen.getByRole("button", {
+      name: "Choose start of Planning for dependency",
+    });
+    const startStroke = document.querySelector(
+      "[data-gantt-bar='planning'] [data-gantt-endpoint-stroke='start']",
+    );
+    const link = document.querySelector(
+      "[data-gantt-link='planning:finish->procurement:start']",
+    );
+
+    expect(startAnchor).toHaveClass("program-gantt-dependency-anchor");
+    expect(startAnchor).not.toHaveClass("rounded-full");
+    expect(startStroke).toHaveAttribute("data-gantt-endpoint-active", "false");
+    expect(link).toHaveAttribute("stroke", "var(--sw-beam)");
+    expect(document.querySelector("[data-gantt-links]")).toHaveClass(
+      "pointer-events-none",
+      "z-20",
+    );
+    expect(
+      document.querySelector(
+        "[data-gantt-link-hit='planning:finish->procurement:start']",
+      ),
+    ).toHaveClass("pointer-events-auto");
+
+    fireEvent.keyDown(window, { key: "Control" });
+
+    expect(startStroke).toHaveAttribute("data-gantt-endpoint-active", "true");
+    expect(link).toHaveAttribute("stroke", "var(--sw-text-primary)");
+    expect(link).toHaveAttribute(
+      "marker-end",
+      "url(#programme-dependency-arrow-illuminated)",
+    );
+
+    fireEvent.keyUp(window, { key: "Control" });
+  });
+
   it("edits lag and removes a selected dependency from its line", async () => {
     const user = userEvent.setup();
     const onOperate = vi.fn();
@@ -511,6 +549,14 @@ describe("ProgramGantt", () => {
     expect(hit).toBeTruthy();
     fireEvent.click(hit!);
     expect(screen.getByRole("dialog", { name: "Edit FS dependency" })).toBeInTheDocument();
+    expect(document.querySelector("[data-gantt-links]")?.parentElement).toHaveStyle({
+      height: "284px",
+    });
+    expect(screen.getByRole("group", { name: "Dependency type" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish to start (FS)" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
     const lag = screen.getByLabelText("Dependency lag in days");
     await user.clear(lag);
     await user.type(lag, "7{enter}");
@@ -522,13 +568,51 @@ describe("ProgramGantt", () => {
         values: { lag_days: 7 },
       }),
     ]);
-    await user.click(screen.getByRole("button", { name: "Remove" }));
+    const remove = screen.getByRole("button", { name: "Remove dependency" });
+    expect(remove.querySelector("svg")).toHaveClass("lucide-trash");
+    await user.click(remove);
     expect(onOperate).toHaveBeenCalledWith([
       expect.objectContaining({
         operation: "DELETE",
         target_type: "dependency",
         target_id: "planning:finish->procurement:start",
       }),
+    ]);
+  });
+
+  it("switches dependency type while preserving its activities and lag", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
+    const hit = document.querySelector(
+      "[data-gantt-link-hit='planning:finish->procurement:start']",
+    );
+    fireEvent.click(hit!);
+
+    expect(screen.getByRole("button", { name: "Finish to finish (FF)" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    await user.click(screen.getByRole("button", { name: "Finish to finish (FF)" }));
+
+    expect(onOperate).toHaveBeenCalledWith([
+      {
+        operation: "DELETE",
+        target_type: "dependency",
+        target_id: "planning:finish->procurement:start",
+      },
+      {
+        operation: "ADD",
+        target_type: "dependency",
+        values: {
+          dependency_key: "planning:finish->procurement:finish",
+          source_activity_key: "planning",
+          target_activity_key: "procurement",
+          source_endpoint: "finish",
+          target_endpoint: "finish",
+          lag_days: 0,
+        },
+      },
     ]);
   });
 
@@ -680,5 +764,103 @@ describe("ProgramGantt", () => {
     await waitFor(() => expect(line?.getAttribute("d")).not.toBe(before));
     expect(line?.getAttribute("d")).toMatch(/^M 600 12 .* V 36 .* H 600$/);
     fireEvent.pointerUp(window, { clientX: 460, pointerId: 1 });
+  });
+
+  it("links selected rows sequentially from the context menu", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    render(
+      <ProgramGantt
+        state={state({ dependencies: [] })}
+        mode="edit"
+        onOperate={onOperate}
+      />,
+    );
+    const planning = document.querySelector('[data-activity-key="planning"]');
+    const procurement = document.querySelector('[data-activity-key="procurement"]');
+    const delivery = document.querySelector('[data-activity-key="delivery"]');
+    fireEvent.click(planning!);
+    fireEvent.click(delivery!, { shiftKey: true });
+    fireEvent.contextMenu(procurement!);
+
+    expect(await screen.findByText("3 rows selected")).toBeInTheDocument();
+    expect(screen.getByText("Link in sequence · 2 links")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("menuitem", { name: "FSFinish to start" }),
+    );
+
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "ADD",
+        target_type: "dependency",
+        values: expect.objectContaining({
+          dependency_key: "planning:finish->procurement:start",
+        }),
+      }),
+      expect.objectContaining({
+        operation: "ADD",
+        target_type: "dependency",
+        values: expect.objectContaining({
+          dependency_key: "procurement:finish->delivery:start",
+        }),
+      }),
+    ]);
+  });
+
+  it("sets one lag across the selected sequence", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
+    const planning = document.querySelector('[data-activity-key="planning"]');
+    const delivery = document.querySelector('[data-activity-key="delivery"]');
+    fireEvent.click(planning!);
+    fireEvent.click(delivery!, { shiftKey: true });
+    fireEvent.contextMenu(delivery!);
+
+    await user.click(await screen.findByRole("menuitem", { name: "Set lag on sequence…" }));
+    const lag = await screen.findByLabelText("Sequence lag in days");
+    await user.clear(lag);
+    await user.type(lag, "4");
+    await user.click(screen.getByRole("button", { name: "Apply lag" }));
+
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({
+        operation: "UPDATE",
+        target_id: "planning:finish->procurement:start",
+        values: { lag_days: 4 },
+      }),
+      expect.objectContaining({
+        operation: "UPDATE",
+        target_id: "procurement:finish->delivery:start",
+        values: { lag_days: 4 },
+      }),
+    ]);
+  });
+
+  it("right-clicking outside the selection isolates and confirms that row", async () => {
+    const user = userEvent.setup();
+    const onOperate = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ProgramGantt state={state()} mode="edit" onOperate={onOperate} />);
+    const planning = document.querySelector('[data-activity-key="planning"]');
+    const procurement = document.querySelector('[data-activity-key="procurement"]');
+    const delivery = document.querySelector('[data-activity-key="delivery"]');
+    fireEvent.click(planning!);
+    fireEvent.click(delivery!, { ctrlKey: true });
+    fireEvent.contextMenu(procurement!);
+
+    expect(await screen.findByText("1 row selected")).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "FSFinish to start" }),
+    ).toHaveAttribute("data-disabled");
+    await user.click(screen.getByRole("menuitem", { name: "Delete selected rows…" }));
+
+    expect(confirm).toHaveBeenCalledWith(
+      "Delete 1 selected row? This action cannot be undone.",
+    );
+    expect(onOperate).toHaveBeenCalledWith([
+      expect.objectContaining({ operation: "DELETE", target_id: "procurement" }),
+    ]);
+    confirm.mockRestore();
   });
 });

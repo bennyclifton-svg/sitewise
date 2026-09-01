@@ -95,10 +95,12 @@ const strategy: ProcurementStrategy = {
 
 function renderPanel({
   requests = [],
+  openDraftId = null,
   onDraftSelected = vi.fn(),
   onOpenTenderComparison = vi.fn(),
 }: {
   requests?: ProcurementRequest[];
+  openDraftId?: string | null;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onOpenTenderComparison?: () => void;
 } = {}) {
@@ -116,6 +118,7 @@ function renderPanel({
           project={{ id: "mosaic", title: "Mosaic Apartments" } as ProjectDetail}
           error={null}
           refreshToken={0}
+          openDraftId={openDraftId}
           renderGate={() => null}
           onCreate={onCreate}
           onUpdate={onUpdate}
@@ -155,18 +158,13 @@ describe("ProcurementRequestPanel", () => {
 
     expect(await screen.findByLabelText("Procurement Strategy")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Firm 1" })).toBeTruthy();
-    expect(
-      screen.getByRole("columnheader", { name: "Status & notes" }),
-    ).toBeTruthy();
-    expect(screen.queryByRole("columnheader", { name: "Status" })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: "Notes" })).toBeNull();
-    const requestLink = screen.getByRole("button", { name: /RFP v1 · Draft/ });
+    const requestLink = screen.getByRole("button", { name: "Open Architect RFP" });
     expect(requestLink.closest("td")).toContainElement(
       screen.getByLabelText("Architect status"),
     );
-    expect(requestLink.closest("td")).toContainElement(
-      screen.getByLabelText("Architect notes"),
-    );
+    expect(screen.queryByLabelText("Architect notes")).toBeNull();
     expect(
       screen.getByRole("rowheader", { name: "Architect" }),
     ).not.toHaveTextContent("RFP");
@@ -193,7 +191,9 @@ describe("ProcurementRequestPanel", () => {
       onDraftSelected,
     });
 
-    await user.click(await screen.findByRole("button", { name: /RFP v1 · Draft/ }));
+    await user.click(
+      await screen.findByRole("button", { name: "Open Architect RFP" }),
+    );
 
     expect(await screen.findByText(architectDraft.title)).toBeTruthy();
     await waitFor(() => expect(onDraftSelected).toHaveBeenCalledWith(architectDraft));
@@ -205,6 +205,63 @@ describe("ProcurementRequestPanel", () => {
 
     await user.click(screen.getByRole("button", { name: "Procurement" }));
     expect(await screen.findByLabelText("Procurement Strategy")).toBeTruthy();
+  });
+
+  it("opens the exact RFP selected by an artefact deep link", async () => {
+    renderPanel({
+      requests: [architectRequest],
+      openDraftId: architectDraft.id,
+    });
+
+    expect(await screen.findByText(architectDraft.title)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Update RFP" })).toBeTruthy();
+  });
+
+  it("links a Civil engineer RFP to the Civil strategy row", async () => {
+    vi.mocked(api.listProjectDisciplines).mockResolvedValue([
+      {
+        code: "consultant.civil",
+        label: "Civil",
+        participant_type: "consultant",
+        request_kind: "consultant_rfp",
+        workspace_slug: "civil-engineer",
+      },
+    ]);
+    const civilDraft = {
+      ...architectDraft,
+      id: "civil-rfp-v1",
+      workflow_type: "consultant_procurement_civil_engineer",
+      title: "Request for Proposal - Civil Engineer",
+    } satisfies DraftArtifactSummary;
+    const civilRequest = {
+      ...architectRequest,
+      id: "civil-request",
+      target_name: "Civil engineer",
+      target_slug: "civil_engineer",
+      discipline_code: null,
+      strategy_row_id: null,
+      current_draft_artifact_id: civilDraft.id,
+      current_draft: civilDraft,
+    } satisfies ProcurementRequest;
+    vi.mocked(api.ensureProcurementStrategy).mockResolvedValue({
+      ...strategy,
+      rows: [
+        {
+          ...strategy.rows[0],
+          id: "civil-row",
+          discipline_code: "consultant.civil",
+          discipline_label: "Civil",
+          linked_request_ids: [],
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPanel({ requests: [civilRequest] });
+
+    const link = await screen.findByRole("button", { name: "Open Civil RFP" });
+    await user.click(link);
+
+    expect(await screen.findByText(civilDraft.title)).toBeTruthy();
   });
 
   it("shows a newly added discipline before its save completes", async () => {
@@ -269,23 +326,120 @@ describe("ProcurementRequestPanel", () => {
     );
     renderPanel();
 
-    await user.click(await screen.findByLabelText("Architect status"));
-    await user.click(screen.getByRole("menuitem", { name: "Recommendation" }));
-
-    expect(screen.getByLabelText("Architect status")).toHaveTextContent(
-      "Recommendation",
+    await user.click(
+      await screen.findByRole("button", { name: "Architect: Recommendation" }),
     );
+
     expect(
-      screen
-        .getByRole("button", { name: "Procurement strategy actions" })
-        .querySelector(".animate-spin"),
-    ).toBeNull();
+      screen.getByRole("button", { name: "Architect: Recommendation" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Actions for Architect" }),
+    ).not.toBeDisabled();
 
     finishSave?.({
       ...strategy,
       revision: 2,
       rows: [{ ...strategy.rows[0], status: "evaluating" }],
     });
+  });
+
+  it("queues further status changes without freezing the grid", async () => {
+    const user = userEvent.setup();
+    const saves: Array<(value: ProcurementStrategy) => void> = [];
+    vi.mocked(api.applyProcurementStrategyOperations).mockImplementation(
+      () =>
+        new Promise<ProcurementStrategy>((resolve) => {
+          saves.push(resolve);
+        }),
+    );
+    renderPanel();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Architect: Submitted" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Architect: Recommendation" }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Architect: Recommendation" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(api.applyProcurementStrategyOperations).toHaveBeenCalledTimes(1);
+
+    saves[0]?.({
+      ...strategy,
+      revision: 2,
+      rows: [{ ...strategy.rows[0], status: "responses_received" }],
+    });
+    await waitFor(() =>
+      expect(api.applyProcurementStrategyOperations).toHaveBeenNthCalledWith(
+        2,
+        "mosaic",
+        2,
+        [
+          {
+            operation: "UPDATE_ROW",
+            row_id: "row-1",
+            status: "evaluating",
+          },
+        ],
+      ),
+    );
+    saves[1]?.({
+      ...strategy,
+      revision: 3,
+      rows: [{ ...strategy.rows[0], status: "evaluating" }],
+    });
+  });
+
+  it("keeps a deleted row removed when an older strategy reload finishes afterward", async () => {
+    const user = userEvent.setup();
+    let finishSave: ((value: ProcurementStrategy) => void) | undefined;
+    let finishReload: ((value: ProcurementStrategy) => void) | undefined;
+    const unlinkedStrategy = {
+      ...strategy,
+      rows: [{ ...strategy.rows[0], linked_request_ids: [] }],
+    } satisfies ProcurementStrategy;
+    vi.mocked(api.applyProcurementStrategyOperations).mockReturnValue(
+      new Promise<ProcurementStrategy>((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+    vi.mocked(api.ensureProcurementStrategy).mockReset();
+    vi.mocked(api.ensureProcurementStrategy)
+      .mockResolvedValueOnce(unlinkedStrategy)
+      .mockReturnValueOnce(
+        new Promise<ProcurementStrategy>((resolve) => {
+          finishReload = resolve;
+        }),
+      );
+    renderPanel();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for Architect" }),
+    );
+    await user.click(screen.getByRole("menuitem", { name: "Delete Architect" }));
+
+    expect(screen.queryByRole("rowheader", { name: "Architect" })).toBeNull();
+
+    void queryClient.invalidateQueries({
+      queryKey: ["project", "mosaic", "workbench", "procurement-strategy"],
+      exact: true,
+    });
+    await waitFor(() =>
+      expect(api.ensureProcurementStrategy).toHaveBeenCalledTimes(2),
+    );
+
+    finishSave?.({ ...strategy, revision: 2, rows: [] });
+    await waitFor(() =>
+      expect(screen.queryByRole("rowheader", { name: "Architect" })).toBeNull(),
+    );
+
+    finishReload?.(strategy);
+    await waitFor(() =>
+      expect(screen.queryByRole("rowheader", { name: "Architect" })).toBeNull(),
+    );
   });
 
   it("launches comparison from a row with at least two firms", async () => {

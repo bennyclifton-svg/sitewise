@@ -50,6 +50,41 @@ const disciplines = [
 ];
 
 describe("ProcurementStrategyGrid", () => {
+  it("keeps strategy controls at the toolbar edges and removes the discipline count", async () => {
+    const user = userEvent.setup();
+    const onRefresh = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ProcurementStrategyGrid
+        strategy={strategy}
+        disciplines={disciplines}
+        saving={false}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        onRefresh={onRefresh}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Add discipline" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sync" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Download procurement strategy" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Copy procurement strategy" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("1 discipline")).toBeNull();
+
+    await user.click(
+      screen.getByRole("button", { name: "Download procurement strategy" }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Excel" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "CSV" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Word" })).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Sync" }));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("starts at three firms and requests a persisted fourth column", async () => {
     const onApply = vi.fn().mockResolvedValue(undefined);
     render(
@@ -103,7 +138,7 @@ describe("ProcurementStrategyGrid", () => {
     ]);
   });
 
-  it("presents the four simplified procurement statuses", async () => {
+  it("presents the four status milestones as cumulative toggle buttons", async () => {
     const user = userEvent.setup();
     const onApply = vi.fn().mockResolvedValue(undefined);
     render(
@@ -116,14 +151,21 @@ describe("ProcurementStrategyGrid", () => {
       />,
     );
 
-    await user.click(screen.getByLabelText("Structural status"));
-    expect(screen.getByRole("menuitem", { name: "Issued" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Received" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Recommendation" })).toBeTruthy();
-    expect(screen.getByRole("menuitem", { name: "Awarded" })).toBeTruthy();
-    expect(screen.queryByRole("menuitem", { name: "Researching" })).toBeNull();
+    const issued = screen.getByRole("button", { name: "Structural: Issued" });
+    const submitted = screen.getByRole("button", {
+      name: "Structural: Submitted",
+    });
+    const recommendation = screen.getByRole("button", {
+      name: "Structural: Recommendation",
+    });
+    const contract = screen.getByRole("button", { name: "Structural: Contract" });
 
-    await user.click(screen.getByRole("menuitem", { name: "Recommendation" }));
+    expect(issued).toHaveAttribute("aria-pressed", "false");
+    expect(submitted).toHaveAttribute("aria-pressed", "false");
+    expect(recommendation).toHaveTextContent("Rec.");
+    expect(contract).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(recommendation);
     expect(onApply).toHaveBeenCalledWith([
       {
         operation: "UPDATE_ROW",
@@ -131,6 +173,44 @@ describe("ProcurementStrategyGrid", () => {
         status: "evaluating",
       },
     ]);
+  });
+
+  it("removes notes and consultant source links from the row", () => {
+    const strategyWithSource: ProcurementStrategy = {
+      ...strategy,
+      rows: [
+        {
+          ...strategy.rows[0],
+          notes: "Old note",
+          candidates: [
+            {
+              id: "candidate-1",
+              slot: 1,
+              company_name: "North & Co",
+              website_url: "https://north.example",
+              location_text: null,
+              source_url: "https://source.example",
+              source_title: "Directory listing",
+              researched_at: null,
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <ProcurementStrategyGrid
+        strategy={strategyWithSource}
+        disciplines={disciplines}
+        saving={false}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByPlaceholderText("Add note")).toBeNull();
+    expect(screen.queryByRole("link", { name: "Source" })).toBeNull();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeTruthy();
   });
 
   it("uses clear labels in the row action menu", async () => {

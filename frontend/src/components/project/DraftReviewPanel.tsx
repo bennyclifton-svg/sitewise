@@ -1192,7 +1192,7 @@ export function DraftReviewPanel({
         embedded ? "" : "p-4 lg:p-6",
       )}
     >
-      <section className="artifact-sheet border bg-background">
+      <section className="artifact-sheet overflow-hidden rounded-xl border border-[var(--cockpit-card-border)] bg-card">
         {isLoadingDraft ? (
           <p className="p-4 text-sm text-muted-foreground" role="status">
             Loading draft content...

@@ -95,6 +95,76 @@ def render_workbook_pdf(
         )
 
 
+def render_table_workbook(
+    *,
+    project_title: str,
+    artifact_title: str,
+    version: int,
+    sheet_title: str,
+    headers: list[str],
+    rows: list[list[str]],
+) -> bytes:
+    """Render a simple tabular artefact with the standard SiteWise workbook sheet."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.utils import get_column_letter
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = sheet_title[:31]
+    worksheet.sheet_view.showGridLines = False
+    worksheet.freeze_panes = "A5"
+    column_count = max(len(headers), 1)
+    worksheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=column_count)
+    worksheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=column_count)
+    worksheet["A1"] = artifact_title
+    worksheet["A2"] = f"{project_title} · Revision {version}"
+
+    title_fill = PatternFill("solid", fgColor="2F72C4")
+    subtitle_fill = PatternFill("solid", fgColor="E8E8E4")
+    header_fill = PatternFill("solid", fgColor="2C3037")
+    border_side = Side(style="thin", color="D6D6D0")
+    border = Border(
+        left=border_side,
+        right=border_side,
+        top=border_side,
+        bottom=border_side,
+    )
+    for cell in worksheet["1:1"]:
+        cell.fill = title_fill
+        cell.font = Font(name="Arial", color="FFFFFF", bold=True, size=14)
+        cell.alignment = Alignment(horizontal="center")
+    worksheet["A2"].fill = subtitle_fill
+    worksheet["A2"].font = Font(name="Arial", italic=True, color="5C5F66")
+    worksheet["A2"].alignment = Alignment(horizontal="center")
+
+    for column, header in enumerate(headers, start=1):
+        cell = worksheet.cell(row=4, column=column, value=header)
+        cell.fill = header_fill
+        cell.font = Font(name="Arial", color="FFFFFF", bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    worksheet.row_dimensions[1].height = 24
+    worksheet.row_dimensions[4].height = 32
+
+    for row_number, row in enumerate(rows, start=5):
+        for column, value in enumerate(row, start=1):
+            cell = worksheet.cell(row=row_number, column=column, value=value)
+            cell.border = border
+            cell.font = Font(name="Arial")
+            cell.alignment = Alignment(vertical="center", wrap_text=True)
+
+    for column, header in enumerate(headers, start=1):
+        values = [header, *(row[column - 1] if column <= len(row) else "" for row in rows)]
+        worksheet.column_dimensions[get_column_letter(column)].width = min(
+            max(max((len(value) for value in values), default=8) + 2, 12),
+            42,
+        )
+
+    output = BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
 _THEAD_ROW_RE = re.compile(
     r"<thead>\s*<tr>\s*(?P<cells>(?:<th\b[^>]*>.*?</th>\s*)+)</tr>\s*</thead>",
     re.IGNORECASE | re.DOTALL,
