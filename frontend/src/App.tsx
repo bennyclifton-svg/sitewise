@@ -20,6 +20,7 @@ const StyleGenomeDemoPage = lazy(() =>
 const TenderCockpitPage = lazy(() =>
   import("@/pages/TenderCockpitPage").then(named("TenderCockpitPage")),
 );
+const ProcurementReviewPage = lazy(() => import("@/pages/ProcurementReviewPage").then(named("ProcurementReviewPage")));
 
 function named<T extends Record<K, React.ComponentType>, K extends keyof T>(key: K) {
   return (module: T) => ({ default: module[key] });
@@ -70,6 +71,7 @@ export default function App() {
           }
         >
           <Route path="tender" element={pending(<TenderCockpitPage />)} />
+          <Route path="procurement-reviews/:comparisonId" element={pending(<ProcurementReviewPage />)} />
           <Route path="tender/:comparisonId" element={pending(<TenderCockpitPage />)} />
           <Route path="tender/:comparisonId/qa" element={pending(<TenderCockpitPage />)} />
           <Route path="tender/:comparisonId/matrix" element={pending(<TenderCockpitPage />)} />

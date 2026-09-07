@@ -9,6 +9,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi import Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from pydantic_ai.exceptions import ModelHTTPError
@@ -26,6 +27,8 @@ from app.agent.pi_models import (
     resolve_pi_model_override,
 )
 from app.agent.pi_process import PiTurnError, PiTurnTimeout, stream_pi_turn
+from app.agent.project_plan import project_plan_command, queue_project_plan
+from app.workflows.runs import WorkflowRunCapabilityConflict, WorkflowRunConflict
 from app.agent.sse_relay import relay_agent_turn
 from app.agent.status_bus import agent_turn_status_bus
 from app.agent.task_routing import route_ai_task, task_route_telemetry
@@ -661,13 +664,14 @@ async def post_agent_stream(
         classify_mutation_intent(user_text),
         current_scale=_project_scale(project),
     )
-    task_route = route_ai_task(user_text)
+    plan_command = project_plan_command(user_text)
+    task_route = route_ai_task(user_text, has_structured_operation=bool(plan_command))
     snapshot = await get_project_snapshot(
         session,
         project_id=project.id,
         owner_user_id=user.id,
     )
-    agent_prompt = build_agent_prompt(
+    agent_prompt = "" if plan_command else build_agent_prompt(
         user_text,
         project_id=str(thread.project_id),
         title=project.title,
@@ -687,7 +691,7 @@ async def post_agent_stream(
     )
     prompt_build_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms
     agent_runtime = PI_RUNTIME_ID
-    model_override = resolve_pi_model_override(body.agent_model)
+    model_override = None if plan_command else resolve_pi_model_override(body.agent_model)
     if model_override is None and task_route.model:
         model_override = PiModelOverride(
             provider=settings.pi_model_provider,
@@ -715,10 +719,10 @@ async def post_agent_stream(
             "task_route": task_route_telemetry(task_route),
         },
         runtime=agent_runtime,
-        model=model_override.model if model_override else settings.pi_model,
+        model="application" if plan_command else model_override.model if model_override else settings.pi_model,
     )
     turn_id = turn.id
-    if not reserved:
+    if not reserved and not plan_command:
         # A transport retry must describe the same selection the first request
         # froze. The workflow tool independently reads this stored context too.
         selected_documents = documents_from_turn_context(
@@ -789,7 +793,7 @@ async def post_agent_stream(
                 )
     quota_ms = int((time.perf_counter() - request_started) * 1000) - auth_ms - prompt_build_ms
     try:
-        turn_token = mint_turn_token(
+        turn_token = "" if plan_command else mint_turn_token(
             user_id=user.id,
             project_id=thread.project_id,
             turn_id=turn_id,
@@ -810,7 +814,7 @@ async def post_agent_stream(
         )
     await session.commit()
 
-    workspace = _agent_workspace(thread.project_id)
+    workspace = "" if plan_command else _agent_workspace(thread.project_id)
     factory = get_session_factory()
 
     log.info(
@@ -831,14 +835,20 @@ async def post_agent_stream(
         completed = False
         failure_message: str | None = None
         first_text_ms: int | None = None
+        plan_reply: str | None = None
         title_task = (
             asyncio.create_task(generate_thread_title(user_text, ""))
-            if fallback_title is not None
+            if fallback_title is not None and not plan_command
             else None
         )
 
         async def agent_chunks() -> AsyncIterator[str]:
             nonlocal completed, first_text_ms
+            if plan_reply is not None:
+                answer_parts.append(plan_reply)
+                yield plan_reply
+                completed = True
+                return
             pi_kwargs = (
                 {
                     "provider": model_override.provider,
@@ -887,6 +897,40 @@ async def post_agent_stream(
                         clearedFields=list(confirmed_profile_change.cleared_fields),
                     )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
+                    if plan_command:
+                        try:
+                            async with factory() as plan_session:
+                                run = await queue_project_plan(
+                                    plan_session,
+                                    project_id=project.id,
+                                    user_id=user.id,
+                                    thread_id=thread.id,
+                                    turn_id=turn_id,
+                                    workflow_type=plan_command,
+                                )
+                            plan_reply = {
+                                "complete": "Your Project Management Plan is ready for review.",
+                                "queued": "Your Project Management Plan is queued. Its progress and draft will appear here.",
+                                "running": "Your Project Management Plan is generating. Its progress and draft will appear here.",
+                                "failed": "The Project Management Plan failed. Use Retry plan to try again.",
+                                "cancelled": "The Project Management Plan was cancelled. Use Retry plan to start again.",
+                                "needs_input": "The Project Management Plan needs more project details before it can finish.",
+                            }[run.state]
+                            plan_event = {
+                                "kind": "resource", "message": "Project Management Plan",
+                                "projectId": str(project.id), "resourceType": "workflow_run",
+                                "resourceId": str(run.id), "action": run.state,
+                                "workflowType": plan_command,
+                            }
+
+                            async def plan_statuses():
+                                yield plan_event
+
+                            statuses = plan_statuses()
+                        except (WorkflowRunCapabilityConflict, WorkflowRunConflict) as exc:
+                            plan_reply = f"The Project Management Plan could not start: {exc}"
+                        except SQLAlchemyError as exc:
+                            raise PiTurnError("Could not persist the project plan request") from exc
                     traced_statuses = _capture_status_events(statuses, tool_status_events)
                     async for event in relay_agent_turn(agent_chunks(), status=traced_statuses):
                         yield event
@@ -967,6 +1011,9 @@ async def post_agent_stream(
 
         if completed:
             content = "".join(answer_parts)
+            source_trace = _agent_source_trace(tool_status_events)
+            if plan_command:
+                source_trace["model"] = {"used": False, "label": "Application action"}
             generated_title = await title_task if title_task is not None else None
             async with factory() as persist_session:
                 await _persist_agent_assistant_message(
@@ -976,7 +1023,7 @@ async def post_agent_stream(
                     turn_id=turn_id,
                     content=content,
                     runtime=agent_runtime,
-                    source_trace=_agent_source_trace(tool_status_events),
+                    source_trace=source_trace,
                     terminal_events=_sanitized_terminal_events(tool_status_events),
                 )
                 if generated_title is not None and generated_title != fallback_title:

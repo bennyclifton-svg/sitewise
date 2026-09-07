@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from tender.models import TenderJob, TenderQuote
+from tender.models import TenderDocument, TenderJob, TenderQuote
 from tender.services import jobs
 
 
@@ -21,7 +21,9 @@ async def after_job_complete(
     if comparison_id is None:
         return
     try:
-        if job_kind == "embed_items":
+        if job_kind == "read_review_document":
+            await _enqueue_review_if_ready(session, comparison_id=comparison_id)
+        elif job_kind == "embed_items":
             await _enqueue_taxonomy_if_ready(session, comparison_id=comparison_id)
         elif job_kind == "map_items":
             await _enqueue_expectations_if_ready(session, comparison_id=comparison_id)
@@ -33,6 +35,18 @@ async def after_job_complete(
             in_transaction = await in_transaction
         if in_transaction:
             await session.rollback()
+
+
+async def _enqueue_review_if_ready(session: AsyncSession, *, comparison_id: uuid.UUID) -> None:
+    await _lock_continuation(session, comparison_id=comparison_id, stage="prepare_procurement_review")
+    result = await session.execute(select(TenderDocument.review_data).join(TenderQuote).where(TenderQuote.comparison_id == comparison_id))
+    documents = list(result.scalars())
+    if not documents or not all((data or {}).get("complete") for data in documents):
+        return
+    if await _has_existing_job(session, comparison_id=comparison_id, kind="prepare_procurement_review"):
+        return
+    await jobs.enqueue(session, kind="prepare_procurement_review", comparison_id=comparison_id)
+    await session.commit()
 
 
 async def _enqueue_taxonomy_if_ready(

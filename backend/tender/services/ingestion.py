@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ from tender.models import (
     TenderQuote,
 )
 from tender.services import jobs
-from tender.services.pdf import PageExtract, extract_pages, render_page_png
+from tender.services.pdf import PageExtract, extract_native_pages, extract_pages, render_page_png
 
 _MARKDOWN_PAGE_WIDTH = 595.0
 _MARKDOWN_PAGE_HEIGHT = 842.0
@@ -63,7 +64,8 @@ async def ingest_document(
 ) -> None:
     downloader = downloader or _default_downloader
     uploader = uploader or _default_uploader
-    extractor = extractor or _default_extractor
+    procurement_review = bool((job.payload or {}).get("procurement_review"))
+    extractor = extractor or (extract_native_pages if procurement_review else _default_extractor)
     converter = converter or _default_office_converter
 
     document_id = uuid.UUID(job.payload["document_id"])
@@ -81,8 +83,11 @@ async def ingest_document(
         not _is_pdf(document)
         and not _is_convertible_office(document)
         and not _is_markdown(document)
+        and not _is_image(document)
     ):
         document.ingest_status = "unsupported_format"
+        if procurement_review:
+            raise ValueError(f"Cannot read {document.original_filename}; upload PDF, Word, Excel, text or an image")
         await session.flush()
         return
 
@@ -90,8 +95,13 @@ async def ingest_document(
         return
 
     source_bytes = await asyncio.to_thread(downloader, storage_key=document.storage_path)
+    if procurement_review and hashlib.sha256(source_bytes).hexdigest() != document.content_hash:
+        raise ValueError(f"{document.original_filename} changed after this review started; compare the current submission again")
     if _is_markdown(document):
         extracted_pages, pdf_bytes = _markdown_pages(source_bytes)
+    elif _is_image(document):
+        pdf_bytes = await asyncio.to_thread(_image_to_pdf, source_bytes)
+        extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
     elif _is_pdf(document):
         pdf_bytes = source_bytes
         extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
@@ -105,6 +115,8 @@ async def ingest_document(
             )
         except OfficeConversionError:
             document.ingest_status = "unsupported_format"
+            if procurement_review:
+                raise ValueError(f"Could not convert {document.original_filename}; upload a PDF copy") from None
             await session.flush()
             return
         extracted_pages = await asyncio.to_thread(extractor, pdf_bytes)
@@ -115,7 +127,7 @@ async def ingest_document(
         if page.page_no in existing_page_nos:
             continue
 
-        png_bytes = render_page_png(
+        png_bytes = await asyncio.to_thread(render_page_png,
             pdf_bytes, page_no=page.page_no, dpi=settings.tender_page_render_dpi
         )
         prepared_pages.append(
@@ -139,6 +151,8 @@ async def ingest_document(
             content=page.png_bytes,
             filename=f"page-{page.page_no:04d}.png",
         )
+        if procurement_review:
+            await jobs.assert_lease(session, job)
         session.add(
             TenderPage(
                 document_id=document.id,
@@ -154,17 +168,9 @@ async def ingest_document(
     document.ocr_applied = False
     document.ingest_status = "ingested"
 
-    quote = await session.get(TenderQuote, document.quote_id)
-    if quote is not None:
-        quote.stage = "classify_document"
-
-    await jobs.enqueue(
-        session,
-        kind="classify_document",
-        comparison_id=job.comparison_id,
-        quote_id=document.quote_id,
-        payload={"document_id": str(document.id)},
-    )
+    if procurement_review:
+        document.review_data = {**(document.review_data or {}), "read_version": "native-pages-1"}
+    await _enqueue_extraction(session, job, document)
     await session.flush()
 
 
@@ -215,6 +221,8 @@ async def _reuse_project_pages(
     prior = await session.get(TenderDocument, prior_id)
     if prior is None:
         return False
+    if (job.payload or {}).get("procurement_review") and (prior.review_data or {}).get("read_version") != "native-pages-1":
+        return False
 
     pages_result = await session.execute(
         select(TenderPage)
@@ -240,19 +248,26 @@ async def _reuse_project_pages(
     document.ocr_applied = prior.ocr_applied
     document.ingest_status = "ingested"
 
+    if (job.payload or {}).get("procurement_review"):
+        document.review_data = {"read_version": "native-pages-1"}
+    await _enqueue_extraction(session, job, document)
+    await session.flush()
+    return True
+
+
+async def _enqueue_extraction(session: AsyncSession, job: TenderJob, document: TenderDocument) -> None:
+    review = bool((job.payload or {}).get("procurement_review"))
     quote = await session.get(TenderQuote, document.quote_id)
     if quote is not None:
-        quote.stage = "classify_document"
+        quote.stage = "extract_line_items" if review else "classify_document"
 
     await jobs.enqueue(
         session,
-        kind="classify_document",
+        kind="read_review_document" if review else "classify_document",
         comparison_id=job.comparison_id,
         quote_id=document.quote_id,
         payload={"document_id": str(document.id)},
     )
-    await session.flush()
-    return True
 
 
 async def _prior_ingested_document_id(
@@ -297,7 +312,16 @@ def _is_pdf(document: TenderDocument) -> bool:
 def _is_markdown(document: TenderDocument) -> bool:
     mime_type = document.mime_type.lower()
     suffix = Path(document.original_filename).suffix.lower()
-    return mime_type in _MARKDOWN_MIMES or suffix in _MARKDOWN_SUFFIXES
+    return mime_type in _MARKDOWN_MIMES or suffix in _MARKDOWN_SUFFIXES or suffix == ".txt"
+
+
+def _is_image(document: TenderDocument) -> bool:
+    return Path(document.original_filename).suffix.lower() in {".png", ".jpg", ".jpeg"}
+
+
+def _image_to_pdf(source_bytes: bytes) -> bytes:
+    with fitz.open(stream=source_bytes) as document:
+        return document.convert_to_pdf()
 
 
 def _decode_markdown(source_bytes: bytes) -> str:

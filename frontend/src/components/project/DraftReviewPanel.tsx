@@ -86,7 +86,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
  * affordance must not render where the server would reject the batch.
  */
 function supportsAnchoredInstructions(workflowType: string): boolean {
-  return workflowType !== "create_cost_plan" && workflowType !== "tender_report";
+  return workflowType !== "create_cost_plan" && workflowType !== "tender_report" && !workflowType.startsWith("tender_report_");
 }
 
 function blockTargetForRange(

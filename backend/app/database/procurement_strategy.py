@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -20,6 +21,9 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
+
+if TYPE_CHECKING:
+    from app.database.workspace_file import WorkspaceFile
 
 
 class ProcurementStrategy(Base):
@@ -82,6 +86,12 @@ class ProcurementStrategyRow(Base):
         nullable=False,
     )
     discipline_code: Mapped[str | None] = mapped_column(String(128))
+    submission_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    comparison_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    recommendation_draft_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("draft_artifacts.id", ondelete="SET NULL")
+    )
+    recommendation_stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))
     discipline_label: Mapped[str] = mapped_column(String(512), nullable=False)
     participant_type: Mapped[str] = mapped_column(String(24), nullable=False)
     request_kind: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -173,6 +183,10 @@ class ProcurementStrategyCandidate(Base):
     )
 
     row: Mapped[ProcurementStrategyRow] = relationship(back_populates="candidates")
+    submission_files: Mapped[list["ProcurementCandidateFile"]] = relationship(
+        cascade="all, delete-orphan", passive_deletes=True, lazy="selectin",
+        order_by="ProcurementCandidateFile.position",
+    )
 
     __table_args__ = (
         CheckConstraint("slot BETWEEN 1 AND 4", name="ck_strategy_candidates_slot"),
@@ -181,3 +195,18 @@ class ProcurementStrategyCandidate(Base):
         ),
         Index("ix_strategy_candidates_row", "strategy_row_id"),
     )
+
+
+class ProcurementCandidateFile(Base):
+    __tablename__ = "procurement_candidate_files"
+
+    candidate_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("procurement_strategy_candidates.id", ondelete="CASCADE"), primary_key=True
+    )
+    workspace_file_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workspace_files.id", ondelete="CASCADE"), primary_key=True
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    file: Mapped["WorkspaceFile"] = relationship(lazy="selectin")
+
+    __table_args__ = (Index("ix_procurement_candidate_files_file", "workspace_file_id"),)

@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en-AU">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SiteWise mark — direction comparison</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/style-guide/satoshi-font.css" />
+    <style>
+      :root {
+        --ivory: #fefcf5;
+        --ivory-panel: #f9f6ee;
+        --ivory-line: #dedbd3;
+        --ink: #2d2b2b;
+        --muted: #596579;
+        --char: #1a1919;
+        --char-line: #3a3838;
+        --char-ink: #efeeee;
+        --char-muted: #a0aec0;
+        --blue-light: #1a5fd0;
+        --blue-dark: #4285f4;
+        --display: "Satoshi", "Hanken Grotesk", sans-serif;
+        --sans: "Hanken Grotesk", Helvetica, Arial, sans-serif;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--ivory); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+      .wrap { width: min(100%, 1280px); margin-inline: auto; padding: 56px clamp(20px, 4vw, 56px) 120px; }
+      h1 { margin: 0; font-family: var(--display); font-size: clamp(34px, 4vw, 54px); font-weight: 300; letter-spacing: -0.04em; line-height: 1; }
+      .sub { max-width: 68ch; margin: 18px 0 0; color: var(--muted); }
+      .sub code { font-family: var(--mono); font-size: 13px; }
+      .eyebrow { margin: 0 0 10px; color: var(--blue-light); font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; }
+
+      .card { margin-top: 48px; border: 1px solid var(--ivory-line); background: var(--ivory-panel); }
+      .card > header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; padding: 20px 24px; border-bottom: 1px solid var(--ivory-line); }
+      .card h2 { margin: 0; font-family: var(--display); font-size: 27px; font-weight: 300; letter-spacing: -0.03em; }
+      .card header p { max-width: 62ch; margin: 0; color: var(--muted); font-size: 14px; }
+      .tag { padding: 3px 8px; border: 1px solid var(--ivory-line); background: var(--ivory); color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+      .panes { display: grid; grid-template-columns: 1fr 1fr; }
+      .pane { padding: 30px 24px; }
+      .pane + .pane { border-left: 1px solid var(--ivory-line); }
+      .pane.dark { border-left-color: var(--char-line); background: var(--char); color: var(--char-ink); --mark-blue: var(--blue-dark); }
+      .pane.light { --mark-blue: var(--blue-light); color: var(--ink); }
+      .pane .label { margin: 0 0 22px; color: var(--muted); font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; }
+      .pane.dark .label { color: var(--char-muted); }
+
+      .ramp { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 26px; min-height: 104px; }
+      .ramp figure { margin: 0; text-align: center; }
+      .ramp figcaption { margin-top: 10px; color: var(--muted); font-family: var(--mono); font-size: 9px; }
+      .pane.dark .ramp figcaption { color: var(--char-muted); }
+      svg.mark { display: block; }
+
+      .lockup { display: flex; align-items: center; gap: 10px; margin-top: 34px; padding-top: 24px; border-top: 1px solid var(--ivory-line); }
+      .pane.dark .lockup { border-top-color: var(--char-line); }
+      .lockup span { font-family: var(--display); font-size: 19px; font-weight: 300; letter-spacing: -0.03em; }
+      .tiles { display: flex; align-items: flex-end; gap: 16px; margin-top: 26px; }
+      .tile { display: grid; place-items: center; border-radius: 6px; background: var(--char); }
+      .tile.t32 { width: 32px; height: 32px; }
+      .tile.t16 { width: 16px; height: 16px; border-radius: 3px; }
+      .note { margin: 0; padding: 24px; border-top: 1px solid var(--ivory-line); color: var(--muted); font-size: 13.5px; }
+      .note b { color: var(--ink); font-weight: 500; }
+      .note code { font-family: var(--mono); font-size: 12.5px; }
+      .verdict { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+      .verdict li { position: relative; padding-left: 16px; }
+      .verdict li::before { position: absolute; top: 10px; left: 0; width: 7px; height: 1px; background: var(--blue-light); content: ""; }
+      @media (max-width: 900px) { .panes { grid-template-columns: 1fr; } .pane + .pane { border-left: 0; border-top: 1px solid var(--ivory-line); } }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="m-current" viewBox="0 0 56 56">
+          <path d="M10 20 28 9l18 11-18 11" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M28 31 10 42l18 11 18-11" fill="none" stroke="var(--mark-blue)" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+        </symbol>
+
+        <symbol id="m-a1" viewBox="0 0 48 48">
+          <path d="M36 12 H18 L13 17 V20 L18 25 H31 L36 30 V33 L31 38 H12"
+                fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+        </symbol>
+
+        <symbol id="m-a2" viewBox="0 0 48 48">
+          <path d="M36 12 H18 L13 17 V20 L18 25 H31 L36 30 V33 L31 38 H12"
+                fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+          <rect x="32.5" y="8.5" width="7" height="7" fill="var(--mark-blue)"/>
+        </symbol>
+
+        <symbol id="m-b1" viewBox="0 0 48 48">
+          <path d="M8 17 H40" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="square"/>
+          <path d="M13 40 L24 22 L35 40" fill="none" stroke="var(--mark-blue)" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+        </symbol>
+
+        <symbol id="m-b2" viewBox="0 0 48 48">
+          <path d="M8 17 H40" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="square"/>
+          <path d="M13 40 L24 22 L35 40" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+        </symbol>
+
+        <symbol id="m-c" viewBox="0 0 48 48">
+          <path d="M36 11 H18 L13 16 V19.5 L18 24.5 H31 L36 29.5 V33 L31 38 H12"
+                fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="square" stroke-linejoin="miter"/>
+          <path d="M29 18 L18 31" fill="none" stroke="var(--mark-blue)" stroke-width="3.5" stroke-linecap="butt"/>
+        </symbol>
+
+        <symbol id="m-d" viewBox="0 0 48 48">
+          <text x="24" y="36" text-anchor="middle" font-family="Satoshi, sans-serif" font-weight="300" font-size="42" fill="currentColor">S</text>
+        </symbol>
+
+        <!-- E: massing block, read off the reference screenshot -->
+        <symbol id="m-e" viewBox="0 0 48 48">
+          <path d="M24 7 41 16.5 24 26 7 16.5 Z" fill="var(--mark-blue)"/>
+          <path d="M7 16.5 24 26 24 42 7 32.5 Z" fill="currentColor"/>
+          <path d="M41 16.5 24 26 24 42 41 32.5 Z" fill="currentColor" opacity="0.62"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <div class="wrap">
+      <p class="eyebrow">SiteWise · brand mark · direction comparison</p>
+      <h1>Five ways out of the chevron.</h1>
+      <p class="sub">
+        Every mark is judged the way it will actually be met: at header size beside the Satoshi wordmark, at favicon
+        size, and on both grounds. Light panes use the proposed accessible blue <code>#1a5fd0</code>; dark panes keep
+        <code>#4285f4</code>. The current mark leads as the baseline.
+      </p>
+
+      <section class="card">
+        <header>
+          <h2>Current</h2><span class="tag">Baseline</span>
+          <p>Two split chevrons, described as an open angular S.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">On ivory</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-current"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-current"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-current"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="24" height="24"><use href="#m-current"/></svg><figcaption>24</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-current"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-current"/></svg><span>SiteWise</span></div>
+          </div>
+          <div class="pane dark">
+            <p class="label">On charcoal · favicon tiles</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-current"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-current"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-current"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-current"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-current"/></svg><span>SiteWise</span></div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="20" height="20"><use href="#m-current"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="11" height="11"><use href="#m-current"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <b>Why it needs replacing.</b> The grey is <code>#626A76</code>, a neutral that appears nowhere else in the
+          palette, so it goes muddy on ivory. Splitting a small mark across two colours fragments it: at 16px the blue
+          half wins and the S never resolves. And the chevron gesture is the same one the page uses for its shutter
+          fold, index bullets and scan datum, so the mark reads as more furniture rather than as an identity.
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>A · Traverse</h2><span class="tag">Line</span>
+          <p>One continuous single-weight run turning through 45° chamfers — a survey traverse that happens to spell S.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">A1 mono on ivory</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-a1"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-a1"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-a1"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="24" height="24"><use href="#m-a1"/></svg><figcaption>24</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-a1"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-a1"/></svg><span>SiteWise</span></div>
+          </div>
+          <div class="pane dark">
+            <p class="label">A2 with station node · charcoal</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-a2"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-a2"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-a2"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-a2"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-a2"/></svg><span>SiteWise</span></div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="20" height="20"><use href="#m-a2"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="11" height="11"><use href="#m-a2"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <ul class="verdict">
+            <li><b>For:</b> one weight, one colour, no fragmentation — it resolves at 16px. The 45° chamfers say "drawn with a set square", and it is literally the datum spine from the right edge of the landing page.</li>
+            <li><b>Against:</b> it is a lettermark, and lettermarks are quiet. It will never be as memorable as a symbol.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>B · Benchmark</h2><span class="tag">Symbol</span>
+          <p>The surveyor's cut benchmark — a datum bar with a broad arrow beneath. A fixed reference point, which is the whole positioning.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">B1 blue arrow on ivory</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-b1"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-b1"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-b1"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="24" height="24"><use href="#m-b1"/></svg><figcaption>24</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-b1"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-b1"/></svg><span>SiteWise</span></div>
+          </div>
+          <div class="pane dark">
+            <p class="label">B2 mono, then blue at small sizes · charcoal</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-b2"/></svg><figcaption>96 mono</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-b2"/></svg><figcaption>48 mono</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-b1"/></svg><figcaption>32 blue</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-b1"/></svg><figcaption>16 blue</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-b1"/></svg><span>SiteWise</span></div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="20" height="20"><use href="#m-b1"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="11" height="11"><use href="#m-b1"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <ul class="verdict">
+            <li><b>For:</b> real construction provenance, no SaaS competitor is using it, and it carries meaning — a benchmark is the fixed point everything else is measured from.</li>
+            <li><b>Against:</b> bar-over-arrow risks reading as an upload glyph. The wide bar and the open, unfilled arrow are what hold it apart. Check the 16px column honestly.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>C · Kerf</h2><span class="tag">Mass</span>
+          <p>The same S as solid mass, with one precise blue cut driven through it. Material and machining in one shape.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">On ivory</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-c"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-c"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-c"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="24" height="24"><use href="#m-c"/></svg><figcaption>24</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-c"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-c"/></svg><span>SiteWise</span></div>
+          </div>
+          <div class="pane dark">
+            <p class="label">On charcoal · favicon tiles</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-c"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-c"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-c"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-c"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-c"/></svg><span>SiteWise</span></div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="20" height="20"><use href="#m-c"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="11" height="11"><use href="#m-c"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <ul class="verdict">
+            <li><b>For:</b> the most presence of the three. Holds its own beside a 19px wordmark and dominates a favicon.</li>
+            <li><b>Against:</b> honest limitation — the kerf is the idea, and below about 24px the kerf closes and it degrades to a plain heavy S. Judge the 16px column carefully.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>E · Massing block</h2><span class="tag">From your reference</span>
+          <p>The isometric volume from the screenshot you sent — the building mass rather than a letterform.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">On ivory</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-e"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-e"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-e"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="24" height="24"><use href="#m-e"/></svg><figcaption>24</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-e"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-e"/></svg><span>SiteWise</span></div>
+          </div>
+          <div class="pane dark">
+            <p class="label">On charcoal · favicon tiles</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-e"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="48" height="48"><use href="#m-e"/></svg><figcaption>48</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-e"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-e"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="lockup"><svg class="mark" width="32" height="32"><use href="#m-e"/></svg><span>SiteWise</span></div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="20" height="20"><use href="#m-e"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="11" height="11"><use href="#m-e"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <ul class="verdict">
+            <li><b>For:</b> most presence of any option, and it inherits DESIGN.md's existing clay-massing / BIM undertone rather than inventing a new one.</li>
+            <li><b>Against:</b> three tones in one small mark is the current logo's failure mode returning in a different costume — check whether the faces still separate at 16px. An isometric cube is also the most crowded shape in tech identity; it is the one direction here a competitor could plausibly already own.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="card">
+        <header>
+          <h2>D · Wordmark only</h2><span class="tag">Control</span>
+          <p>No glyph. The Satoshi Light lettering carries it, with an S monogram reserved for the favicon.</p>
+        </header>
+        <div class="panes">
+          <div class="pane light">
+            <p class="label">Lockup on ivory</p>
+            <div class="ramp" style="align-items:baseline">
+              <span style="font-family:var(--display);font-weight:300;font-size:44px;letter-spacing:-0.04em">SiteWise</span>
+              <span style="font-family:var(--display);font-weight:300;font-size:19px;letter-spacing:-0.03em">SiteWise</span>
+            </div>
+            <div class="lockup" style="gap:0">
+              <span style="font-size:19px">SiteWise</span><span style="color:var(--blue-light);font-size:19px">.</span>
+            </div>
+          </div>
+          <div class="pane dark">
+            <p class="label">Monogram fallback · charcoal</p>
+            <div class="ramp">
+              <figure><svg class="mark" width="96" height="96"><use href="#m-d"/></svg><figcaption>96</figcaption></figure>
+              <figure><svg class="mark" width="32" height="32"><use href="#m-d"/></svg><figcaption>32</figcaption></figure>
+              <figure><svg class="mark" width="16" height="16"><use href="#m-d"/></svg><figcaption>16</figcaption></figure>
+            </div>
+            <div class="tiles">
+              <div class="tile t32"><svg class="mark" width="22" height="22"><use href="#m-d"/></svg></div>
+              <div class="tile t16"><svg class="mark" width="12" height="12"><use href="#m-d"/></svg></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">
+          <b>The honest control.</b> A weak glyph beside strong lettering subtracts. If none of A, B, C or E beats
+          "SiteWise" set plainly in Satoshi Light, this is the correct answer and it costs nothing to ship.
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

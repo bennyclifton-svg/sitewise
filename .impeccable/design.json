@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-03T09:59:00.000Z",
+  "generatedAt": "2026-09-05T00:00:00.000Z",
   "title": "Design System: SiteWise",
   "extensions": {
     "colorMeta": {
@@ -138,12 +138,60 @@
           "#F2F2EF",
           "#FAFAF8"
         ]
+      },
+      "landing-blue": {
+        "role": "primary",
+        "displayName": "Open Datum Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": ["#172554", "#1e3a8a", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#bfdbfe", "#eff6ff"]
+      },
+      "landing-ivory": {
+        "role": "neutral",
+        "displayName": "Warm Sheet Ivory",
+        "canonical": "#faf9f5",
+        "tonalRamp": ["#111111", "#30302e", "#5a5a56", "#8e8d88", "#bcbab4", "#d9d7d0", "#eeece6", "#faf9f5"]
+      },
+      "landing-charcoal": {
+        "role": "neutral",
+        "displayName": "Graphite Plaque",
+        "canonical": "#1c1c1c",
+        "tonalRamp": ["#0d0d0d", "#1c1c1c", "#323232", "#4a4846", "#6f6c68", "#9d9992", "#cbc7bd", "#f1efec"]
+      },
+      "landing-muted": {
+        "role": "neutral",
+        "displayName": "Slate Copy",
+        "canonical": "#5a6472",
+        "tonalRamp": ["#172033", "#2d3949", "#465567", "#5a6472", "#798292", "#9da5b2", "#cad0d8", "#eff1f4"]
+      },
+      "landing-charcoal-ink": {
+        "role": "neutral",
+        "displayName": "Plaque Ink",
+        "canonical": "#f1efec",
+        "tonalRamp": ["#1c1c1c", "#33312f", "#5b5955", "#87837e", "#b4b0aa", "#d4d0c9", "#e5e2dd", "#f1efec"]
+      },
+      "landing-plane": {
+        "role": "neutral",
+        "displayName": "Graphite Plane",
+        "canonical": "#cbc7bd",
+        "tonalRamp": ["#25231f", "#4a4740", "#6f6b63", "#918d84", "#aca89f", "#cbc7bd", "#dfdcd4", "#f3f1eb"]
+      },
+      "landing-blue-press": {
+        "role": "primary",
+        "displayName": "Open Datum Blue Press",
+        "canonical": "#1b4fc4",
+        "tonalRamp": ["#12235b", "#173477", "#1b4fc4", "#2563eb", "#4b84f4", "#79a5f7", "#bdd6fc", "#edf4ff"]
+      },
+      "landing-blue-soft": {
+        "role": "secondary",
+        "displayName": "Open Datum Blue Soft",
+        "canonical": "#9fb4d4",
+        "tonalRamp": ["#23324b", "#3e5474", "#5d789f", "#7f9bbe", "#9fb4d4", "#bbcae1", "#d9e3ef", "#f1f5fa"]
       }
     },
     "typographyMeta": {
       "display": {
         "displayName": "Display",
-        "purpose": "Persuade headlines, marquee, SITEFORM/SiteWise wordmarks — Oxanium only."
+        "purpose": "Existing display role outside the standalone landing."
       },
       "body": {
         "displayName": "Body",
@@ -159,7 +207,11 @@
       },
       "marketing-body": {
         "displayName": "Marketing Body",
-        "purpose": "Landing running text and nav (Space Mono)."
+        "purpose": "Landing running text, navigation and actions (Hanken Grotesk)."
+      },
+      "landing-display": {
+        "displayName": "Landing Display",
+        "purpose": "The standalone landing hero and synthetic project name (light Satoshi)."
       }
     },
     "shadows": [
@@ -182,6 +234,11 @@
         "name": "sitewise-mark",
         "value": "0 0 0 1px rgb(236 236 234 / 0.95), 0 6px 18px rgb(0 0 0 / 0.16), 0 14px 36px rgb(80 80 80 / 0.28), 0 0 40px rgb(236 236 234 / 0.45)",
         "purpose": "Lifted SiteWise seal on cockpit ribbon only."
+      },
+      {
+        "name": "landing-tablet",
+        "value": "0 18px 32px -18px rgba(10,9,8,.28), 0 38px 72px -48px rgba(10,9,8,.48)",
+        "purpose": "Diffuse shadow beneath the standalone landing's straight-on tablet; paired with its thin bezel and inset hairline."
       }
     ],
     "motion": [
@@ -191,9 +248,9 @@
         "purpose": "Mark hover and small control transitions."
       },
       {
-        "name": "marketing-press",
-        "value": "120ms linear",
-        "purpose": "Landing button filter/transform press."
+        "name": "landing-control",
+        "value": "170ms cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Landing CTA lift and link-arrow nudge; reduced motion collapses transition duration."
       },
       {
         "name": "ribbon-drift",
@@ -207,7 +264,8 @@
       }
     ],
     "breakpoints": [
-      { "name": "landing-collapse", "value": "720px" },
+      { "name": "landing-layout", "value": "1024px" },
+      { "name": "landing-action-stack", "value": "560px" },
       { "name": "cockpit-desktop", "value": "1024px" }
     ]
   },
@@ -221,12 +279,12 @@
       "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; border: 0; border-radius: 0.4375rem; background: oklch(0.55 0.12 52); color: oklch(0.993 0.003 92); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 180ms ease; } .ds-btn-primary:hover { background: oklch(0.48 0.11 51.5); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px oklch(0.55 0.12 52 / 0.3); } .ds-btn-primary:active { transform: translateY(1px); }"
     },
     {
-      "name": "Marketing CTA",
+      "name": "Landing Walkthrough CTA",
       "kind": "button",
       "refersTo": "button-marketing",
-      "description": "SITEFORM sheet CTA — sharp, tracked mono, Signal Orange.",
-      "html": "<a class=\"ds-btn-marketing\" href=\"#\">Book a Demo</a>",
-      "css": ".ds-btn-marketing { display: inline-flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 28px; border: 0; border-radius: 0; background: #F96416; color: #111111; font-family: \"Space Mono\", \"IBM Plex Mono\", ui-monospace, monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: filter 120ms linear, transform 120ms linear; } .ds-btn-marketing:hover { filter: brightness(0.92); transform: translateY(1px); } .ds-btn-marketing:focus-visible { outline: 2px solid #F96416; outline-offset: 2px; } .ds-btn-marketing:active { filter: brightness(0.86); }"
+      "description": "The landing's blue pill action for booking a project walkthrough.",
+      "html": "<a class=\"ds-btn-marketing\" href=\"#\">Book a project walkthrough</a>",
+      "css": ".ds-btn-marketing { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; padding: 0 36px; border: 0; border-radius: 999px; background: #2563eb; color: #fff; font-family: \"Hanken Grotesk\", Helvetica, Arial, sans-serif; font-size: 15px; font-weight: 500; text-decoration: none; cursor: pointer; transition: background-color 170ms ease, transform 170ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-btn-marketing:hover { background: #1b4fc4; transform: translateY(-2px); } .ds-btn-marketing:focus-visible { outline: 2px solid #2563eb; outline-offset: 4px; } .ds-btn-marketing:active { transform: translateY(0); }"
     },
     {
       "name": "Outline Button",
@@ -253,12 +311,12 @@
       "css": ".ds-card { position: relative; padding: 24px; border: 1px solid oklch(0.908 0.006 92); border-radius: 10px; background: oklch(0.993 0.003 92); color: oklch(0.278 0.007 86); font-family: \"IBM Plex Sans\", ui-sans-serif, system-ui, sans-serif; box-shadow: 0 1px 2px rgb(0 0 0 / 0.05); } .ds-card::before { content: \"\"; position: absolute; top: 8px; right: 8px; width: 9px; height: 9px; border-top: 1.5px solid oklch(0.885 0.04 54); border-right: 1.5px solid oklch(0.885 0.04 54); } .ds-card-eyebrow { margin: 0 0 8px; font-family: \"IBM Plex Mono\", ui-monospace, monospace; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: oklch(0.585 0.008 92); } .ds-card-title { margin: 0 0 8px; font-size: 16px; font-weight: 500; color: oklch(0.196 0.006 86); } .ds-card-body { margin: 0; font-size: 13.5px; line-height: 1.5; }"
     },
     {
-      "name": "Sheet Cell",
+      "name": "Offset Workspace Plaque",
       "kind": "card",
-      "refersTo": "card-workbench",
-      "description": "Marketing hairline cell — flat sheet, no radius.",
-      "html": "<div class=\"ds-sheet-cell\"><span class=\"ds-marker\" aria-hidden=\"true\"></span><p class=\"ds-sheet-label\">Platform</p><p class=\"ds-sheet-copy\">One sheet from concept to contract.</p></div>",
-      "css": ".ds-sheet-cell { position: relative; padding: 20px; border: 1px solid #ABABA6; border-radius: 0; background: #E4E4E4; color: #111111; font-family: \"Space Mono\", \"IBM Plex Mono\", ui-monospace, monospace; } .ds-marker { position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #F96416; } .ds-sheet-label { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #5A5A56; } .ds-sheet-copy { margin: 0; font-size: 15px; line-height: 1.55; }"
+      "refersTo": "landing-workspace-plaque",
+      "description": "The one straight-on flat dark workspace tablet that carries the landing's product proof.",
+      "html": "<figure class=\"ds-workspace-plaque\"><div class=\"ds-workspace-screen\"><span>Seven Hills Townhouse</span><small>Synthetic project demonstration</small></div></figure>",
+      "css": ".ds-workspace-plaque { position: relative; width: min(100%, 420px); aspect-ratio: 1.82; margin: 16px; border: 1px solid rgba(241,239,234,.38); border-radius: clamp(18px, 1.5vw, 26px); background: #1a1918; box-shadow: 0 18px 32px -18px rgba(10,9,8,.28), 0 38px 72px -48px rgba(10,9,8,.48); } .ds-workspace-plaque::after { position: absolute; z-index: 2; inset: 4px; border: 1px solid rgba(255,255,255,.08); border-radius: calc(clamp(18px, 1.5vw, 26px) - 4px); pointer-events: none; content: \"\"; } .ds-workspace-screen { display: flex; height: calc(100% - clamp(14px, 1.44vw, 24px)); margin: clamp(7px, .72vw, 12px); flex-direction: column; justify-content: flex-end; gap: 4px; padding: 20px; overflow: hidden; border-radius: clamp(11px, .8vw, 16px); background: linear-gradient(180deg, #191818 0%, #151414 52%, #121111 100%); color: #f1efec; font-family: \"Hanken Grotesk\", Helvetica, Arial, sans-serif; } .ds-workspace-screen span { font-family: \"Satoshi\", \"Hanken Grotesk\", Helvetica, Arial, sans-serif; font-size: 22px; font-weight: 300; } .ds-workspace-screen small { color: #9fb4d4; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }"
     },
     {
       "name": "Status Badge",
@@ -279,19 +337,19 @@
   ],
   "narrative": {
     "northStar": "The Drawing Office",
-    "overview": "Not the cliché architect loft with mood boards and espresso — a working drawing office where sheets are pinned, dimensions are checked, and decisions leave marks. SiteWise fuses two already-shipping visual dialects into one identity: the SITEFORM marketing sheet and the product cockpit workbench. Persuade surfaces speak in hairline frames, zero-radius machined chrome, Oxanium display, and clay 3D massing. Operate surfaces speak in dense IBM Plex UI, warm paper greys, micro-radii for finger targets, and a charcoal dark shell with subtle grain. The shared soul is the same: handcrafted texture, multi-scale structure (from sheet grid to Y-frame / BIM-like volumetric undertone), and one hot construction accent against quiet hardware.\n\nThe technology undertone is structural, not neon. 3D clay models, viewfinder brackets, registration-tick corners, and tracked mono labels carry “agentic construction intelligence” the way a building information model carries coordination — visible as frame and mass, never as purple glow or chatbot chrome. Quiet hardware with one hot accent. Hope earned by substance.",
+    "overview": "Not the cliché architect loft with mood boards and espresso — a working drawing office where sheets are pinned, dimensions are checked, and decisions leave marks. SiteWise fuses two shipping visual dialects: the standalone Offset Project Monolith landing and the product cockpit workbench. The landing is a warm sheet that lets one dark workspace tablet do the physical work; operate surfaces are dense IBM Plex UI, warm paper greys, micro-radii for finger targets, and a charcoal shell with subtle grain. The shared soul is material clarity, spatial hierarchy, and one purposeful action colour against quiet hardware.\n\nThe technology undertone is structural, not neon. On the landing, the evidence is the real Seven Hills workspace capture, framed as a straight-on flat tablet with a thin bezel, inset hairline and diffuse shadow; in product it is carried by registration-tick corners and tracked mono labels. The system is never purple glow or chatbot chrome. Hope is earned by a legible project state.\n\nThe landing is a single static Persuade composition for D&C project directors and design managers delivering $5m–$50m projects: left reading column, right straight-on tablet, and graphite project plane naming the synthetic Seven Hills Townhouse demonstration.",
     "keyCharacteristics": [
-      "Dual-register system: sheet marketing vs workbench product, one brand spine",
-      "Warm paper greys + Formwork Ember / Signal Orange as the only hot voice",
-      "Mono eyebrows and labels; Oxanium for persuade display; IBM Plex for operate body",
-      "Hairlines, brackets, corner ticks — drawn structure over soft SaaS cards",
-      "Subtle grain/texture and clay 3D for material + BIM undertone",
-      "Flat sheet on marketing; tonal stack + restrained lift in the app"
+      "Dual-register system: Offset Project Monolith landing vs workbench product, one brand spine",
+      "Warm ivory and graphite on landing; Formwork Ember / Blueprint Azure remain product signals",
+      "Satoshi + Hanken Grotesk for landing; IBM Plex for operate body",
+      "One right-hand straight-on workspace tablet replaces feature-grid or chapter-spine marketing",
+      "The landing's Open Datum mark and blue CTA are intentionally landing-only",
+      "Tonal stack + restrained lift in the app; a flat tablet and graphite plane on landing"
     ],
     "rules": [
       {
         "name": "The One Hot Accent Rule",
-        "body": "On any given surface, either Formwork Ember (operate) or Signal Orange (persuade) is the hot voice — never both competing, never rainbow status chrome.",
+        "body": "Product operates with Formwork Ember; this standalone landing operates with Landing Blue. Keep each surface to its one hot voice — never competing accent chrome.",
         "section": "colors"
       },
       {
@@ -311,17 +369,17 @@
       },
       {
         "name": "The Dual Face Rule",
-        "body": "Oxanium/Space Mono own persuade; IBM Plex owns operate. Crossing faces needs intent, not drift.",
+        "body": "Satoshi/Hanken Grotesk own the standalone landing; IBM Plex owns operate. Crossing faces needs intent, not drift.",
         "section": "typography"
       },
       {
-        "name": "The Sheet vs Bench Rule",
-        "body": "Marketing stays on the hairline sheet; product stays on the tonal workbench. Borrow motifs across — do not paste landing zero-radius chrome into dense forms without reason.",
+        "name": "The Monolith vs Bench Rule",
+        "body": "The landing earns attention through one offset workspace machine and a graphite plane; product stays on the tonal workbench. Do not turn dense operating views into landing composition.",
         "section": "layout"
       },
       {
-        "name": "The Flat Sheet Rule",
-        "body": "Persuade surfaces do not grow drop shadows to look premium. If it needs depth, use a clay model, a bracket, or a hairline.",
+        "name": "The One Machine Rule",
+        "body": "The landing's flat tablet is allowed one diffuse shadow treatment because it contains the product proof. Do not spread that lift across copy, controls or new cards.",
         "section": "elevation"
       },
       {
@@ -330,23 +388,23 @@
         "section": "elevation"
       },
       {
-        "name": "The Bracket is a Viewfinder Rule",
-        "body": "Corner ticks and brackets mean scoped / registered / under inspection. Use sparingly on signature work surfaces.",
+        "name": "The Mark Is Landing-Only Rule",
+        "body": "The Open Datum mark belongs to this static landing; it does not authorise a global navigation or app-logo change.",
         "section": "shapes"
       }
     ],
     "dos": [
-      "Do fuse sheet language (hairlines, brackets, mono labels, clay 3D) with workbench language (Plex, tonal greys, micro-radii) under one Drawing Office north star.",
-      "Do keep Formwork Ember / Signal Orange rare and purposeful — quiet hardware, one hot accent.",
+      "Do use the landing's warm sheet, one straight-on flat workspace tablet and graphite project plane as a single composition.",
+      "Do keep Landing Blue rare and purposeful on the landing; keep Formwork Ember purposeful in product.",
       "Do use Blueprint Azure for inference/AI/info and ember for evidenced/brand.",
-      "Do prefer subtle grain, paper texture, and structural 3D over decorative gradients.",
+      "Do use the supplied Seven Hills screenshot as labelled synthetic product demonstration, not customer proof.",
       "Do synthesise and reduce — architect clarity over dashboard clutter."
     ],
     "donts": [
       "Don't run purple/indigo “AI” gradients, glow stacks, or chatbot-bubble aesthetics.",
-      "Don't mix Signal Orange and Formwork Ember as competing accents on one screen.",
-      "Don't apply marketing zero-radius + heavy uppercase mono to every dense form control — operate needs Plex and soft hit targets.",
-      "Don't fake depth on the marketing sheet with soft drop shadows; use models and hairlines.",
+      "Don't add Signal Orange, Formwork Ember or a second hot accent to the current landing composition.",
+      "Don't turn the landing into a feature-card grid, chapter scroller or sticky presentation.",
+      "Don't distribute the machine's grounded shadow to copy or generic marketing cards.",
       "Don't invent testimonials, partner proof, or metric theatre without real evidence (product constraint)."
     ]
   }

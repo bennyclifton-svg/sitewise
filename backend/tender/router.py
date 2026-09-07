@@ -24,6 +24,7 @@ from app.projects.workflow_capabilities import (
 )
 from app.storage.project_files import upload_project_file
 from tender.models import TenderComparison, TenderDocument, TenderQuote
+from tender.procurement_router import router as procurement_router
 from tender.schemas import (
     ComparisonContextPatch,
     ComparisonCreate,
@@ -74,6 +75,7 @@ from tender.services.project_context_adapter import (
 )
 
 router = APIRouter(prefix="/api/tender", tags=["tender"])
+router.include_router(procurement_router)
 
 MANUAL_QUOTE_STAGES = {
     "ingest_document",

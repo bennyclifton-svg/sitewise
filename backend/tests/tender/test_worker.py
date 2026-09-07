@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 from contextlib import asynccontextmanager
-from unittest.mock import ANY, AsyncMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from tender import worker
@@ -144,6 +144,36 @@ def test_front_half_handlers_registered() -> None:
     assert worker.HANDLERS["ingest_document"] is ingest_document
     assert worker.HANDLERS["classify_document"] is classify_document
     assert worker.HANDLERS["extract_line_items"] is extract_line_items_job
+
+
+def test_lost_lease_cannot_publish_completion(mock_session):
+    job = _comparison_job("read_review_document")
+    job.locked_by = "original-lease"
+    mock_session.scalar.return_value = "replacement-lease"
+    async def exercise():
+        with patch.object(worker.jobs, "claim_next", AsyncMock(return_value=job)), patch.dict(worker.HANDLERS, {job.kind: AsyncMock()}), patch.object(worker.jobs, "complete", AsyncMock()) as complete, patch.object(worker.jobs, "fail", AsyncMock()) as fail:
+            await worker.run_once(_session_factory(mock_session), "worker")
+            complete.assert_not_awaited()
+            fail.assert_not_awaited()
+            mock_session.rollback.assert_awaited()
+    run_async(exercise())
+
+
+def test_review_continuation_is_durable_before_completion(mock_session):
+    mock_session.add = MagicMock()
+    job = _comparison_job("read_review_document")
+    events = []
+    async def continuation(*args, **kwargs):
+        events.append("continuation")
+    async def complete(*args, **kwargs):
+        events.append("complete")
+    async def timing(*args, **kwargs):
+        events.append("timing")
+    async def exercise():
+        with patch.object(worker.jobs, "claim_next", AsyncMock(return_value=job)), patch.dict(worker.HANDLERS, {job.kind: AsyncMock()}), patch.object(worker.jobs, "complete", complete), patch.object(worker.continuations, "after_job_complete", continuation), patch.object(worker.telemetry, "record_stage_timing", timing):
+            await worker.run_once(_session_factory(mock_session), "worker")
+        assert events == ["continuation", "timing", "complete", "continuation"]
+    run_async(exercise())
 
 
 def test_run_loop_stops_when_shutdown_event_set(mock_session: AsyncMock) -> None:

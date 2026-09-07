@@ -200,7 +200,7 @@ export function ProjectControlBoard({
   ) => void;
   onEditProcurementStrategyRow?: (row: ProcurementStrategyRow) => void;
   onCancelSortFiles?: () => void;
-  onOpenTenderComparison: () => void;
+  onOpenTenderComparison: (comparisonId: string) => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -1025,7 +1025,7 @@ function WorkflowDetail({
   ) => void;
   onEditProcurementStrategyRow?: (row: ProcurementStrategyRow) => void;
   onCancelSortFiles?: () => void;
-  onOpenTenderComparison: () => void;
+  onOpenTenderComparison: (comparisonId: string) => void;
   inboxCount: number;
   sortFilesResult: SortFilesResponse | null;
   sortFilesDraft: DraftArtifactSummary | null;
@@ -1050,8 +1050,7 @@ function WorkflowDetail({
   const isCostPlan = tile.id === "cost-plan";
   const isProgram = tile.id === "program";
   const isDocumentIntake = tile.id === "document-intake";
-  const isProcurementRequests = tile.id === "procurement-requests";
-  const isProcurement = tile.id === "procurement";
+  const isProcurementRequests = tile.id === "procurement-requests" || tile.id === "procurement";
   const costPlanCapability = project.workflow_capabilities?.capabilities.create_cost_plan;
   const costPlanSupported = !costPlanCapability || costPlanCapability.status === "supported";
   const activeTrace = isDocumentIntake
@@ -1137,12 +1136,6 @@ function WorkflowDetail({
       setDraftExportAction(null);
     }
   }
-
-  // Tender Comparison opens its own route; skip the intermediate gate panel.
-  useEffect(() => {
-    if (!isProcurement) return;
-    onOpenTenderComparison();
-  }, [isProcurement, onOpenTenderComparison]);
 
   return (
     <div
@@ -1519,7 +1512,7 @@ function WorkflowDetail({
                 onRunProcurement?.(kind, targetName, "update")
               }
               onEditStrategyRowWithAi={onEditProcurementStrategyRow}
-              onOpenTenderComparison={() => onOpenTenderComparison()}
+              onOpenTenderComparison={onOpenTenderComparison}
               onDraftSelected={onDraftSelected}
               onDraftUpdated={onDraftUpdated}
               repositoryEvidence={repositoryEvidence}
@@ -1600,11 +1593,6 @@ function WorkflowDetail({
 
             <WorkflowTracePanel trace={activeTrace} isRunning={activeRunning} />
           </>
-        ) : isProcurement ? (
-          <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed p-4 text-sm text-muted-foreground">
-            <LoaderCircle className="mr-2 size-4 animate-spin" aria-hidden />
-            Opening tender comparison
-          </div>
         ) : (
           <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
             {tile.implemented

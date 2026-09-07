@@ -43,6 +43,7 @@ async def start_inprocess_tender_worker(
     log.info(
         "tender_worker_inproc_started",
         worker_id=worker_id,
+        queue_scope=settings.workflow_queue_scope,
         concurrency=max(1, settings.tender_worker_concurrency),
     )
     return InProcessTenderWorker(

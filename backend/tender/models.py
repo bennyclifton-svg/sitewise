@@ -269,6 +269,7 @@ class TenderDocument(Base):
         String(64), nullable=False, default="pending"
     )
     content_hash: Mapped[str | None] = mapped_column(String(64))
+    review_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict, server_default="{}")
     workspace_file_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     storage_bucket: Mapped[str | None] = mapped_column(String(255))
     storage_version: Mapped[str | None] = mapped_column(String(255))

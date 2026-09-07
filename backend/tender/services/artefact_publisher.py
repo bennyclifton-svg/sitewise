@@ -16,6 +16,7 @@ class TenderArtefactPublisher(Protocol):
         title: str,
         workspace_path: str,
         markdown: str,
+        provenance: dict[str, Any] | None = None,
     ) -> uuid.UUID: ...
 
     async def read_markdown(self, session: Any, *, draft_id: uuid.UUID) -> str | None: ...

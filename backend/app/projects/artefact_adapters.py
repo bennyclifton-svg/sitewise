@@ -47,7 +47,7 @@ async def revise_workflow_artefact(
 ) -> DraftArtifact:
     if draft.project_id != project.id:
         raise ArtefactPolicyViolation("artefact does not belong to project")
-    if draft.workflow_type == "tender_report":
+    if draft.workflow_type == "tender_report" or draft.workflow_type.startswith("tender_report_"):
         raise ArtefactPolicyViolation("Tender reports can only be revised by TCM")
     if is_cost_plan_workflow(draft.workflow_type):
         raise ArtefactPolicyViolation(
@@ -118,7 +118,7 @@ async def accept_workflow_artefact(
 ) -> DraftArtifact:
     if draft.project_id != project.id:
         raise ArtefactPolicyViolation("artefact does not belong to project")
-    if draft.workflow_type == "tender_report":
+    if draft.workflow_type == "tender_report" or draft.workflow_type.startswith("tender_report_"):
         raise ArtefactPolicyViolation("Tender approval is owned by TCM")
     if draft.version != expected_version:
         raise ArtefactRevisionConflict(

@@ -710,6 +710,12 @@ class ProjectDisciplineListResponse(BaseModel):
     disciplines: list[ProjectDisciplineView]
 
 
+class ProcurementSubmissionFileView(BaseModel):
+    workspace_file_id: uuid.UUID
+    filename: str
+    workspace_path: str
+
+
 class ProcurementStrategyCandidateView(BaseModel):
     id: uuid.UUID
     slot: int
@@ -719,6 +725,7 @@ class ProcurementStrategyCandidateView(BaseModel):
     source_url: str | None = None
     source_title: str | None = None
     researched_at: datetime | None = None
+    submission_files: list[ProcurementSubmissionFileView] = Field(default_factory=list)
 
 
 class ProcurementStrategyRowView(BaseModel):
@@ -735,6 +742,10 @@ class ProcurementStrategyRowView(BaseModel):
     candidates: list[ProcurementStrategyCandidateView] = Field(default_factory=list)
     linked_request_ids: list[uuid.UUID] = Field(default_factory=list)
     no_longer_required: bool = False
+    submission_revision: int = 1
+    comparison_id: uuid.UUID | None = None
+    recommendation_draft_id: uuid.UUID | None = None
+    recommendation_stale: bool = False
 
 
 class ProcurementStrategyView(BaseModel):
@@ -758,6 +769,8 @@ ProcurementStrategyOperationType = Literal[
     "UPSERT_CANDIDATE",
     "CLEAR_CANDIDATE",
     "SET_TENDERER_COLUMN_COUNT",
+    "LINK_CANDIDATE_FILES",
+    "UNLINK_CANDIDATE_FILES",
 ]
 
 
@@ -779,6 +792,8 @@ class ProcurementStrategyOperation(BaseModel):
     source_url: str | None = Field(default=None, max_length=2048)
     source_title: str | None = Field(default=None, max_length=512)
     tenderer_column_count: Literal[3, 4] | None = None
+    candidate_id: uuid.UUID | None = None
+    workspace_file_ids: list[uuid.UUID] = Field(default_factory=list, max_length=30)
 
 
 class ApplyProcurementStrategyOperationsRequest(BaseModel):

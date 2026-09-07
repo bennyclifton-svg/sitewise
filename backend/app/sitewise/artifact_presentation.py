@@ -218,6 +218,8 @@ def prepare_issue_markdown(markdown: str, *, project_title: str | None = None) -
 
     for heading, section in _h2_sections(markdown):
         normalized_heading = heading.casefold()
+        if normalized_heading == "actions and decisions":
+            continue
         if normalized_heading == "internal audit layer":
             body = _section_body(section)
             if body:
@@ -284,7 +286,7 @@ def issue_export_markdown(
     kept: list[str] = []
     for heading, section in sections:
         normalized_heading = heading.casefold()
-        if normalized_heading == "trace & qa":
+        if normalized_heading in {"trace & qa", "internal audit layer", "profile basis", "profile clarifications", "actions and decisions"}:
             continue
         if _is_coverage_register_heading(normalized_heading):
             continue
@@ -398,6 +400,10 @@ def _clean_primary_section(
     for line in section.splitlines():
         stripped = line.strip()
         lowered = stripped.casefold()
+        if not stripped:
+            if kept and kept[-1]:
+                kept.append("")
+            continue
         if is_project_summary and _is_critical_current_position_line(stripped):
             continue
         if is_project_summary and _is_summary_column_header(stripped):

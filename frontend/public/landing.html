@@ -1,373 +1,265 @@
 <!doctype html>
-<html lang="en-AU">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#060608" />
-    <script src="/style-guide/theme-boot.js"></script>
-    <meta
-      name="description"
-      content="SiteWise connects project evidence, tender comparisons, live project controls and correspondence while keeping every decision with the project team."
-    />
-    <title>SiteWise — the evidence stays attached</title>
-    <link rel="icon" type="image/svg+xml" href="/style-guide/logo/favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/style-guide/tokens.css" />
-    <link rel="stylesheet" href="/style-guide/satoshi-font.css" />
-    <link rel="stylesheet" href="/landing-assets/landing-story.css?v=20260821" />
-  </head>
-  <body>
-    <!-- Seven Hills is a synthetic demonstration project. These UI states
-         show reviewed product behaviour, not an autonomous approval flow. -->
-    <a class="lp-skip" href="#main">Skip to content</a>
-
-    <header class="lp-header">
-      <div class="lp-header__inner">
-        <a class="lp-brand" href="/landing.html" aria-label="SiteWise home">
-          <img src="/style-guide/logo/mark-solid.svg" alt="" width="28" height="28" />
-          <span>SiteWise</span>
-        </a>
-        <nav class="lp-nav" aria-label="Story sections">
-          <a href="#project">Project</a>
-          <a href="#appointments">Appointments</a>
-          <a href="#tenders">Tenders</a>
-          <a href="#change">Change</a>
-        </nav>
-        <button type="button" class="lp-theme" id="lp-theme-toggle" aria-label="Light">
-          <svg class="lp-theme__sun" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.75" />
-            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
-          </svg>
-          <svg class="lp-theme__moon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <path d="M16.5 13.5A6.5 6.5 0 0 1 10.5 7 5.5 5.5 0 1 0 16.5 13.5Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" />
-          </svg>
-        </button>
-        <a class="lp-button lp-button--small" href="/login">Open SiteWise</a>
-      </div>
+<html lang="en-AU"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#fefcf5">
+  <meta name="description" content="The New AI Powered Construction Management Platform.">
+  <title>SiteWise — Read. Organise. Update.</title>
+  <link rel="icon" type="image/png" href="./brand/sitewise-mark.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style-guide/satoshi-font.css">
+  <link rel="stylesheet" href="./landing-assets/landing-story.css?v=20260906-thin-frame">
+  <link rel="stylesheet" href="./landing-assets/landing-controls.css?v=20260906-programme-grid">
+</head>
+<body>
+<a class="sw-skip" href="#main">Skip to content</a>
+<main id="main">
+<div id="sitewise-landing" aria-label="SiteWise project workspace demonstration">
+  <div class="sw-page">
+    <header class="sw-masthead">
+      <img class="sw-brand" src="./brand/sitewise-lockup-light.png" alt="SiteWise" width="584" height="129">
+      <nav class="sw-masthead-actions" aria-label="Site navigation">
+        <a href="/login">Open SiteWise</a>
+        <a class="sw-cta" href="mailto:hello@sitewise.au?subject=Project%20walkthrough">Book a project walkthrough</a>
+      </nav>
     </header>
+    <section class="sw-hero" aria-label="SiteWise introduction">
+      <h1><span class="sw-changing-line">Read. Organise. Update.</span></h1>
+      <p>The New AI Powered Construction Management Platform.</p>
+    </section>
 
-    <main id="main">
-      <section class="lp-hero lp-shell" aria-labelledby="hero-title">
-        <div class="lp-hero__copy">
-          <h1 id="hero-title">The cheapest tender did not price the OSD tank.</h1>
-          <p class="lp-lede">
-            SiteWise found the requirement in the project evidence and put the
-            bidder’s stated exclusion beside the comparison before the project
-            team made the call.
-          </p>
-          <div class="lp-actions">
-            <a class="lp-button" href="/login">Open SiteWise</a>
-            <a class="lp-text-link" href="#project">Follow the evidence</a>
-          </div>
-          <p class="lp-demo-note">
-            Synthetic demonstration · 14–18 Wianamatta Avenue, Seven Hills ·
-            11 townhouses
-          </p>
-        </div>
+    <div class="sw-surround">
+      <section class="sw-workspace" aria-label="Seven Hills project workspace preview">
 
-        <div class="lp-comparison" aria-label="Illustrative SiteWise tender comparison for the Seven Hills demonstration project">
-          <div class="lp-window-bar">
-            <span>Tender comparison</span>
-            <span class="lp-window-bar__project">Seven Hills</span>
-          </div>
-          <div class="lp-table-scroll" tabindex="0" aria-label="Tender comparison table, scroll horizontally on small screens">
-            <table class="lp-tender-table">
-              <caption class="lp-visually-hidden">
-                Three submitted builder tenders compared on an equivalent OSD scope
-              </caption>
-              <thead>
-                <tr>
-                  <th scope="col">Scope</th>
-                  <th scope="col">Redgum Constructions</th>
-                  <th scope="col">
-                    Ironbark Building Group
-                    <span class="lp-status lp-status--blue">Appointed</span>
-                  </th>
-                  <th scope="col">Calderline Projects</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">Submitted tender</th>
-                  <td>$9.080m</td>
-                  <td>$9.340m</td>
-                  <td>$9.460m</td>
-                </tr>
-                <tr>
-                  <th scope="row">120 m³ OSD tank</th>
-                  <td class="lp-exclusion">
-                    <strong>Excluded</strong>
-                    <span>stated, RG-26031</span>
-                  </td>
-                  <td>Included</td>
-                  <td>Included</td>
-                </tr>
-                <tr>
-                  <th scope="row">Bidder clarification</th>
-                  <td>+$420k</td>
-                  <td>—</td>
-                  <td>—</td>
-                </tr>
-                <tr class="lp-tender-table__comparable">
-                  <th scope="row">Comparable tender</th>
-                  <td>$9.500m</td>
-                  <td>$9.340m</td>
-                  <td>$9.460m</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <ol class="lp-proofline" aria-label="Evidence path for the OSD comparison">
-            <li><strong>C-201 Rev C</strong><span>120 m³ required</span></li>
-            <li><strong>RG-26031</strong><span>Explicit exclusion</span></li>
-            <li><strong>RG-26031-ADD-01</strong><span>+$420,000</span></li>
-          </ol>
-          <p class="lp-comparison__note">
-            Sources remain attached. SiteWise calculates the comparable basis;
-            it does not rank the builders or make the appointment.
-          </p>
-        </div>
-      </section>
+        <div class="sw-workspace-grid">
+          <nav class="sw-nav" aria-label="Project navigation">
+            <img class="sw-nav-brand" data-nav-brand="" alt="SiteWise" src="./brand/sitewise-lockup-light.png">
+            <div class="sw-project-picker" aria-label="Selected project: Seven Hills Townhouse"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path></svg><span>Seven Hills Townhouse</span><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
+            <div class="sw-nav-links"><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2 lucide-settings-2" aria-hidden="true"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>Project Profile</span><span class="sw-nav-item" aria-current="page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>Project Plan</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-coins" aria-hidden="true"><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"></path><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"></path><path d="m2 16 6 6"></path><circle cx="16" cy="9" r="2.9"></circle><circle cx="6" cy="5" r="3"></circle></svg>Cost Plan</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-no-axes-gantt" aria-hidden="true"><path d="M6 5h12"></path><path d="M4 12h10"></path><path d="M12 19h8"></path></svg>Program</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Procurement</span></div>
+            <div class="sw-chats"><div class="sw-chats-heading"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg><span>Chats</span></div><p class="sw-chat-title">Establish the project</p><p class="sw-chat-title">Review consultant advice</p></div>
+          </nav>
+          <section class="sw-editor" aria-label="Project plan demonstration"><div data-plan-content=""><header class="sw-project-context"><h2>Seven Hills Townhouse</h2><p>14–18 Wianamatta Avenue, Seven Hills NSW 2147</p></header><div class="sw-pmp-actions"><button type="button" class="sw-create-pmp" data-create-pmp=""><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play" aria-hidden="true"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"></path></svg>Create PMP</button><button type="button" data-update-pmp=""><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-cw" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>Update PMP</button></div><div class="sw-document-head"><div><h2 data-document-title="">Project management plan</h2></div><div class="sw-document-actions" role="group" aria-label="Project plan export preview"><button class="sw-icon-button" type="button" disabled aria-label="Download project management plan (preview)" title="Download (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download" aria-hidden="true"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg></button><button class="sw-icon-button" type="button" disabled aria-label="Copy project management plan (preview)" title="Copy (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg></button></div></div><div class="sw-document" data-document="" role="region" aria-label="Project management plan" data-scene="pmp" aria-pressed="true" tabindex="0"><section class="sw-pmp-section is-filled" data-section="project-summary" data-source="brief"><h3 class="sw-section-title">Project Summary</h3><div class="sw-thinking" style="--sw-delay:0ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><table class="sw-summary" aria-label="Project summary"><tbody><tr><th scope="row">Project</th><td>Seven Hills Townhouse</td><td class="sw-citations"></td></tr>
 
-      <section id="project" class="lp-beat lp-shell" aria-labelledby="project-title">
-        <div class="lp-beat__copy">
-          <h2 id="project-title">The file pile becomes a live project.</h2>
-          <p>
-            Planning advice, drawings, reports and correspondence resolve into
-            a project management plan with the source beside each fact. If the
-            evidence is silent, SiteWise says so.
-          </p>
-          <p class="lp-boundary">
-            The project manager can edit the plan inline. Later evidence can be
-            brought into a reviewed version while the prior version and its edits
-            remain visible.
-          </p>
-        </div>
+<tr><th scope="row">Address</th><td>14–18 Wianamatta Avenue, Seven Hills NSW 2147</td><td class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
 
-        <div class="lp-workspace" aria-label="Illustrative live project management plan">
-          <div class="lp-window-bar">
-            <span>Project management plan</span>
-            <span class="lp-status lp-status--blue">Live · v3</span>
-          </div>
-          <div class="lp-workspace__body">
-            <aside class="lp-source-rail" aria-label="Project evidence">
-              <p>Project evidence</p>
-              <ul>
-                <li><span>Planning advice</span><strong>PDF</strong></li>
-                <li><span>C-201 Rev C</span><strong>DWG</strong></li>
-                <li><span>S-202 Rev B</span><strong>PDF</strong></li>
-                <li><span>Geotechnical report</span><strong>PDF</strong></li>
-              </ul>
-              <p class="lp-source-rail__count">52 drawings · 13 reports</p>
-            </aside>
-            <div class="lp-pmp">
-              <div class="lp-pmp__row">
-                <span>Approved outcome</span>
-                <strong>11 townhouses</strong>
-                <a href="#tenders">Planning advice · p. 3</a>
+<tr><th scope="row">Owner</th><td>Wianamatta Developments Pty Ltd</td><td class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row">Description</th><td>Proposed multi-dwelling housing and Torrens subdivision across three lots: a feasibility case of 12 attached two-storey Class 1a dwellings.</td><td class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row">Site / phase</th><td>3,240 m²; brief and planning phase.</td><td class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+</tbody></table></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="brief" data-source="brief"><h3 class="sw-section-title">Brief</h3><div class="sw-thinking" style="--sw-delay:-130ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-cited-row"><p class="sw-paragraph">The physical brief is a medium-density development of up to 12 attached, two-storey dwellings across three amalgamated lots, comprising eight 3-bedroom and four 4-bedroom dwellings at feasibility, private open space to each dwelling, and Torrens subdivision. The design is to provide a durable brick and fibre-cement envelope, repeatable kitchens and wet areas, and an accessible street path to one adaptable dwelling. There is no basement.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></div></div><div class="sw-cited-row"><p class="sw-paragraph">The scope includes demolition, clearance, bulk and detailed earthworks, retaining walls, foundations, superstructure, envelope, services, internal fitout, roads, parking, landscaping, drainage and stormwater. The design must resolve deep soil, tree canopy, waste storage and collection geometry, parking and traffic, and the proposed below-ground OSD interface before DA lodgement.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></div></div><div class="sw-cited-row"><p class="sw-paragraph">Acceptance for the next gate is a coordinated DA package supported by the required specialist evidence and a cost plan that states scope, allowances, contingency and exclusions. The 12-dwelling yield remains a feasibility target, not an approved outcome. Monthly owner reporting must connect scope, approvals, cost, programme and decisions, with named risk owners and evidence links.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></div></div><div class="sw-register-scroll" role="region" aria-label="Brief verification register" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Item</th><th scope="col">Position</th><th scope="col">Owner</th><th scope="col">Verification action</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Item">Below-ground OSD volume, location and construction</th><td data-label="Position">Design-development gap; anticipated only</td><td data-label="Owner">Civil engineer</td><td data-label="Verification action">Coordinate hydraulic design, rear-easement clearance, access and structural support.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Drainage easement capacity and buildability</th><td data-label="Position">Existing 3.0 m rear easement; capacity and permissions unverified</td><td data-label="Owner">Civil engineer / legal adviser</td><td data-label="Verification action">Obtain authority requirements and legal advice before locating OSD or structures.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="dp" aria-label="Read source 4">[4]</button><button type="button" class="sw-citation" data-cite="title" aria-label="Read source 5">[5]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Intrusive ground investigation</th><td data-label="Position">Required before footing and excavation design</td><td data-label="Owner">Geotechnical / structural engineers</td><td data-label="Verification action">Commission investigation and issue design parameters.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="ground" aria-label="Read source 7">[7]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="consultants" data-source="ground"><h3 class="sw-section-title">Consultants</h3><div class="sw-thinking" style="--sw-delay:-260ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-register-scroll" role="region" aria-label="Consultant register" tabindex="0"><table class="sw-register sw-consultants"><thead><tr><th scope="col">Discipline</th><th scope="col">Firm</th><th scope="col">Fee</th><th scope="col">Status</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Discipline">Structural</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+
+<tr><th scope="row" data-label="Discipline">Hazmat Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Civil</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Geotechnical</th><td data-label="Firm">Groundframe Geotechnics</td><td data-label="Fee">—</td><td data-label="Status">Report on file; appointment unverified</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="ground" aria-label="Read source 7">[7]</button></td></tr>
+
+<tr><th scope="row" data-label="Discipline">Services Engineer</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Hydraulic</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Traffic</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Facade</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Architect</th><td data-label="Firm">Axis Studio</td><td data-label="Fee">—</td><td data-label="Status">Meeting attendee; appointment unverified</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Discipline">Waterproofing Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Mechanical</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Electrical</th><td data-label="Firm">Flux Services</td><td data-label="Fee">$158,000 ex GST</td><td data-label="Status">Appointed</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Lighting Designer</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Fire Services</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Vertical Transport Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Security Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Interior Design</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Specialist Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Landscape</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Discipline">Signage Consultant</th><td data-label="Firm">TBC</td><td data-label="Fee">—</td><td data-label="Status">Not evidenced</td><td class="sw-citations" data-label="Citation">—</td></tr>
+</tbody></table></div><div class="sw-cited-row"><p class="sw-paragraph">Project-lead role declaration, authority to issue external correspondence, and the architect–PM engagement brief remain subject to executed appointment evidence. The owner brief remains separate from that engagement brief. Consultant appointments, scope, fees, PI insurance and deliverables are not confirmed by a report or meeting attendance alone.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></div></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="accommodation-schedule" data-source="brief"><h3 class="sw-section-title">Accommodation Schedule</h3><div class="sw-thinking" style="--sw-delay:-390ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-register-scroll" role="region" aria-label="Accommodation schedule" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Space</th><th scope="col">Level</th><th scope="col">Area</th><th scope="col">Characteristics</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Space">8 × 3-bedroom dwellings</th><td data-label="Level">Ground and first</td><td data-label="Area">TBC</td><td data-label="Characteristics">Two-storey attached Class 1a homes; private open space.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Space">4 × 4-bedroom dwellings</th><td data-label="Level">Ground and first</td><td data-label="Area">TBC</td><td data-label="Characteristics">Feasibility target; approved yield remains to be confirmed.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Space">Adaptable dwelling</th><td data-label="Level">Ground and first</td><td data-label="Area">TBC</td><td data-label="Characteristics">Accessible path from the street to one dwelling.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="ffe-schedule" data-source="brief"><h3 class="sw-section-title">FFE Schedule</h3><div class="sw-thinking" style="--sw-delay:-520ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-register-scroll" role="region" aria-label="FFE schedule" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Item</th><th scope="col">Location</th><th scope="col">Finish</th><th scope="col">Comment</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Item">External cladding</th><td data-label="Location">Dwelling envelope</td><td data-label="Finish">Durable brick and fibre-cement</td><td data-label="Comment"></td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Windows / glazing</th><td data-label="Location">Dwellings</td><td data-label="Finish">TBC</td><td data-label="Comment"></td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Item">Flooring</th><td data-label="Location">Dwellings</td><td data-label="Finish">TBC</td><td data-label="Comment"></td><td class="sw-citations" data-label="Citation">—</td></tr>
+
+<tr><th scope="row" data-label="Item">Kitchen joinery</th><td data-label="Location">Dwellings</td><td data-label="Finish">TBC</td><td data-label="Comment">Repeatable layouts required.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Wet-area fittings</th><td data-label="Location">Dwellings</td><td data-label="Finish">TBC</td><td data-label="Comment">Repeatable layouts required.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">External paving / roads</th><td data-label="Location">Site</td><td data-label="Finish">TBC</td><td data-label="Comment">Includes internal roads, parking and collection interface.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Landscape planting</th><td data-label="Location">Site</td><td data-label="Finish">TBC</td><td data-label="Comment">Deep soil and tree canopy requirements to be coordinated.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Fire-services plant</th><td data-label="Location">Site / buildings</td><td data-label="Finish">TBC</td><td data-label="Comment">Scope subject to coordinated fire strategy.</td><td class="sw-citations" data-label="Citation">—</td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="planning-and-compliance" data-source="planning"><h3 class="sw-section-title">Planning and Compliance</h3><div class="sw-thinking" style="--sw-delay:-650ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-cited-row"><p class="sw-paragraph">The DA pathway is the current project basis; no approval is evidenced at this stage. Council pre-DA feedback was advisory only and did not endorse the 12-dwelling yield. Confirm the site-specific statutory position and the subdivision pathway against the coordinated scheme before lodgement.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></div></div><div class="sw-register-scroll" role="region" aria-label="Planning and compliance register" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Item</th><th scope="col">Status</th><th scope="col">Next action</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Item">Dwelling yield and subdivision</th><td data-label="Status">12 dwellings is a feasibility case only</td><td data-label="Next action">Test the final layout and proposed Torrens subdivision together.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Deep soil and tree canopy</th><td data-label="Status">486 m² project assessment basis</td><td data-label="Next action">Exclude driveways, structures and the OSD tank from the deep-soil calculation.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Waste, traffic and parking</th><td data-label="Status">Collection geometry unresolved</td><td data-label="Next action">Show storage, transfer path and vehicle movement on coordinated drawings.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">OSD and easement interface</th><td data-label="Status">Volume, access and support unconfirmed</td><td data-label="Next action">Coordinate civil, structural and landscape design with legal and authority requirements.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="dp" aria-label="Read source 4">[4]</button><button type="button" class="sw-citation" data-cite="title" aria-label="Read source 5">[5]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">DA supporting evidence</th><td data-label="Status">Specialist reports required</td><td data-label="Next action">Complete traffic, arboricultural, stormwater and waste assessments.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="programme" data-source="qs"><h3 class="sw-section-title">Programme</h3><div class="sw-thinking" style="--sw-delay:-780ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-cited-row"><p class="sw-paragraph">The feasibility programme establishes the targets below. Dates remain planning assumptions and must be rebaselined when approvals, consultant appointments and specialist investigations are resolved. Programme movements require an identified activity or dependency change.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></div></div><div class="sw-register-scroll" role="region" aria-label="Programme milestones" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Milestone</th><th scope="col">Target date</th><th scope="col">Basis</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Milestone">Consultant appointments complete</th><td data-label="Target date">14 March 2025</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">DA lodgement</th><td data-label="Target date">25 July 2025</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">DA determination</th><td data-label="Target date">27 November 2025</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">Builder tender close</th><td data-label="Target date">20 February 2026</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">Contract award</th><td data-label="Target date">20 March 2026</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">Construction start</th><td data-label="Target date">13 April 2026</td><td data-label="Basis">Feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Milestone">Practical completion</th><td data-label="Target date">30 April 2027</td><td data-label="Basis">Client target / feasibility advice</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="cost-planning" data-source="qs"><h3 class="sw-section-title">Cost Planning</h3><div class="sw-thinking" style="--sw-delay:-910ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-cited-row"><p class="sw-paragraph">The client construction budget is $9,800,000 excluding GST. Measureline’s February 2025 feasibility forecast is $10,070,000, including design development contingency: $270,000 above that budget. The scope and pricing basis must remain visible when the plan is updated. Fees and consultant costs are additional to this construction forecast.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></div></div><div class="sw-register-scroll" role="region" aria-label="Feasibility construction cost allowances" tabindex="0"><table class="sw-register sw-cost-register"><thead><tr><th scope="col">Element</th><th scope="col">Allowance excl GST</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Element">Preliminaries and site establishment</th><td data-label="Allowance excl GST">$845,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Demolition, earthworks and remediation</th><td data-label="Allowance excl GST">$610,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Substructure and foundations</th><td data-label="Allowance excl GST">$920,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Structure and upper floors</th><td data-label="Allowance excl GST">$1,530,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Envelope, roofing, windows and doors</th><td data-label="Allowance excl GST">$1,410,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Internal finishes and fitout</th><td data-label="Allowance excl GST">$1,870,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Hydraulic, electrical and mechanical services</th><td data-label="Allowance excl GST">$1,255,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">External works, landscaping and subdivision</th><td data-label="Allowance excl GST">$900,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">OSD allowance — scope not defined</th><td data-label="Allowance excl GST">$350,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Design development contingency</th><td data-label="Allowance excl GST">$380,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Element">Forecast construction cost</th><td data-label="Allowance excl GST">$10,070,000</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+</tbody></table></div><div class="sw-cited-row"><p class="sw-paragraph">OSD and founding allowances are provisional. Refresh them when specialist evidence arrives; value management must not remove unresolved statutory scope. Cost movements require a stated basis, and contingency must not be consumed without approval.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></div></div><div class="sw-cited-row"><p class="sw-paragraph">The monthly owner report is to reconcile the current forecast, budget movements, programme impacts and decisions required. Replace feasibility assumptions with coordinated design and received commercial evidence as it becomes available.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></div></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="procurement-and-delivery" data-source="brief"><h3 class="sw-section-title">Procurement and Delivery</h3><div class="sw-thinking" style="--sw-delay:-1040ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-cited-row"><p class="sw-paragraph">The client brief proposes a fully documented construct-only tender and AS 4000. This remains subject to an executed procurement plan, consultant appointments, complete coordinated documentation and review of contract amendments. Builder selection must consider scope completeness, capability, price, programme, financial capacity, references, conflicts and proposed departures.</p><div class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></div></div><div class="sw-register-scroll" role="region" aria-label="Procurement and delivery controls" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Item</th><th scope="col">Current position</th><th scope="col">Next action</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Item">Contract form</th><td data-label="Current position">AS 4000 construct-only proposed</td><td data-label="Next action">Confirm the procurement plan and executed contract before award.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Consultant appointments</th><td data-label="Current position">Reports and meeting attendance do not establish appointment</td><td data-label="Next action">Obtain executed scope, fee and deliverable records.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Item">Correspondence authority</th><td data-label="Current position">Issue by an authorised project representative</td><td data-label="Next action">Confirm the nominated issuer; the agent may prepare drafts.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="risks-and-mitigations" data-source="planning"><h3 class="sw-section-title">Risks and mitigations</h3><div class="sw-thinking" style="--sw-delay:-1170ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-register-scroll" role="region" aria-label="Risk register" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Risk</th><th scope="col">Owner</th><th scope="col">Mitigation / escalation</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Risk">12-dwelling yield not approved</th><td data-label="Owner">Architect / planner</td><td data-label="Mitigation / escalation">Test a compliant scheme; report impact before the design budget is locked.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Risk">Deep-soil, OSD and rear-easement conflict</th><td data-label="Owner">Civil / landscape / architect</td><td data-label="Mitigation / escalation">Coordinate geometry, tree retention, volume, access and authority requirements before DA.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="dp" aria-label="Read source 4">[4]</button><button type="button" class="sw-citation" data-cite="title" aria-label="Read source 5">[5]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Risk">Unverified fill and founding conditions</th><td data-label="Owner">Geotechnical / structural</td><td data-label="Mitigation / escalation">Complete intrusive investigation before design parameters or construction pricing are confirmed.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="ground" aria-label="Read source 7">[7]</button></td></tr>
+
+<tr><th scope="row" data-label="Risk">Waste storage and collection unresolved</th><td data-label="Owner">Architect / waste adviser</td><td data-label="Mitigation / escalation">Resolve storage, transfer path and collection geometry on one coordinated plan.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Risk">Forecast exceeds the construction budget</th><td data-label="Owner">PM / QS</td><td data-label="Mitigation / escalation">Review the $270,000 difference and provisional allowances without removing unresolved statutory scope.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Risk">Appointment and issue authority not evidenced</th><td data-label="Owner">Owner / project lead</td><td data-label="Mitigation / escalation">Obtain executed consultant instruments and nominate the authorised correspondence issuer.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+</tbody></table></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="actions-and-decisions" data-source="planning"><h3 class="sw-section-title">Actions and decisions</h3><div class="sw-thinking" style="--sw-delay:-1300ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><div class="sw-register-scroll" role="region" aria-label="Action and decision register" tabindex="0"><table class="sw-register "><thead><tr><th scope="col">Action / decision</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Due basis</th><th scope="col">Next action</th><th scope="col" class="sw-citations"><span class="sw-visually-hidden">Citation</span></th></tr>
+</thead><tbody><tr><th scope="row" data-label="Action / decision">Validate achievable yield and DA scheme</th><td data-label="Owner">Architect / planner</td><td data-label="Status">Open</td><td data-label="Due basis">Before scheme lock</td><td data-label="Next action">Coordinate planning, deep soil, waste, traffic and subdivision response.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Action / decision">Commission intrusive geotechnical investigation</th><td data-label="Owner">Owner / geotechnical consultant</td><td data-label="Status">Open</td><td data-label="Due basis">Within 2 weeks of mobilisation</td><td data-label="Next action">Issue factual design parameters to structural and civil teams.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="ground" aria-label="Read source 7">[7]</button></td></tr>
+
+<tr><th scope="row" data-label="Action / decision">Resolve OSD and rear-easement interface</th><td data-label="Owner">Civil engineer</td><td data-label="Status">Open</td><td data-label="Due basis">Before DA lodgement</td><td data-label="Next action">State volume, location, access, structural support and authority requirements.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="dp" aria-label="Read source 4">[4]</button><button type="button" class="sw-citation" data-cite="title" aria-label="Read source 5">[5]</button><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></td></tr>
+
+<tr><th scope="row" data-label="Action / decision">Rebaseline cost and programme</th><td data-label="Owner">PM / QS</td><td data-label="Status">Open</td><td data-label="Due basis">Within 4 weeks of mobilisation</td><td data-label="Next action">Replace feasibility assumptions after specialist evidence is updated.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></td></tr>
+
+<tr><th scope="row" data-label="Action / decision">Establish appointments and authority protocol</th><td data-label="Owner">Owner / project lead</td><td data-label="Status">Open</td><td data-label="Due basis">Within 2 weeks of mobilisation</td><td data-label="Next action">Obtain executed consultant instruments and nominate the authorised correspondence issuer.</td><td class="sw-citations" data-label="Citation"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></td></tr>
+</tbody></table></div><div class="sw-cited-row"><p class="sw-paragraph">Owner escalations must state what this means, what is needed and by when, what has happened, and what comes next. Hold scheme lock until the yield, ground, OSD/easement and budget position are evidenced.</p><div class="sw-citations"></div></div></div></div></section>
+
+<section class="sw-pmp-section is-filled" data-section="citation-key" data-source="brief"><h3 class="sw-section-title">Citation key</h3><div class="sw-thinking" style="--sw-delay:-1430ms" aria-hidden="true"></div><div class="sw-section-reveal"><div><ul class="sw-citation-list"><li><span>Feasibility cost and programme advice · Rev 1</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="qs" aria-label="Read source 1">[1]</button></span></li>
+<li><span>Client development brief · Rev A</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="brief" aria-label="Read source 2">[2]</button></span></li>
+<li><span>Acquisition handover email · 19 February 2025</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="handover" aria-label="Read source 3">[3]</button></span></li>
+<li><span>Deposited plan extract · DP 1187426</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="dp" aria-label="Read source 4">[4]</button></span></li>
+<li><span>Title search summary · Lots 41–43</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="title" aria-label="Read source 5">[5]</button></span></li>
+<li><span>Preliminary planning advice · 14 February 2025</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="planning" aria-label="Read source 6">[6]</button></span></li>
+<li><span>Desktop geotechnical advice · 18 February 2025</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="ground" aria-label="Read source 7">[7]</button></span></li>
+<li><span>Pre-DA meeting record · 9 April 2025</span><span class="sw-citations"><button type="button" class="sw-citation" data-cite="preda" aria-label="Read source 8">[8]</button></span></li></ul></div></div></section>
+</div></div>
+
+
+            <div class="sw-console">
+              <p data-prompt=""><span data-prompt-live="">Read the project profile and consultant reports. Draft the project management plan.</span><span class="sw-caret" aria-hidden="true" hidden=""></span></p>
+              <div class="sw-composer-tools">
+                <div class="sw-modes" aria-label="Agent response mode"><button type="button" data-mode="fast" aria-pressed="false">Fast</button><button type="button" data-mode="thorough" aria-pressed="true">Thorough</button></div>
+                <div class="sw-composer-actions"><button type="button" class="sw-icon-button" disabled="" aria-label="Microphone (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mic" aria-hidden="true"><path d="M12 19v3"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><rect x="9" y="2" width="6" height="13" rx="3"></rect></svg></button><button type="button" class="sw-icon-button sw-send" data-send="" aria-label="Replay project plan prompt" disabled=""><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up" aria-hidden="true"><path d="m5 12 7-7 7 7"></path><path d="M12 19V5"></path></svg></button></div>
               </div>
-              <div class="lp-pmp__row">
-                <span>Stormwater detention</span>
-                <strong>120 m³ OSD tank</strong>
-                <a href="#tenders">C-201 Rev C · indexed OSD note</a>
-              </div>
-              <div class="lp-pmp__row lp-pmp__row--edited">
-                <span>Delivery strategy</span>
-                <strong>AS 4000 construct-only</strong>
-                <small>Inline edit · saved by project manager</small>
-              </div>
-              <div class="lp-pmp__row lp-pmp__row--missing">
-                <span>Authority for early works</span>
-                <strong>Not evidenced</strong>
-                <small>Source required</small>
-              </div>
             </div>
-          </div>
+          </section>
+
+          <aside class="sw-repository" aria-label="Project document repository">
+            <h3><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path></svg>Project documents</h3>
+            <div class="sw-repo-columns" aria-hidden="true"><span>Document</span><span>Rev</span><span>Category</span><span></span></div>
+            <div class="sw-sources"><div class="sw-repo-row" data-file="qs" data-source-title="Feasibility cost and programme advice · Rev 1" data-source-excerpt="The February 2025 construction forecast is $10.07m excluding GST: $270,000 above the client budget. The $350,000 OSD allowance and founding allowances remain provisional."><button type="button" class="sw-source" data-source="qs" aria-pressed="false">Cost advice</button><span class="sw-repo-rev">1</span><span class="sw-repo-category">Cost</span><button type="button" class="sw-bin" disabled="" aria-label="Remove cost advice (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="brief" data-source-title="Client development brief · Rev A" data-source-excerpt="Twelve attached two-storey dwellings across three lots is the feasibility target. Eight three-bedroom and four four-bedroom homes; no basement. Site area: 3,240 m². Construction budget: $9.8m excluding GST."><button type="button" class="sw-source" data-source="brief" aria-pressed="false">Client brief</button><span class="sw-repo-rev">A</span><span class="sw-repo-category">Brief</span><button type="button" class="sw-bin" disabled="" aria-label="Remove client brief (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="handover" data-source-title="Acquisition handover email · 19 February 2025" data-source-excerpt="The acquisition case shows twelve dwellings. Confirm deep soil, waste collection, OSD and fill before the board confirms the design budget. The vendor folder includes the plan, title, planning advice and desktop ground note."><button type="button" class="sw-source" data-source="handover" aria-pressed="false">Handover email</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Client</span><button type="button" class="sw-bin" disabled="" aria-label="Remove handover email (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="dp" data-source-title="Deposited plan extract · DP 1187426" data-source-excerpt="Lots 41, 42 and 43 total 3,240 m² with 54.0 m frontage. A 3.0 m rear drainage easement records geometry only; drainage capacity and permission to build are not established."><button type="button" class="sw-source" data-source="dp" aria-pressed="false">Deposited plan</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Survey</span><button type="button" class="sw-bin" disabled="" aria-label="Remove deposited plan (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="title" data-source-title="Title search summary · Lots 41–43" data-source-excerpt="The three lots are separately titled. The rear drainage easement burdens all three. No covenant authorising an OSD structure within the easement was identified. Authority and legal requirements remain to be confirmed."><button type="button" class="sw-source" data-source="title" aria-pressed="false">Title search</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Legal</span><button type="button" class="sw-bin" disabled="" aria-label="Remove title search (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="planning" data-source-title="Preliminary planning advice · 14 February 2025" data-source-excerpt="Yield, deep soil, waste and OSD remain active approval risks. Test 486 m² of deep soil as the project-specific assessment basis; exclude driveways, structures and the below-ground OSD tank."><button type="button" class="sw-source" data-source="planning" aria-pressed="false">Planning advice</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Planning</span><button type="button" class="sw-bin" disabled="" aria-label="Remove planning advice (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="ground" data-source-title="Desktop geotechnical advice · 18 February 2025" data-source-excerpt="Fill of approximately 0.6–1.0 m may be present. This is an early pricing assumption. An intrusive investigation is required before confirming footing type, founding depth, excavation classification or OSD tank support."><button type="button" class="sw-source" data-source="ground" aria-pressed="false">Ground report</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Geotech</span><button type="button" class="sw-bin" disabled="" aria-label="Remove ground report (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+<div class="sw-repo-row" data-file="preda" data-source-title="Pre-DA meeting record · 9 April 2025" data-source-excerpt="Council did not endorse the twelve-dwelling yield. Coordinate deep soil, waste collection, OSD access, easement clearance and structural support. Attendance by Axis Studio and Ridgeline PM does not establish an appointment."><button type="button" class="sw-source" data-source="preda" aria-pressed="false">Pre-DA record</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Planning</span><button type="button" class="sw-bin" disabled="" aria-label="Remove pre-da record (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div><div class="sw-repo-row" data-output="" data-file="pmp" data-source-title="Project management plan · Draft v1" data-source-excerpt="Project scope, the consultant and FFE registers, planning controls, programme, cost, procurement, risks and actions, with the evidence attached."><button type="button" class="sw-source" data-open-generated="" data-output-name="">Project plan</button><span class="sw-repo-rev" aria-label="Version 1">1</span><span class="sw-repo-category" data-output-category="">PMP</span><button type="button" class="sw-bin" disabled="" aria-label="Remove generated draft (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div></div>
+
+            <div class="sw-source-excerpt" aria-live="polite" hidden=""><strong data-excerpt-title="">From the client brief</strong><p data-excerpt="">Twelve attached two-storey dwellings is the feasibility target. The construction budget is $9.8m excluding GST.</p></div>
+          </aside>
         </div>
       </section>
 
-      <section id="appointments" class="lp-beat lp-beat--reverse lp-shell" aria-labelledby="appointments-title">
-        <div class="lp-beat__copy">
-          <h2 id="appointments-title">One appointment, carried through the project.</h2>
-          <p>
-            SiteWise compares the proposals, drafts the appointment record and
-            shows the places the selected fee will affect. Nothing moves until
-            the project manager reviews and authorises it.
-          </p>
-          <p class="lp-boundary">
-            Fifteen proposals become five controlled appointments. Twenty-five
-            invoices can then be checked against the same agreed fees.
-          </p>
-        </div>
+    </div>
+    <div class="sw-review-controls" aria-label="Animation review controls"><span data-stage-label="">Project plan · draft complete</span><div class="sw-playback"><button type="button" data-show-result="" hidden="">Show result</button><button type="button" class="sw-play" data-play="" hidden="">Play scene</button></div></div>
 
-        <div class="lp-appointment-register" aria-label="Illustrative consultant appointment register">
-          <div class="lp-window-bar">
-            <span>Consultant register</span>
-            <span>15 proposals · 5 appointments · 25 invoices</span>
-          </div>
-          <div class="lp-table-scroll" tabindex="0" aria-label="Consultant appointment register, scroll horizontally on small screens">
-            <table class="lp-register-table">
-              <caption class="lp-visually-hidden">Five reviewed consultant appointments</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Discipline</th>
-                  <th scope="col">Appointed consultant</th>
-                  <th scope="col">Agreed fee</th>
-                  <th scope="col">Control</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">Architecture</th><td>Axis Studio</td><td>$286,000</td><td>Authorised</td></tr>
-                <tr><th scope="row">Town planning</th><td>Civic Pattern</td><td>$48,000</td><td>Authorised</td></tr>
-                <tr><th scope="row">Structural</th><td>Northline</td><td>$132,000</td><td>Authorised</td></tr>
-                <tr class="lp-register-table__focus">
-                  <th scope="row">Civil</th><td>Catchment Works</td><td>$96,000</td>
-                  <td><span class="lp-status lp-status--blue">Reviewed</span></td>
-                </tr>
-                <tr><th scope="row">Building services</th><td>Flux Services</td><td>$158,000</td><td>Authorised</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="lp-control-flow" aria-label="Authorised civil appointment update path">
-            <p><span>Source</span><strong>APPT-CIV-01</strong></p>
-            <p><span>Reviewed fact</span><strong>Fee · $96,000</strong></p>
-            <p><span>Authorised updates</span><strong>Register · Cost plan · PMP</strong></p>
-          </div>
-        </div>
-      </section>
+    <div class="sw-live-status" aria-live="polite" data-status=""></div>
+  </div>
+</div>
+</main>
+<script type="module" src="./landing-assets/landing-sequence.js?v=20260906-programme-grid"></script>
 
-      <section id="tenders" class="lp-beat lp-shell" aria-labelledby="tenders-title">
-        <div class="lp-beat__copy">
-          <h2 id="tenders-title">Three tenders. One comparable basis.</h2>
-          <p>
-            The total alone is not the comparison. SiteWise follows the OSD
-            requirement from design source to bidder qualification to priced
-            clarification, with the arithmetic shown.
-          </p>
-          <p class="lp-boundary">
-            “Excluded” appears only where the tender states it. Silence is
-            recorded as “not explicitly itemised — confirm with builder”.
-          </p>
-        </div>
 
-        <div class="lp-evidence-chain" aria-label="OSD tender evidence chain">
-          <div class="lp-window-bar"><span>Evidence chain</span><span>Scope · OSD tank</span></div>
-          <dl>
-            <div>
-              <dt><span>Civil design</span>C-201 Rev C</dt>
-              <dd><strong>120 m³ OSD storage required</strong><a href="#project">indexed OSD note</a></dd>
-            </div>
-            <div>
-              <dt><span>Submitted tender</span>RG-26031</dt>
-              <dd><strong>OSD tank excluded</strong><a href="#main">OSD tank scope</a></dd>
-            </div>
-            <div>
-              <dt><span>Bidder clarification</span>RG-26031-ADD-01</dt>
-              <dd><strong>Add $420,000 ex GST</strong><a href="#main">received 24 April 2026</a></dd>
-            </div>
-          </dl>
-          <div class="lp-calculation">
-            <p><span>Submitted</span><strong>$9,080,000</strong></p><i aria-hidden="true">+</i>
-            <p><span>Clarified OSD scope</span><strong>$420,000</strong></p><i aria-hidden="true">=</i>
-            <p><span>Comparable tender</span><strong>$9,500,000</strong></p>
-          </div>
-          <p class="lp-method-note">Arithmetic computed from the cited values · No ranking or recommendation</p>
-        </div>
-      </section>
-
-      <section id="change" class="lp-beat lp-beat--reverse lp-shell" aria-labelledby="change-title">
-        <div class="lp-beat__copy">
-          <h2 id="change-title">A revised drawing does not quietly rewrite the project.</h2>
-          <p>
-            Pulse surfaces the incoming email and revised drawing. With the linked
-            QS and programme advice, the project manager asks SiteWise to prepare
-            the plan, forecast and programme updates, reviews each result and
-            chooses Send.
-          </p>
-          <p class="lp-boundary">
-            When VO-007 later appears in a progress claim, SiteWise brings the
-            same $68,500 back for invoice review.
-          </p>
-        </div>
-
-        <div class="lp-change-ledger" aria-label="Illustrative reviewed change from incoming email">
-          <div class="lp-incoming">
-            <div><span>Pulse · incoming email</span><strong>OSD reinforcement revision and QS advice</strong></div>
-            <span class="lp-status lp-status--blue">Evidence filed</span>
-          </div>
-          <div class="lp-attachment-row">
-            <p><span>Drawing</span><strong>S-202 Rev C</strong></p>
-            <p><span>Supersedes</span><strong>S-202 Rev B</strong></p>
-            <p><span>Advice</span><strong>QS + programme note</strong></p>
-          </div>
-          <div class="lp-delta-table" role="table" aria-label="Reviewed downstream project updates">
-            <div class="lp-delta-table__head" role="row">
-              <span role="columnheader">Project control</span><span role="columnheader">Evidence delta</span><span role="columnheader">Decision state</span>
-            </div>
-            <div role="row"><strong role="cell">PMP</strong><span role="cell">v3 → v4</span><span role="cell">Reviewed update</span></div>
-            <div role="row"><strong role="cell">Cost forecast</strong><span role="cell">+$68,500 ex GST</span><span role="cell">User authorised</span></div>
-            <div role="row"><strong role="cell">Programme</strong><span role="cell">+10 calendar days</span><span role="cell">User authorised</span></div>
-            <div role="row"><strong role="cell">Reply email</strong><span role="cell">Draft prepared</span><span role="cell">Draft — not sent</span></div>
-          </div>
-          <p class="lp-change-ledger__foot">Pulse surfaces evidence · You authorise changes and Send</p>
-        </div>
-      </section>
-
-      <section class="lp-close lp-shell" aria-labelledby="close-title">
-        <h2 id="close-title">The evidence stays attached.<br />The decision stays yours.</h2>
-        <p>One connected project: brief, drawings, appointments, tenders, invoices, live controls and correspondence.</p>
-        <a class="lp-button" href="/login">Open SiteWise</a>
-      </section>
-    </main>
-
-    <script>
-      (function () {
-        var button = document.getElementById("lp-theme-toggle");
-        if (!button) return;
-        var key = "clerk.colorTheme.v1";
-        function currentTheme() {
-          return document.documentElement.getAttribute("data-theme") === "light"
-            ? "light"
-            : "dark";
-        }
-        function sync() {
-          var theme = currentTheme();
-          button.setAttribute("aria-label", theme === "light" ? "Dark" : "Light");
-        }
-        button.addEventListener("click", function () {
-          var next = currentTheme() === "light" ? "dark" : "light";
-          try {
-            window.localStorage.setItem(key, next);
-          } catch (error) {
-            /* ignore */
-          }
-          document.documentElement.setAttribute("data-theme", next);
-          document.documentElement.style.colorScheme = next;
-          var colorScheme = document.querySelector('meta[name="color-scheme"]');
-          if (colorScheme) colorScheme.setAttribute("content", next);
-          var themeColor = document.querySelector('meta[name="theme-color"]');
-          if (themeColor) {
-            themeColor.setAttribute("content", next === "light" ? "#F7F7F4" : "#060608");
-          }
-          sync();
-        });
-        sync();
-      })();
-    </script>
-    <footer class="lp-footer">
-      <div class="lp-footer__inner">
-        <a class="lp-brand lp-brand--small" href="/landing.html" aria-label="SiteWise home">
-          <img src="/style-guide/logo/mark-solid.svg" alt="" width="22" height="22" /><span>SiteWise</span>
-        </a>
-        <p>Seven Hills is a fictional demonstration project.</p>
-        <a href="mailto:hello@sitewise.au">hello@sitewise.au</a>
-      </div>
-    </footer>
-  </body>
-</html>
+</body></html>

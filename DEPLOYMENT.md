@@ -34,6 +34,33 @@ sequence, smoke tests and triage.
 | Git remote | `origin` → `https://github.com/bennyclifton-svg/sitewise.git` |
 | Deploy branch | `main` |
 
+### Public domains
+
+`https://sitewise.au` is the canonical public address. `https://www.sitewise.au`
+is a supported public alias; do not use it for `PUBLIC_APP_URL` or
+`ALLOWED_ORIGINS`.
+
+DNS alone is insufficient: although `www.sitewise.au` currently resolves to the
+VPS, Dokploy/Traefik must also have a router and TLS certificate for that host.
+Configure it in the **Domains** tab of the `sitewise` compose app (targeting
+`sitewise-web`):
+
+1. Keep `www` pointed at `45.151.153.218` (the existing A record is valid; a
+   CNAME to `sitewise.au` is also acceptable if DNS is changed later).
+2. Create the `www.sitewise.au` domain with path `/`, container port `80`,
+   HTTPS enabled, and the **Let's Encrypt** certificate resolver.
+3. Redeploy the Compose service after saving. Dokploy's Compose domain screen
+   explicitly requires this to regenerate and apply Traefik routing; its normal
+   command also restarts the production stack.
+4. Verify `https://www.sitewise.au/` loads and that the certificate names
+   `www.sitewise.au`.
+
+The domain does not require a code or database change, but it does require the
+explicit Compose redeploy above. Do not hand-edit the generated Traefik labels
+in the VPS checkout: Dokploy overwrites them during a later deploy. If a
+canonical `www` → non-`www` redirect becomes necessary, implement it as a
+source-managed nginx or Traefik configuration in a separately approved release.
+
 ### Services
 
 | Service | Role |

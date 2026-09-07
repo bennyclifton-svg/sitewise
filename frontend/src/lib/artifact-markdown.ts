@@ -42,16 +42,20 @@ export function normalizeDraftMarkdown(markdown: string): string {
 export function splitTraceQa(markdown: string): {
   primary: string;
   qa: string | null;
+  profileBasis: string | null;
 } {
   const sections = splitMarkdownSections(markdown);
-  const finalSection = sections.at(-1);
-  if (!finalSection || finalSection.heading.trim().toLowerCase() !== "trace & qa") {
-    return { primary: markdown, qa: null };
+  let primary = markdown;
+  const qa: string[] = [];
+  const basis: string[] = [];
+  for (const section of [...sections].reverse()) {
+    const heading = section.heading.trim().toLowerCase();
+    if (!["trace & qa", "internal audit layer", "profile basis", "profile clarifications", "actions and decisions"].includes(heading)) continue;
+    const body = markdown.slice(section.start, section.end).replace(/^##[^\n]*\n?/, "").trim();
+    if (heading === "trace & qa" || heading === "internal audit layer") qa.unshift(body);
+    else if (heading !== "actions and decisions") basis.unshift(heading === "profile clarifications" ? `### Profile clarifications\n\n${body}` : body);
+    // Preserve edit offsets when a review section occurs in the middle of a draft.
+    primary = primary.slice(0, section.start) + primary.slice(section.start, section.end).replace(/[^\n]/g, " ") + primary.slice(section.end);
   }
-  const qaSection = markdown.slice(finalSection.start, finalSection.end);
-  const qa = qaSection.replace(/^##\s+Trace\s*&\s*QA\s*\r?\n?/i, "").trim();
-  return {
-    primary: markdown.slice(0, finalSection.start).trimEnd(),
-    qa,
-  };
+  return { primary, qa: qa.join("\n\n") || null, profileBasis: basis.join("\n\n") || null };
 }

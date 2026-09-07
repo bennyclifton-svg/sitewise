@@ -30,6 +30,11 @@ from app.sitewise.taxonomy import scale_fields_for, subclasses_for
 
 _NOT_DECLARED = "(not declared)"
 _DOCUMENT_ACCESS_GUIDANCE = """<document-access>
+For a request to create or update a Project Management Plan, call start_project_plan
+or refresh_project_plan using the current snapshot. A populated profile is sufficient;
+uploaded documents are optional. Never say a plan is queued unless the tool returned
+a persisted workflow run. If the tool fails, explain the failure instead of promising
+a future draft. Compound requests must save the requested changes before starting the plan.
 For questions about uploaded source documents, use project document tools before OCR:
 find_document_text is the first choice for simple keyword or phrase lookups.
 search_documents finds semantic matches, and get_document reads longer ingested text.

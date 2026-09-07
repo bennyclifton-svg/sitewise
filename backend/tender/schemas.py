@@ -20,6 +20,8 @@ class ProjectContext(BaseModel):
 
     context_version: int = 1
     context_source: Literal["manual", "repository_selection"] = "manual"
+    review_profile: Literal["consultant", "trade", "head_contractor"] | None = None
+    package_name: str | None = None
     state: Literal["NSW", "VIC", "QLD"] | None = None
     region: Literal["metro", "regional"] | None = None
     build_type: Literal["new_build", "renovation", "addition"] | None = None

@@ -19,6 +19,22 @@ from app.sitewise.artifact_exports import (
     render_workbook_pdf,
 )
 
+
+def test_fallback_removes_complete_nested_page_rule() -> None:
+    html = '<style>@page { size: A4; @bottom-right { content: counter(page); } } body { color: black; }</style>'
+    assert artifact_exports._story_safe_html(html) == '<style>body { color: black; }</style>'
+
+
+def test_issue_export_excludes_review_sections_regardless_of_order() -> None:
+    from app.sitewise.artifact_presentation import issue_export_markdown, prepare_issue_markdown
+
+    markdown = "## Brief\n\n| Work scope | Work scope (continued) |\n| --- | --- |\n| Roof | Walls |\n\nScope boundary.\n\n## Trace & QA\n\nPrivate audit.\n\n## Profile basis\n\nPrivate profile.\n\n## Profile clarifications\n\nPrivate question.\n\n## Actions and decisions\n\nPrivate action.\n\n## Costs\n\nRetained budget."
+    issued = issue_export_markdown(prepare_issue_markdown(markdown))
+    assert "Private" not in issued
+    assert "Retained budget" in issued
+    html = artifact_exports._markdown_html(issued)
+    assert "<p>Scope boundary.</p>" in html
+
 MARKDOWN = """# Project Management Plan
 
 ## Snapshot

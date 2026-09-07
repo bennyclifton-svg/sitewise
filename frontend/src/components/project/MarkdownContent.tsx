@@ -1172,6 +1172,7 @@ function baseComponents(): Components {
       const projectTitle = editOptions.projectTitle;
       const isInformationRegister = informationRegisterTable(children);
       const headers = headerLabelsFromTable(children);
+      const isScope = headers[0]?.toLowerCase() === "work scope";
       const isProjectSummary = projectSummaryTable(children, projectTitle);
       const consultantsLayout = consultantsTableLayout(children);
       const isConsultants = consultantsLayout !== null;
@@ -1198,7 +1199,7 @@ function baseComponents(): Components {
                   ? "min-w-[52rem] table-fixed pmp-table-consultants"
                   : isFfe
                     ? "min-w-[28rem] pmp-table-ffe"
-                    : "min-w-[32rem]",
+                    : isScope ? "table-fixed" : "min-w-[32rem]",
               ].join(" ")}
             >
               {isConsultants ? (
@@ -2618,12 +2619,15 @@ export function MarkdownContent({
           </BlockActionsProvider>
           </MarkdownRenderContext.Provider>
           </FfeDecisionRenderContext.Provider>
+          {traceQa.profileBasis || (showTraceQa && traceQa.qa) ? (
+            <details className="mt-6 border-t border-[var(--sw-edge)] pt-4 print:hidden">
+              <summary className="min-h-11 cursor-pointer font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Profile basis</summary>
+              <ReactMarkdown remarkPlugins={REMARK_PLUGINS}>
+                {maskArtifactBlockMarkers(traceQa.profileBasis ?? "")}
+              </ReactMarkdown>
           {showTraceQa && traceQa.qa ? (
-            <details className="trace-qa mt-10 border-t border-[var(--sw-edge)] pt-4 print:hidden">
-              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span>Trace &amp; QA</span>
-                <span className="font-mono text-xs uppercase tracking-[0.12em]">Review only</span>
-              </summary>
+            <section className="trace-qa mt-4">
+              <h3>Trace &amp; QA</h3>
               <div className="mt-3 border border-[var(--sw-edge)] bg-[var(--sw-panel)] p-4 text-muted-foreground">
                 <ReactMarkdown
                   remarkPlugins={REMARK_PLUGINS}
@@ -2632,6 +2636,8 @@ export function MarkdownContent({
                   {maskArtifactBlockMarkers(traceQa.qa)}
                 </ReactMarkdown>
               </div>
+            </section>
+          ) : null}
             </details>
           ) : null}
         </div>

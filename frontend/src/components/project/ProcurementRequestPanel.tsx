@@ -190,7 +190,7 @@ export function ProcurementRequestPanel({
     session: { draftId: string; workflowType: string } | null,
   ) => void;
   onEditStrategyRowWithAi?: (row: ProcurementStrategyRow) => void;
-  onOpenTenderComparison?: (row: ProcurementStrategyRow) => void;
+  onOpenTenderComparison?: (comparisonId: string) => void;
 }) {
   const [disciplines, setDisciplines] = useState<ProjectDiscipline[]>([]);
   const [requests, setRequests] = useState<ProcurementRequest[]>([]);
@@ -201,6 +201,7 @@ export function ProcurementRequestPanel({
   );
   const [strategyRefreshing, setStrategyRefreshing] = useState(false);
   const [strategyError, setStrategyError] = useState<string | null>(null);
+  const [comparingRowId, setComparingRowId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [draftExportAction, setDraftExportAction] = useState<"docx" | "pdf" | null>(
     null,
@@ -441,6 +442,33 @@ export function ProcurementRequestPanel({
     }
   }
 
+  async function compareRow(row: ProcurementStrategyRow) {
+    if (comparingRowId) return;
+    setComparingRowId(row.id);
+    setStrategyError(null);
+    try {
+      await strategySaveQueue.current;
+      const current = confirmedStrategyRef.current?.rows.find((item) => item.id === row.id) ?? row;
+      if (!current.candidates.some((candidate) => candidate.submission_files?.length)) {
+        setStrategyError("Link at least one quote to a firm using Link quote, then compare firms.");
+        return;
+      }
+      const result = await api.startProcurementReview({ project_id: project.id, row_id: current.id, expected_submission_revision: current.submission_revision ?? 1, rerun: true });
+      void strategyQuery.refetch();
+      onOpenTenderComparison?.(result.comparison_id);
+    } catch (error) {
+      setStrategyError(error instanceof ApiError ? error.message : "Could not start the comparison. Try again.");
+    } finally { setComparingRowId(null); }
+  }
+
+  async function openRecommendation(draftId: string) {
+    try {
+      const draft = await api.getProjectDraft(project.id, draftId);
+      const id = draft.provenance_metadata?.comparison_id;
+      if (typeof id === "string") onOpenTenderComparison?.(id);
+    } catch { setStrategyError("Could not open the recommendation. Try again."); }
+  }
+
   const strategyLoadError = strategyQuery.error
     ? strategyQuery.error instanceof ApiError
       ? strategyQuery.error.message
@@ -475,7 +503,12 @@ export function ProcurementRequestPanel({
             onRefresh={refreshStrategy}
             onCreateRequest={createRequestForRow}
             onOpenRequest={openRequest}
-            onCompare={onOpenTenderComparison}
+            onCompare={(row) => void compareRow(row)}
+            comparingRowId={comparingRowId}
+            onOpenReview={(draftId) => void openRecommendation(draftId)}
+            onOpenComparison={onOpenTenderComparison}
+            evidence={repositoryEvidence}
+            selectedEvidenceIds={selectedEvidenceIds}
             onEditWithAi={onEditStrategyRowWithAi}
           />
         ) : strategyLoading ? (

@@ -1,10 +1,8 @@
 """Starter consultant rows for a house. Not appointments.
 
-A Class 1 house — new, extend, or refurb — needs a design lead, structure,
-planning, and civil/stormwater on day one. The form those take varies
-(architect vs building designer, combined structural-civil, architect doing
-the DA). Seed the four disciplines as Not evidenced so the user can delete,
-rename, or combine them.
+House and townhouse construction starts with six design disciplines. These are
+editable planning defaults, not statutory requirements or appointments. Specialist
+appointments remain in the shared register when the project actually has them.
 """
 
 from __future__ import annotations
@@ -14,7 +12,7 @@ from collections.abc import Sequence
 from app.database.project import Project
 from app.projects.project_knowledge import list_shared_project_objects
 
-_HOUSE_SUBCLASSES = frozenset({"house"})
+_HOUSE_SUBCLASSES = frozenset({"house", "townhouses"})
 _HOUSE_WORK_TYPES = frozenset({"new", "extend", "refurb"})
 
 HOUSE_CONSULTANTS: tuple[str, ...] = (
@@ -22,6 +20,8 @@ HOUSE_CONSULTANTS: tuple[str, ...] = (
     "Structural",
     "Town Planner",
     "Civil",
+    "Interior Design",
+    "Landscape",
 )
 
 
@@ -33,7 +33,7 @@ def typical_consultant_labels(
     """Return the house starter roster, or empty when it does not apply."""
     if work_type not in _HOUSE_WORK_TYPES:
         return ()
-    if not any(str(value) in _HOUSE_SUBCLASSES for value in subclasses):
+    if not subclasses or not set(subclasses).issubset(_HOUSE_SUBCLASSES):
         return ()
     return HOUSE_CONSULTANTS
 

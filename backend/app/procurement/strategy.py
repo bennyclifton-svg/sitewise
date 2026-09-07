@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database.procurement_request import ProcurementRequest
 from app.database.procurement_strategy import (
+    ProcurementCandidateFile,
     ProcurementStrategy,
     ProcurementStrategyCandidate,
     ProcurementStrategyRow,
@@ -132,6 +133,7 @@ async def _load_strategy(
     result = await session.execute(
         select(ProcurementStrategy)
         .where(ProcurementStrategy.project_id == project_id)
+        .with_for_update()
         .options(
             selectinload(ProcurementStrategy.rows).selectinload(
                 ProcurementStrategyRow.candidates
@@ -488,6 +490,30 @@ async def apply_procurement_strategy_operations(
             candidate.source_title = operation.get("source_title")
             if candidate.source_url:
                 candidate.researched_at = datetime.now(UTC)
+        elif kind in {"LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES"}:
+            from app.procurement.candidate_submissions import resolve_submission_files
+
+            candidate = next((item for item in row.candidates if str(item.id) == str(operation.get("candidate_id"))), None)
+            if candidate is None:
+                raise ProcurementStrategyValidationError("Firm not found in this procurement row")
+            ids = [uuid.UUID(str(value)) for value in operation.get("workspace_file_ids", [])]
+            if kind == "LINK_CANDIDATE_FILES":
+                files = await resolve_submission_files(session, project_id=project_id, file_ids=ids)
+                other_ids = {link.workspace_file_id for other in row.candidates if other.id != candidate.id for link in other.submission_files}
+                if other_ids.intersection(ids):
+                    raise ProcurementStrategyValidationError("A selected file is already linked to another firm in this row")
+                existing_ids = {link.workspace_file_id for link in candidate.submission_files}
+                if len(existing_ids.union(ids)) > 30:
+                    raise ProcurementStrategyValidationError("Select up to 30 files per firm")
+                for file in files:
+                    if file.id not in existing_ids:
+                        candidate.submission_files.append(ProcurementCandidateFile(
+                            workspace_file_id=file.id, position=len(candidate.submission_files), file=file,
+                        ))
+                if row.status not in {"awarded", "cancelled"}:
+                    row.status = "responses_received"
+            else:
+                candidate.submission_files = [link for link in candidate.submission_files if link.workspace_file_id not in ids]
         elif kind == "CLEAR_CANDIDATE":
             slot = operation.get("slot")
             candidate = next((item for item in row.candidates if item.slot == slot), None)
@@ -496,6 +522,10 @@ async def apply_procurement_strategy_operations(
                 await session.delete(candidate)
         else:
             raise ProcurementStrategyValidationError(f"unsupported operation: {kind}")
+
+        if kind in {"UPSERT_CANDIDATE", "CLEAR_CANDIDATE", "LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES"}:
+            row.submission_revision = (row.submission_revision or 1) + 1
+            row.recommendation_stale = row.recommendation_draft_id is not None
 
     for index, row in enumerate(rows):
         row.display_order = (index + 1) * 100
@@ -559,6 +589,10 @@ async def strategy_snapshot(
                 "locked": row.locked,
                 "linked_request_ids": linked.get(row.id, []),
                 "no_longer_required": no_longer_required,
+                "submission_revision": row.submission_revision or 1,
+                "comparison_id": row.comparison_id,
+                "recommendation_draft_id": row.recommendation_draft_id,
+                "recommendation_stale": bool(row.recommendation_stale),
                 "candidates": [
                     {
                         "id": candidate.id,
@@ -569,6 +603,10 @@ async def strategy_snapshot(
                         "source_url": candidate.source_url,
                         "source_title": candidate.source_title,
                         "researched_at": candidate.researched_at,
+                        "submission_files": [
+                            {"workspace_file_id": link.workspace_file_id, "filename": link.file.filename, "workspace_path": link.file.workspace_path}
+                            for link in candidate.submission_files
+                        ],
                     }
                     for candidate in sorted(row.candidates, key=lambda item: item.slot)
                 ],

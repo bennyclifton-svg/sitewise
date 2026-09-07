@@ -9,11 +9,9 @@ import type { EvidencePreview } from "@/lib/types/project";
 import type { TenderComparison } from "@/lib/types/tender";
 
 import { formatTenderDate, formatTenderMoney, formatTenderStage } from "./format";
-import { TenderQuoteSelectionPanel } from "./TenderQuoteSelectionPanel";
 
 export function ComparisonList({
   projectId,
-  selectedEvidence,
 }: {
   projectId: string;
   selectedEvidence: EvidencePreview[];
@@ -54,10 +52,7 @@ export function ComparisonList({
   if (!comparisons.length) {
     return (
       <div className="space-y-4">
-        <TenderQuoteSelectionPanel
-          projectId={projectId}
-          selectedEvidence={selectedEvidence}
-        />
+        <Button asChild><Link to={`/projects/${projectId}?workflow=procurement-requests`}>Compare firms in procurement</Link></Button>
         <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed bg-card p-6 text-center">
           <div className="max-w-sm">
             <FileSearch className="mx-auto size-8 text-muted-foreground" aria-hidden />
@@ -70,10 +65,7 @@ export function ComparisonList({
 
   return (
     <div className="space-y-4">
-      <TenderQuoteSelectionPanel
-        projectId={projectId}
-        selectedEvidence={selectedEvidence}
-      />
+      <Button asChild><Link to={`/projects/${projectId}?workflow=procurement-requests`}>Compare firms in procurement</Link></Button>
 
       <section className="rounded-md border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
@@ -123,7 +115,7 @@ export function ComparisonList({
                   </td>
                   <td className="px-3 py-3 align-top">
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/projects/${projectId}/tender/${comparison.id}`}>
+                      <Link to={`/projects/${projectId}/${comparison.context.review_profile ? "procurement-reviews" : "tender"}/${comparison.id}`}>
                         Open
                         <ArrowRight className="size-4" aria-hidden />
                       </Link>

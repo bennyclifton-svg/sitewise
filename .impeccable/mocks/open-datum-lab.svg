@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#fefcf5"/>
+  <style>
+    .label { font-family: Arial, sans-serif; font-size: 22px; fill: #2d2b2b; }
+    .note { font-family: Arial, sans-serif; font-size: 15px; fill: #596579; }
+    .word { font-family: Arial, sans-serif; font-size: 38px; font-weight: 300; fill: #2d2b2b; letter-spacing: -1.5px; }
+  </style>
+
+  <g transform="translate(70 72)">
+    <text class="label" x="0" y="0">A · Continuous datum</text>
+    <text class="note" x="0" y="28">One path, open ends, blue resolution</text>
+    <g transform="translate(60 68)">
+      <path d="M18 70 L72 38 L126 70 L72 102" fill="none" stroke="#30343b" stroke-width="19" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M72 102 L18 134 L72 166 L126 134" fill="none" stroke="#4285f4" stroke-width="19" stroke-linecap="square" stroke-linejoin="miter"/>
+    </g>
+    <g transform="translate(24 300)">
+      <path d="M5 20 L20 11 L35 20 L20 29" fill="none" stroke="#30343b" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M20 29 L5 38 L20 47 L35 38" fill="none" stroke="#4285f4" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      <text class="word" x="58" y="44">SiteWise</text>
+    </g>
+  </g>
+
+  <g transform="translate(450 72)">
+    <text class="label" x="0" y="0">B · Open register</text>
+    <text class="note" x="0" y="28">Two controlled sheets, one deliberate aperture</text>
+    <g transform="translate(54 70)">
+      <path d="M18 64 L74 31 L130 64 L114 73 L74 50 L34 73 Z" fill="#30343b"/>
+      <path d="M18 137 L74 104 L114 127 L130 118 L130 137 L74 170 Z" fill="#4285f4"/>
+      <path d="M18 118 L34 127 L74 104 L58 95 Z" fill="#c8c7c0"/>
+    </g>
+    <g transform="translate(20 300)">
+      <path d="M5 18 L21 9 L37 18 L32 21 L21 15 L10 21 Z" fill="#30343b"/>
+      <path d="M5 39 L21 30 L32 37 L37 34 L37 39 L21 48 Z" fill="#4285f4"/>
+      <path d="M5 34 L10 37 L21 30 L16 27 Z" fill="#c8c7c0"/>
+      <text class="word" x="58" y="44">SiteWise</text>
+    </g>
+  </g>
+
+  <g transform="translate(825 72)">
+    <text class="label" x="0" y="0">C · Survey aperture</text>
+    <text class="note" x="0" y="28">Project boundary with one unresolved opening</text>
+    <g transform="translate(48 66)">
+      <path d="M76 34 L132 66 L132 104" fill="none" stroke="#30343b" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M132 130 L76 162 L20 130 L20 88" fill="none" stroke="#4285f4" stroke-width="15" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M20 66 L76 34" fill="none" stroke="#30343b" stroke-width="15" stroke-linecap="square"/>
+      <path d="M47 119 L105 77" fill="none" stroke="#c8c7c0" stroke-width="7" stroke-linecap="square"/>
+    </g>
+    <g transform="translate(16 300)">
+      <path d="M21 9 L37 18 L37 29" fill="none" stroke="#30343b" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M37 36 L21 45 L5 36 L5 24" fill="none" stroke="#4285f4" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+      <path d="M5 18 L21 9" fill="none" stroke="#30343b" stroke-width="4.5" stroke-linecap="square"/>
+      <path d="M13 33 L29 21" fill="none" stroke="#c8c7c0" stroke-width="2" stroke-linecap="square"/>
+      <text class="word" x="58" y="44">SiteWise</text>
+    </g>
+  </g>
+
+  <rect x="0" y="470" width="1200" height="250" fill="#1a1919"/>
+  <text x="70" y="530" font-family="Arial, sans-serif" font-size="17" fill="#a0aec0">DARK FIELD / FAVICON CHECK</text>
+  <g transform="translate(120 565)">
+    <path d="M5 20 L20 11 L35 20 L20 29" fill="none" stroke="#efeeee" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M20 29 L5 38 L20 47 L35 38" fill="none" stroke="#4285f4" stroke-width="5.5" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <g transform="translate(500 565)">
+    <path d="M5 18 L21 9 L37 18 L32 21 L21 15 L10 21 Z" fill="#efeeee"/>
+    <path d="M5 39 L21 30 L32 37 L37 34 L37 39 L21 48 Z" fill="#4285f4"/>
+    <path d="M5 34 L10 37 L21 30 L16 27 Z" fill="#757a83"/>
+  </g>
+  <g transform="translate(880 565)">
+    <path d="M21 9 L37 18 L37 29" fill="none" stroke="#efeeee" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M37 36 L21 45 L5 36 L5 24" fill="none" stroke="#4285f4" stroke-width="4.5" stroke-linecap="square" stroke-linejoin="miter"/>
+    <path d="M5 18 L21 9" fill="none" stroke="#efeeee" stroke-width="4.5" stroke-linecap="square"/>
+    <path d="M13 33 L29 21" fill="none" stroke="#757a83" stroke-width="2" stroke-linecap="square"/>
+  </g>
+</svg>

@@ -379,6 +379,7 @@ sitewise_router = APIRouter(prefix="/sitewise", tags=["sitewise"])
 log = get_logger(__name__)
 
 PROCUREMENT_DRAFT_PREFIXES = (
+    "tender_report_",
     "consultant_procurement_",
     "contractor_eoi_",
     "trade_rft_",
@@ -387,6 +388,7 @@ PROCUREMENT_DRAFT_PREFIXES = (
 
 ISSUE_EXPORT_WORKFLOWS = frozenset({"create_pmp", "update_pmp"})
 ISSUE_EXPORT_PREFIXES = (
+    "tender_report_",
     "consultant_procurement_",
     "contractor_eoi_",
     "trade_rft_",

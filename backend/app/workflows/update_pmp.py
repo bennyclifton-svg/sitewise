@@ -23,6 +23,7 @@ from app.projects.artefact_context import (
     build_pmp_context,
     format_artefact_context,
 )
+from app.projects.artefact_blocks import materialize_block_identity
 from app.projects.selective_refresh import (
     apply_document_refresh,
     build_incremental_audit,
@@ -68,6 +69,7 @@ from app.sitewise.pmp_coverage import (
 )
 from app.sitewise.pmp_length import length_violations, pmp_word_count
 from app.sitewise.artifact_presentation import prepare_issue_markdown
+from app.sitewise.pmp_profile import apply_profile_basis
 from app.sitewise.pmp_evidence_ledger import (
     build_evidence_ledger,
     conflict_summary_violations,
@@ -669,6 +671,7 @@ async def run_update_pmp_workflow(
                 project=project,
                 baseline=baseline,
                 markdown=stamped,
+                snapshot=snapshot,
                 gate=gate,
                 trace=trace,
                 run_id=run_id,
@@ -1186,6 +1189,14 @@ async def run_update_pmp_workflow(
         work_type=project.work_type,
     )
     output.markdown = incremental.markdown
+    if snapshot is not None:
+        profile_update = materialize_block_identity(
+            apply_profile_basis(output.markdown, snapshot.profile),
+            actor_source="system",
+            generation_version=f"{UPDATE_RUNTIME_NAME}:{next_version}",
+        )
+        output.markdown = profile_update.markdown
+        incremental.metadata.update(profile_update.metadata)
     incremental_audit = build_incremental_audit(
         incremental,
         refresh_input_hash=refresh_plan.refresh_input_hash,
@@ -1311,6 +1322,7 @@ async def _save_stamp_only_update(
     project: Project,
     baseline: DraftArtifact,
     markdown: str,
+    snapshot: ProjectSnapshot | None,
     gate,
     trace: list[WorkflowTraceEvent],
     run_id: uuid.UUID,
@@ -1338,6 +1350,8 @@ async def _save_stamp_only_update(
     await _publish_progress(on_preview, {"stage": "saving"})
     next_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     markdown = prepare_issue_markdown(markdown, project_title=project.title)
+    if snapshot is not None:
+        markdown = apply_profile_basis(markdown, snapshot.profile)
     markdown = sync_document_control_version(markdown, next_version)
     draft = await create_draft_artifact(
         session,

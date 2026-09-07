@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 import { AppSystemFooter } from "@/components/AppSystemFooter";
 import { ChatHistoryNav } from "@/components/chat/ChatHistoryNav";
-import { SitewiseMark } from "@/components/SitewiseMark";
+import { SitewiseLockup } from "@/components/SitewiseMark";
 import { CockpitPanelResizeHandle } from "@/components/project/CockpitPanelResizeHandle";
 import { useCockpitShellResize } from "@/components/project/cockpitShellLayout";
 import { ProjectSwitcher } from "@/components/project/ProjectSwitcher";
@@ -52,14 +52,11 @@ export function ProjectLeftNav({
       <div className="flex h-[var(--cockpit-ribbon-height)] shrink-0 items-center px-10">
         <Link
           to="/"
-          aria-label="SiteWise home"
-          title="SiteWise"
-          className="inline-flex items-center gap-3 sw-transition opacity-95 hover:opacity-100"
+          aria-label="Sitewise home"
+          title="Sitewise"
+          className="inline-flex items-center sw-transition opacity-95 hover:opacity-100"
         >
-          <SitewiseMark size={40} padded={false} />
-          <span className="font-display text-[1.65rem] font-bold leading-none tracking-[-0.03em] text-foreground">
-            SiteWise
-          </span>
+          <SitewiseLockup height={34} />
         </Link>
       </div>
 

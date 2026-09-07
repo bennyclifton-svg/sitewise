@@ -479,6 +479,7 @@ export function ChatPanel({
                       toolEvents={toolEventsByMessageId.get(message.id)}
                       artefacts={artefactsByMessageId.get(message.id)}
                       workflowRuns={workflowRunsByMessageId.get(message.id)}
+                      onRetryPlan={isBusy ? undefined : (text) => { void sendMessage({ text }); }}
                       agentMode={agentMode}
                       projectId={projectId}
                       live={isLiveMessage}

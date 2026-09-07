@@ -96,7 +96,7 @@ Scaffold status: review required.
     assert "| Approval pathway | State |" in primary
     assert f"| Tender date | {chr(0x2014)} |" in primary
     assert primary.count("warehouse project") == 1
-    assert primary.count("Issue master programme") == 1
+    assert "Issue master programme" not in primary
     assert "Scaffold status" not in primary
     assert "Tender date" in qa
     assert "Assumptions: Tender date is not evidenced." in qa
@@ -412,11 +412,11 @@ def test_prepare_issue_markdown_normalises_programme_risks_and_actions_citation_
         "| Planning pathway changes scope | Owner / planner | "
         "Verify controls before scheme lock | [5] |"
     ) in prepared
-    assert "| Item | Owner | Status | Due basis | Next action |  |" in prepared
+    assert "## Actions and decisions" not in prepared
     assert (
         "| Consultant appointments | Owner | Open | Before concept lock | "
         "Appoint design lead | [6] |"
-    ) in prepared
+    ) not in prepared
 
 
 def test_prepare_issue_markdown_blanks_consultants_fee_not_evidenced() -> None:

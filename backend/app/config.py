@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     workflow_worker_max_attempts: int = 3
     # Runs are stamped with this scope at enqueue and only claimed by a worker
     # sharing it. Every environment pointed at one Supabase project polls the
-    # same workflow_runs table, so without it a local dev queue is served by
+    # same workflow_runs and tender_jobs tables, so without it local work is served by
     # whichever deployment claims the row first.
     workflow_queue_scope: str = "production"
     # Injected by the container build, which has no .git. Empty in dev, where

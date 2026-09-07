@@ -1,0 +1,27 @@
+{
+  "name": "sitewise-film",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Procedural clips for the SiteWise launch film.",
+  "scripts": {
+    "studio": "remotion studio --port=3999",
+    "render": "remotion render RingBurst out/ring-burst.mp4",
+    "render:wipe": "remotion render RingWipeToBone out/ring-wipe-bone.mp4",
+    "render:alpha": "remotion render RingBurstAlpha out/ring-burst-alpha.mov --codec=prores --prores-profile=4444 --pixel-format=yuva444p10le --image-format=png",
+    "still": "remotion still RingBurst out/ring-burst.png --frame=45",
+    "render:icons": "remotion render FlyingIcons out/flying-icons.mp4",
+    "render:icons-alpha": "remotion render FlyingIconsAlpha out/flying-icons-alpha.mov --codec=prores --prores-profile=4444 --pixel-format=yuva444p10le --image-format=png",
+    "render:profile": "remotion render ProfilePopulate out/profile-populate.mp4",
+    "render:profile-alpha": "remotion render ProfilePopulateAlpha out/profile-populate-alpha.mov --codec=prores --prores-profile=4444 --pixel-format=yuva444p10le --image-format=png"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.518",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.518"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "typescript": "^5.6.0"
+  }
+}

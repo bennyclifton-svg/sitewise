@@ -823,10 +823,53 @@ def _empty_corpus_sweep_result() -> SimpleNamespace:
     )
 
 
+def test_test_house_profile_only_generates_validated_saved_report() -> None:
+    from contextlib import ExitStack
+    from app.projects.profile import read_profile
+    from tests.workflows.test_workflow_runs import _snapshot
+
+    project = _project(
+        title="Test House", archetype=None, building_class="residential", work_type="new",
+        profile_revision=5,
+        project_metadata={"taxonomy": {
+            "subclasses": ["house"], "budget": "800000",
+            "scale": {"gfa_sqm": 220, "site_sqm": 450, "storeys": 2, "bedrooms": 4},
+            "complexity": {"planning": "cdc", "procurement_route": "traditional", "contamination_level": "nil", "access_constraints": "urban_constrained"},
+            "work_scope": ["demolition", "decontamination", "vertical_transport", "roofing"],
+        }},
+    )
+    snapshot = _snapshot()
+    snapshot.identity.project_id = project.id
+    snapshot.identity.title = project.title
+    snapshot.profile = read_profile(project)
+    model = AsyncMock(side_effect=AssertionError("Profile-only scaffold should not need a model"))
+    mocks = _pmp_workflow_mocks(_empty_corpus_sweep_result(), model, None)
+    passages = [_passage(project="seed", source_type="reference", relative_path=path, whole_document=True)
+                for path in required_platform_paths(archetype="", project=project)]
+    with ExitStack() as stack:
+        for index in (1, 2, 4, 5):
+            stack.enter_context(mocks[index])
+        stack.enter_context(patch("app.workflows.create_pmp.retrieve_create_pmp_sources", AsyncMock(return_value=(passages, 0, len(passages), "platform_seeded", []))))
+        stack.enter_context(patch("app.workflows.create_pmp.sync_pmp_draft_workspace", AsyncMock()))
+        stack.enter_context(patch("app.workflows.create_pmp.sync_decisions_from_markdown", AsyncMock()))
+        from app.workflows import create_pmp
+        result = run_async(run_create_pmp_workflow(AsyncMock(), user_id=USER_ID, project=project, thread_id=None, snapshot=snapshot))
+        assert result.status == "complete", result.message
+        saved = create_pmp.create_draft_artifact.call_args.kwargs["content_markdown"]
+    assert "800000" in saved
+    assert "220" in saved
+    assert "Profile basis" in saved
+    assert "Confirm whether a lift" in saved
+    assert "Planning: " in saved
+    assert "Procurement route: " in saved
+    assert "No project evidence documents" in saved
+    model.assert_not_awaited()
+
+
 def test_create_pmp_retries_structural_failure_with_validation_feedback() -> None:
     bad_markdown = _valid_pmp_markdown()
     good_markdown = (
-        "# Project Management Plan\n\n## Actions and decisions\n\n"
+        "# Project Management Plan\n\n## Brief\n\n"
         + " ".join(["good"] * 900)
     )
     bad_output = PmpDraftOutput(

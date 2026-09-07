@@ -1520,6 +1520,12 @@ export function DocumentRepositoryPanel({
                 return (
                       <tr
                         key={row.id}
+                        draggable={Boolean(row.workspace_file_id)}
+                        onDragStart={(event) => {
+                          const fileIds = evidence.filter((file) => file.workspace_file_id && (selectedIds.has(row.id) ? selectedIds.has(file.id) : file.id === row.id)).map((file) => file.workspace_file_id!);
+                          event.dataTransfer.effectAllowed = "link";
+                          event.dataTransfer.setData("application/x-sitewise-submission", JSON.stringify({ projectId, fileIds }));
+                        }}
                         className={cn(
                           "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
                           highlighted && "sw-table-row--active",

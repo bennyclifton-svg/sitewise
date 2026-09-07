@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { ArtefactCard } from "@/components/chat/ArtefactCard";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { WorkflowRunRef } from "@/lib/chat-events";
 import {
@@ -11,6 +12,7 @@ import {
 type WorkflowRunCardProps = {
   runRef: WorkflowRunRef;
   projectId?: string | null;
+  onRetryPlan?: (command: string) => void;
 };
 
 function titleForWorkflowType(workflowType: string | undefined): string {
@@ -36,7 +38,7 @@ function titleForWorkflowType(workflowType: string | undefined): string {
   return workflowType.replaceAll("_", " ");
 }
 
-export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
+export function WorkflowRunCard({ runRef, projectId, onRetryPlan }: WorkflowRunCardProps) {
   const resolvedProjectId = projectId ?? runRef.projectId;
   const { data: run, isError, error } = useWorkflowRun(
     resolvedProjectId,
@@ -74,6 +76,11 @@ export function WorkflowRunCard({ runRef, projectId }: WorkflowRunCardProps) {
       <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
         {label} {run.state}
         {run.error_message ? `: ${run.error_message}` : "."}
+        {onRetryPlan && (workflowType === "create_project_plan" || workflowType === "refresh_project_plan") ? (
+          <Button className="mt-2 block" size="sm" variant="outline" onClick={() => onRetryPlan(workflowType === "refresh_project_plan" ? "Update PMP" : "Create PMP")}>
+            Retry plan
+          </Button>
+        ) : null}
       </div>
     );
   }

@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
 
+const LOCKUP_RATIO = 584 / 129;
+
 type SitewiseMarkProps = {
   /** Rendered mark height in CSS pixels. */
   size?: number;
   /**
-   * `auto` uses mark.svg at ≥96px and mark-solid below that.
-   * Pass `full` to force mark.svg at any size.
+   * Kept for callers. The current brand mark is a single solid S.
    */
   variant?: "auto" | "full" | "solid";
   /**
@@ -17,22 +18,13 @@ type SitewiseMarkProps = {
   title?: string;
 };
 
-/**
- * Flat Sitewise mark. Uses the solid variant below 96px so the open
- * corner does not collapse visually, unless `variant` overrides that.
- */
+/** Electric-blue Sitewise S. */
 export function SitewiseMark({
   size = 48,
-  variant = "auto",
   padded = true,
   className,
-  title = "SiteWise",
+  title = "Sitewise",
 }: SitewiseMarkProps) {
-  const useFull =
-    variant === "full" || (variant === "auto" && size >= 96);
-  const src = useFull
-    ? "/style-guide/logo/mark.svg"
-    : "/style-guide/logo/mark-solid.svg";
   const clear = padded ? size / 3 : 0;
 
   return (
@@ -42,12 +34,49 @@ export function SitewiseMark({
       title={title}
     >
       <img
-        src={src}
+        src="/brand/sitewise-mark.png"
         alt=""
         width={size}
         height={size}
         draggable={false}
         className="block select-none"
+      />
+    </span>
+  );
+}
+
+type SitewiseLockupProps = {
+  height?: number;
+  className?: string;
+};
+
+/** Theme-aware lockup: blue S + Sitewise wordmark. */
+export function SitewiseLockup({
+  height = 32,
+  className,
+}: SitewiseLockupProps) {
+  const width = Math.round(height * LOCKUP_RATIO);
+
+  return (
+    <span
+      className={cn("relative inline-flex shrink-0 items-center", className)}
+      style={{ height, width }}
+    >
+      <img
+        src="/brand/sitewise-lockup-dark.png"
+        alt=""
+        width={width}
+        height={height}
+        draggable={false}
+        className="sw-lockup sw-lockup--on-dark select-none"
+      />
+      <img
+        src="/brand/sitewise-lockup-light.png"
+        alt=""
+        width={width}
+        height={height}
+        draggable={false}
+        className="sw-lockup sw-lockup--on-light select-none"
       />
     </span>
   );
@@ -59,18 +88,15 @@ type SitewiseWordmarkProps = {
   markClassName?: string;
 };
 
-/** Mark + plain-text wordmark until licensed Söhne lockup exists. */
+/** Lockup image; `markSize` maps to lockup height for existing callers. */
 export function SitewiseWordmark({
   markSize = 40,
   className,
-  markClassName,
 }: SitewiseWordmarkProps) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <SitewiseMark size={markSize} className={markClassName} />
-      <span className="font-display text-[1.05rem] font-light tracking-[-0.02em] text-[var(--sw-text-primary)]">
-        SiteWise
-      </span>
-    </span>
+    <SitewiseLockup
+      height={Math.max(22, Math.round(markSize * 0.72))}
+      className={className}
+    />
   );
 }

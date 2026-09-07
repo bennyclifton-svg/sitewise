@@ -1,4 +1,5 @@
 import { getAccessToken } from "@/lib/auth";
+import type { ProcurementReviewRun, ProcurementReviewEvidence } from "@/lib/types/procurement-review";
 import type { AgentConfigurationResponse, AgentModelsResponse } from "@/lib/agent-model";
 import { workflowChatModelPayload, type ChatModelsResponse } from "@/lib/chat-model";
 import { env } from "@/lib/env";
@@ -363,6 +364,14 @@ export const api = {
   ): Promise<TenderIntakeResponse> =>
     api.post<TenderIntakeResponse>("/api/tender/intake", input),
 
+  startProcurementReview: (input: { project_id: string; row_id: string; expected_submission_revision: number; rerun?: boolean }) =>
+    api.post<{ comparison_id: string }>("/api/tender/procurement-reviews", input),
+  getProcurementReview: (comparisonId: string) =>
+    api.get<ProcurementReviewRun>(`/api/tender/procurement-reviews/${comparisonId}`),
+  getProcurementReviewEvidence: (comparisonId: string) =>
+    api.get<ProcurementReviewEvidence>(`/api/tender/procurement-reviews/${comparisonId}/evidence`),
+  retryProcurementReview: (comparisonId: string) =>
+    api.post<{ comparison_id: string }>(`/api/tender/procurement-reviews/${comparisonId}/retry`, {}),
   getTenderComparison: async (comparisonId: string): Promise<TenderComparison> =>
     api.get<TenderComparison>(`/api/tender/comparisons/${comparisonId}`),
 

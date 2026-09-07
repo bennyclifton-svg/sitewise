@@ -91,15 +91,24 @@ def html_to_pdf_bytes(html: str) -> bytes:
 
     mediabox = fitz.paper_rect("a4")
     where = mediabox + (36, 36, -36, -36)
-    story = fitz.Story(html=html)
+    fragments = [html]
+    marker = '<div class="review-pagebreak"></div>'
+    body = re.search(r"<body[^>]*>(.*)</body>", html, re.DOTALL)
+    if marker in html and body and "</head>" in html:
+        head = html.split("</head>", 1)[0] + "</head>"
+        # A fresh Story per explicit section avoids old table backgrounds being
+        # drawn over later pages by MuPDF's continuation renderer.
+        fragments = [head + "<body>" + part + "</body></html>" for part in body[1].split(marker)]
     buffer = BytesIO()
     writer = fitz.DocumentWriter(buffer)
-    more = True
-    while more:
-        device = writer.begin_page(mediabox)
-        more, _placed = story.place(where)
-        story.draw(device)
-        writer.end_page()
+    for fragment in fragments:
+        story = fitz.Story(html=fragment)
+        more = True
+        while more:
+            device = writer.begin_page(mediabox)
+            more, _placed = story.place(where)
+            story.draw(device)
+            writer.end_page()
     writer.close()
     payload = buffer.getvalue()
     if not payload.startswith(b"%PDF"):

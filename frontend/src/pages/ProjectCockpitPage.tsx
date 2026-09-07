@@ -563,6 +563,13 @@ function ProjectCockpitContents() {
   }
 
   function openDraftReview(draft: DraftArtifactSummary) {
+    if (draft.workflow_type.startsWith("tender_report_")) {
+      void api.getProjectDraft(projectId!, draft.id).then((fullDraft) => {
+        const id = fullDraft.provenance_metadata?.comparison_id;
+        if (typeof id === "string") navigate(`/projects/${projectId}/procurement-reviews/${id}`);
+      }).catch(() => setProjectError("Could not open the recommendation. Try again."));
+      return;
+    }
     setSelectedPlatformKnowledge(null);
     setReviewDraft(draft);
     setLatestDraftsMap((current) => ({
@@ -772,14 +779,12 @@ function ProjectCockpitContents() {
   }
 
   function isTenderRouteActive() {
-    return Boolean(projectId && location.pathname.startsWith(`/projects/${projectId}/tender`));
+    return Boolean(projectId && (location.pathname.startsWith(`/projects/${projectId}/tender`) || location.pathname.startsWith(`/projects/${projectId}/procurement-reviews/`)));
   }
 
   function openWorkflowFromExplorer(workflowId: string) {
     if (workflowId === "procurement") {
-      setSelectedWorkflowId(workflowId);
-      setChatPanelCollapsed(true);
-      navigate(`/projects/${projectId}/tender`);
+      showWorkbench("procurement-requests");
       return;
     }
     showWorkbench(workflowId);
@@ -1016,9 +1021,7 @@ function ProjectCockpitContents() {
 
   function selectWorkflow(workflowId: string) {
     if (workflowId === "procurement") {
-      setSelectedWorkflowId(workflowId);
-      setChatPanelCollapsed(true);
-      navigate(`/projects/${projectId}/tender`);
+      showWorkbench("procurement-requests");
       return;
     }
     showWorkbench(workflowId);
@@ -1259,7 +1262,7 @@ function ProjectCockpitContents() {
           selectedEvidenceIds={selectedRepositoryEvidenceIds}
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}
           onTransmittalSessionChange={setTransmittalSession}
-          onOpenTenderComparison={() => navigate(`/projects/${project.id}/tender`)}
+          onOpenTenderComparison={(comparisonId) => navigate(`/projects/${project.id}/procurement-reviews/${comparisonId}`)}
           openInvoiceId={pulseInvoiceId}
           inboxCount={inboxCount}
           sortFilesResult={sortFilesResult}

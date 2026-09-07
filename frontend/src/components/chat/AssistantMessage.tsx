@@ -27,6 +27,7 @@ type AssistantMessageProps = {
   toolEvents?: ToolStatusEvent[];
   artefacts?: ArtefactEvent[];
   workflowRuns?: WorkflowRunRef[];
+  onRetryPlan?: (command: string) => void;
   agentMode?: boolean;
   projectId?: string | null;
   /** When true, live ActivityStream owns thinking UI — hide pills and tool ticker. */
@@ -62,6 +63,7 @@ export function AssistantMessage({
   toolEvents = [],
   artefacts = [],
   workflowRuns = [],
+  onRetryPlan,
   agentMode = false,
   projectId,
   live = false,
@@ -135,6 +137,7 @@ export function AssistantMessage({
         <WorkflowRunCard
           key={runRef.runId}
           runRef={runRef}
+          onRetryPlan={onRetryPlan}
           projectId={projectId}
         />
       ))}

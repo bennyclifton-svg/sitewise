@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="SiteWise">
+  <title>SiteWise Open Datum</title>
+  <rect width="64" height="64" rx="12" fill="#1A1919"/>
+  <path d="M14 24 32 13l18 11-18 11" fill="none" stroke="#E8E6DF" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M32 35 14 46l18 11 18-11" fill="none" stroke="#4285F4" stroke-width="6" stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>

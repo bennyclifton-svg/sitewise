@@ -22,6 +22,44 @@ from tender.models import TenderComparison, TenderJob
 logger = structlog.get_logger(__name__)
 
 
+class JobLeaseLost(RuntimeError):
+    pass
+
+
+async def assert_lease(session: AsyncSession, job: TenderJob) -> None:
+    """Fence a checkpoint/publication in the same transaction as its writes."""
+    await assert_lease_owner(session, job_id=job.id, owner=job.locked_by)
+
+
+async def assert_lease_owner(
+    session: AsyncSession, *, job_id: uuid.UUID, owner: str
+) -> None:
+    current_owner = await session.scalar(
+        select(TenderJob.locked_by)
+        .where(
+            TenderJob.id == job_id,
+            TenderJob.status == "running",
+        )
+        .with_for_update()
+    )
+    if not owner or owner != current_owner:
+        raise JobLeaseLost("The processing lease was reassigned")
+
+
+async def renew_lease(session: AsyncSession, *, job_id: uuid.UUID, owner: str) -> bool:
+    result = await session.execute(
+        update(TenderJob)
+        .where(
+            TenderJob.id == job_id,
+            TenderJob.status == "running",
+            TenderJob.locked_by == owner,
+        )
+        .values(locked_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+    return result.rowcount == 1
+
+
 async def enqueue(
     session: AsyncSession,
     *,
@@ -37,7 +75,7 @@ async def enqueue(
         kind=kind,
         comparison_id=comparison_id,
         quote_id=quote_id,
-        payload=payload,
+        payload={**(payload or {}), "queue_scope": settings.workflow_queue_scope},
         status="queued",
         attempts=0,
         run_after=run_after or datetime.now(timezone.utc),
@@ -52,6 +90,10 @@ def claim_query() -> Select[tuple[TenderJob]]:
     return (
         select(TenderJob)
         .where(TenderJob.status == "queued", TenderJob.run_after <= func.now())
+        .where(
+            func.coalesce(TenderJob.payload["queue_scope"].as_string(), "production")
+            == settings.workflow_queue_scope
+        )
         .order_by(TenderJob.run_after)
         .limit(1)
         .with_for_update(skip_locked=True)
@@ -74,11 +116,15 @@ async def claim_next(session: AsyncSession, *, worker_id: str) -> TenderJob | No
     job.locked_at = datetime.now(timezone.utc)
     job.locked_by = worker_id
     await session.commit()
-    logger.info("tender_job_claimed", job_id=str(job.id), kind=job.kind, worker_id=worker_id)
+    logger.info(
+        "tender_job_claimed", job_id=str(job.id), kind=job.kind, worker_id=worker_id
+    )
     return job
 
 
 async def complete(session: AsyncSession, job: TenderJob) -> None:
+    # A continuation can roll back its read transaction and expire this instance.
+    job = await _refresh_if_expired(session, job)
     job.status = "done"
     job.locked_at = None
     job.locked_by = None
@@ -122,7 +168,9 @@ async def fail(
     (defaults per config).
     """
 
-    max_attempts = max_attempts if max_attempts is not None else settings.tender_job_max_attempts
+    max_attempts = (
+        max_attempts if max_attempts is not None else settings.tender_job_max_attempts
+    )
     backoff_base_seconds = (
         backoff_base_seconds
         if backoff_base_seconds is not None
@@ -172,7 +220,7 @@ async def _refresh_if_expired(session: AsyncSession, job: TenderJob) -> TenderJo
 
     refreshed = await session.get(TenderJob, state.identity[0])
     if refreshed is None:
-        raise ValueError(f"cannot fail missing tender job: {state.identity[0]}")
+        raise ValueError(f"cannot update missing tender job: {state.identity[0]}")
     return refreshed
 
 
@@ -183,6 +231,10 @@ async def requeue_stale(session: AsyncSession, *, older_than_minutes: int) -> in
     result = await session.execute(
         update(TenderJob)
         .where(TenderJob.status == "running", TenderJob.locked_at < cutoff)
+        .where(
+            func.coalesce(TenderJob.payload["queue_scope"].as_string(), "production")
+            == settings.workflow_queue_scope
+        )
         .values(status="queued", locked_at=None, locked_by=None)
     )
     await session.commit()

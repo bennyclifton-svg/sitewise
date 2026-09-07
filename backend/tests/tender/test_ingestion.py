@@ -184,12 +184,15 @@ def test_ingest_persists_pages_and_marks_ingested() -> None:
     assert "Slab and drainage allowance included" in session.pages[0].text_content
     assert len(uploaded) == 1
     assert session.jobs[0].kind == "classify_document"
-    assert session.jobs[0].payload == {"document_id": str(document.id)}
+    assert session.jobs[0].payload == {
+        "document_id": str(document.id),
+        "queue_scope": ingestion.settings.workflow_queue_scope,
+    }
     assert session.flush_count >= 2
 
 
 def test_unsupported_format_short_circuits() -> None:
-    document = _document(mime_type="text/plain", filename="quote.txt")
+    document = _document(mime_type="application/rtf", filename="quote.rtf")
     quote = _quote()
     session = _Session(document=document, quote=quote, execute_values=[[]])
 

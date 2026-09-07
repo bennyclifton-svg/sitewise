@@ -5,6 +5,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import { MarkdownContent } from "@/components/project/MarkdownContent";
 
+it("keeps profile coverage and clarifications in a non-printing disclosure", () => {
+  render(<MarkdownContent markdown={"# Plan\n\n## Profile clarifications\nConfirm the lift scope.\n\n## Profile basis\n\n| Field | Value |\n| --- | --- |\n| Budget | 800000 |\n<!-- profile-basis:end -->"} />);
+  const details = screen.getByText("Profile basis").closest("details");
+  expect(details).not.toHaveAttribute("open");
+  expect(details).toHaveClass("print:hidden");
+  expect(within(details!).getByText("Confirm the lift scope.")).toBeInTheDocument();
+  expect(within(details!).getByText("800000")).toBeInTheDocument();
+});
+
 vi.mock("@/components/project/DecisionControl", async () => {
   const actual = await vi.importActual<
     typeof import("@/components/project/DecisionControl")
@@ -1060,7 +1069,7 @@ Scope.`}
     );
 
     const tables = container.querySelectorAll("table");
-    expect(tables).toHaveLength(3);
+    expect(tables).toHaveLength(2);
 
     expect(
       within(tables[0] as HTMLElement)
@@ -1078,12 +1087,8 @@ Scope.`}
     ).toEqual(["Risk", "Owner", "Mitigation / escalation", ""]);
     expect(screen.getByText("[5]")).toHaveClass("evidence-status-chip");
 
-    expect(
-      within(tables[2] as HTMLElement)
-        .getAllByRole("columnheader")
-        .map((cell) => cell.textContent?.trim()),
-    ).toEqual(["Item", "Owner", "Status", "Due basis", "Next action", ""]);
-    expect(screen.getByText("[6]")).toHaveClass("evidence-status-chip");
+    expect(screen.queryByText("Actions and decisions")).not.toBeInTheDocument();
+    expect(screen.queryByText("[6]")).not.toBeInTheDocument();
   });
 
   it("maps an editable paragraph back to canonical offsets after decision grouping", () => {

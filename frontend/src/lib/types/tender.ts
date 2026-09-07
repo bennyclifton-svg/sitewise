@@ -1,4 +1,5 @@
 export type TenderProjectContext = {
+  review_profile?: "consultant" | "trade" | "head_contractor" | null;
   context_version: number;
   context_source: "manual" | "repository_selection";
   state: "NSW" | "VIC" | "QLD" | null;

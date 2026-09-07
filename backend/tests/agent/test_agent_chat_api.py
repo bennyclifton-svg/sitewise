@@ -91,6 +91,53 @@ def test_terminal_event_persistence_is_ordered_and_sanitized() -> None:
     assert "prompt" not in events[0]
 
 
+@pytest.mark.parametrize("blocked", [False, True])
+def test_create_pmp_executes_application_action_and_persists_run_card(
+    client, mock_session, monkeypatch, blocked,
+):
+    thread = _thread()
+    turn_id, run_id = uuid.uuid4(), uuid.uuid4()
+    project = SimpleNamespace(
+        id=PROJECT_ID, title="Test House", archetype=None, state="NSW",
+        phase="brief-planning", building_class="residential", work_type="new",
+        project_metadata={},
+    )
+    for name, value in {
+        "get_thread_by_id": thread, "require_project_owner": project,
+        "require_active_entitlement": None, "list_messages": [],
+        "reserve_agent_turn": (SimpleNamespace(id=turn_id), SimpleNamespace(warning=False), True),
+        "complete_agent_turn": None,
+        "_persist_agent_user_message": None,
+        "_persist_agent_assistant_message": None,
+    }.items():
+        monkeypatch.setattr(chat_api, name, AsyncMock(return_value=value))
+    monkeypatch.setattr(chat_api, "get_session_factory", lambda: _SessionFactory(mock_session))
+    pi = Mock(side_effect=AssertionError("PMP command must not depend on a model tool call"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", pi)
+    queue = AsyncMock(return_value=SimpleNamespace(id=run_id, state="queued"))
+    if blocked:
+        queue.side_effect = chat_api.WorkflowRunCapabilityConflict("Complete state in the profile.")
+    monkeypatch.setattr(chat_api, "queue_project_plan", queue)
+    response = client.post("/chat/agent/stream", json={
+        "threadId": str(THREAD_ID),
+        "messages": [{"id": "create-pmp-1", "role": "user", "parts": [{"type": "text", "text": "Create PMP"}]}],
+    })
+    assert response.status_code == 200
+    assert "[DONE]" in response.text
+    pi.assert_not_called()
+    queue.assert_awaited_once()
+    persisted = chat_api._persist_agent_assistant_message.call_args.kwargs
+    assert persisted["source_trace"]["model"]["used"] is False
+    if blocked:
+        assert "could not start" in response.text
+        assert "workflow_run" not in response.text
+        assert not persisted["terminal_events"]
+    else:
+        assert str(run_id) in response.text
+        assert "workflow_run" in response.text
+        assert persisted["terminal_events"][0]["resourceId"] == str(run_id)
+
+
 def test_explicit_confirmation_selects_the_matching_pending_profile_proposal() -> None:
     proposal = SimpleNamespace(
         proposed_values={

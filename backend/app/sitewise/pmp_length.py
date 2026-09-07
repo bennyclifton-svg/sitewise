@@ -168,7 +168,7 @@ def _drop_review_sections(markdown: str) -> str:
         stripped = line.strip().lower()
         if stripped.startswith("## "):
             heading = stripped[3:].strip()
-            skipping = heading in {"trace & qa", "internal audit layer"}
+            skipping = heading in {"trace & qa", "internal audit layer", "profile basis", "profile clarifications", "actions and decisions"}
         if not skipping:
             kept.append(line)
     return "\n".join(kept)

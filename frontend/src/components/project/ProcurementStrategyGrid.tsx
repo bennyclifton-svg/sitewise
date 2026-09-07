@@ -20,6 +20,7 @@ import {
   WordFileIcon,
 } from "@/components/icons/OfficeFileIcons";
 import { CopyContentButton } from "@/components/project/CopyContentButton";
+import { FirmSubmissionLinks } from "@/components/project/FirmSubmissionLinks";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +34,7 @@ import { ApiError } from "@/lib/http";
 import { MenuSelect } from "@/components/ui/menu-select";
 import { cn } from "@/lib/utils";
 import type {
+  EvidencePreview,
   ProcurementRequest,
   ProcurementStrategy,
   ProcurementStrategyOperation,
@@ -78,6 +80,11 @@ export function ProcurementStrategyGrid({
   onOpenRequest,
   onCompare,
   onEditWithAi,
+  evidence = [],
+  selectedEvidenceIds = new Set<string>(),
+  onOpenReview,
+  onOpenComparison,
+  comparingRowId = null,
 }: {
   strategy: ProcurementStrategy;
   disciplines: ProjectDiscipline[];
@@ -90,6 +97,11 @@ export function ProcurementStrategyGrid({
   onOpenRequest?: (request: ProcurementRequest) => void;
   onCompare?: (row: ProcurementStrategyRow) => void;
   onEditWithAi?: (row: ProcurementStrategyRow) => void;
+  evidence?: EvidencePreview[];
+  selectedEvidenceIds?: Set<string>;
+  onOpenReview?: (draftId: string) => void;
+  onOpenComparison?: (comparisonId: string) => void;
+  comparingRowId?: string | null;
 }) {
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
   const [insertCode, setInsertCode] = useState("");
@@ -368,6 +380,12 @@ export function ProcurementStrategyGrid({
                   onOpenRequest={onOpenRequest}
                   onCompare={onCompare}
                   onEditWithAi={onEditWithAi}
+                  evidence={evidence}
+                  selectedEvidenceIds={selectedEvidenceIds}
+                  projectId={strategy.project_id}
+                  onOpenReview={onOpenReview}
+                  onOpenComparison={onOpenComparison}
+                  comparing={comparingRowId === item.row.id}
                 />
               ),
             )}
@@ -441,6 +459,12 @@ function StrategyRow({
   onOpenRequest,
   onCompare,
   onEditWithAi,
+  evidence,
+  selectedEvidenceIds,
+  projectId,
+  onOpenReview,
+  onOpenComparison,
+  comparing,
 }: {
   row: ProcurementStrategyRow;
   columnCount: 3 | 4;
@@ -452,12 +476,23 @@ function StrategyRow({
   onOpenRequest?: (request: ProcurementRequest) => void;
   onCompare?: (row: ProcurementStrategyRow) => void;
   onEditWithAi?: (row: ProcurementStrategyRow) => void;
+  evidence: EvidencePreview[];
+  selectedEvidenceIds: Set<string>;
+  projectId: string;
+  onOpenReview?: (draftId: string) => void;
+  onOpenComparison?: (comparisonId: string) => void;
+  comparing: boolean;
 }) {
   const protectedCell = row.locked || saving;
   const requestLabel = requestTypeLabel(row.request_kind);
-  const comparableFirmCount = row.candidates.filter(
-    (candidate) => candidate.company_name.trim().length > 0,
-  ).length;
+  const [linkError, setLinkError] = useState<string | null>(null);
+  async function linkFiles(candidateId: string, ids: string[]) {
+    if (protectedCell || !ids.length) return;
+    setLinkError(null);
+    try {
+      await onApply([{ operation: "LINK_CANDIDATE_FILES", row_id: row.id, candidate_id: candidateId, workspace_file_ids: ids }]);
+    } catch { setLinkError("Could not link these files. Try again."); }
+  }
   return (
     <tr
       className={cn(
@@ -485,7 +520,26 @@ function StrategyRow({
         const slot = index + 1;
         const candidate = row.candidates.find((item) => item.slot === slot);
         return (
-          <td key={slot} className="px-1.5 py-1.5 align-top">
+          <td key={slot} className="px-1.5 py-1.5 align-top"
+            onClickCapture={(event) => {
+              if (candidate && (event.ctrlKey || event.metaKey)) {
+                event.preventDefault(); event.stopPropagation();
+                void linkFiles(candidate.id, evidence.filter((file) => selectedEvidenceIds.has(file.id) && file.workspace_file_id).map((file) => file.workspace_file_id!));
+              }
+            }}
+            onDragOver={(event) => {
+              if (candidate && !protectedCell && event.dataTransfer.types.includes("application/x-sitewise-submission")) { event.preventDefault(); event.dataTransfer.dropEffect = "link"; }
+            }}
+            onDrop={(event) => {
+              if (!candidate || protectedCell) return;
+              const raw = event.dataTransfer.getData("application/x-sitewise-submission");
+              if (!raw) return;
+              event.preventDefault();
+              try {
+                const data: unknown = JSON.parse(raw);
+                if (typeof data === "object" && data !== null && "projectId" in data && data.projectId === projectId && "fileIds" in data && Array.isArray(data.fileIds) && data.fileIds.every((id) => typeof id === "string")) void linkFiles(candidate.id, data.fileIds);
+              } catch { setLinkError("Select files from this project's document panel."); }
+            }}>
             <EditableCell
               key={candidate?.company_name ?? "empty"}
               ariaLabel={`${row.discipline_label}, Firm ${slot}`}
@@ -505,6 +559,7 @@ function StrategyRow({
                 ])
               }
             />
+            {candidate && <FirmSubmissionLinks candidate={candidate} rowId={row.id} evidence={evidence} selectedIds={selectedEvidenceIds} disabled={protectedCell} onApply={onApply} />}
           </td>
         );
       })}
@@ -537,6 +592,10 @@ function StrategyRow({
             </span>
           ) : null}
         </div>
+        {row.comparison_id && (!row.recommendation_draft_id || (row.status === "evaluating" && row.recommendation_stale)) && <Button size="xs" variant="link" className="mt-1 h-auto whitespace-normal px-0 text-left text-xs" onClick={() => onOpenComparison?.(row.comparison_id!)}>Open comparison</Button>}
+        {row.recommendation_draft_id && <Button size="xs" variant="link" className="mt-1 h-auto whitespace-normal px-0 text-left text-xs" onClick={() => onOpenReview?.(row.recommendation_draft_id!)}>Review recommendation{row.recommendation_stale ? " (earlier files)" : ""}</Button>}
+        {comparing && <p role="status" className="mt-1 text-xs text-muted-foreground">Starting comparison…</p>}
+        {linkError && <p role="alert" className="text-xs text-destructive">{linkError}</p>}
       </td>
       <td className="px-1 py-1.5 align-top text-center">
         <DropdownMenu>
@@ -569,12 +628,8 @@ function StrategyRow({
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem
-              disabled={!onCompare || comparableFirmCount < 2}
-              title={
-                comparableFirmCount < 2
-                  ? "Add at least two firms before comparing"
-                  : "Compare firms"
-              }
+              disabled={!onCompare || comparing}
+              title="Review linked submissions"
               onSelect={() => onCompare?.(row)}
             >
               <GitCompareArrows className="size-3.5" aria-hidden />

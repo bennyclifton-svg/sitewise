@@ -157,6 +157,24 @@
   color-scheme: dark;
 }
 
+.sw-lockup {
+  display: block;
+  height: 100%;
+  width: auto;
+}
+
+.sw-lockup--on-light {
+  display: none;
+}
+
+html[data-theme="light"] .sw-lockup--on-dark {
+  display: none;
+}
+
+html[data-theme="light"] .sw-lockup--on-light {
+  display: block;
+}
+
 html[data-theme="light"] {
   color-scheme: light;
   --cockpit-app-canvas: #fefcf5;

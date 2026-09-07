@@ -16,7 +16,7 @@ from app.sitewise.office_pdf import (
 )
 
 ExportFormat = Literal["pdf", "docx"]
-EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v4"
+EXPORT_RENDERER_VERSION = "sitewise-issue-sheet-v6"
 
 # Citation column must fit [n] chips; Status gets the narrative width.
 _CONSULTANTS_TABLE_WEIGHTS = (14, 24, 8, 26, 28)
@@ -36,6 +36,7 @@ def render_artifact_export(
     version: int,
     workflow_type: str | None = None,
 ) -> bytes:
+    compact = workflow_type in {"create_pmp", "update_pmp"} or bool(workflow_type and workflow_type.startswith("tender_report_"))
     issue_markdown = _render_static_decisions(
         issue_export_markdown(
             strip_block_markers(markdown),
@@ -48,6 +49,7 @@ def render_artifact_export(
         project_title=project_title,
         artifact_title=artifact_title,
         version=version,
+        compact=compact,
     )
     if export_format == "docx":
         return _docx_bytes(
@@ -55,6 +57,7 @@ def render_artifact_export(
             project_title=project_title,
             artifact_title=artifact_title,
             version=version,
+            compact=compact,
         )
     if export_format == "pdf":
         try:
@@ -63,6 +66,7 @@ def render_artifact_export(
                 project_title=project_title,
                 artifact_title=artifact_title,
                 version=version,
+                compact=compact,
             )
         except Exception:
             return _pdf_bytes(document_html)
@@ -191,7 +195,9 @@ _IDENTITY_HEADER_LABELS = frozenset(
 def _markdown_html(markdown: str) -> str:
     from markdown_it import MarkdownIt
 
-    html = MarkdownIt("commonmark", {"html": False}).enable("table").render(markdown)
+    renderer = MarkdownIt("commonmark", {"html": False}).enable("table")
+    html = '<div class="review-pagebreak"></div>'.join(renderer.render(part) for part in markdown.split("<!-- pagebreak -->"))
+    html = html.replace('<table>\n<thead>\n<tr>\n<th>Work scope</th>', '<table style="table-layout: fixed">\n<colgroup><col style="width: 50%"><col style="width: 50%"></colgroup>\n<thead>\n<tr>\n<th>Work scope</th>')
     return _demote_summary_table_headers(html)
 
 
@@ -254,7 +260,16 @@ def _document_html(
     project_title: str,
     artifact_title: str,
     version: int,
+    compact: bool = False,
 ) -> str:
+    compact_css = """body { font-size: 9pt; line-height: 1.2; }
+    .issue-meta { margin-bottom: 4mm; padding-bottom: 2mm; }
+    h1 { font-size: 17pt; margin-bottom: 3mm; }
+    h2 { font-size: 11pt; margin: 4mm 0 2mm; }
+    p { max-width: none; margin-bottom: 2mm; }
+    ul, ol { margin: 1mm 0 2mm; } li { margin-bottom: 1mm; }
+    table { font-size: 8pt; margin: 2mm 0; } th, td { padding: 1.1mm 1.5mm; }
+    """ if compact else ""
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -284,6 +299,8 @@ blockquote {{ border-left: 1px solid #000; color: #5C5F66; margin: 3mm 0; paddin
 code {{ font-family: "IBM Plex Mono", monospace; font-size: .9em; }}
 a {{ color: #000; text-decoration: underline; }}
 strong {{ font-weight: 600; }}
+.review-pagebreak {{ page-break-before: always; break-before: page; border: 0; height: 0; margin: 0; }}
+{compact_css}
 </style>
 </head>
 <body><main class="sheet">
@@ -331,7 +348,7 @@ def _safe_export_stem(value: str) -> str:
 
 def _story_safe_html(html: str) -> str:
     """Drop WeasyPrint-only @page rules that MuPDF treats as fatal CSS."""
-    return re.sub(r"@page\s*\{.*?\}\s*", "", html, count=1, flags=re.DOTALL)
+    return re.sub(r"@page\s*\{(?:[^{}]|\{[^{}]*\})*\}\s*", "", html, count=1)
 
 
 def _workbook_preview_html(
@@ -385,6 +402,7 @@ def _docx_bytes(
     project_title: str,
     artifact_title: str,
     version: int,
+    compact: bool = False,
 ) -> bytes:
     from bs4 import BeautifulSoup, NavigableString, Tag
     from docx import Document
@@ -408,9 +426,9 @@ def _docx_bytes(
     styles = document.styles
     normal = styles["Normal"]
     normal.font.name = "Arial"
-    normal.font.size = Pt(9.5)
+    normal.font.size = Pt(9 if compact else 9.5)
     normal.font.color.rgb = RGBColor(0x19, 0x1C, 0x21)
-    normal.paragraph_format.space_after = Pt(5)
+    normal.paragraph_format.space_after = Pt(3 if compact else 5)
     normal.paragraph_format.line_spacing = 1.12
     normal._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:ascii"), "Arial")
     normal._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:hAnsi"), "Arial")
@@ -422,18 +440,18 @@ def _docx_bytes(
     ):
         style = styles[name]
         style.font.name = "Arial"
-        style.font.size = Pt(size)
+        style.font.size = Pt(min(size, 17 if name == "Title" else 11) if compact else size)
         style.font.color.rgb = color
         style.font.bold = name != "Title"
-        style.paragraph_format.space_before = Pt(before)
-        style.paragraph_format.space_after = Pt(after)
+        style.paragraph_format.space_before = Pt(before / 2 if compact else before)
+        style.paragraph_format.space_after = Pt(after / 2 if compact else after)
         style.paragraph_format.keep_with_next = True
         style._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:ascii"), "Arial")
         style._element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:hAnsi"), "Arial")
     for name in ("List Bullet", "List Number"):
         style = styles[name]
         style.font.name = "Arial"
-        style.font.size = Pt(9.5)
+        style.font.size = Pt(9 if compact else 9.5)
         style.paragraph_format.left_indent = Mm(6)
         style.paragraph_format.first_line_indent = Mm(-3)
         style.paragraph_format.space_after = Pt(2.5)
@@ -513,7 +531,7 @@ def _docx_bytes(
         if tc_mar is None:
             tc_mar = OxmlElement("w:tcMar")
             tc_pr.append(tc_mar)
-        for edge, value in (("top", 80), ("start", 120), ("bottom", 80), ("end", 120)):
+        for edge, value in (("top", 60 if compact else 80), ("start", 120), ("bottom", 60 if compact else 80), ("end", 120)):
             element = tc_mar.find(qn(f"w:{edge}"))
             if element is None:
                 element = OxmlElement(f"w:{edge}")
@@ -575,6 +593,8 @@ def _docx_bytes(
             (section.page_width - section.left_margin - section.right_margin) / 635
         )
         consultants_weights = _consultants_table_weights(rows, column_count)
+        if column_count == 2 and rows[0].find(["th", "td"]).get_text(strip=True) == "Work scope":
+            return [usable_twips // 2, usable_twips - usable_twips // 2]
         if consultants_weights is not None:
             weight_total = sum(consultants_weights) or 1
             widths = [
@@ -626,7 +646,7 @@ def _docx_bytes(
                     cell._tc.get_or_add_tcPr().append(shading)
                 for run in paragraph.runs:
                     run.font.name = "Arial"
-                    run.font.size = Pt(8.2)
+                    run.font.size = Pt(8 if compact else 8.2)
                     run.font.color.rgb = RGBColor(0x00, 0x00, 0x00)
             if row_index == 0:
                 header_property = OxmlElement("w:tblHeader")
@@ -640,7 +660,9 @@ def _docx_bytes(
             continue
         if not isinstance(node, Tag):
             continue
-        if node.name == "h1":
+        if node.name == "div" and "review-pagebreak" in node.get("class", []):
+            document.add_page_break()
+        elif node.name == "h1":
             paragraph = document.add_paragraph(style="Title")
             add_inline(paragraph, node)
         elif node.name == "h2":

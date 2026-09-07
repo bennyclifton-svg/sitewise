@@ -10,7 +10,7 @@ from app.sitewise.pmp_length import (
 def test_pmp_word_count_counts_selected_decision_label_only() -> None:
     markdown = """# PMP
 
-## Actions and decisions
+## Procurement
 
 ```pmp-decision
 {
@@ -24,7 +24,7 @@ def test_pmp_word_count_counts_selected_decision_label_only() -> None:
 """
     restamped = markdown.replace('"selected": "a"', '"selected": "a"')
     assert pmp_word_count(markdown) == pmp_word_count(restamped)
-    assert pmp_word_count(markdown) == 7
+    assert pmp_word_count(markdown) == 5
 
 
 def test_pmp_word_count_excludes_annexure_and_collapsed_details() -> None:

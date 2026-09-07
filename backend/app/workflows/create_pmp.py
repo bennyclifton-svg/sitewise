@@ -78,6 +78,7 @@ from app.schemas.projects import (
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.sitewise.gate import format_overlay_failure, overlay_status
 from app.sitewise.artifact_presentation import prepare_issue_markdown
+from app.sitewise.pmp_profile import apply_profile_basis
 from app.sitewise.pmp_greenfield_brief import (
     build_greenfield_brief,
     greenfield_markers_missing,
@@ -133,6 +134,7 @@ from app.sitewise.pmp_taxonomy_context import (
     project_has_taxonomy,
 )
 from app.sitewise.taxonomy import (
+    is_class_1a,
     risk_flag_definitions,
     scale_band_word_bounds,
     scale_band_word_target,
@@ -2173,7 +2175,7 @@ async def run_create_pmp_workflow(
             )
             weights = taxonomy_context.section_weights
             for length_attempt in range(HYBRID_NARRATIVE_MAX_ATTEMPTS):
-                under = under_length_violations(
+                under = [] if use_scaffold and is_class_1a(taxonomy_context.building_class, taxonomy_context.subclasses) else under_length_violations(
                     output.markdown,
                     weights=weights,
                     min_words=min_words,
@@ -2415,6 +2417,8 @@ async def run_create_pmp_workflow(
         output.markdown, project_title=project.title
     )
     existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
+    if snapshot is not None:
+        output.markdown = apply_profile_basis(output.markdown, snapshot.profile)
     output.markdown = sync_document_control_version(output.markdown, existing_version)
     block_identity = materialize_block_identity(
         output.markdown,

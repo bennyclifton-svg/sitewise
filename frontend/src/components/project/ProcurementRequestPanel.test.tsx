@@ -23,6 +23,7 @@ vi.mock("@/lib/api", () => ({
     applyProcurementStrategyOperations: vi.fn(),
     getProjectDraft: vi.fn(),
     downloadDraftExport: vi.fn(),
+    startProcurementReview: vi.fn(),
   },
 }));
 
@@ -442,7 +443,7 @@ describe("ProcurementRequestPanel", () => {
     );
   });
 
-  it("launches comparison from a row with at least two firms", async () => {
+  it("starts one review from a single submitted firm with multiple files", async () => {
     const user = userEvent.setup();
     const comparisonReady = {
       ...strategy,
@@ -454,6 +455,10 @@ describe("ProcurementRequestPanel", () => {
               id: "candidate-1",
               slot: 1,
               company_name: "North & Co",
+              submission_files: [
+                { workspace_file_id: "main", filename: "Fee.pdf", workspace_path: "quotes/Fee.pdf" },
+                { workspace_file_id: "insurance", filename: "Insurance.pdf", workspace_path: "quotes/Insurance.pdf" },
+              ],
               website_url: null,
               location_text: null,
               source_url: null,
@@ -475,6 +480,7 @@ describe("ProcurementRequestPanel", () => {
       ],
     } satisfies ProcurementStrategy;
     vi.mocked(api.ensureProcurementStrategy).mockResolvedValue(comparisonReady);
+    vi.mocked(api.startProcurementReview).mockResolvedValue({ comparison_id: "review-1" });
     const onOpenTenderComparison = vi.fn();
     renderPanel({ onOpenTenderComparison });
 
@@ -483,6 +489,7 @@ describe("ProcurementRequestPanel", () => {
     );
     await user.click(screen.getByRole("menuitem", { name: "Compare firms" }));
 
-    expect(onOpenTenderComparison).toHaveBeenCalledOnce();
+    await waitFor(() => expect(onOpenTenderComparison).toHaveBeenCalledWith("review-1"));
+    expect(api.startProcurementReview).toHaveBeenCalledWith({ project_id: "mosaic", row_id: "row-1", expected_submission_revision: 1, rerun: true });
   });
 });

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -493,6 +494,11 @@ def _clean(value: str | None) -> str | None:
 @lru_cache(maxsize=1)
 def _building_class_by_value() -> dict[str, BuildingClass]:
     return {item.value: item for item in building_classes()}
+
+
+def is_class_1a(building_class: str | None, subclasses: Sequence[str]) -> bool:
+    """Select the house/townhouse product defaults, excluding mixed classifications."""
+    return building_class == "residential" and bool(subclasses) and set(subclasses) <= {"house", "townhouses"}
 
 
 PMP_CORE_SECTIONS: tuple[str, ...] = tuple(_emphasis_config()["sections"])

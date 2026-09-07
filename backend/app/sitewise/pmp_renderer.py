@@ -37,6 +37,8 @@ from app.sitewise.taxonomy import (
     DESIGN_LEAD_UNCONFIRMED,
     DESIGN_LEAD_UNCONFIRMED_LABEL,
     building_class_label,
+    complexity_option_labels,
+    is_class_1a,
     design_lead_discipline,
     scale_field_label,
     subclass_label,
@@ -1258,14 +1260,12 @@ def _taxonomy_project_description(project: Project) -> str:
         # The user's own wording leads. A reader recognises "concrete cancer in
         # the basement carpark"; they do not recognise "Facade/Cladding
         # Rectification", which is a routing key that happens to be printable.
-        scope = "; ".join(narrative or [item.label for item in scope_items])
+        scope = "; ".join(narrative)
         work_type = work_type_label(context.work_type) or "Project"
         asset = _compact_taxonomy_scale_summary(project)
         lead = f"{work_type} works for {asset}" if asset else f"{work_type} works"
         return (
-            f"{lead}. Scope includes {scope}. "
-            "This plan coordinates approvals, consultants, cost, programme, "
-            "procurement, risks, owner decisions, and delivery close-out."
+            f"{lead}. " + (f"{scope}." if scope else "The selected work scope is set out in the brief below.")
         )
     project_type = " ".join(
         part
@@ -1350,6 +1350,19 @@ def _scope_narrative(project: Project) -> list[str]:
     return project_scope_narrative(project)
 
 
+def _profile_complexity_basis(context, *, only=None, exclude=frozenset()) -> str:
+    labels = complexity_option_labels(
+        building_class=context.building_class,
+        subclasses=context.subclasses,
+        complexity=context.complexity,
+    )
+    return "; ".join(
+        labels.get(key, f"{key.replace('_', ' ')}: {str(value).replace('_', ' ')}")
+        for key, value in context.complexity.items()
+        if value not in (None, "") and key not in exclude and (only is None or key in only)
+    )
+
+
 def _render_taxonomy_scope(project: Project) -> str:
     context = pmp_taxonomy_context(project)
     if context is None:
@@ -1359,13 +1372,23 @@ def _render_taxonomy_scope(project: Project) -> str:
     # says what the job actually is. "Building Services Upgrade" and "two 30-year-old
     # R22 units in the service centre and western office" are both needed, and only
     # the second is what the client recognises as their project.
-    inclusions = [f"- {item.label}" for item in scope_items]
+    scope_labels = [item.label for item in scope_items]
+    midpoint = (len(scope_labels) + 1) // 2
+    inclusions = ["| Work scope | Work scope (continued) |", "| --- | --- |"] if scope_labels else []
+    inclusions.extend(
+        f"| {scope_labels[index]} | {scope_labels[index + midpoint] if index + midpoint < len(scope_labels) else ''} |"
+        for index in range(midpoint)
+    )
+    if inclusions:
+        inclusions.append("")
     inclusions.extend(f"- {item}" for item in _scope_narrative(project))
     if not inclusions:
         inclusions = ["- Scope selection pending — confirm inclusions with the client."]
     brief_is_emphasis = _top_weighted_section_id(project) == "scope-client-requirements"
 
-    if context.building_class == "residential" and context.work_type == "new":
+    if is_class_1a(context.building_class, context.subclasses):
+        residential_note = "Confirm finishes, allowances, owner-supplied items and utility connections before procurement."
+    elif context.building_class == "residential" and context.work_type == "new":
         residential_note = (
             "For residential new work, confirm finishes, fixtures, wet-area scope, kitchen/bathroom "
             "allowances, appliance and tapware selections, flooring, joinery, external works, "
@@ -1387,8 +1410,11 @@ def _render_taxonomy_scope(project: Project) -> str:
         "",
         f"Class/type/subclass: {_class_type_subclass_line(context)}.",
     ]
-    if scale_summary:
+    if scale_summary and not is_class_1a(context.building_class, context.subclasses):
         lines.append(f"Scale summary: {scale_summary}.")
+    constraints = _profile_complexity_basis(context, exclude={"planning", "procurement_route"})
+    if constraints:
+        lines.append(f"Site and delivery conditions supplied in the profile: {constraints}.")
     lines.extend(
         [
             residential_note,
@@ -1636,6 +1662,8 @@ def _render_taxonomy_consultants(
 
     lead = design_lead_discipline(context.work_type, context.work_scope)
     engaged = has_engagement_evidence(pack)
+    if is_class_1a(context.building_class, context.subclasses) and not engaged:
+        lead = DESIGN_LEAD_UNCONFIRMED
     fee_known = has_fee_proposal_evidence(pack) or bool(pack.fee_total_ex_gst)
     seen: set[str] = set()
     if lead != DESIGN_LEAD_UNCONFIRMED:
@@ -1704,7 +1732,11 @@ def _render_taxonomy_consultants(
         key=lambda row: alphanumeric_label_key(row.split("|", 2)[1].strip()),
     )
 
-    if lead == DESIGN_LEAD_UNCONFIRMED:
+    if is_class_1a(context.building_class, context.subclasses):
+        intro = "Starter disciplines; confirm appointments and combine roles where appropriate."
+        if lead == DESIGN_LEAD_UNCONFIRMED:
+            intro = f"{DESIGN_LEAD_UNCONFIRMED_LABEL}. {intro}"
+    elif lead == DESIGN_LEAD_UNCONFIRMED:
         intro = (
             f"{DESIGN_LEAD_UNCONFIRMED_LABEL}. "
             "Record firm, fee, and appointment status only — engagement scope belongs in the brief "
@@ -1786,7 +1818,10 @@ def _render_taxonomy_compliance(
         "| Authority approvals | Not evidenced | No current approval records used | Upload planning/approval records |  |",
         "| Essential safety measures | Assumption | Seed doctrine | Confirm ESM schedule where applicable |  |",
     ]
-    if "fire_services" in context.work_scope:
+    planning = _profile_complexity_basis(context, only={"planning"})
+    if planning:
+        rows.append(f"| Planning pathway | User supplied | {planning} | Confirm eligibility and required approvals with the certifier |  |")
+    if "fire_services" in context.work_scope and not is_class_1a(context.building_class, context.subclasses):
         rows.extend(
             [
                 "| Fire hydrant systems | Assumption | AS 2419.1 seed reference | Confirm hydrant scope and authority requirements |  |",
@@ -1870,10 +1905,11 @@ def _render_taxonomy_procurement(project: Project) -> str:
             "| Evidence request list | Not evidenced | Issue document request register |",
         ]
     else:
+        route = _profile_complexity_basis(context, only={"procurement_route"}) or "Not provided"
         rows = [
             "| Procurement / delivery item | Status | Next action |",
             "| --- | --- | --- |",
-            "| Procurement route | Current | Confirm contract and tender pathway |",
+            f"| {route} | User supplied | Confirm contract and tender pathway |",
             "| Consultant inputs | Assumption | Appoint or confirm discipline roster |",
             "| Tender / award gates | Not evidenced | Upload procurement programme and evaluation criteria |",
         ]

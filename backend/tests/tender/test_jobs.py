@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import inspect as sa_inspect
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import make_transient_to_detached
 from tender.models import TenderJob
 from tender.services import jobs
@@ -34,7 +35,9 @@ def _claim_result(job: TenderJob | None) -> MagicMock:
 
 @pytest.fixture
 def mock_session() -> AsyncMock:
-    return AsyncMock()
+    session = AsyncMock()
+    session.add = MagicMock()
+    return session
 
 
 def test_enqueue_adds_and_flushes(mock_session: AsyncMock) -> None:
@@ -43,7 +46,10 @@ def test_enqueue_adds_and_flushes(mock_session: AsyncMock) -> None:
             mock_session, kind="ingest_document", payload={"document_id": "abc"}
         )
         assert job.kind == "ingest_document"
-        assert job.payload == {"document_id": "abc"}
+        assert job.payload == {
+            "document_id": "abc",
+            "queue_scope": jobs.settings.workflow_queue_scope,
+        }
         assert job.status == "queued"
         mock_session.add.assert_called_once_with(job)
         mock_session.flush.assert_awaited_once()
@@ -78,7 +84,9 @@ def test_claim_next_locks_job_and_commits(mock_session: AsyncMock) -> None:
 
 
 def test_complete_marks_done_and_clears_lock(mock_session: AsyncMock) -> None:
-    job = _job(status="running", locked_by="host:1", locked_at=datetime.now(timezone.utc))
+    job = _job(
+        status="running", locked_by="host:1", locked_at=datetime.now(timezone.utc)
+    )
 
     async def _run() -> None:
         await jobs.complete(mock_session, job)
@@ -88,6 +96,64 @@ def test_complete_marks_done_and_clears_lock(mock_session: AsyncMock) -> None:
         mock_session.commit.assert_awaited_once()
 
     run_async(_run())
+
+
+def test_complete_refreshes_job_expired_by_continuation_rollback(mock_session):
+    expired = _expired_job()
+    refreshed = _job(
+        id=sa_inspect(expired).identity[0],
+        status="running",
+        comparison_id=uuid.uuid4(),
+        locked_by="original-lease",
+    )
+    mock_session.get.return_value = refreshed
+    mock_session.scalar.return_value = None
+
+    async def exercise():
+        await jobs.complete(mock_session, expired)
+        mock_session.get.assert_awaited_once_with(TenderJob, refreshed.id)
+        assert refreshed.status == "done"
+        assert refreshed.locked_by is None
+        mock_session.commit.assert_awaited_once()
+
+    run_async(exercise())
+
+
+def test_enqueue_uses_configured_scope_not_payload_scope(mock_session):
+    async def exercise():
+        with patch.object(jobs.settings, "workflow_queue_scope", "dev"):
+            job = await jobs.enqueue(
+                mock_session,
+                kind="ingest_document",
+                payload={"queue_scope": "production"},
+            )
+        assert job.payload["queue_scope"] == "dev"
+
+    run_async(exercise())
+
+
+def test_claim_filters_scope_and_preserves_legacy_production_jobs():
+    with patch.object(jobs.settings, "workflow_queue_scope", "dev"):
+        query = jobs.claim_query().compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+    assert "coalesce" in str(query)
+    assert "queue_scope" in str(query)
+    assert "'production') = 'dev'" in str(query)
+
+
+def test_stale_recovery_cannot_reassign_another_environment(mock_session):
+    async def exercise():
+        mock_session.execute.return_value.rowcount = 0
+        with patch.object(jobs.settings, "workflow_queue_scope", "dev"):
+            await jobs.requeue_stale(mock_session, older_than_minutes=10)
+        query = mock_session.execute.call_args.args[0].compile(
+            dialect=postgresql.dialect(), compile_kwargs={"literal_binds": True}
+        )
+        assert "queue_scope" in str(query)
+        assert "'production') = 'dev'" in str(query)
+
+    run_async(exercise())
 
 
 def test_complete_publishes_worker_event_in_the_completion_transaction(
@@ -128,7 +194,9 @@ def test_complete_publishes_worker_event_in_the_completion_transaction(
 
 
 def test_fail_first_attempt_requeues_with_base_backoff(mock_session: AsyncMock) -> None:
-    job = _job(status="running", locked_by="host:1", locked_at=datetime.now(timezone.utc))
+    job = _job(
+        status="running", locked_by="host:1", locked_at=datetime.now(timezone.utc)
+    )
 
     async def _run() -> None:
         before = datetime.now(timezone.utc)
@@ -215,7 +283,9 @@ def test_requeue_stale_issues_update_and_commits(mock_session: AsyncMock) -> Non
 
 def test_claim_query_uses_skip_locked_and_run_after_order() -> None:
     query = jobs.claim_query()
-    sql = str(query.compile(dialect=__import__("sqlalchemy").dialects.postgresql.dialect()))
+    sql = str(
+        query.compile(dialect=__import__("sqlalchemy").dialects.postgresql.dialect())
+    )
     assert "FOR UPDATE SKIP LOCKED" in sql
     assert "ORDER BY tender_jobs.run_after" in sql
     assert "LIMIT" in sql

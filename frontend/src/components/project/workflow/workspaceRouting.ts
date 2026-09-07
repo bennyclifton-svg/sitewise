@@ -35,6 +35,7 @@ export function isTradeProcurementWorkspaceFile(path: string): boolean {
 /** True when a workspace file is backed by a generated draft artefact. */
 export function isDraftArtifactWorkspaceFile(path: string): boolean {
   return (
+    /\/05-procurement\/review-[\w-]+\.md$/i.test(path.replaceAll("\\", "/")) ||
     isPmpWorkspaceFile(path) ||
     isCostPlanWorkspaceFile(path) ||
     isConsultantProcurementWorkspaceFile(path) ||

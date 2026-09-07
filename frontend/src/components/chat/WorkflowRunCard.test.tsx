@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -64,6 +64,13 @@ function run(overrides: Partial<WorkflowRun> = {}): WorkflowRun {
 }
 
 describe("WorkflowRunCard", () => {
+  it("retries a failed PMP through the normal chat command", async () => {
+    vi.mocked(api.getWorkflowRun).mockResolvedValue(run({ state: "failed", workflow_type: "create_project_plan" }));
+    const retry = vi.fn();
+    render(<WorkflowRunCard projectId="project-1" runRef={{ kind: "workflow_run", projectId: "project-1", runId: "run-1" }} onRetryPlan={retry} />, { wrapper: wrapper() });
+    fireEvent.click(await screen.findByRole("button", { name: "Retry plan" }));
+    expect(retry).toHaveBeenCalledWith("Create PMP");
+  });
   beforeEach(() => {
     vi.clearAllMocks();
   });

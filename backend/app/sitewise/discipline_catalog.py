@@ -164,18 +164,22 @@ def required_project_disciplines(project: object) -> tuple[RequiredProjectDiscip
         typical_consultant_labels,
     )
     from app.sitewise.pmp_taxonomy_context import pmp_taxonomy_context
-    from app.sitewise.taxonomy import work_scope_items_for
+    from app.sitewise.taxonomy import is_class_1a, work_scope_items_for
 
     context = pmp_taxonomy_context(project)
     collected: list[tuple[Discipline, str]] = []
     if context is not None:
+        typical = typical_consultant_labels(
+            work_type=context.work_type, subclasses=context.subclasses,
+        )
+        house_roster = bool(typical) and is_class_1a(context.building_class, context.subclasses)
         for item in work_scope_items_for(context.work_type, context.work_scope):
             for label in item.consultants:
-                collected.append((resolve_discipline(label), "work_scope"))
-        for label in typical_consultant_labels(
-            work_type=context.work_type,
-            subclasses=context.subclasses,
-        ):
+                discipline = resolve_discipline(label)
+                if house_roster and discipline.participant_type == "consultant":
+                    continue
+                collected.append((discipline, "work_scope"))
+        for label in typical:
             collected.append(
                 (resolve_discipline(label, participant_type="consultant"), "typical")
             )

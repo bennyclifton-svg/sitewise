@@ -99,6 +99,8 @@ def test_house_roster_is_shared_and_stably_coded() -> None:
     assert [row.code for row in rows] == [
         "consultant.architect",
         "consultant.civil",
+        "consultant.interior_design",
+        "consultant.landscape",
         "consultant.structural",
         "consultant.town_planner",
     ]

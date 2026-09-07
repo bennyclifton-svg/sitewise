@@ -13,6 +13,7 @@ import os
 import signal
 import socket
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 
@@ -32,6 +33,8 @@ from tender.services.ingestion import ingest_document
 from tender.services.mapping import map_items
 from tender.services.project_taxonomy import generate_project_taxonomy
 from tender.services.report import assemble_report_draft
+from tender.services.review_extraction import read_review_document
+from tender.services.procurement_review import prepare_procurement_review
 from tender.services.silence import infer_silence, infer_silence_batch
 
 log = get_logger(__name__)
@@ -39,6 +42,8 @@ log = get_logger(__name__)
 Handler = Callable[[AsyncSession, TenderJob], Awaitable[None]]
 
 HANDLERS: dict[str, Handler] = {
+    "read_review_document": read_review_document,
+    "prepare_procurement_review": prepare_procurement_review,
     "ingest_document": ingest_document,
     "classify_document": classify_document,
     "extract_line_items": extract_line_items_job,
@@ -58,7 +63,7 @@ async def run_once(session_factory, worker_id: str) -> bool:
     """Claim and process at most one job; return whether one was processed."""
 
     async with session_factory() as session:
-        job = await jobs.claim_next(session, worker_id=worker_id)
+        job = await jobs.claim_next(session, worker_id=f"{worker_id}:{uuid.uuid4().hex}")
         if job is None:
             return False
 
@@ -81,13 +86,18 @@ async def run_once(session_factory, worker_id: str) -> bool:
             return True
 
         job_id = job.id
+        lease_owner = job.locked_by
         job_kind = job.kind
         comparison_id = job.comparison_id
         started = time.perf_counter()
         usage = telemetry.begin_stage_usage()
         usage.merge_metadata(_job_telemetry_metadata(job))
+        heartbeat = asyncio.create_task(_renew_while_running(session_factory, job.id, job.locked_by))
         try:
             await handler(session, job)
+        except jobs.JobLeaseLost:
+            await session.rollback()
+            return True
         except Exception as exc:
             error_type = type(exc).__name__
             log.error(
@@ -100,6 +110,12 @@ async def run_once(session_factory, worker_id: str) -> bool:
             )
             duration_ms = int((time.perf_counter() - started) * 1000)
             await session.rollback()
+            if lease_owner:
+                try:
+                    await jobs.assert_lease_owner(session, job_id=job_id, owner=lease_owner)
+                except jobs.JobLeaseLost:
+                    await session.rollback()
+                    return True
             failed_meta = dict(usage.metadata)
             failed_meta["error_type"] = error_type
             await telemetry.record_stage_timing(
@@ -118,9 +134,26 @@ async def run_once(session_factory, worker_id: str) -> bool:
             await jobs.fail(session, job, f"{job_kind} failed ({error_type})")
             return True
         finally:
+            heartbeat.cancel()
+            await asyncio.gather(heartbeat, return_exceptions=True)
             telemetry.end_stage_usage()
 
         duration_ms = int((time.perf_counter() - started) * 1000)
+        if lease_owner:
+            try:
+                await jobs.assert_lease_owner(session, job_id=job_id, owner=lease_owner)
+            except jobs.JobLeaseLost:
+                await session.rollback()
+                return True
+        if job_kind == "read_review_document":
+            # Queue the next stage before marking this job done. A crash in
+            # between is recovered by replaying this idempotent continuation.
+            await continuations.after_job_complete(
+                session, job_id=job_id, job_kind=job_kind, comparison_id=comparison_id,
+            )
+            if lease_owner:
+                await jobs.assert_lease_owner(session, job_id=job_id, owner=lease_owner)
+        # Keep timing in the completion transaction; a no-op continuation rolls back.
         await telemetry.record_stage_timing(
             session,
             comparison_id=comparison_id,
@@ -142,6 +175,18 @@ async def run_once(session_factory, worker_id: str) -> bool:
             comparison_id=comparison_id,
         )
         return True
+
+
+async def _renew_while_running(session_factory, job_id: uuid.UUID, owner: str) -> None:
+    interval = min(30, max(1, settings.tender_job_stale_lock_minutes * 60 / 3))
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            async with session_factory() as session:
+                if not await jobs.renew_lease(session, job_id=job_id, owner=owner):
+                    return
+        except Exception as exc:
+            log.warning("tender_lease_renewal_failed", job_id=str(job_id), error_type=type(exc).__name__)
 
 
 def _job_telemetry_metadata(job: TenderJob) -> dict[str, object]:
@@ -309,6 +354,10 @@ def _install_signal_handlers(shutdown_event: asyncio.Event) -> None:
 async def main() -> None:
     configure_logging()
     from app.database.session import get_session_factory
+    from app.projects.tender_artefact_adapter import CoreTenderArtefactPublisher
+    from tender.services.artefact_publisher import configure_tender_artefact_publisher
+
+    configure_tender_artefact_publisher(CoreTenderArtefactPublisher())
 
     worker_id = f"{socket.gethostname()}:{os.getpid()}"
     shutdown_event = asyncio.Event()

@@ -49,7 +49,7 @@ x-sitewise-api-environment: &sitewise-api-environment
   WORKFLOW_WORKER_CONCURRENCY: ${WORKFLOW_WORKER_CONCURRENCY:-2}
   WORKFLOW_WORKER_LEASE_SECONDS: ${WORKFLOW_WORKER_LEASE_SECONDS:-90}
   WORKFLOW_WORKER_MAX_ATTEMPTS: ${WORKFLOW_WORKER_MAX_ATTEMPTS:-3}
-  # Only runs queued by this environment are claimed here. Every environment
+  # Only core runs and tender jobs queued by this environment are claimed here. Every environment
   # sharing this Supabase project needs its own value, or they share a queue.
   WORKFLOW_QUEUE_SCOPE: ${WORKFLOW_QUEUE_SCOPE:-production}
   # Stamped onto every generated artefact so a document is attributable to a

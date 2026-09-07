@@ -748,6 +748,7 @@ export type ProcurementStrategyCandidate = {
   source_url: string | null;
   source_title: string | null;
   researched_at: string | null;
+  submission_files?: Array<{ workspace_file_id: string; filename: string; workspace_path: string }>;
 };
 
 export type ProcurementStrategyRow = {
@@ -764,6 +765,10 @@ export type ProcurementStrategyRow = {
   candidates: ProcurementStrategyCandidate[];
   linked_request_ids: string[];
   no_longer_required: boolean;
+  submission_revision?: number;
+  comparison_id?: string | null;
+  recommendation_draft_id?: string | null;
+  recommendation_stale?: boolean;
 };
 
 export type ProcurementStrategy = {
@@ -787,7 +792,11 @@ export type ProcurementStrategyOperation = {
     | "UNLOCK_ROW"
     | "UPSERT_CANDIDATE"
     | "CLEAR_CANDIDATE"
-    | "SET_TENDERER_COLUMN_COUNT";
+    | "SET_TENDERER_COLUMN_COUNT"
+    | "LINK_CANDIDATE_FILES"
+    | "UNLINK_CANDIDATE_FILES";
+  candidate_id?: string;
+  workspace_file_ids?: string[];
   row_id?: string;
   discipline_code?: string;
   discipline_label?: string;
