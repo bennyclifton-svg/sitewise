@@ -36,14 +36,15 @@ def export(source):
                 continue
             memberships = tuple(json.loads(obj.get('sw_service_systems', '[]')))
             night_window = bool(obj.get('sw_glass')) and obj.name.startswith('WD -')
-            key = (system, mat.name if mat else 'Default', bool(obj.get('sw_glass')), memberships, obj.get('sw_motion', ''), bool(obj.get('sw_civil_surface')), night_window)
+            key = (system, mat.name if mat else 'Default', bool(obj.get('sw_glass')), memberships, obj.get('sw_motion', ''), bool(obj.get('sw_civil_surface')), night_window, int(obj.get('sw_landscape_dwelling', 0)), int(obj.get('sw_reveal_dwelling', 0)), bool(obj.get('sw_underground')))
             vertices = [tuple(obj.matrix_world @ v.co) for v in mesh.vertices]
-            batches[key].append((vertices, [tuple(p.vertices) for p in faces], mat))
+            mirrored = obj.matrix_world.to_3x3().determinant() < 0
+            batches[key].append((vertices, [tuple(reversed(p.vertices)) if mirrored else tuple(p.vertices) for p in faces], mat))
         evaluated.to_mesh_clear()
     scene = bpy.data.scenes.new('WEB EXPORT | System batches')
     bpy.context.window.scene = scene
     counts = {}
-    for (system, label, glass, memberships, motion, civil_surface, night_window), parts in batches.items():
+    for (system, label, glass, memberships, motion, civil_surface, night_window, landscape_dwelling, reveal_dwelling, underground), parts in batches.items():
         vertices, faces = [], []
         for points, polygons, _ in parts:
             offset = len(vertices)
@@ -58,9 +59,15 @@ def export(source):
         obj['sw_glass'] = glass
         obj['sw_civil_surface'] = civil_surface
         obj['sw_night_window'] = night_window
+        obj['sw_landscape_dwelling'] = landscape_dwelling
+        obj['sw_dwelling_y_offset'] = source.get('sw_dwelling_y_offset', 0)
+        obj['sw_reveal_dwelling'] = reveal_dwelling
+        obj['sw_underground'] = underground
         obj['sw_service_systems'] = json.dumps(list(memberships))
         if motion:
             obj['sw_motion'] = motion
+            if motion == 'car':
+                obj['sw_car_origin'] = json.loads(source['sw_car_origin'])
         if parts[0][2]:
             mesh.materials.append(parts[0][2])
         obj.select_set(True)
@@ -73,11 +80,11 @@ def export(source):
         export_draco_position_quantization=16, export_draco_normal_quantization=10,
         export_materials='EXPORT', export_image_format='NONE')
     (WEB/'model-manifest.json').write_text(json.dumps({'systems': counts, 'batches':len(batches),
-        'scope':'One detailed dwelling; illustrative shared site and street services.'}, indent=2))
+        'scope':source.get('sw_model_scope', 'One detailed dwelling; illustrative shared site and street services.')}, indent=2))
     bpy.context.window.scene = source
     print('V3_WEB_EXPORTED', dict(counts), flush=True)
 
 
 if __name__ == '__main__':
-    bpy.ops.wm.open_mainfile(filepath=str(HERE.parent/'sitewise-premium-v11.blend'))
+    bpy.ops.wm.open_mainfile(filepath=str(HERE.parent/'sitewise-entry-bikes-v23.blend'))
     export(bpy.context.scene)

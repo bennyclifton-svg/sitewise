@@ -10,6 +10,7 @@ PROFILE_MUTATION_SCOPE = "profile_mutation"
 PROCUREMENT_STRATEGY_MUTATION_SCOPE = "procurement_strategy_mutation"
 PROFILE_ENRICHMENT_REASON = "profile_enrichment_authority"
 PROFILE_SETUP_REASON = "profile_setup_from_brief"
+PROFILE_SCOPE_POPULATE_REASON = "profile_scope_populate"
 
 _DIRECT_IMPERATIVE = re.compile(r"\b(?:set(?!\s+up)|change|make)\b", re.IGNORECASE)
 _SAVE_IMPERATIVE = re.compile(r"\b(?:update|save)\b", re.IGNORECASE)
@@ -43,6 +44,16 @@ _PROFILE_SETUP_REQUEST = re.compile(
     r"(?:set\s+up|setup|establish)\b.*\bprofile\b",
     re.IGNORECASE,
 )
+_SCOPE_POPULATE_RE = re.compile(
+    r"("
+    r"\b(?:populate|fill|tick|check|select|set)\b.{0,60}\b"
+    r"(?:scope\s+items?|work\s+scope|scope\s+checkboxes?)\b"
+    r"|"
+    r"\b(?:scope\s+items?|work\s+scope|scope\s+checkboxes?)\b.{0,60}\b"
+    r"(?:populate|fill|tick|check|select)\b"
+    r")",
+    re.IGNORECASE | re.DOTALL,
+)
 _PROCUREMENT_STRATEGY_CONTEXT = re.compile(
     r"\b(?:procurement\s+strategy|tenderer(?:s)?|quote\s+candidate(?:s)?|"
     r"(?:procurement|tenderer)\s+(?:table|grid)|this\s+table)\b",
@@ -74,6 +85,7 @@ _BUILDING_CLASSES = {
     "infrastructure": "infrastructure",
     "distribution centre": "industrial",
     "distribution center": "industrial",
+    "warehouse": "industrial",
 }
 _WORK_TYPES = {
     "new build": "new",
@@ -84,6 +96,9 @@ _WORK_TYPES = {
     "extension": "extend",
     "addition": "extend",
     "extend": "extend",
+    "fit-out": "refurb",
+    "fitout": "refurb",
+    "fit out": "refurb",
     "remediation": "remediation",
     "rectification": "remediation",
     "advisory": "advisory",
@@ -120,6 +135,8 @@ _SUBCLASSES = {
     "distribution centre": "logistics_ecommerce",
     "distribution center": "logistics_ecommerce",
     "logistics": "logistics_ecommerce",
+    "warehouse": "warehouse",
+    "office": "office",
 }
 _STOREY_WORDS = {
     "single": 1,
@@ -150,6 +167,11 @@ _SITE_AREA_RE = re.compile(
     re.IGNORECASE,
 )
 _BEDROOMS_RE = re.compile(r"\b(\d+)\s*(?:bedrooms?|beds?)\b", re.IGNORECASE)
+_DOCK_RE = re.compile(
+    r"\b(\d+)\s*(?:loading\s+docks?|dock\s+doors?)\b"
+    r"|\b(?:new\s+|own\s+new\s+)?loading\s+dock\b",
+    re.IGNORECASE,
+)
 _GARAGE_COUNT_WORDS = {
     "single": 1,
     "double": 2,
@@ -250,6 +272,11 @@ def is_profile_setup_text(user_text: str) -> bool:
     return bool(_PROFILE_SETUP_REQUEST.search(normalized))
 
 
+def is_work_scope_populate_text(user_text: str) -> bool:
+    """True when the user asks to tick Project Profile work-scope checkboxes."""
+    return bool(_SCOPE_POPULATE_RE.search(user_text or ""))
+
+
 def is_profile_enrichment_text(user_text: str) -> bool:
     """True when the user asks for a best-effort profile fill without exact values."""
     normalized = " ".join(user_text.lower().split())
@@ -275,6 +302,17 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
     clean_spoken = (
         not evidence_assertion and not quoted_instruction and not hedged
     )
+    if is_work_scope_populate_text(user_text) and not quoted_instruction:
+        scopes = [PROFILE_MUTATION_SCOPE]
+        if procurement_scope:
+            scopes.append(PROCUREMENT_STRATEGY_MUTATION_SCOPE)
+        return MutationIntent(
+            user_message_hash=message_hash,
+            scopes=tuple(scopes),
+            profile_patch=MappingProxyType({}),
+            requires_confirmation=False,
+            reason=PROFILE_SCOPE_POPULATE_REASON,
+        )
     if is_profile_setup_text(user_text) and clean_spoken and targets:
         scopes = [PROFILE_MUTATION_SCOPE]
         if procurement_scope:
@@ -376,7 +414,38 @@ def _profile_targets(text: str) -> dict[str, Any]:
         targets["site_address"] = address
     if client is not None:
         targets["client"] = client
+    narrative = _match_scope_narrative(lowered, subclasses=targets.get("subclasses"))
+    if narrative:
+        targets["scope_narrative"] = narrative
     return targets
+
+
+_SCOPE_NARRATIVE_CUES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bunique\s+tenancy\b", re.I), "Unique tenancy"),
+    (re.compile(r"\bits\s+it\b|\bown\s+(?:it|ict)\b|\bict\b", re.I), "Own IT fit-out"),
+    (re.compile(r"\bloading\s+dock\b", re.I), "New loading dock"),
+    (re.compile(r"\bmezzanine\b", re.I), "Mezzanine"),
+    (re.compile(r"\bamenities\b", re.I), "Amenities"),
+)
+
+
+def _match_scope_narrative(
+    text: str,
+    *,
+    subclasses: list[str] | None,
+) -> list[str]:
+    """Bespoke leftover lines that checkboxes and scale cannot hold."""
+    lines: list[str] = []
+    for pattern, line in _SCOPE_NARRATIVE_CUES:
+        if pattern.search(text):
+            lines.append(line)
+    if (
+        re.search(r"\boffice\b", text)
+        and subclasses != ["office"]
+        and "New office" not in lines
+    ):
+        lines.append("New office")
+    return lines
 
 
 def _match_site_address(text: str) -> str | None:
@@ -408,6 +477,8 @@ def _match_alias(
 
 
 def _match_subclass(text: str) -> str | None:
+    if "warehouse" in text:
+        return "warehouse"
     if "townhouse" in text:
         return "townhouses"
     if "apartment" in text:
@@ -448,6 +519,9 @@ def _match_scale(text: str) -> dict[str, int]:
             scale["garage_spaces"] = _GARAGE_COUNT_WORDS[garage.group(2).lower()]
         else:
             scale["garage_spaces"] = 0
+    dock = _DOCK_RE.search(text)
+    if dock:
+        scale["dock_doors"] = int(dock.group(1)) if dock.group(1) else 1
     return scale
 
 

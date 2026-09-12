@@ -153,6 +153,69 @@ def test_spoken_setup_brief_is_unbound_setup_not_narrow_scale_bind() -> None:
     }
 
 
+WAREHOUSE_EXTENSION_BRIEF = (
+    "Set up the project profile for a warehouse extension. For a property "
+    "located in New South Wales. It will have its IT. It will be its own unique "
+    "tenancy. With its own new loading dock and office. With those one story. "
+    "Or mezzanine level and amenities."
+)
+
+
+def test_warehouse_extension_brief_extracts_industrial_extend_and_dock() -> None:
+    from app.agent.mutation_intent import PROFILE_SETUP_REASON
+
+    intent = classify_mutation_intent(WAREHOUSE_EXTENSION_BRIEF)
+
+    assert intent.reason == PROFILE_SETUP_REASON
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert dict(intent.profile_patch) == {
+        "building_class": "industrial",
+        "work_type": "extend",
+        "state": "NSW",
+        "subclasses": ["warehouse"],
+        "scale": {"storeys": 1, "dock_doors": 1},
+        "scope_narrative": [
+            "Unique tenancy",
+            "Own IT fit-out",
+            "New loading dock",
+            "Mezzanine",
+            "Amenities",
+            "New office",
+        ],
+    }
+
+
+SCOPE_ITEMS_PROMPT = (
+    "Are you able to reason about what the likely scope items will be for a new "
+    "two-bedroom? New four bedroom house? So what I'm asking you to do is to "
+    "populate the scope items. You know, enabling work, civil work, structure "
+    "building and bloat building services, internal fit out, external works. "
+    "Might need to refer to the. Residential construction guide. Which is one "
+    "of the seed files."
+)
+
+
+def test_populate_scope_items_grants_unbound_scope_authority() -> None:
+    from app.agent.mutation_intent import PROFILE_SCOPE_POPULATE_REASON
+
+    intent = classify_mutation_intent("Populate the scope items.")
+
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert intent.reason == PROFILE_SCOPE_POPULATE_REASON
+    assert dict(intent.profile_patch) == {}
+    assert intent.requires_confirmation is False
+
+
+def test_named_residential_guide_does_not_block_scope_populate() -> None:
+    from app.agent.mutation_intent import PROFILE_SCOPE_POPULATE_REASON
+
+    intent = classify_mutation_intent(SCOPE_ITEMS_PROMPT)
+
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert intent.reason == PROFILE_SCOPE_POPULATE_REASON
+    assert intent.requires_confirmation is False
+
+
 def test_set_up_is_not_treated_as_a_set_imperative() -> None:
     from app.agent.mutation_intent import PROFILE_SETUP_REASON
 

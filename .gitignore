@@ -54,6 +54,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Local scratch / agent runtime
+/output/
 /tmp/
 .tmp/
 .tmp-env/

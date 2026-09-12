@@ -1,0 +1,74 @@
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-ExtraLight.otf') format('opentype'); font-weight: 200; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Light.otf') format('opentype'); font-weight: 300; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Regular.otf') format('opentype'); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Medium.otf') format('opentype'); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Semibold.otf') format('opentype'); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Bold.otf') format('opentype'); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-Black.otf') format('opentype'); font-weight: 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-It.otf') format('opentype'); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-SemiboldIt.otf') format('opentype'); font-weight: 600; font-style: italic; font-display: swap; }
+@font-face { font-family: 'Source Code Pro'; src: url('./fonts/source-code-pro/SourceCodePro-BoldIt.otf') format('opentype'); font-weight: 700; font-style: italic; font-display: swap; }
+
+/* Landing-only override of the legacy layers' explicit font shorthands. */
+#sitewise-landing {
+  --sw-font-sans: 'Source Code Pro', monospace;
+  --sw-font-display: 'Source Code Pro', monospace;
+  --sw-font-mono: 'Source Code Pro', monospace;
+}
+#sitewise-landing,
+#sitewise-landing *,
+.sw-skip,
+.sw-source-credits,
+.sw-source-credits * {
+  font-family: 'Source Code Pro', monospace !important;
+}
+#sitewise-landing .sw-coordination h1,
+#sitewise-landing .sw-coordination h1 .sw-detail-reveal,
+#sitewise-landing .sw-workspace-intro h2,
+#sitewise-landing .sw-workflow h2,
+#sitewise-landing .sw-closing h2 {
+  font-feature-settings: normal;
+  letter-spacing: -.025em;
+}
+#sitewise-landing .sw-coordination h1 {
+  letter-spacing: -.055em;
+}
+
+/* Compact sentence-case hero with one consistent type scale. */
+#sitewise-landing .sw-coordination h1 {
+  text-transform: none;
+  font-size: clamp(38px, 5vw, 80px);
+  line-height: 1.02;
+}
+#sitewise-landing .sw-coordination h1 .sw-detail-reveal {
+  margin-top: 0;
+  font-size: 1em;
+  line-height: inherit;
+  letter-spacing: inherit;
+}
+#sitewise-landing .sw-coordination-intro {
+  margin-top: 18px;
+  width: max-content;
+  max-width: 100%;
+  font-size: clamp(15px, 1.25vw, 19px);
+  line-height: 1.45;
+}
+#sitewise-landing .sw-coordination-intro span { display: block; }
+@media (max-width: 799px) {
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(34px, 8vw, 54px); }
+  #sitewise-landing .sw-coordination-intro { font-size: clamp(13px, 3.3vw, 17px); margin-top: 16px; }
+}
+
+/* Three-line hero, with a wider reading area and slightly larger type. */
+@media (min-width: 800px) {
+  #sitewise-landing .sw-coordination-copy {
+    left: clamp(140px, 15vw, 240px);
+    width: 52vw;
+  }
+  #sitewise-landing .sw-coordination h1 {
+    font-size: clamp(42px, 5.3vw, 86px);
+  }
+}
+@media (max-width: 799px) {
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(28px, 6.3vw, 48px); }
+}

@@ -1,0 +1,20 @@
+{
+  "copied_objects_checked": 4104,
+  "dwelling_count": 5,
+  "mirrored_dwellings": [
+    3,
+    5
+  ],
+  "per_dwelling_counts": {
+    "mechanical": 282,
+    "electrical": 606,
+    "structure": 83,
+    "hydraulic": 55
+  },
+  "checks": [
+    "Saved transforms match source placement matrices",
+    "Mesh and curve data preserved",
+    "Replaced source slabs hidden",
+    "Five existing distribution boards preserved"
+  ]
+}

@@ -6,51 +6,67 @@ import { mountSceneMotion } from './scene-motion'
 import { createGarageMotion } from './garage-motion'
 import { createRotors } from './rotor-motion'
 import { createNightLighting } from './night-lighting'
-
+import { type SequenceFrame } from './discipline-sequence'
+import { createDwellingReveal, initialDwellingFrame } from './dwelling-reveal'
+import { mountModelWheelZoom } from './model-wheel-zoom'
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
 const systems = {
-  all: ['Whole project', '#F7F7F4', 'Drag to orbit · Scroll or pinch to zoom'],
+  all: ['Whole project', '#F7F7F4', 'Drag to orbit · Scroll over the model to zoom, elsewhere to explore the page'],
   architecture: ['Architecture', '#F7F7F4', 'Envelope, rooms and glazing'],
-  structure: ['Structure', '#D3B793', 'Perimeter strip footing · Roof bearing beams · Eight evenly spaced trusses'],
-  electrical: ['Electrical', '#F38F78', 'Three lighting circuits · Three GPO circuits · Room switches · Dedicated appliances'],
-  mechanical: ['Mechanical', '#DEDF88', 'Two upper-floor supplies · Two lower-floor drops · Outdoor condenser'],
-  hydraulic: ['Hydraulic', '#93CEDD', 'Potable water supply · Sanitary drainage'],
+  structure: ['Structure', '#D3B793', 'Five townhouses · Concrete frames · Strip footings · Eight trusses per dwelling'],
+  electrical: ['Electrical', '#F38F78', 'Five townhouses · Lighting and GPO circuits · Room switches · Dedicated appliances'],
+  mechanical: ['Mechanical', '#DEDF88', 'Five townhouses · Supply ducts · Extract ventilation · Individual condensers'],
+  hydraulic: ['Hydraulic', '#93CEDD', 'Five townhouses · Hot and cold water · Sanitary drainage · Shared site connections'],
   civil: ['Civil', '#CAD3D4', 'Stormwater pits · Five house connections · Detention tank · One road outlet'],
   landscape: ['Landscape', '#9FC79B', 'Rear pergolas · Breakfast terraces · Trees and layered planting'],
   interiors: ['Interiors', '#D6A986', 'Furniture, kitchen joinery and interior fittings'],
 } as const
 type System = keyof typeof systems
-type Part = { mesh: THREE.Mesh; material: THREE.MeshStandardMaterial; original: THREE.MeshStandardMaterial; system: string; memberships: string[]; glass: boolean }
-
+type Part = { mesh: THREE.Mesh; material: THREE.MeshStandardMaterial; original: THREE.MeshStandardMaterial; system: string; memberships: string[]; glass: boolean; backdrop: boolean }
+export function isSiteBackdrop(name: string, system: string): boolean {
+  return system === 'context'
+    || /Petrol[ _]ground/i.test(name)
+    || /earth plane/i.test(name)
+    || /cadastral/i.test(name)
+    || /White map lines/i.test(name)
+}
 async function start(host: HTMLElement) {
   const viewport = host.querySelector<HTMLElement>('.sw-scene-viewport')!
   const status = host.querySelector<HTMLElement>('[data-scene-status]')!
   const buttons = [...host.querySelectorAll<HTMLButtonElement>('[data-system]')]
   let renderer: THREE.WebGLRenderer
   try {
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, logarithmicDepthBuffer: true })
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, logarithmicDepthBuffer: true })
   } catch {
     status.textContent = '3D is unavailable on this device. Showing the project image.'
     return
   }
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75))
-  renderer.setClearColor('#071c39')
+  renderer.setClearColor(0x000000, 0)
+  renderer.domElement.style.background = 'transparent'
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = .88
+  renderer.toneMappingExposure = .9
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   const scene = new THREE.Scene()
-  scene.fog = new THREE.Fog('#071c39', 100, 320)
-  const camera = new THREE.OrthographicCamera(-30, 30, 30, -30, .1, 1000)
+  scene.fog = null
+  const studio = new RoomEnvironment()
+  const pmrem = new THREE.PMREMGenerator(renderer)
+  const environment = pmrem.fromScene(studio, .06)
+  scene.environment = environment.texture
+  scene.environmentIntensity = .18
+  studio.dispose(); pmrem.dispose()
+  const camera = new THREE.PerspectiveCamera(42, 1, .1, 1000)
   const controls = new OrbitControls(camera, renderer.domElement)
   controls.enablePan = false
-  controls.enableZoom = true
+  controls.enableZoom = false
   controls.zoomSpeed = .7
   controls.minDistance = 10
   controls.maxDistance = 110
   controls.minZoom = .5
   controls.maxZoom = 5
   controls.maxPolarAngle = Math.PI * .49
-  const sky = new THREE.HemisphereLight('#F5F6F7', '#30343A', .65)
+  const sky = new THREE.HemisphereLight('#FFFFFF', '#444444', .55)
   scene.add(sky)
   const key = new THREE.DirectionalLight('#FFFFFF', 2.4)
   key.position.set(-32, 28, -18)
@@ -60,7 +76,7 @@ async function start(host: HTMLElement) {
   key.shadow.bias = -.0002
   key.shadow.normalBias = .03
   scene.add(key)
-  const fill = new THREE.DirectionalLight('#F0F3F6', .25)
+  const fill = new THREE.DirectionalLight('#FFFFFF', .65)
   fill.position.set(20, 20, -25)
   scene.add(fill)
   let visible = true
@@ -68,18 +84,30 @@ async function start(host: HTMLElement) {
   function resize() {
     const { width, height } = viewport.getBoundingClientRect()
     if (!width || !height) return
-    const halfHeight = Math.max(28, 28 * height / width)
-    camera.left = -halfHeight * width / height
-    camera.right = halfHeight * width / height
-    camera.top = halfHeight
-    camera.bottom = -halfHeight
+    camera.aspect = width / height
+    camera.fov = THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(21)) * Math.max(1, height / width)))
+    // Keep the subject right of the copy while retaining a full-hero drawing surface.
+    const desktop = window.innerWidth >= 800
+    camera.setViewOffset(width, height, desktop ? -width * .16 : 0, desktop ? 0 : -height * .20, width, height)
     camera.updateProjectionMatrix()
     renderer.setSize(width, height)
     render()
   }
+  function frontDistance() {
+    return window.innerWidth >= 800 ? 44 : 30
+  }
+  function frontDirection(): [number, number, number] {
+    const distance = frontDistance()
+    return [-distance, distance * .32, distance * .34]
+  }
   function frame() {
-    camera.position.set(-49, 29, 49)
-    controls.target.set(0, 1, 3)
+    controls.maxPolarAngle = Math.PI / 2
+    camera.up.set(0, 1, 0)
+    controls.target.set(0, 3, 3)
+    camera.position.copy(controls.target).add(new THREE.Vector3(...frontDirection()))
+    host.querySelectorAll<HTMLButtonElement>('[data-camera-view]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.cameraView === 'front'))
+    })
     controls.update()
     render()
   }
@@ -95,111 +123,115 @@ async function start(host: HTMLElement) {
       const original = object.material as THREE.MeshStandardMaterial
       if (!original.isMeshStandardMaterial) return
       const material = original.clone()
-      if (/Petrol[ _]ground/i.test(object.name)) material.color.set('#102c51')
       object.material = material
       const system = String(object.userData.sw_system ?? 'architecture')
-      if (system !== 'context' && object.userData.sw_motion !== 'car' && !/^(Facade|Garden) \|/.test(original.name)) {
-        material.color.set('#F7F7F4')
-      }
+      const backdrop = isSiteBackdrop(object.name, system)
+      if (backdrop) object.visible = false
+      material.color.set('#FFFFFF')
+      material.metalness = 0
+      material.roughness = object.userData.sw_glass ? .16 : .38
       const associations: unknown = JSON.parse(String(object.userData.sw_service_systems ?? '[]'))
       const memberships = [system, ...(Array.isArray(associations) ? associations.filter((s): s is string => typeof s === 'string') : [])]
       const glass = Boolean(object.userData.sw_glass)
-      object.castShadow = !glass && system !== 'context'
+      object.castShadow = !glass && !backdrop
       object.receiveShadow = !glass
       if (glass) { material.transparent = true; material.opacity = .13; material.depthWrite = false }
-      parts.push({ mesh: object, material, original: material.clone(), system, memberships, glass })
+      parts.push({ mesh: object, material, original: material.clone(), system, memberships, glass, backdrop })
     })
     scene.add(gltf.scene)
+    const disposeWheelZoom = mountModelWheelZoom(renderer.domElement, camera, controls, parts.filter(part => !part.backdrop).map(part => part.mesh))
     const outlines = new THREE.Group()
-    const outlineMaterial = new THREE.LineBasicMaterial({ color: '#a9b1ba', transparent: true, opacity: .035, depthWrite: false })
-    // Only the building envelopes provide context; tile and joinery edges overwhelm services.
-    for (const [south, north] of [[-13.764,-9.193],[-6.993,-2.423],[-2.309,2.262],[4.462,9.032],[9.146,13.717]]) {
-      const points: THREE.Vector3[] = []
-      const edge = (a: number[], b: number[]) => points.push(new THREE.Vector3(...a), new THREE.Vector3(...b))
-      for (const z of [-south,-north]) {
-        edge([-4.8,0,z],[-4.8,8.45,z]); edge([4.7,0,z],[4.7,8.45,z])
-        edge([-4.8,8.45,z],[.18,9.6,z]); edge([.18,9.6,z],[4.7,8.45,z])
-        edge([-4.8,0,z],[4.7,0,z])
-      }
-      for (const [x,y] of [[-4.8,0],[4.7,0],[-4.8,8.45],[4.7,8.45],[.18,9.6]]) edge([x,y,-south],[x,y,-north])
-      outlines.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(points), outlineMaterial))
-    }
+    const outlineData: number[][] = await fetch(new URL(/* @vite-ignore */ './dwelling-outlines.json', import.meta.url)).then(response => {
+      if (!response.ok) throw new Error('Building outlines could not load')
+      return response.json()
+    })
+    const outlineMaterials = outlineData.map(coordinates => {
+      const material = new THREE.LineBasicMaterial({ color: '#657587', transparent: true, opacity: 0, depthWrite: false })
+      const geometry = new THREE.BufferGeometry()
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(coordinates, 3))
+      outlines.add(new THREE.LineSegments(geometry, material))
+      return material
+    })
     scene.add(outlines)
     viewport.append(renderer.domElement)
-    renderer.domElement.setAttribute('aria-label', 'Interactive development model. Drag to orbit, scroll or pinch to zoom.')
+    renderer.domElement.setAttribute('aria-label', 'Interactive development model. Drag to orbit. Scroll over the model to zoom; scroll outside it to move down the page.')
     renderer.domElement.setAttribute('role', 'img')
     host.classList.add('is-live')
     let locked: System = 'all'
     let nightAmount = 0
     let activeSystem: System = 'all'
-    function select(active: System) {
-      activeSystem = active
-      outlines.visible = active !== 'all' && active !== 'architecture'
-      for (const part of parts) {
-        const { material, original, mesh } = part
-        material.copy(original)
-        const selected = part.memberships.includes(active)
-        mesh.visible = active === 'all' || selected || part.system === 'context'
-        mesh.castShadow = (active === 'all' || selected) && !part.glass && part.system !== 'context'
-        mesh.receiveShadow = (active === 'all' || selected) && !part.glass
-        if (active !== 'all') {
-          material.transparent = !selected || part.glass
-          material.opacity = selected ? (part.glass ? .3 : 1) : .003
-          material.depthWrite = selected && !part.glass
-          if (selected) {
-            if (active !== 'architecture') material.color.set(systems[active][1])
-            material.emissive.set(systems[active][1])
-            material.emissiveIntensity = active === 'architecture' ? 0 : .04
-          }
-        }
-        mesh.renderOrder = selected ? 2 : 0
-        if (active === 'civil' && mesh.userData.sw_civil_surface) {
-          material.transparent = true
-          mesh.visible = false
-          material.opacity = .12
-          material.depthWrite = false
-          mesh.castShadow = false
-          mesh.receiveShadow = false
-          mesh.renderOrder = 0
-        }
-        material.needsUpdate = true
-      }
+    const garage = createGarageMotion(parts)
+    const rotors = createRotors(parts)
+    const occupiedLighting = createNightLighting(scene, parts)
+    const reveal = createDwellingReveal(parts)
+    let lastLabel = ''
+    function display(frame: SequenceFrame) {
+      reveal.apply(frame)
+      outlineMaterials.forEach((material, i) => {
+        const state = frame.houses[i]
+        const opacity = ['all', 'architecture', 'exposed'].includes(state.discipline) ? 0 : .13 * state.amount
+        material.opacity = opacity
+      })
+      const uniform = frame.houses.every(h => h.discipline === frame.houses[0].discipline)
+      activeSystem = frame.label === 'Whole project' ? 'all' : uniform ? frame.houses[0].discipline as System : 'all'
+      host.dataset.activeSystem = uniform ? activeSystem : 'mixed'
+      host.dataset.tourState = 'manual'
       for (const button of buttons) {
         button.setAttribute('aria-pressed', String(button.dataset.system === locked))
-        button.classList.toggle('is-preview', button.dataset.system === active)
+        button.classList.toggle('is-preview', button.dataset.system === activeSystem && uniform)
       }
-      host.dataset.activeSystem = active
-      window.dispatchEvent(new CustomEvent('sitewise:system', { detail: { label: systems[active][0], color: systems[active][1] } }))
-      status.textContent = systems[active][2]
-      occupiedLighting.apply(nightAmount, active === 'all' || active === 'architecture')
+      const label = systems[activeSystem][2]
+      if (label !== lastLabel) {
+        status.textContent = label
+        window.dispatchEvent(new CustomEvent('sitewise:system', { detail: { label: frame.label, color: activeSystem === 'all' ? '#FFFFFF' : '#087ac9' } }))
+        lastLabel = label
+      }
+      occupiedLighting.apply(nightAmount, frame.houses.every(h => h.amount < .001 || h.discipline === 'architecture'))
+    }
+    function select(active: System) {
+      if (active === 'all') {
+        display(initialDwellingFrame())
+        render()
+        return
+      }
+      const state = { discipline: active, amount: 1 }
+      display({ label: systems[active][0], houses: Array.from({ length: 5 }, () => state), shared: state })
       render()
     }
     for (const button of buttons) {
       button.disabled = false
       const system = button.dataset.system as System
-      button.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') select(system) })
-      button.addEventListener('pointerleave', () => select(locked))
-      button.addEventListener('focus', () => select(system))
-      button.addEventListener('blur', () => select(locked))
-      button.addEventListener('click', () => { locked = system; select(locked) })
+      button.addEventListener('click', () => { locked = locked === system ? 'all' : system; select(locked) })
     }
-    host.addEventListener('keydown', event => { if (event.key === 'Escape') { locked = 'all'; select(locked) } })
+    const layers = host.querySelector<HTMLDetailsElement>('.sw-model-explore')
+    host.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return
+      if (layers?.open) {
+        layers.open = false
+        layers.querySelector<HTMLElement>('summary')?.focus()
+      } else {
+        locked = 'all'
+        select(locked)
+      }
+    })
     controls.addEventListener('change', render)
-    const garage = createGarageMotion(parts)
-    const ambient = createRotors(parts)
-    const occupiedLighting = createNightLighting(scene, parts)
-    mountSceneMotion({host,camera,controls,render,garage,ambient})
+    mountSceneMotion({host,camera,controls,render,
+      garage: progress => { if (activeSystem === 'all') garage(progress) },
+      ambient: elapsed => { if (activeSystem === 'all') rotors(elapsed) },
+    })
     const views = [...host.querySelectorAll<HTMLButtonElement>('[data-camera-view]')]
     const directions: Record<string, [number, number, number]> = {
-      top: [0, 70, .001], front: [-70, 0, 0], side: [0, 0, 70], rear: [70, 0, 0], isometric: [-49, 35, 49],
+      top: [0, 46, .001], front: frontDirection(), side: [0, 0, 46], rear: [46, 0, 0], perspective: [-31, 22, 31],
     }
     for (const button of views) {
       button.disabled = false
       button.addEventListener('click', () => {
+        if (button.getAttribute('aria-pressed') === 'true') return
         const view = button.dataset.cameraView!
         controls.maxPolarAngle = Math.PI / 2
         controls.target.set(0, 3, 3)
-        camera.up.set(0, 1, 0)
+        // The row follows world Z; +Z contains the road and reads to the right.
+        camera.up.set(view === 'top' ? 1 : 0, view === 'top' ? 0 : 1, 0)
         camera.position.copy(controls.target).add(new THREE.Vector3(...directions[view]))
         controls.update()
         views.forEach(b => b.setAttribute('aria-pressed', String(b === button)))
@@ -210,23 +242,27 @@ async function start(host: HTMLElement) {
     const sun = host.querySelector<HTMLInputElement>('[data-sun-time]')!
     const time = host.querySelector<HTMLOutputElement>('[data-sun-label]')!
     function updateSun() {
-      const hour = Number(sun.value)
+      const hour = Number(sun?.value ?? 14)
       const angle = (hour - 6) / 12 * Math.PI
       const elevation = Math.max(0, Math.sin(angle))
       nightAmount = 1 - THREE.MathUtils.smoothstep(elevation, 0, .22)
       key.position.set(Math.cos(angle) * 48, Math.max(2, elevation * 52), -25)
-      key.intensity = .15 + elevation * 2.15
-      key.color.set('#F1ECE6').lerp(new THREE.Color('#FFFFFF'), elevation)
-      sky.intensity = .38 + elevation * .35
-      fill.intensity = .18
+      key.intensity = .15 + elevation * 3.4
+      key.color.set('#FFFFFF')
+      sky.intensity = .10 + elevation * .14
+      fill.intensity = .06
+      scene.environmentIntensity = .02 + elevation * .05
       occupiedLighting.apply(nightAmount, activeSystem === 'all' || activeSystem === 'architecture')
       const minutes = Math.round(hour * 60)
-      time.value = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
-      sun.setAttribute('aria-valuetext', time.value)
+      const label = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+      if (time) time.value = label
+      sun?.setAttribute('aria-valuetext', label)
       render()
     }
-    sun.disabled = false
-    sun.addEventListener('input', updateSun)
+    if (sun) {
+      sun.disabled = false
+      sun.addEventListener('input', updateSun)
+    }
     updateSun()
     const resizeObserver = new ResizeObserver(resize)
     resizeObserver.observe(viewport)
@@ -234,13 +270,17 @@ async function start(host: HTMLElement) {
     observer.observe(host)
     document.addEventListener('visibilitychange', render)
     window.addEventListener('pagehide', () => {
+      disposeWheelZoom()
       resizeObserver.disconnect(); observer.disconnect(); occupiedLighting.dispose(); controls.dispose(); renderer.dispose()
       for (const part of parts) { part.mesh.geometry.dispose(); part.material.dispose(); part.original.dispose() }
       outlines.children.forEach(line => (line as THREE.LineSegments).geometry.dispose())
-      outlineMaterial.dispose()
+      outlineMaterials.forEach(material => material.dispose())
+      reveal.dispose()
+      environment.dispose()
     }, { once: true })
     resize()
     select('all')
+    render()
   } catch (error) {
     console.error('Coordination model failed to load', error)
     status.textContent = 'The model could not load. Reload the page to try again.'
@@ -249,6 +289,5 @@ async function start(host: HTMLElement) {
     renderer.dispose()
   }
 }
-
 const host = document.querySelector<HTMLElement>('.sw-coordination-model')
 if (host) void start(host)

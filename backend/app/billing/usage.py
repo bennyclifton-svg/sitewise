@@ -12,6 +12,7 @@ from app.auth.dependencies import CurrentUser
 from app.config import settings
 from app.agent.mutation_intent import (
     PROFILE_ENRICHMENT_REASON,
+    PROFILE_SCOPE_POPULATE_REASON,
     PROFILE_SETUP_REASON,
 )
 from app.database.agent_turn import AgentTurn
@@ -185,7 +186,11 @@ async def require_active_mutation_turn(
         intent = turn.mutation_intent or {}
         bound_patch = intent.get("profile_patch", {})
         reason = intent.get("reason")
-        if reason not in {PROFILE_ENRICHMENT_REASON, PROFILE_SETUP_REASON}:
+        if reason not in {
+            PROFILE_ENRICHMENT_REASON,
+            PROFILE_SETUP_REASON,
+            PROFILE_SCOPE_POPULATE_REASON,
+        }:
             if bound_patch:
                 if bound_patch != requested_profile_patch:
                     raise PermissionError(

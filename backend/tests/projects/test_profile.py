@@ -441,6 +441,76 @@ def _project(**overrides):
     return SimpleNamespace(**values)
 
 
+def test_bindable_profile_changes_drops_storeys_on_a_warehouse() -> None:
+    from app.api.chat import _bindable_profile_changes
+
+    project = _orm_project(
+        title="Warehouse Extension",
+        building_class="industrial",
+        work_type="extend",
+        project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+    )
+    bound = _bindable_profile_changes(
+        project,
+        {
+            "state": "NSW",
+            "work_type": "extend",
+            "scale": {"storeys": 1, "dock_doors": 1},
+        },
+    )
+
+    assert bound["scale"] == {"dock_doors": 1}
+    assert bound["state"] == "NSW"
+
+
+def test_warehouse_scale_rejects_house_storeys_but_accepts_dock_doors() -> None:
+    project = _orm_project(
+        title="Warehouse Extension",
+        building_class="industrial",
+        work_type="extend",
+        project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+    )
+    with pytest.raises(ProfileValidationError) as raised:
+        validate_profile_patch(
+            project,
+            ProjectProfilePatch(expected_revision=1, scale={"storeys": 1}),
+        )
+    assert "Unknown scale field: 'storeys'" in raised.value.errors
+
+    plan = validate_profile_patch(
+        project,
+        ProjectProfilePatch(expected_revision=1, scale={"dock_doors": 1}),
+    )
+    assert plan.after.scale == {"dock_doors": 1}
+
+
+def test_warehouse_setup_patch_validates_after_unknown_scale_keys_are_dropped() -> None:
+    from app.agent.mutation_intent import classify_mutation_intent
+    from app.api.chat import _bindable_profile_changes
+
+    intent = classify_mutation_intent(
+        "Set up the project profile for a warehouse extension. For a property "
+        "located in New South Wales. It will have its IT. It will be its own unique "
+        "tenancy. With its own new loading dock and office. With those one story. "
+        "Or mezzanine level and amenities."
+    )
+    project = _orm_project(
+        title="Warehouse Extension",
+        building_class="industrial",
+        work_type="extend",
+        project_metadata={"taxonomy": {"subclasses": ["warehouse"]}},
+    )
+    bound = _bindable_profile_changes(project, dict(intent.profile_patch))
+    plan = validate_profile_patch(
+        project,
+        ProjectProfilePatch(expected_revision=1, **bound),
+    )
+
+    assert plan.after.scale == {"dock_doors": 1}
+    assert "Unique tenancy" in plan.after.scope_narrative
+    assert "Own IT fit-out" in plan.after.scope_narrative
+
+
 def test_spoken_setup_brief_patch_is_valid_for_a_new_house() -> None:
     from app.agent.mutation_intent import classify_mutation_intent
 

@@ -34,8 +34,19 @@ function setLayout(element, parent, top, height = 24, border = 0) {
 }
 
 describe('landing cost plan and program', () => {
-  it('keeps hero entry and console float independent of scene playback', () => {
-    const animations = ['sw-hero-enter', 'sw-console-float', 'sw-metal-reflection', 'sw-thinking'].map(animationName => {
+  it.each(['program', 'cost'])('starts a dedicated %s tablet in its own scene', key => {
+    mount({ playAll: true, initialScene: key, repeatScene: true });
+    expect(root.dataset.activeScene).toBe(key);
+    expect(content(key).hidden).toBe(false);
+    expect(content('pmp').hidden).toBe(true);
+    expect(root.querySelectorAll(`[data-scene-content="${key}"]`)).toHaveLength(1);
+    vi.advanceTimersByTime(12000);
+    expect(root.dataset.activeScene).toBe(key);
+    expect(built(key)).toBeGreaterThan(0);
+  });
+
+  it('keeps hero entry, logo drift and console float independent of scene playback', () => {
+    const animations = ['sw-hero-enter', 'sw-console-float', 'sw-firm-drift', 'sw-metal-reflection', 'sw-thinking'].map(animationName => {
       const animation = { animationName, playState: 'running', pause: vi.fn(), play: vi.fn() };
       animation.pause.mockImplementation(() => { animation.playState = 'paused'; });
       animation.play.mockImplementation(() => { animation.playState = 'running'; });
@@ -46,12 +57,12 @@ describe('landing cost plan and program', () => {
     get('.sw-coordination-copy').animate = heroAnimate;
     mount();
     get('[data-play]').click();
-    expect(animations.slice(2).map(animation => animation.playState)).toEqual(['paused', 'paused']);
+    expect(animations.slice(3).map(animation => animation.playState)).toEqual(['paused', 'paused']);
     get('[data-play]').click();
-    expect(animations.slice(2).map(animation => animation.playState)).toEqual(['running', 'running']);
+    expect(animations.slice(3).map(animation => animation.playState)).toEqual(['running', 'running']);
     choose('cost');
     get('[data-send]').click();
-    for (const animation of animations.slice(0, 2)) {
+    for (const animation of animations.slice(0, 3)) {
       expect(animation.pause).not.toHaveBeenCalled();
       expect(animation.play).not.toHaveBeenCalled();
     }

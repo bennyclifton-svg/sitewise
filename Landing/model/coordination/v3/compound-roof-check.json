@@ -1,0 +1,13 @@
+{
+  "rebuilt_user_townhouses": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "original_user_townhouse_5_unchanged": true,
+  "surface_checks": 15022,
+  "minimum_vertex_clearance_to_tiles_m": 0.08423137664794922,
+  "preserved_original_objects": 10536,
+  "new_roof_members": 518
+}

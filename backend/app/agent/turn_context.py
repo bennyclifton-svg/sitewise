@@ -18,6 +18,7 @@ from app.config import settings
 from app.agent.mutation_intent import (
     PROFILE_ENRICHMENT_REASON,
     PROFILE_MUTATION_SCOPE,
+    PROFILE_SCOPE_POPULATE_REASON,
     PROFILE_SETUP_REASON,
     PROCUREMENT_STRATEGY_MUTATION_SCOPE,
     MutationIntent,
@@ -343,17 +344,20 @@ Ground every answer in project evidence and platform knowledge:
 - Technical due diligence, pre-settlement advice, capex forecast and deal-breaker
   review are work_type advisory. A distribution centre is building_class
   industrial and subclass logistics_ecommerce.
-- Always record `scope_narrative`: the scope in the user's own words, as a
-  short list of the items a project manager would bullet. `work_scope` is a
-  fixed enum that selects consultants and doctrine, and it cannot hold "concrete
-  cancer in the basement carpark", "second storey addition to a semi in a
-  heritage conservation area", or "new lifts, footbridge, accessible platforms
-  and canopies". Those go in `scope_narrative`, near-verbatim, and they are what
-  makes the document recognisably the client's project rather than a template
-  for its class. Set both fields — the enum routes, the narrative describes.
-  Keep each item to one scope line, not a paragraph, and never invent an item
-  the user did not state. If the enum has no value that fits the work at all,
-  the narrative still carries it; say so in your reply so the gap is visible.
+- `work_scope` is the Project Profile checkbox list (enabling, civil, structure,
+  envelope, services, fitout, external). When the user asks to populate scope
+  items, tick those enum values with update_project_profile after reading
+  get_project_profile_options section=work_scopes. Consult platform knowledge
+  first when they name a seed guide. Do not restate typical packages in
+  `scope_narrative`. `scope_narrative` is only for bespoke leftovers that have
+  no checkbox — "concrete cancer in the basement carpark", a heritage
+  conservation overlay, or a named custom package. Keep each narrative item to
+  one scope line, and never invent an item the user did not state.
+- When the user names a seed file or guide (for example the Residential
+  construction guide), call list_platform_knowledge or search_platform_knowledge,
+  then read_platform_knowledge. Seed guides are platform knowledge, not
+  workspace files and not project evidence. Never say this turn has no access
+  to a seed unless those tools returned that it is unavailable.
 - For refurb, remediation, extension and services work, record what is being
   replaced, altered or repaired as `assets`: one entry per asset type with type,
   count, location, make_model, capacity, age_years, condition, action,
@@ -422,6 +426,30 @@ names, addresses, clause references, equipment, or other inline phrases in
 the reply. Reserve emphasis for true warnings only, and then sparingly.
 </persona>"""
 
+_PROFILE_SCOPE_POPULATE_GUIDANCE = """<profile-scope-populate>
+The user asked to populate Project Profile scope items — the work_scope
+checkboxes, not the scope_narrative text box.
+
+Call get_project_profile and get_project_profile_options with
+section=work_scopes and the current work_type. If the user named a seed guide
+(Residential construction guide, commercial guide, or similar), call
+list_platform_knowledge or search_platform_knowledge, then
+read_platform_knowledge for that path. Never say this turn has no access to a
+seed unless those tools returned that it is unavailable. Use the seed to
+confirm typical packages; do not invent a second scope list from general
+model knowledge when the guide is available.
+
+Then call the direct tool update_project_profile with expected_revision and a
+work_scope array of checkbox enum values (site_clearance, substructure,
+roofing, hydraulic_plumbing, joinery, landscaping, and the rest that apply).
+Leave specialist or unevidenced items unticked (demolition on a vacant lot,
+decontamination on a clean site, curtain wall, lifts, mass timber). Do not
+dump typical packages into scope_narrative — that field is not a restatement
+of the ticks. After the write succeeds, list the ticked values and ask only
+about leftover checkboxes that are genuinely uncertain.
+</profile-scope-populate>"""
+
+
 _PROFILE_SETUP_GUIDANCE = """<profile-setup-from-brief>
 The user asked to set up the Project Profile and described the project in this
 message. That spoken brief is authorized source — write the stated facts now.
@@ -438,10 +466,11 @@ upsert_shared_project_knowledge kind=accommodation_space. Number repeated rooms
 
 After the writes succeed, ask short clarification questions for still-empty
 profile fields using the exact option values from get_project_profile_options.
-Typical gaps on a new house: site_sqm, gfa_sqm, bathroom count, occupation,
-stakeholder, budget, site address, and client. One question per missing field,
-using those exact values. Never claim setup was recorded unless a write tool
-returned success in this turn.
+Use the scale fields for the current class — warehouse uses dock_doors, GFA,
+clear height and office percent, not storeys. Typical leftover gaps: site
+area, GFA, occupation, stakeholder, budget, site address, and client. One
+question per missing field, using those exact values. Never claim setup was
+recorded unless a write tool returned success in this turn.
 </profile-setup-from-brief>"""
 
 
@@ -543,6 +572,7 @@ def build_agent_prompt(
     snapshot: ProjectSnapshot | None = None,
     confirmed_profile_values: dict[str, Any] | None = None,
     applied_setup_values: dict[str, Any] | None = None,
+    applied_work_scope: list[str] | None = None,
     selected_documents: list[SelectedTurnDocument] | None = None,
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
@@ -586,11 +616,27 @@ def build_agent_prompt(
         blocks.append(_inferred_profile_block(mutation_intent))
     if (
         mutation_intent is not None
+        and mutation_intent.reason == PROFILE_SCOPE_POPULATE_REASON
+    ):
+        blocks.append(_PROFILE_SCOPE_POPULATE_GUIDANCE)
+    elif (
+        mutation_intent is not None
         and mutation_intent.reason == PROFILE_SETUP_REASON
     ):
         blocks.append(_PROFILE_SETUP_GUIDANCE)
     elif _is_profile_enrichment_request(user_text, mutation_intent):
         blocks.append(_PROFILE_ENRICHMENT_GUIDANCE)
+    if applied_work_scope:
+        values_json = json.dumps(list(applied_work_scope))
+        blocks.append(
+            "<profile-scope-applied>\n"
+            "SiteWise has already ticked these work_scope checkboxes from the "
+            f"typical package for this class: {values_json}. "
+            "Do not rewrite them into scope_narrative. Consult any named seed "
+            "guide, then ask only about leftover checkboxes that are genuinely "
+            "uncertain.\n"
+            "</profile-scope-applied>"
+        )
     if applied_setup_values:
         values_json = json.dumps(applied_setup_values, sort_keys=True)
         blocks.append(
@@ -895,7 +941,16 @@ def _inferred_profile_block(intent: MutationIntent) -> str:
 
 def _mutation_policy_block(intent: MutationIntent) -> str:
     has_profile_scope = PROFILE_MUTATION_SCOPE in intent.scopes
-    if has_profile_scope and intent.reason == PROFILE_SETUP_REASON:
+    if has_profile_scope and intent.reason == PROFILE_SCOPE_POPULATE_REASON:
+        instruction = (
+            "This turn has unbound profile_mutation authority to tick work_scope "
+            "checkboxes. Call update_project_profile with a work_scope array of "
+            "valid enum values from get_project_profile_options "
+            "section=work_scopes. Do not write typical packages to "
+            "scope_narrative. Consult named seed guides with the platform "
+            "knowledge tools before answering."
+        )
+    elif has_profile_scope and intent.reason == PROFILE_SETUP_REASON:
         patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
         instruction = (
             "This turn has unbound profile_mutation authority for a spoken "

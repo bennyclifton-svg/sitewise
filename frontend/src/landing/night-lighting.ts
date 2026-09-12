@@ -4,7 +4,7 @@ type LitPart = { mesh: THREE.Mesh; material: THREE.MeshStandardMaterial; glass: 
 
 export function createNightLighting(scene: THREE.Scene, parts: LitPart[]) {
   const night = { value: 0 }
-  const warm = new THREE.Color('#ffe4c4')
+  const white = new THREE.Color('#ffffff')
   for (const part of parts) {
     if (!part.glass || part.system !== 'architecture') continue
     const isWindow = Boolean(part.mesh.userData.sw_night_window)
@@ -32,17 +32,17 @@ export function createNightLighting(scene: THREE.Scene, parts: LitPart[]) {
   // Five dwellings run along the survey Z axis; the second remains unoccupied.
   for (const [index, z] of [-11.2, -5.6, 0, 5.6, 11.2].entries()) {
     if (index === 1) continue
-    const living = new THREE.PointLight(warm, 0, 5, 2)
+    const living = new THREE.PointLight(white, 0, 5, 2)
     living.position.set(3.5, 4.5, z + .8)
     add(living, index === 3 ? 16 : 11)
-    const entry = new THREE.SpotLight(warm, 0, 5, .75, 1, 2)
+    const entry = new THREE.SpotLight(white, 0, 5, .75, 1, 2)
     entry.position.set(-5.1, 2.65, z - 2)
     entry.target.position.set(-6.2, .15, z - 2)
     scene.add(entry.target); add(entry, 18)
-    const fixture = new THREE.Mesh(new THREE.SphereGeometry(.055, 8, 6), new THREE.MeshStandardMaterial({ color: '#d8d4c9', emissive: warm, emissiveIntensity: 0 }))
+    const fixture = new THREE.Mesh(new THREE.SphereGeometry(.055, 8, 6), new THREE.MeshStandardMaterial({ color: '#fafafa', emissive: white, emissiveIntensity: 0 }))
     fixture.position.copy(entry.position); scene.add(fixture); fixtures.push(fixture)
     if (index === 0 || index === 4) {
-      const garage = new THREE.PointLight('#fff0d8', 0, 4.5, 2)
+      const garage = new THREE.PointLight('#ffffff', 0, 4.5, 2)
       garage.position.set(-2.5, 2.4, z)
       add(garage, 22)
     }
@@ -53,7 +53,7 @@ export function createNightLighting(scene: THREE.Scene, parts: LitPart[]) {
       lights.forEach(({ light, intensity }) => { light.intensity = visible ? amount * intensity : 0 })
       fixtures.forEach(mesh => { mesh.visible = visible; mesh.material.emissiveIntensity = amount * 1.2 })
       for (const part of parts) if (part.glass && part.system === 'architecture') {
-        part.material.emissive.copy(warm)
+        part.material.emissive.copy(white)
         part.material.emissiveIntensity = visible ? amount * .65 : 0
       }
     },

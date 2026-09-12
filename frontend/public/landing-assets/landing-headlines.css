@@ -1,84 +1,116 @@
-@font-face {
-  font-family: 'Manifa Advertising';
-  src: url('./fonts/ManifaAdvertising-BoldWide.woff2') format('woff2');
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* The actual drawn corner cuts belong to the font, not per-letter CSS masks. */
 #sitewise-landing .sw-coordination h1,
 #sitewise-landing .sw-workspace-intro h2,
 #sitewise-landing .sw-workflow h2,
 #sitewise-landing .sw-closing h2 {
-  font-family: 'Manifa Advertising', 'Hanken Grotesk', sans-serif;
-  font-weight: 600;
+  font-family: 'Instrument Sans', Arial, sans-serif;
+  font-weight: 400;
   font-synthesis: none;
-  font-feature-settings: 'ss06';
-  text-transform: uppercase;
+  font-feature-settings: normal;
+  text-transform: none;
   letter-spacing: -.025em;
-  line-height: 1.08;
+  line-height: 0.94;
 }
 
 #sitewise-landing .sw-coordination h1 {
-  font-family: 'Manifa Advertising', 'Hanken Grotesk', sans-serif;
-  font-weight: 600;
-  font-feature-settings: 'ss06';
-  font-size: clamp(30px, 3.2vw, 56px);
+  font-family: 'Instrument Sans', Arial, sans-serif;
+  font-weight: 400;
+  font-size: clamp(44px, 8.2vw, 140px);
 }
 #sitewise-landing .sw-workspace-intro h2,
 #sitewise-landing .sw-workflow h2,
 #sitewise-landing .sw-closing h2 { font-size: clamp(28px, 3.2vw, 48px); }
 
 @media (max-width: 799px) {
-  #sitewise-landing .sw-coordination h1 { font-size: clamp(28px, 8vw, 52px); }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(36px, 10vw, 56px); }
 }
 
-#sitewise-landing .sw-coordination-copy{padding-top:clamp(140px,18vh,190px);padding-bottom:70px}
-#sitewise-landing .sw-coordination-intro{margin-top:28px}
+#sitewise-landing .sw-coordination-copy {
+  left: clamp(140px, 15vw, 240px);
+  right: auto;
+  width: 50vw;
+  box-sizing: border-box;
+  padding-top: clamp(160px, 19vh, 214px);
+  padding-bottom: 70px;
+  padding-left: 0;
+  padding-right: 0;
+}
+#sitewise-landing .sw-coordination-intro {
+  margin-top: 28px;
+  max-width: 28ch;
+  font-size: clamp(17px, 1.35vw, 22px);
+  line-height: 1.5;
+}
 #sitewise-landing [data-day-night],#sitewise-landing [data-motion-pause]{display:grid;place-items:center;width:40px;height:40px;padding:9px;border-radius:50%}
 #sitewise-landing .sw-view-controls svg{width:20px;height:20px}
 #sitewise-landing [data-day-night] [data-scene-icon=sun],#sitewise-landing [data-day-night][aria-pressed=true] [data-scene-icon=moon]{display:none}
 #sitewise-landing [data-day-night][aria-pressed=true] [data-scene-icon=sun]{display:block}
-.sw-source-credits{padding:12px 28px;background:#071c39;color:#96a7bd;font:10px/1.6 'Hanken Grotesk',sans-serif}
+.sw-source-credits{padding:12px 28px;background:#071c39;color:#96a7bd;font:10px/1.6 'Instrument Sans',sans-serif}
 .sw-source-credits a{color:inherit}
 
-#sitewise-landing .sw-coordination h1 .sw-headline-line{display:block;color:#f3f5fc}
-#sitewise-landing .sw-coordination h1 .sw-detail-reveal{margin-top:.42em;color:#8ebeff;font-family:'Manifa Advertising','Hanken Grotesk',sans-serif;font-weight:600;font-feature-settings:'ss06';font-size:.82em;line-height:1.2;letter-spacing:-.015em;text-transform:none}
+#sitewise-landing .sw-coordination h1 .sw-headline-line {
+  display: block;
+  overflow: visible;
+  padding-bottom: 0.05em;
+  color: var(--sw-text-primary);
+  white-space: nowrap;
+}
+#sitewise-landing .sw-coordination h1 .sw-headline-ink { display: inline-block; position: relative; }
+#sitewise-landing .is-headline-washed .sw-headline-type {
+  background-image: linear-gradient(92deg, #1F1915 0%, #1F1915 72%, #2C241E 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+#sitewise-landing .sw-coordination-copy .sw-cta { margin-top: 8px; }
+#sitewise-landing .sw-coordination-copy .sw-cta:hover,
+#sitewise-landing .sw-coordination-copy .sw-cta:focus-visible {
+  background: #8eb4f2;
+  color: #102647;
+}
 #sitewise-landing .sw-coordination { position: relative; }
-.sw-letter-stage {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  overflow: clip;
-  pointer-events: none;
+@media (prefers-reduced-motion: no-preference) {
+  #sitewise-landing .sw-coordination:not(.is-headline-ready) .sw-headline-line {
+    -webkit-mask-image: linear-gradient(to top, #000 38%, transparent 92%);
+    mask-image: linear-gradient(to top, #000 38%, transparent 92%);
+    -webkit-mask-size: 100% 380%;
+    mask-size: 100% 380%;
+    -webkit-mask-position: 0% 0%;
+    mask-position: 0% 0%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+  #sitewise-landing .sw-coordination:not(.is-headline-ready) .sw-headline-ink {
+    transform: translateY(0.55em);
+  }
 }
-.sw-building-letter {
-  position: absolute;
-  display: block;
-  white-space: pre;
-  transform-origin: center;
-  will-change: transform;
+@media (min-width: 800px) and (max-height: 850px) {
+  #sitewise-landing .sw-coordination-copy { padding-top: 140px; }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(40px, 6.6vw, 96px); }
 }
-.sw-typed-copy, .sw-type-cursor {
-  position: absolute;
-  display: block;
-  white-space: pre;
-  will-change: transform;
+@media(max-width:799px){
+  #sitewise-landing .sw-coordination-copy{
+    left: 0;
+    width: 100%;
+    padding: 150px 28px 180px;
+  }
 }
-.sw-type-cursor {
-  width: .62em;
-  height: .78em;
-  background: #f3f5fc;
-  border-radius: 1px;
-}
-@media(max-width:799px){#sitewise-landing .sw-coordination-copy{padding-top:150px}}
 
-/* Preserve the original artwork, including its blue symbol. */
+/* Masthead lockup uses the same light-mode ink as the app lockup. */
 #sitewise-landing .sw-masthead a.sw-wordmark,
 #sitewise-landing .sw-footer .sw-wordmark { display:inline-flex; align-items:center; width:auto; }
 #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { display:block; width:190px; height:auto; filter:none; }
 #sitewise-landing .sw-footer .sw-original-logo { display:block; width:160px; height:auto; }
+@supports (mask-image: url("../brand/sitewise-lockup-dark.png")) {
+  #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { opacity: 0; }
+  #sitewise-landing .sw-masthead .sw-brand::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--sw-text-primary);
+    mask: url("../brand/sitewise-lockup-dark.png") center / contain no-repeat;
+  }
+}
 @media(max-width:799px) {
   #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { width:158px; }
 }

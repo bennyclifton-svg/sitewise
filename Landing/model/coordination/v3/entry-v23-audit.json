@@ -1,0 +1,63 @@
+{
+  "entry": [
+    "SLA - 007_Concrete - Foundation_0.007",
+    "SLA - 007_Concrete - Foundation_0.008",
+    "SLA - 007_Concrete - Foundation_0.009",
+    "SLA - 007_Concrete - Foundation_0.010",
+    "SLA - 007_Concrete - Foundation_0.011",
+    "V3 | Garage apron 2",
+    "V3 | Garage pedestrian crossing 2",
+    "Site v23 | Pedestrian path segment 2"
+  ],
+  "bins": [
+    {
+      "name": "V3 | Relocated bin 1",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 2",
+      "blue": true
+    },
+    {
+      "name": "V3 | Relocated bin 3",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 4",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 5",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 6",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 7",
+      "blue": true
+    },
+    {
+      "name": "V3 | Relocated bin 8",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 9",
+      "blue": false
+    },
+    {
+      "name": "V3 | Relocated bin 10",
+      "blue": false
+    }
+  ],
+  "bikes": [
+    "Site v23 | Bicycle 1 | ",
+    "Site v23 | Bicycle 2 | "
+  ],
+  "pillar_centre": [
+    2.2,
+    -19.9,
+    0.65
+  ]
+}

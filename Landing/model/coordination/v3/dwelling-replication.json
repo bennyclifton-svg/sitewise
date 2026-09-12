@@ -1,0 +1,416 @@
+[
+  {
+    "dwelling": 1,
+    "mirrored": false,
+    "slab": "SLA - 007_Concrete - Foundation_0.029",
+    "garage": "DOO - 018_Paint - Titanium White_0.001",
+    "anchor_error_m": 0.0,
+    "matrix": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "counts": {
+      "mechanical": 282,
+      "electrical": 606,
+      "structure": 83,
+      "hydraulic": 55
+    }
+  },
+  {
+    "dwelling": 2,
+    "mirrored": false,
+    "slab": "SLA - 007_Concrete - Foundation_0.001",
+    "garage": "DOO - 018_Paint - Titanium White_0.002",
+    "anchor_error_m": 0.14999771191611616,
+    "matrix": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        5.4836273193359375e-06
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        6.770299911499023
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        1.996755599975586e-06
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "counts": {
+      "mechanical": 282,
+      "electrical": 606,
+      "structure": 83,
+      "hydraulic": 55
+    },
+    "replaced_source_slabs": [
+      "SLA - 007_Concrete - Foundation_0.001",
+      "SLA - 008_Floorboards light_0.001",
+      "SLA - 008_Wall white plaster_0.001",
+      "SLA - 009_Floorboards - 03_0.001",
+      "SLA - 009_Floorboards light_0.001",
+      "SLA - 009_Wall white plaster_0.001",
+      "SLA - 010_Render: Carpet - grey_0.076",
+      "SLA - 010_Wall white plaster_0.023",
+      "SLA - 010_Wall white plaster_0.022"
+    ],
+    "existing_fixtures_tagged": [
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.001",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.001",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.001",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.001",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.001",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.001",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.001",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.001",
+      "WashingMachine - FU - 060_GDLM8_Material_001-material_0.001",
+      "WashingMachine - FU - 060_GDLM9_cot_002-material_0.001",
+      "WashingMachine - FU - 060_GDLM10_Material_002-material_0.001",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.006",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.006",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.006",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.006",
+      "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.001",
+      "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.001",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.013",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.013",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.012",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.012",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.012",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.013",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.013",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.006",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.006",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.006",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.006",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.010",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.010",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.010",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.010"
+    ]
+  },
+  {
+    "dwelling": 3,
+    "mirrored": true,
+    "slab": "SLA - 007_Concrete - Foundation_0",
+    "garage": "DOO - 018_Paint - Titanium White_0",
+    "anchor_error_m": 0.1499919313251604,
+    "matrix": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        7.62939453125e-06
+      ],
+      [
+        0.0,
+        -1.0,
+        0.0,
+        -11.501949310302734
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        3.3676624298095703e-06
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "counts": {
+      "mechanical": 282,
+      "electrical": 606,
+      "structure": 83,
+      "hydraulic": 55
+    },
+    "replaced_source_slabs": [
+      "SLA - 007_Concrete - Foundation_0",
+      "SLA - 008_Floorboards light_0",
+      "SLA - 008_Wall white plaster_0",
+      "SLA - 009_Floorboards - 03_0",
+      "SLA - 009_Floorboards light_0",
+      "SLA - 009_Wall white plaster_0",
+      "SLA - 010_Render: Carpet - grey_0.075",
+      "SLA - 010_Wall white plaster_0.018",
+      "SLA - 010_Wall white plaster_0.019"
+    ],
+    "existing_fixtures_tagged": [
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0",
+      "WashingMachine - FU - 060_GDLM8_Material_001-material_0",
+      "WashingMachine - FU - 060_GDLM9_cot_002-material_0",
+      "WashingMachine - FU - 060_GDLM10_Material_002-material_0",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.005",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.005",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.005",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.005",
+      "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0",
+      "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.011",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.011",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.010",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.010",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.010",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.010",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.005",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.005",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.005",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.005",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.014",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.014",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+    ]
+  },
+  {
+    "dwelling": 4,
+    "mirrored": false,
+    "slab": "SLA - 007_Concrete - Foundation_0.022",
+    "garage": "DOO - 018_Paint - Titanium White_0.003",
+    "anchor_error_m": 0.15000152416301035,
+    "matrix": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        1.3113021850585938e-05
+      ],
+      [
+        0.0,
+        1.0,
+        0.0,
+        18.22534942626953
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        -0.29999464750289917
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "counts": {
+      "mechanical": 282,
+      "electrical": 606,
+      "structure": 83,
+      "hydraulic": 55
+    },
+    "replaced_source_slabs": [
+      "SLA - 007_Concrete - Foundation_0.022",
+      "SLA - 008_Floorboards light_0.003",
+      "SLA - 008_Wall white plaster_0.003",
+      "SLA - 009_Floorboards - 03_0.003",
+      "SLA - 009_Floorboards light_0.003",
+      "SLA - 009_Wall white plaster_0.003",
+      "SLA - 010_Render: Carpet - grey_0.078",
+      "SLA - 010_Wall white plaster_0.029",
+      "SLA - 010_Wall white plaster_0.028"
+    ],
+    "existing_fixtures_tagged": [
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.003",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.003",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.003",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.003",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.003",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.003",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.003",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.003",
+      "WashingMachine - FU - 060_GDLM8_Material_001-material_0.003",
+      "WashingMachine - FU - 060_GDLM9_cot_002-material_0.003",
+      "WashingMachine - FU - 060_GDLM10_Material_002-material_0.003",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.008",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.008",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.008",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.008",
+      "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.003",
+      "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.003",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.017",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.017",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.017",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.016",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.016",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.016",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.016",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.016",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.016",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.008",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.008",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.008",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.008",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.013",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.013",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.013",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.013"
+    ]
+  },
+  {
+    "dwelling": 5,
+    "mirrored": true,
+    "slab": "SLA - 007_Concrete - Foundation_0.023",
+    "garage": "DOO - 018_Paint - Titanium White_0.004",
+    "anchor_error_m": 0.14999294343763947,
+    "matrix": [
+      [
+        1.0,
+        0.0,
+        0.0,
+        1.7404556274414062e-05
+      ],
+      [
+        0.0,
+        -1.0,
+        0.0,
+        -0.046898841857910156
+      ],
+      [
+        0.0,
+        0.0,
+        1.0,
+        -0.29999327659606934
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ]
+    ],
+    "counts": {
+      "mechanical": 282,
+      "electrical": 606,
+      "structure": 83,
+      "hydraulic": 55
+    },
+    "replaced_source_slabs": [
+      "SLA - 007_Concrete - Foundation_0.023",
+      "SLA - 008_Floorboards light_0.004",
+      "SLA - 008_Wall white plaster_0.004",
+      "SLA - 009_Floorboards - 03_0.004",
+      "SLA - 009_Floorboards light_0.004",
+      "SLA - 009_Wall white plaster_0.004",
+      "SLA - 010_Render: Carpet - grey_0.079",
+      "SLA - 010_Wall white plaster_0.031",
+      "SLA - 010_Wall white plaster_0.032"
+    ],
+    "existing_fixtures_tagged": [
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.004",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.004",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.004",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.004",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.004",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.004",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.004",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.004",
+      "WashingMachine - FU - 060_GDLM8_Material_001-material_0.004",
+      "WashingMachine - FU - 060_GDLM9_cot_002-material_0.004",
+      "WashingMachine - FU - 060_GDLM10_Material_002-material_0.004",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.009",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.009",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.009",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.009",
+      "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.004",
+      "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.004",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.018",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.018",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.018",
+      "WC 24 - FlowEq-023_Ceramic - Porcelain_0.019",
+      "WC 24 - FlowEq-023_Plastic - Laminate_0.019",
+      "WC 24 - FlowEq-023_Paint - Titanium White_0.019",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.019",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.019",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.019",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.009",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.009",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.009",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.009",
+      "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.018",
+      "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.018",
+      "Basin 24 - FlowEq-023_Metal - Chrome 01_0.018",
+      "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.012",
+      "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.012",
+      "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.012",
+      "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.012",
+      "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.012"
+    ]
+  }
+]

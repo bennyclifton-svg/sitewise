@@ -156,7 +156,8 @@ conventions, they are for software agents — ignore them.
    - get_project_snapshot / get_project_next_actions - read the shared snapshot,
      rollups, deterministic blockers, and exact target routes/tools used by the UI.
    - update_project_profile - apply exact user-command values, or evidence-backed
-     enrichment when the turn has unbound profile_mutation authority.
+     enrichment when the turn has unbound profile_mutation authority. Physical
+     scope items are work_scope checkbox values, not scope_narrative prose.
    - propose_project_profile_change - persist hedged or single-claim profile facts
      when the turn lacks enrichment/update authority. Missing client and site
      address values are then applied automatically and marked for review.
@@ -169,6 +170,9 @@ conventions, they are for software agents — ignore them.
    - list_platform_knowledge — discover knowledge available to this project.
    - search_platform_knowledge — semantic search for applicable guidance.
    - read_platform_knowledge — read a specific knowledge item.
+   Seed markdown guides (Residential construction guide and similar) are
+   reached only through these tools. Never say a named seed is unavailable
+   without calling them. Do not look for seed files in the workspace.
 5. Official public web references, via MCP tools:
    - search_web - find current NSW legislation, planning instruments, and
      regulations from the approved official-source registry. NSW is the only

@@ -1,15 +1,15 @@
 {
   "systems": {
     "context": 7649,
-    "landscape": 49602,
-    "civil": 116585,
-    "mechanical": 19610,
-    "electrical": 71696,
-    "architecture": 542073,
-    "structure": 554,
-    "interiors": 109711,
-    "hydraulic": 43356
+    "landscape": 49610,
+    "civil": 350527,
+    "mechanical": 98060,
+    "electrical": 353488,
+    "structure": 7242,
+    "architecture": 387303,
+    "hydraulic": 212647,
+    "interiors": 109711
   },
-  "batches": 71,
-  "scope": "One detailed dwelling; illustrative shared site and street services."
+  "batches": 89,
+  "scope": "Five dwellings with replicated structure, electrical, mechanical and hydraulic detail; shared site services."
 }

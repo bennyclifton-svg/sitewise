@@ -128,6 +128,17 @@ def _project_with_brief(*lines: str) -> Project:
     return project
 
 
+def test_warehouse_brief_names_dock_office_mezzanine_and_amenities() -> None:
+    rows = brief_accommodation_rows(
+        _project_with_brief(
+            "Unique tenancy. Own IT fit-out. New loading dock. "
+            "New office. Mezzanine. Amenities."
+        )
+    )
+    names = [row["space"] for row in rows]
+    assert names == ["Amenities", "Loading dock", "Mezzanine", "Office"]
+
+
 def test_brief_names_spaces_without_inventing_typical_rooms() -> None:
     rows = brief_accommodation_rows(_project_with_brief(_NEWTOWN_BRIEF))
     names = [row["space"] for row in rows]

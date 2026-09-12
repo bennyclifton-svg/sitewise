@@ -1444,6 +1444,72 @@ def test_agent_stream_binds_candidate_population_scope_from_exact_prompt(
     ]
 
 
+def test_extracted_setup_patch_uses_the_request_session(monkeypatch) -> None:
+    from app.agent.mutation_intent import PROFILE_SETUP_REASON, MutationIntent
+    from app.projects.profile import ProfileValidationError
+    from types import MappingProxyType
+
+    session = object()
+    project = SimpleNamespace(
+        id=PROJECT_ID,
+        profile_revision=1,
+        building_class="commercial",
+        work_type="refurb",
+        project_metadata={"taxonomy": {"subclasses": ["office"]}},
+    )
+    applied = SimpleNamespace(changed_fields=["work_type"])
+    apply_patch = AsyncMock(return_value=applied)
+    factory = Mock(side_effect=AssertionError("must not open a second session"))
+    monkeypatch.setattr(chat_api, "apply_profile_patch", apply_patch)
+    monkeypatch.setattr(chat_api, "get_session_factory", factory)
+    monkeypatch.setattr(
+        chat_api,
+        "read_profile",
+        Mock(
+            return_value=SimpleNamespace(
+                building_class="commercial",
+                subclasses=["office"],
+            )
+        ),
+    )
+
+    change = asyncio.run(
+        chat_api._apply_extracted_setup_patch(
+            session,
+            project=project,
+            mutation_intent=MutationIntent(
+                user_message_hash="x",
+                scopes=("profile_mutation",),
+                profile_patch=MappingProxyType({"work_type": "refurb"}),
+                requires_confirmation=False,
+                reason=PROFILE_SETUP_REASON,
+            ),
+        )
+    )
+
+    assert change is applied
+    apply_patch.assert_awaited_once()
+    assert apply_patch.await_args.args[0] is session
+    factory.assert_not_called()
+    apply_patch.side_effect = ProfileValidationError(["bad"])
+    assert (
+        asyncio.run(
+            chat_api._apply_extracted_setup_patch(
+                session,
+                project=project,
+                mutation_intent=MutationIntent(
+                    user_message_hash="x",
+                    scopes=("profile_mutation",),
+                    profile_patch=MappingProxyType({"work_type": "refurb"}),
+                    requires_confirmation=False,
+                    reason=PROFILE_SETUP_REASON,
+                ),
+            )
+        )
+        is None
+    )
+
+
 def test_agent_cancel_requires_thread_owner_and_cancels(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

@@ -1,0 +1,73 @@
+{
+  "front_group_translation_m": -2.5,
+  "old_site_depth_m": 44,
+  "new_site_depth_m": 39.5,
+  "rear_boundary_y": 17.5,
+  "visitor_bays": [
+    {
+      "bay": 1,
+      "bounds": [
+        [
+          -5.6,
+          12.25,
+          0.27
+        ],
+        [
+          -0.2,
+          14.75,
+          0.27
+        ]
+      ],
+      "width_m": 2.5,
+      "length_m": 5.4,
+      "aisle_width_m": 6.0
+    },
+    {
+      "bay": 2,
+      "bounds": [
+        [
+          -5.6,
+          14.75,
+          0.27
+        ],
+        [
+          -0.2,
+          17.25,
+          0.27
+        ]
+      ],
+      "width_m": 2.5,
+      "length_m": 5.4,
+      "aisle_width_m": 6.0
+    }
+  ],
+  "protected": [
+    "V3 | Public footpath",
+    "V3 | Kerb outside crossover",
+    "V3 | Kerb outside crossover.001",
+    "V3 | Driveway crossover",
+    "V3 | Pedestrian entry crossing",
+    "V3 | Pedestrian front gate",
+    "V3 | Letterbox blade",
+    "V3 | Cantilever entry hood",
+    "V3 | Letterbox 1",
+    "V3 | Letterbox 2",
+    "V3 | Letterbox 3",
+    "V3 | Letterbox 4",
+    "V3 | Letterbox 5",
+    "V3 | Front bin store slab",
+    "V3 | Bin store back",
+    "V3 | Bin store west",
+    "V3 | Bin store east",
+    "V3 | Relocated bin 1",
+    "V3 | Relocated bin 2",
+    "V3 | Relocated bin 3",
+    "V3 | Relocated bin 4",
+    "V3 | Relocated bin 5",
+    "V3 | Relocated bin 6",
+    "V3 | Relocated bin 7",
+    "V3 | Relocated bin 8",
+    "V3 | Relocated bin 9",
+    "V3 | Relocated bin 10"
+  ]
+}

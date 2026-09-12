@@ -241,6 +241,32 @@ def test_complete_agent_turn_persists_task_route_latency_and_usage(monkeypatch) 
     }
 
 
+def test_scope_populate_allows_work_scope_checkbox_patch(monkeypatch) -> None:
+    turn = _active_turn()
+    turn.mutation_intent = {
+        "profile_patch": {},
+        "reason": "profile_scope_populate",
+    }
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.get = AsyncMock(return_value=turn)
+
+    allowed = run_async(
+        usage.require_active_mutation_turn(
+            session,
+            turn_id=turn.id,
+            project_id=turn.project_id,
+            user_id=turn.user_id,
+            required_scope="profile_mutation",
+            requested_profile_patch={
+                "work_scope": ["substructure", "superstructure", "roofing"],
+            },
+        )
+    )
+
+    assert allowed is turn
+
+
 def test_setup_from_brief_allows_superset_of_extracted_values(monkeypatch) -> None:
     turn = _active_turn()
     turn.mutation_intent = {

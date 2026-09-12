@@ -120,6 +120,10 @@ def _work_scope_config() -> dict[str, Any]:
     return _read_json("work-scopes.json")
 
 
+def _typical_work_scope_config() -> dict[str, Any]:
+    return _read_json("typical-work-scopes.json")
+
+
 def _emphasis_config() -> dict[str, Any]:
     return _read_json("emphasis-profiles.json")
 
@@ -388,6 +392,31 @@ def work_scope_groups_for(
     if leftover:
         groups.append(("Other", leftover))
     return tuple(groups)
+
+
+def typical_work_scope_for(
+    work_type: str | None,
+    subclasses: Sequence[str] = (),
+) -> tuple[str, ...]:
+    """Return curated default checkbox values for a complete job of this class."""
+    if not work_type:
+        return ()
+    by_subclass = _typical_work_scope_config().get(work_type)
+    if not isinstance(by_subclass, dict):
+        return ()
+    allowed = {item.value for item in work_scope_options_for(work_type)}
+    selected: list[str] = []
+    seen: set[str] = set()
+    for subclass in subclasses:
+        raw = by_subclass.get(subclass)
+        if not isinstance(raw, list):
+            continue
+        for value in raw:
+            if not isinstance(value, str) or value in seen or value not in allowed:
+                continue
+            selected.append(value)
+            seen.add(value)
+    return tuple(selected)
 
 
 def work_scope_options_for(work_type: str | None) -> tuple[WorkScopeItem, ...]:

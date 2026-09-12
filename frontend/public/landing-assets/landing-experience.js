@@ -1,4 +1,5 @@
 import { mountEstate } from './estate-development.js';
+import { mountCadastralSea } from './cadastral-sea.js?v=hero-field-10';
 /* global document, window, fetch, IntersectionObserver, CustomEvent */
 const ns = 'http://www.w3.org/2000/svg';
 const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -18,13 +19,15 @@ export async function mountExperience(plan) {
   const status = plan.querySelector('[data-map-status]') ?? document.createElement('p');
   const pause = plan.querySelector('[data-map-pause]');
   let paused = preference.matches;
-  let estate, complete = false;
+  let estate, sea, complete = false;
   let onscreen = true;
   const update = () => {
     plan.classList.toggle('is-paused', paused || !onscreen || document.hidden);
     pause?.setAttribute('aria-pressed', String(paused));
     if (pause) pause.textContent = complete ? 'Replay map' : paused ? 'Play map' : 'Pause map';
-    estate?.sync(paused || !onscreen || document.hidden, preference.matches);
+    const hold = paused || !onscreen || document.hidden;
+    estate?.sync(hold || Boolean(sea), preference.matches || Boolean(sea));
+    sea?.sync(hold, preference.matches);
   };
   pause?.addEventListener('click', () => {
     if (complete) { complete = false; paused = false; estate?.replay(); }
@@ -65,6 +68,7 @@ export async function mountExperience(plan) {
       if (pause) pause.textContent = 'Replay map';
     });
     plan.classList.add('has-estate');
+    sea = mountCadastralSea(plan.closest('.sw-coordination') ?? plan, data);
     let keyboardIndex=0;
     svg.addEventListener('keydown', event => {
       if (['ArrowRight','ArrowDown','ArrowLeft','ArrowUp'].includes(event.key)) {
@@ -81,7 +85,7 @@ export async function mountExperience(plan) {
     if (focusButton) focusButton.disabled=true;
   }
   update();
-  window.addEventListener('pagehide', () => { observer.disconnect(); estate?.dispose(); });
+  window.addEventListener('pagehide', () => { observer.disconnect(); estate?.dispose(); sea?.dispose(); });
   window.addEventListener('pageshow', () => { observer.observe(plan); update(); });
 }
 const plan = document.querySelector('.sw-coordination-plan');

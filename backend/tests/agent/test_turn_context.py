@@ -128,6 +128,39 @@ def test_broad_profile_update_runs_document_enrichment_before_replying() -> None
     assert "profile_mutation authority" in prompt
 
 
+def test_scope_populate_prompt_writes_work_scope_checkboxes_not_narrative() -> None:
+    from app.agent.mutation_intent import PROFILE_SCOPE_POPULATE_REASON
+
+    user_text = (
+        "Populate the scope items. Might need to refer to the "
+        "Residential construction guide."
+    )
+    intent = classify_mutation_intent(user_text)
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Spec Home",
+        archetype=None,
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="new",
+        history=[],
+        mutation_intent=intent,
+        project_metadata={"taxonomy": {"subclasses": ["house"], "work_scope": []}},
+    )
+
+    assert intent.reason == PROFILE_SCOPE_POPULATE_REASON
+    assert "<profile-scope-populate>" in prompt
+    assert "section=work_scopes" in prompt
+    assert "update_project_profile" in prompt
+    assert "list_platform_knowledge" in prompt
+    assert "residential-construction-guide" in prompt or "Residential construction" in prompt
+    assert "scope_narrative" in prompt
+    assert "do not dump" in prompt.lower() or "not a restatement" in prompt.lower()
+    assert "Never say" in prompt or "never say" in prompt
+
+
 def test_spoken_setup_brief_writes_stated_fields_and_asks_remaining_gaps() -> None:
     from app.agent.mutation_intent import PROFILE_SETUP_REASON
 

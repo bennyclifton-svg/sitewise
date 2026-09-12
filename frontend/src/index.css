@@ -1,10 +1,5 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@fontsource/hanken-grotesk/200.css";
-@import "@fontsource/hanken-grotesk/300.css";
-@import "@fontsource/hanken-grotesk/400.css";
-@import "@fontsource/hanken-grotesk/500.css";
-@import "@fontsource/hanken-grotesk/700.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 
 /* Product aliases consume the shared generated SiteWise semantic colours. */

@@ -1,0 +1,74 @@
+{
+  "stormwater": [
+    "Storm | House 1 rear pit to House 1 side east",
+    "Storm | House 1 side east to House 1 side west",
+    "Storm | House 1 side west to House 1 driveway tee",
+    "Storm | House 2 rear pit to House 2 side east",
+    "Storm | House 2 side east to House 2 side west",
+    "Storm | House 2 side west to House 2 driveway tee",
+    "Storm | House 3 rear pit to House 3 side east",
+    "Storm | House 3 side east to House 3 side west",
+    "Storm | House 3 side west to House 3 driveway tee",
+    "Storm | House 4 rear pit to House 4 side east",
+    "Storm | House 4 side east to House 4 side west",
+    "Storm | House 4 side west to House 4 driveway tee",
+    "Storm | House 5 rear pit to House 5 side east",
+    "Storm | House 5 side east to House 5 side west",
+    "Storm | House 5 side west to House 5 driveway tee",
+    "Storm | Downpipe 0: roof_downpipe - FU - 054_Metal - Nickel_0 to House 3 side west",
+    "Storm | Downpipe 1: roof_downpipe - FU - 054_Metal - Nickel_0.001 to House 2 side west",
+    "Storm | Downpipe 2: roof_downpipe - FU - 054_Metal - Nickel_0.002 to House 4 side west",
+    "Storm | Downpipe 3: roof_downpipe - FU - 054_Metal - Nickel_0.003 to House 5 side west",
+    "Storm | Driveway pit 1 to House 5 driveway tee",
+    "Storm | House 5 driveway tee to Driveway pit 2",
+    "Storm | Driveway pit 2 to House 4 driveway tee",
+    "Storm | House 4 driveway tee to House 3 driveway tee",
+    "Storm | House 3 driveway tee to Driveway pit 3",
+    "Storm | Driveway pit 3 to House 2 driveway tee",
+    "Storm | House 2 driveway tee to Driveway pit 4",
+    "Storm | Driveway pit 4 to House 1 driveway tee",
+    "Storm | House 1 driveway tee to Front collection junction",
+    "Storm | Front collection junction to Detention inlet",
+    "Storm | Bin room pit to Detention inlet",
+    "Storm | Detention controlled outlet to Single road stormwater outlet",
+    "Storm | Single road stormwater outlet to Road main -24",
+    "Storm | Single road stormwater outlet to Road main 24"
+  ],
+  "sewer": [
+    "TH02 | Shared sewer collector connection",
+    "TH03 | Shared sewer collector connection",
+    "TH04 | Shared sewer collector connection",
+    "TH05 | Shared sewer collector connection",
+    "Development | Shared sanitary collector",
+    "TH01 | Shared sewer collector connection",
+    "V3 | SAN-main-west",
+    "V3 | SAN-main-east"
+  ],
+  "infill": [
+    [
+      -22,
+      -14.933347702026367
+    ],
+    [
+      -11.933343887329102,
+      -8.013049125671387
+    ],
+    [
+      -5.013047218322754,
+      -4.718596935272217
+    ],
+    [
+      -1.7185941934585571,
+      3.4420042037963867
+    ],
+    [
+      6.4420061111450195,
+      6.736453533172607
+    ],
+    [
+      9.736454963684082,
+      12.25
+    ]
+  ],
+  "main_vertical_clearance_m": 0.2573416233062744
+}

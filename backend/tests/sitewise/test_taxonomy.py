@@ -10,6 +10,7 @@ from app.sitewise.taxonomy import (
     risk_flag_definitions,
     scale_fields_for,
     subclasses_for,
+    typical_work_scope_for,
     validate_project_taxonomy,
     work_scope_options_for,
     work_types,
@@ -278,3 +279,31 @@ def test_industrial_and_commercial_expose_energy_scale_fields() -> None:
     ):
         keys = {field.key for field in scale_fields_for(building_class, subclass)}
         assert energy_keys <= keys, f"{building_class}/{subclass}"
+
+
+def test_typical_new_house_work_scope_is_valid_and_omits_specialist_items() -> None:
+    typical = typical_work_scope_for("new", ["house"])
+    allowed = {item.value for item in work_scope_options_for("new")}
+
+    assert typical
+    assert set(typical) <= allowed
+    assert "substructure" in typical
+    assert "superstructure" in typical
+    assert "roofing" in typical
+    assert "hydraulic_plumbing" in typical
+    assert "demolition" not in typical
+    assert "decontamination" not in typical
+    assert "curtain_wall" not in typical
+    assert "vertical_transport" not in typical
+    assert "timber_mass" not in typical
+
+
+def test_typical_warehouse_extension_work_scope_is_valid() -> None:
+    typical = typical_work_scope_for("extend", ["warehouse"])
+    allowed = {item.value for item in work_scope_options_for("extend")}
+
+    assert typical
+    assert set(typical) <= allowed
+    assert "structural_tie_in" in typical
+    assert "services_connections" in typical
+    assert "staged_occupation" not in typical

@@ -57,11 +57,8 @@ specular edge (only the edge facing the key catches highlight).
 
 ## Typography
 
-The specified face is **Söhne** with **Söhne Mono**, licensed from Klim
-Type Foundry. Neither is in this package; buy the licence and self-host,
-then the stack in `tokens.css` picks them up with no other change. Until
-then it falls back to Hanken Grotesk and IBM Plex Mono, which are close
-but noticeably softer than the wordmark.
+The live face is **Instrument Sans** (SIL OFL), self-hosted in
+`fonts/instrument-sans/`. Labels and numeric display use **IBM Plex Mono**.
 
 The wordmark itself is **not** in this package. It cannot be reproduced
 faithfully without the original face — supply the source artwork or the

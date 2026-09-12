@@ -8,7 +8,7 @@ function layoutTop(element) {
   return top;
 }
 
-export function mountLandingDemo(root, { playAll = false } = {}) {
+export function mountLandingDemo(root, { playAll = false, initialScene = 'pmp', repeatScene = false } = {}) {
   const doc = root.ownerDocument;
   const win = doc.defaultView;
   const find = selector => root.querySelector(selector);
@@ -142,7 +142,7 @@ export function mountLandingDemo(root, { playAll = false } = {}) {
     actions.push({ at: finishedAt, run: complete });
     if (playAll) {
       actions.push({ at: finishedAt + 7000, run: () => root.setAttribute('data-scene-exit', '') });
-      actions.push({ at: finishedAt + 7450, run: () => selectScene(order[(order.indexOf(sceneKey) + 1) % order.length], true) });
+      actions.push({ at: finishedAt + 7450, run: () => selectScene(repeatScene ? sceneKey : order[(order.indexOf(sceneKey) + 1) % order.length], true) });
     }
     return actions.sort((a, b) => a.at - b.at);
   }
@@ -153,7 +153,7 @@ export function mountLandingDemo(root, { playAll = false } = {}) {
     }
     state.running = false;
     root.dataset.motionPaused = 'true';
-    root.getAnimations?.({ subtree: true }).forEach(animation => { if (animation.id !== 'sw-headline' && !['sw-console-float', 'sw-hero-enter', 'sw-word-arrive'].includes(animation.animationName) && animation.playState === 'running') animation.pause(); });
+    root.getAnimations?.({ subtree: true }).forEach(animation => { if (animation.id !== 'sw-headline' && !['sw-console-float', 'sw-hero-enter', 'sw-word-arrive', 'sw-firm-drift'].includes(animation.animationName) && animation.playState === 'running') animation.pause(); });
     if (!state.done || playAll) playButton.textContent = state.index ? 'Resume scene' : 'Play scene';
   }
   function schedule(delay) {
@@ -169,7 +169,7 @@ export function mountLandingDemo(root, { playAll = false } = {}) {
     root.removeAttribute('data-instant');
     state.running = true;
     root.dataset.motionPaused = 'false';
-    root.getAnimations?.({ subtree: true }).forEach(animation => { if (animation.id !== 'sw-headline' && !['sw-console-float', 'sw-hero-enter', 'sw-word-arrive'].includes(animation.animationName) && animation.playState === 'paused') animation.play(); });
+    root.getAnimations?.({ subtree: true }).forEach(animation => { if (animation.id !== 'sw-headline' && !['sw-console-float', 'sw-hero-enter', 'sw-word-arrive', 'sw-firm-drift'].includes(animation.animationName) && animation.playState === 'paused') animation.play(); });
     playButton.textContent = 'Pause scene';
     schedule(state.remaining);
   }
@@ -317,6 +317,7 @@ export function mountLandingDemo(root, { playAll = false } = {}) {
   root.addEventListener('wheel', onManualScroll, { passive: true }); root.addEventListener('touchstart', onManualScroll, { passive: true }); root.addEventListener('keydown', onManualScroll);
   doc.addEventListener('visibilitychange', syncVisibility); motion.addEventListener('change', onMotionChange);
   if (observer) observer.observe(documentView); else { state.visible = true; syncVisibility(); }
+  if (initialScene !== 'pmp') selectScene(initialScene, true);
   return () => {
     pause(); observer?.disconnect();
     root.removeEventListener('click', onClick); root.removeEventListener('scroll', onDocumentScroll, true);
@@ -326,4 +327,4 @@ export function mountLandingDemo(root, { playAll = false } = {}) {
 }
 
 const root = document.getElementById('sitewise-landing');
-if (root) mountLandingDemo(root, { playAll: true });
+if (root) mountLandingDemo(root, { playAll: true, initialScene: 'program', repeatScene: true });

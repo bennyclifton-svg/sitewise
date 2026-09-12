@@ -42,10 +42,13 @@ from app.projects.profile import (
     ProfileRevisionConflict,
     ProfileValidationError,
     apply_profile_patch,
+    read_profile,
 )
+from app.sitewise.taxonomy import scale_fields_for, typical_work_scope_for
 from app.projects.profile_proposals import accept_profile_proposal
 from app.schemas.projects import ProjectProfileChange, ProjectProfilePatch
 from app.agent.mutation_intent import (
+    PROFILE_SCOPE_POPULATE_REASON,
     PROFILE_SETUP_REASON,
     MutationIntent,
     classify_mutation_intent,
@@ -593,6 +596,31 @@ def _project_scale(project: Project | Any) -> dict[str, Any]:
     return dict(scale) if isinstance(scale, dict) else {}
 
 
+def _bindable_profile_changes(project: Project, changes: dict[str, Any]) -> dict[str, Any]:
+    """Drop scale keys the current class/subclass cannot store."""
+    profile = read_profile(project)
+    building_class = changes.get("building_class") or profile.building_class
+    subclasses = changes.get("subclasses") or [
+        item if isinstance(item, str) else item.value for item in profile.subclasses
+    ]
+    bound = dict(changes)
+    scale = bound.get("scale")
+    if not isinstance(scale, dict) or not building_class:
+        return bound
+    allowed = {
+        field.key
+        for subclass in subclasses
+        if isinstance(subclass, str)
+        for field in scale_fields_for(str(building_class), subclass)
+    }
+    filtered = {key: value for key, value in scale.items() if key in allowed}
+    if filtered:
+        bound["scale"] = filtered
+    else:
+        bound.pop("scale", None)
+    return bound
+
+
 async def _apply_extracted_setup_patch(
     session: AsyncSession,
     *,
@@ -601,33 +629,70 @@ async def _apply_extracted_setup_patch(
 ) -> ProjectProfileChange | None:
     """Persist values already parsed from a spoken setup brief.
 
-    Commit on a nested session so the profile lands even if the later agent
-    turn fails or the model never calls a write tool.
+    Writes on the request session. The handler commit after this keeps the
+    profile even if the model never calls a write tool.
     """
-    if (
-        mutation_intent.reason != PROFILE_SETUP_REASON
-        or not mutation_intent.profile_patch
-    ):
+    if mutation_intent.reason not in {
+        PROFILE_SETUP_REASON,
+        "explicit_profile_imperative",
+    } or not mutation_intent.profile_patch:
+        return None
+    changes = _bindable_profile_changes(project, dict(mutation_intent.profile_patch))
+    if not changes:
         return None
     patch = ProjectProfilePatch(
         expected_revision=project.profile_revision,
-        **dict(mutation_intent.profile_patch),
+        **changes,
     )
     try:
-        factory = get_session_factory()
-        async with factory() as setup_session:
-            fresh = await setup_session.get(Project, project.id)
-            if fresh is None:
-                return None
-            change = await apply_profile_patch(
-                setup_session,
-                project=fresh,
-                patch=patch,
-                actor_source="agent",
-            )
-            await setup_session.commit()
-        await session.refresh(project)
-        return change
+        # Use the request session. A second checkout deadlocks on the
+        # Supabase pooler while this transaction is still open.
+        return await apply_profile_patch(
+            session,
+            project=project,
+            patch=patch,
+            actor_source="agent",
+        )
+    except (
+        ProfileDependencyConflict,
+        ProfileRevisionConflict,
+        ProfileValidationError,
+    ):
+        return None
+
+
+async def _apply_typical_work_scope(
+    session: AsyncSession,
+    *,
+    project: Project,
+    mutation_intent: MutationIntent,
+) -> ProjectProfileChange | None:
+    """Tick curated work_scope checkboxes when the user asked to populate them."""
+    if mutation_intent.reason not in {
+        PROFILE_SCOPE_POPULATE_REASON,
+        PROFILE_SETUP_REASON,
+    }:
+        return None
+    profile = read_profile(project)
+    if profile.work_scope:
+        return None
+    subclasses = [
+        item if isinstance(item, str) else item.value for item in profile.subclasses
+    ]
+    typical = typical_work_scope_for(profile.work_type, subclasses)
+    if not typical:
+        return None
+    patch = ProjectProfilePatch(
+        expected_revision=project.profile_revision,
+        work_scope=list(typical),
+    )
+    try:
+        return await apply_profile_patch(
+            session,
+            project=project,
+            patch=patch,
+            actor_source="agent",
+        )
     except (
         ProfileDependencyConflict,
         ProfileRevisionConflict,
@@ -799,12 +864,43 @@ async def post_agent_stream(
         )
     confirmed_profile_change = None
     applied_setup_change = None
+    applied_scope_change = None
     if reserved:
         applied_setup_change = await _apply_extracted_setup_patch(
             session,
             project=project,
             mutation_intent=mutation_intent,
         )
+        applied_scope_change = await _apply_typical_work_scope(
+            session,
+            project=project,
+            mutation_intent=mutation_intent,
+        )
+        if applied_scope_change is not None:
+            snapshot = await get_project_snapshot(
+                session,
+                project_id=project.id,
+                owner_user_id=user.id,
+            )
+            agent_prompt = build_agent_prompt(
+                user_text,
+                project_id=str(thread.project_id),
+                title=project.title,
+                archetype=project.archetype,
+                state=project.state,
+                phase=project.phase,
+                building_class=project.building_class,
+                work_type=project.work_type,
+                project_metadata=getattr(project, "project_metadata", None),
+                history=[
+                    HistoryMessage(role=message.role, content=message.content)
+                    for message in prior_messages
+                ],
+                mutation_intent=mutation_intent,
+                snapshot=snapshot,
+                applied_work_scope=list(applied_scope_change.profile.work_scope),
+                selected_documents=selected_documents,
+            )
         if applied_setup_change is not None:
             snapshot = await get_project_snapshot(
                 session,
@@ -970,7 +1066,11 @@ async def post_agent_stream(
                         quota=quota_state.quota,
                         percent=quota_state.percent,
                     )
-                profile_change = applied_setup_change or confirmed_profile_change
+                profile_change = (
+                    applied_scope_change
+                    or applied_setup_change
+                    or confirmed_profile_change
+                )
                 if profile_change is not None:
                     yield clerk_status_event(
                         "Updated project profile",

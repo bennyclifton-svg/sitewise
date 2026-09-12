@@ -1,0 +1,292 @@
+{
+  "drainage": [
+    {
+      "dwelling": 1,
+      "side": "west",
+      "start": [
+        -4.856540203094482,
+        -13.723653793334961,
+        8.454319953918457
+      ],
+      "pit": "House 1 side west",
+      "end": [
+        -5.150000095367432,
+        -14.213653564453125,
+        -0.9519228935241699
+      ]
+    },
+    {
+      "dwelling": 1,
+      "side": "east",
+      "start": [
+        5.259679794311523,
+        -13.723653793334961,
+        8.446553230285645
+      ],
+      "pit": "House 1 rear pit",
+      "end": [
+        9.891304969787598,
+        -11.146674156188965,
+        -0.8819229006767273
+      ]
+    },
+    {
+      "dwelling": 2,
+      "side": "west",
+      "start": [
+        -4.856540203094482,
+        -6.953351974487305,
+        8.448629379272461
+      ],
+      "pit": "House 2 side west",
+      "end": [
+        -5.150000095367432,
+        -7.443351745605469,
+        -0.890990138053894
+      ]
+    },
+    {
+      "dwelling": 2,
+      "side": "east",
+      "start": [
+        5.259679794311523,
+        -6.953351974487305,
+        8.466893196105957
+      ],
+      "pit": "House 2 rear pit",
+      "end": [
+        9.915075302124023,
+        -5.229586601257324,
+        -0.8209901452064514
+      ]
+    },
+    {
+      "dwelling": 3,
+      "side": "west",
+      "start": [
+        -4.856540203094482,
+        -2.268603563308716,
+        8.448628425598145
+      ],
+      "pit": "House 3 side west",
+      "end": [
+        -5.150000095367432,
+        -2.3658251762390137,
+        -0.8452924489974976
+      ]
+    },
+    {
+      "dwelling": 3,
+      "side": "east",
+      "start": [
+        5.259679794311523,
+        -2.268603563308716,
+        8.44344711303711
+      ],
+      "pit": "House 3 rear pit",
+      "end": [
+        9.924144744873047,
+        0.4979379177093506,
+        -0.7752923965454102
+      ]
+    },
+    {
+      "dwelling": 4,
+      "side": "west",
+      "start": [
+        -4.856540203094482,
+        4.501697540283203,
+        8.148627281188965
+      ],
+      "pit": "House 4 side west",
+      "end": [
+        -5.150000095367432,
+        4.011697769165039,
+        -0.7878947257995605
+      ]
+    },
+    {
+      "dwelling": 4,
+      "side": "east",
+      "start": [
+        5.259679794311523,
+        4.501697540283203,
+        8.16689682006836
+      ],
+      "pit": "House 4 rear pit",
+      "end": [
+        9.698690414428711,
+        6.2254638671875,
+        -0.7178947329521179
+      ]
+    },
+    {
+      "dwelling": 5,
+      "side": "west",
+      "start": [
+        -4.856540203094482,
+        9.186447143554688,
+        8.148628234863281
+      ],
+      "pit": "House 5 side west",
+      "end": [
+        -5.150000095367432,
+        9.089225769042969,
+        -0.7421969771385193
+      ]
+    },
+    {
+      "dwelling": 5,
+      "side": "east",
+      "start": [
+        5.259679794311523,
+        9.186447143554688,
+        8.143448829650879
+      ],
+      "pit": "House 5 rear pit",
+      "end": [
+        9.689626693725586,
+        11.994612693786621,
+        -0.6721969842910767
+      ]
+    }
+  ],
+  "removed_entry_ramps": [
+    "V3 | Entry link 1",
+    "V3 | Entry link 2",
+    "V3 | Entry link 3",
+    "V3 | Entry link 4",
+    "V3 | Entry link 5"
+  ],
+  "turbines": [
+    {
+      "dwelling": 1,
+      "turbine": 1,
+      "vertical_adjustment": -0.03062339782714929,
+      "roof_height": 9.114635467529297
+    },
+    {
+      "dwelling": 1,
+      "turbine": 2,
+      "vertical_adjustment": -0.02604290008545007,
+      "roof_height": 9.165881156921387
+    },
+    {
+      "dwelling": 2,
+      "turbine": 1,
+      "vertical_adjustment": -0.22510047912597742,
+      "roof_height": 8.920160293579102
+    },
+    {
+      "dwelling": 2,
+      "turbine": 2,
+      "vertical_adjustment": -0.09180065155029382,
+      "roof_height": 9.100125312805176
+    },
+    {
+      "dwelling": 3,
+      "turbine": 1,
+      "vertical_adjustment": -0.22510047912597742,
+      "roof_height": 8.920162200927734
+    },
+    {
+      "dwelling": 3,
+      "turbine": 2,
+      "vertical_adjustment": -0.11374755859375085,
+      "roof_height": 9.078179359436035
+    },
+    {
+      "dwelling": 4,
+      "turbine": 1,
+      "vertical_adjustment": -0.22510429382324304,
+      "roof_height": 8.620160102844238
+    },
+    {
+      "dwelling": 4,
+      "turbine": 2,
+      "vertical_adjustment": -0.09180255889892663,
+      "roof_height": 8.800127029418945
+    },
+    {
+      "dwelling": 5,
+      "turbine": 1,
+      "vertical_adjustment": -0.22510334014892663,
+      "roof_height": 8.620162010192871
+    },
+    {
+      "dwelling": 5,
+      "turbine": 2,
+      "vertical_adjustment": -0.11375137329101648,
+      "roof_height": 8.778179168701172
+    }
+  ],
+  "restored_members": [
+    "Roof v13 | TH02 | Truss 6 vertical 5 rear",
+    "Roof v13 | TH02 | Truss 6 vertical 3 front",
+    "Roof v13 | TH02 | Truss 6 vertical 2 front",
+    "Roof v13 | TH02 | Truss 6 vertical 1 front",
+    "Roof v13 | TH02 | Truss 6 diagonal 5 rear",
+    "Roof v13 | TH02 | Truss 6 diagonal 3 front",
+    "Roof v13 | TH02 | Truss 6 diagonal 2 front",
+    "Roof v13 | TH02 | Truss 6 diagonal 1 front",
+    "Roof v13 | TH02 | Truss 6 compound top chord 4 rear",
+    "Roof v13 | TH02 | Truss 6 compound top chord 2 front",
+    "Roof v13 | TH02 | Truss 6 compound top chord 1 front",
+    "Roof v13 | TH02 | Truss 6 bottom tie front",
+    "Roof v13 | TH02 | Truss 6 bottom tie rear",
+    "Roof v13 | TH02 | Truss 5 vertical 5 rear",
+    "Roof v13 | TH02 | Truss 5 vertical 3 front",
+    "Roof v13 | TH02 | Truss 5 vertical 2 front",
+    "Roof v13 | TH02 | Truss 5 vertical 1 front",
+    "Roof v13 | TH02 | Truss 5 diagonal 5 rear",
+    "Roof v13 | TH02 | Truss 5 diagonal 3 front",
+    "Roof v13 | TH02 | Truss 5 diagonal 2 front",
+    "Roof v13 | TH02 | Truss 5 diagonal 1 front",
+    "Roof v13 | TH02 | Truss 5 compound top chord 3 rear",
+    "Roof v13 | TH02 | Truss 5 compound top chord 2 front",
+    "Roof v13 | TH02 | Truss 5 compound top chord 2 rear",
+    "Roof v13 | TH02 | Truss 5 compound top chord 1 front",
+    "Roof v13 | TH02 | Truss 5 bottom tie front",
+    "Roof v13 | TH02 | Truss 5 bottom tie rear"
+  ],
+  "bearings": [
+    {
+      "dwelling": 1,
+      "front_x": -4.6271162033081055
+    },
+    {
+      "dwelling": 2,
+      "front_x": -4.627110481262207
+    },
+    {
+      "dwelling": 3,
+      "front_x": -4.627108573913574
+    },
+    {
+      "dwelling": 4,
+      "front_x": -4.627102851867676
+    },
+    {
+      "dwelling": 5,
+      "front_x": -4.62709903717041
+    }
+  ],
+  "blade_walls": [
+    "Coordinated | RC bedroom blade wall level 1",
+    "Coordinated | RC bedroom blade wall level 2",
+    "Coordinated | RC bedroom blade wall level 3",
+    "TH02 | Coordinated | RC bedroom blade wall level 1",
+    "TH02 | Coordinated | RC bedroom blade wall level 2",
+    "TH02 | Coordinated | RC bedroom blade wall level 3",
+    "TH03 | Coordinated | RC bedroom blade wall level 1",
+    "TH03 | Coordinated | RC bedroom blade wall level 2",
+    "TH03 | Coordinated | RC bedroom blade wall level 3",
+    "TH04 | Coordinated | RC bedroom blade wall level 1",
+    "TH04 | Coordinated | RC bedroom blade wall level 2",
+    "TH04 | Coordinated | RC bedroom blade wall level 3",
+    "TH05 | Coordinated | RC bedroom blade wall level 1",
+    "TH05 | Coordinated | RC bedroom blade wall level 2",
+    "TH05 | Coordinated | RC bedroom blade wall level 3"
+  ],
+  "unit_roof_clashes": []
+}
