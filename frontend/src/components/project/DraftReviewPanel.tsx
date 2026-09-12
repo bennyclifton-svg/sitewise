@@ -1206,7 +1206,7 @@ export function DraftReviewPanel({
           <div className="p-4" ref={setProgrammeHost}>
             {actionError ? (
               <p
-                className="mb-3 border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                className="mb-3 border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive"
                 role="alert"
               >
                 {actionError}
@@ -1223,7 +1223,7 @@ export function DraftReviewPanel({
               }
               return (
                 <p
-                  className="mb-3 border border-amber-600/30 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-50"
+                  className="mb-3 border border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] px-3 py-2 text-sm text-[var(--sw-warning-text)]"
                   role="status"
                 >
                   Refresh review needed:

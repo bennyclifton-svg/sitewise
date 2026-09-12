@@ -154,7 +154,7 @@ export function TenderQuoteSelectionPanel({
           <Button type="button" onClick={() => void saveSelection()} disabled={!canSave}>{isSubmitting ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : <FileCheck2 className="size-4" aria-hidden />}{isSubmitting ? "Saving" : "Save quote selection"}</Button>
         </div>
       </header>
-      {error ? <p className="mx-4 mt-4 flex gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"><AlertCircle className="size-4" aria-hidden />{error}</p> : null}
+      {error ? <p className="mx-4 mt-4 flex gap-2 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive"><AlertCircle className="size-4" aria-hidden />{error}</p> : null}
       <div className="space-y-3 p-4">
         {groups.map((group, index) => (
           <article key={group.key} className="rounded-md border bg-background p-3">

@@ -459,7 +459,7 @@ export function CubeTumbleMark() {
           key={index}
           data-cube="primary"
           data-vertex
-          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-[var(--sw-facet-blue-hex,#2f72c4)] will-change-transform"
+          className="streaming-cube__point absolute left-0 top-0 rounded-full bg-[var(--sw-info-icon)] will-change-transform"
           style={{
             width: DOT_SIZE,
             height: DOT_SIZE,

@@ -1,0 +1,107 @@
+{
+  "scene": "sitewise-interior-structure-checkpoint.blend",
+  "scenes": [
+    "01 | Assembled interior",
+    "02 | Structural frame review"
+  ],
+  "source_transforms_unchanged": 3057,
+  "lighting_fixture_count": 26,
+  "gpo_count": 24,
+  "gpo_collections": [
+    "CHECKPOINT 03 | General power outlets"
+  ],
+  "structure_collections": [
+    "STRUCTURE | Upper wall frame | illustrative",
+    "STRUCTURE | Roof framing | illustrative",
+    "STRUCTURE | Living wall frame | illustrative",
+    "STRUCTURE | Ground wall frame | illustrative",
+    "STRUCTURE | Foundations | illustrative",
+    "STRUCTURE | Floor framing | illustrative"
+  ],
+  "structure_member_counts": {
+    "Foundations": 9,
+    "Living wall frame": 107,
+    "Ground wall frame": 162,
+    "Upper wall frame": 200,
+    "Floor framing": 83,
+    "Roof framing": 29
+  },
+  "unresolved_interfaces": [
+    {
+      "id": "structure-east-floor-transfer",
+      "anchor_uvz": [
+        4.1243,
+        -0.34,
+        2.92
+      ],
+      "question": "How is the living-floor edge supported beyond the ground-floor wall line?",
+      "observation": "Ground east wall ends at U4.1243; living floor continues to U4.5743, a modelled offset of 0.45.",
+      "source_ids": [
+        "SLA - 007_Concrete - Foundation_0.029",
+        "SLA - 008_Wall white plaster_0.002"
+      ],
+      "disciplines": [
+        "Architecture",
+        "Structural engineering"
+      ],
+      "status": "Illustrative coordination question; support strategy unverified"
+    },
+    {
+      "id": "structure-stair-trimming",
+      "anchor_uvz": [
+        -0.85,
+        -1.98,
+        5.79
+      ],
+      "question": "Agree stair-opening trimmers, bearings and the reserved service route before framing.",
+      "observation": "Upper-floor mesh contains a stair void; joists in this study stop at the source opening polygons.",
+      "source_ids": [
+        "SLA - 010_Wall white plaster_0.024",
+        "SW - 574_Wall white plaster_0.008"
+      ],
+      "disciplines": [
+        "Architecture",
+        "Structural engineering",
+        "Hydraulics",
+        "Electrical"
+      ],
+      "status": "Trimming shown conceptually; bearing and penetration details unresolved"
+    },
+    {
+      "id": "structure-roof-services-zone",
+      "anchor_uvz": [
+        4.35,
+        -0.34,
+        8.43
+      ],
+      "question": "Resolve the shallow roof heel/bearing detail and reserve ventilation/electrical routes in the remaining roof space.",
+      "observation": "Measured ceiling is Z8.39; roof underside near east wall is only about Z8.407. Visual rafters taper and ties stop short to fit the real void; no bearing detail is asserted.",
+      "source_ids": [
+        "SLA - 010_Wall white plaster_0.035",
+        "RT - 024_Wall white plaster_0",
+        "RT - 024_Wall white plaster_0.001"
+      ],
+      "disciplines": [
+        "Structural engineering",
+        "Mechanical ventilation",
+        "Electrical",
+        "Architecture"
+      ],
+      "status": "Illustrative coordination question; system routes and penetrations remain unassigned"
+    }
+  ],
+  "detailed_manifests": [
+    "lighting-checkpoint.json",
+    "gpo-checkpoint.json",
+    "structure-checkpoint.json"
+  ],
+  "scope": "Focus dwelling enriched within full supplied development; original source GLBs unchanged",
+  "pending": [
+    "Electrical circuits and appliance services",
+    "Hydraulic/mechanical routing",
+    "Engineering of conceptual structural system",
+    "Site/utility integration",
+    "Car/access study",
+    "Unified fly-through and website integration"
+  ]
+}

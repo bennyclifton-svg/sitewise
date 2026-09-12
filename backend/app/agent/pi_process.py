@@ -278,6 +278,12 @@ def _build_argv(
     ]
 
 
+def _direct_tool_names() -> tuple[str, ...]:
+    return PI_MCP_DIRECT_TOOLS + (
+        PI_WEB_DIRECT_TOOLS if settings.agent_web_research_enabled else ()
+    )
+
+
 def _write_pi_mcp_config(cwd: Path, *, mcp_url: str) -> None:
     pi_dir = cwd / ".pi"
     pi_dir.mkdir(parents=True, exist_ok=True)
@@ -287,14 +293,7 @@ def _write_pi_mcp_config(cwd: Path, *, mcp_url: str) -> None:
                 "url": mcp_url,
                 "headers": {"Authorization": "Bearer ${CLERK_MCP_TOKEN}"},
                 "bearerTokenEnv": "CLERK_MCP_TOKEN",
-                "directTools": [
-                    *PI_MCP_DIRECT_TOOLS,
-                    *(
-                        PI_WEB_DIRECT_TOOLS
-                        if settings.agent_web_research_enabled
-                        else ()
-                    ),
-                ],
+                "directTools": list(_direct_tool_names()),
             }
         }
     }
@@ -322,6 +321,12 @@ def _build_env(*, mcp_url: str, turn_token: str, cwd: Path) -> dict[str, str]:
     env["CLERK_MCP_TOKEN"] = turn_token
     env["AGENT_TURN_TOKEN"] = turn_token
     env["PI_OFFLINE"] = "1"
+    # Adapter 2.19 only awaits cold-cache discovery at session_start when this
+    # selector is explicit. Per-turn tokens invalidate its metadata cache, so
+    # config-only directTools can leave the first model request without tools.
+    env["MCP_DIRECT_TOOLS"] = ",".join(
+        f"clerk/{name}" for name in _direct_tool_names()
+    )
     if settings.agent_platform_api_key:
         env["OPENAI_API_KEY"] = settings.agent_platform_api_key
     if settings.xai_api_key:

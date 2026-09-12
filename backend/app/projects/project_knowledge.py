@@ -160,7 +160,8 @@ async def write_shared_project_object(
     """Persist one shared fact while serializing its project-context revision."""
     # Workflow workers pass a frozen Project that is not in this Session.
     # Lock by primary key instead of refreshing the caller's instance.
-    locked = await session.get(Project, project.id, with_for_update=True)
+    # Shared facts change no project keys; avoid upgrading locks held by FK inserts.
+    locked = await session.get(Project, project.id, with_for_update={"key_share": True})
     if locked is None:
         raise LookupError(f"project {project.id} not found")
     result = upsert_shared_project_object(

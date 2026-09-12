@@ -1,0 +1,124 @@
+/* Bind the presentation's local names at each theme boundary. The primitives and
+   light/dark roles come from the shared generated sitewise-colours.css export. */
+#sitewise-landing,
+#sitewise-landing .sw-surround {
+  --sw-cream: var(--sw-canvas);
+  --sw-ground: var(--sw-scene-ground);
+  --sw-page: var(--sw-canvas);
+  --sw-sheet: var(--sw-surface);
+  --sw-side: var(--sw-surface-inset);
+  --sw-ink: var(--sw-text-primary);
+  --sw-muted: var(--sw-text-secondary);
+  --sw-line: var(--sw-border-default);
+  --sw-blue: var(--sw-link);
+  --sw-selection: var(--sw-selection-bg);
+  --sw-selected-border: var(--sw-selection-border);
+  --sw-action: var(--sw-action-primary);
+  --sw-action-ink: var(--sw-action-primary-text);
+  color: var(--sw-ink);
+}
+#sitewise-landing .sw-surround[data-theme="dark"] { --sw-side: var(--sw-surface); }
+#sitewise-landing .sw-surround[data-theme="dark"] .sw-workspace { background: var(--sw-canvas); }
+
+#sitewise-landing .sw-surround .sw-theme-toggle {
+  position: absolute;
+  z-index: 4;
+  top: calc(6px / var(--sw-device-zoom, 1));
+  right: calc(6px / var(--sw-device-zoom, 1));
+  display: grid;
+  place-items: center;
+  width: calc(44px / var(--sw-device-zoom, 1));
+  height: calc(44px / var(--sw-device-zoom, 1));
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sw-ink);
+  cursor: pointer;
+}
+
+#sitewise-landing .sw-surround .sw-theme-toggle::before {
+  content: "";
+  position: absolute;
+  inset: calc(7px / var(--sw-device-zoom, 1));
+  border: 1px solid var(--sw-line);
+  border-radius: 50%;
+  background: var(--sw-sheet);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--sw-p-neutral-950) 12%, transparent);
+}
+
+#sitewise-landing .sw-surround .sw-theme-toggle:hover::before { background: var(--sw-selection); }
+#sitewise-landing .sw-surround .sw-theme-toggle:focus-visible { outline-color: var(--sw-action-focus); }
+#sitewise-landing .sw-surround .sw-theme-toggle svg {
+  position: relative;
+  width: calc(15px / var(--sw-device-zoom, 1));
+  height: calc(15px / var(--sw-device-zoom, 1));
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+#sitewise-landing .sw-theme-toggle [data-theme-icon] { display: none; }
+#sitewise-landing .sw-surround[data-theme="dark"] [data-theme-icon="sun"],
+#sitewise-landing .sw-surround[data-theme="light"] [data-theme-icon="moon"] { display: block; }
+
+/* Citron identifies the primary action; cyan identifies selected views. */
+#sitewise-landing :is(.sw-cta, .sw-create-pmp, .sw-send),
+#sitewise-landing .sw-procurement-tools button:first-child {
+  box-shadow: inset 0 0 0 1px var(--sw-action-primary-border);
+}
+#sitewise-landing :is(.sw-cta, .sw-create-pmp, .sw-send):hover,
+#sitewise-landing .sw-procurement-tools button:first-child:hover {
+  background: var(--sw-action-primary-hover);
+}
+#sitewise-landing :is(.sw-cta, .sw-create-pmp, .sw-send):active,
+#sitewise-landing .sw-procurement-tools button:first-child:active {
+  background: var(--sw-action-primary-pressed);
+}
+#sitewise-landing :is(button, a, [tabindex]):focus-visible { outline-color: var(--sw-action-focus); }
+#sitewise-landing button:disabled {
+  background: var(--sw-action-disabled-bg);
+  color: var(--sw-action-disabled-text);
+  border-color: var(--sw-action-disabled-border);
+  box-shadow: none;
+}
+#sitewise-landing .sw-cost-document { --sw-cost-editable: var(--sw-link); }
+#sitewise-landing .sw-cost-tab-list [aria-current],
+#sitewise-landing .sw-programme-tools :is(button[aria-pressed="true"], [data-fit-program]) {
+  background: var(--sw-selection-bg);
+  color: var(--sw-selection-text);
+  box-shadow: inset 0 0 0 1px var(--sw-selection-border);
+}
+#sitewise-landing :is(.sw-citation, .sw-rfp-citation) { color: var(--sw-link); }
+#sitewise-landing :is(.sw-citation, .sw-rfp-citation):hover { color: var(--sw-link-hover); }
+
+@media (min-width: 900px) {
+  #sitewise-landing .sw-surround:has(> .sw-theme-toggle) .sw-repository {
+    margin-top: max(80px, calc(64px / var(--sw-device-zoom, 1)));
+  }
+}
+
+@media (max-width: 899px) {
+  #sitewise-landing .sw-surround:has(> .sw-theme-toggle) > .sw-workspace { padding-top: 54px; }
+}
+
+/* Retain the supplied lockup silhouette and accessible image; only its ink changes. */
+#sitewise-landing .sw-logo { display: block; position: relative; }
+#sitewise-landing .sw-logo > img { display: block; width: 100%; height: auto; }
+#sitewise-landing .sw-footer > .sw-logo { width: 116px; }
+@supports (mask-image: url("../brand/sitewise-lockup-light.png")) {
+  #sitewise-landing .sw-logo > img { opacity: 0; }
+  #sitewise-landing .sw-logo::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--sw-text-primary);
+    mask: url("../brand/sitewise-lockup-light.png") center / contain no-repeat;
+  }
+}
+@media (forced-colors: active) {
+  #sitewise-landing .sw-logo::after { background: CanvasText; forced-color-adjust: none; }
+}

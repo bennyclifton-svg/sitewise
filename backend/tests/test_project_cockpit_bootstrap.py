@@ -179,6 +179,10 @@ def test_cockpit_bootstrap_returns_lightweight_first_paint_payload(
     assert payload["latest_drafts"]["create_cost_plan"] is None
     assert payload["latest_drafts"]["sort_files"] is None
     assert "total" in payload["timings_ms"]
+    assert response.headers["server-timing"] == ", ".join(
+        f"{stage};dur={duration}"
+        for stage, duration in payload["timings_ms"].items()
+    )
 
 
 def test_cockpit_bootstrap_includes_canonical_pmp_path_for_legacy_draft(

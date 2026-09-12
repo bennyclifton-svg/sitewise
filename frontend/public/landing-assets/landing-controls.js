@@ -1,4 +1,5 @@
 import { costGroups, costRollup, costTotals, projectCostTotals, programmeGroups, programmeDependencies, programmeStart, programmeEnd, addDays, duration, finish, position } from './landing-control-data.js';
+import { createProcurementScene } from './landing-procurement.js';
 
 const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const money = value => value == null ? '—' : value.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -120,6 +121,7 @@ export function installControlScenes(root) {
   const definitions = {
     cost: { label: 'Cost Plan', title: 'Cost plan', create: 'Build the cost plan from the project plan and received proposals.', update: 'Read the latest proposals and cost advice. Refresh the cost plan.', sources: ['pmp', 'brief', 'qs', 'services'], markup: costMarkup() },
     program: { label: 'Program', title: 'Program', create: 'Build the program from the project plan, linking design, approvals, procurement and construction.', update: 'Review the project plan and latest advice. Update the linked program.', sources: ['pmp', 'qs', 'planning', 'preda'], markup: programmeMarkup() },
+    procurement: createProcurementScene(root),
   };
   for (const [key, definition] of Object.entries(definitions)) {
     const content = doc.createElement('div');
@@ -130,18 +132,19 @@ export function installControlScenes(root) {
     const actions = original.querySelector('.sw-pmp-actions').cloneNode(true);
     const create = actions.querySelector('[data-create-pmp]');
     const update = actions.querySelector('[data-update-pmp]');
-    create.lastChild.textContent = key === 'cost' ? 'Create cost plan' : 'Create program';
-    update.lastChild.textContent = key === 'cost' ? 'Refresh cost plan' : 'Update program';
+    create.lastChild.textContent = definition.createLabel || (key === 'cost' ? 'Create cost plan' : 'Create program');
+    update.lastChild.textContent = definition.updateLabel || (key === 'cost' ? 'Refresh cost plan' : 'Update program');
     const exports = original.querySelector('.sw-document-actions').cloneNode(true);
     exports.setAttribute('aria-label', `${definition.title} export preview`);
     for (const button of exports.querySelectorAll('button')) button.setAttribute('aria-label', button.getAttribute('aria-label').replace('project management plan', definition.title.toLowerCase()));
     content.innerHTML = original.querySelector('.sw-project-context').outerHTML + actions.outerHTML +
       `<div class="sw-document-head"><h2>${definition.title}</h2>${exports.outerHTML}</div>
       <div class="sw-document sw-control-document sw-${key}-document" data-document="" role="region" tabindex="0" aria-label="${definition.title}">
-      ${key === 'cost' ? '' : '<div class="sw-programme-tools"><div role="group" aria-label="Program timescale"><button type="button" data-scale="week" aria-pressed="false">Week</button><button type="button" data-scale="month" aria-pressed="true">Month</button><button type="button" data-scale="quarter" aria-pressed="false">Quarter</button></div><button type="button" data-fit-program="">Fit to screen</button></div>'}
+      ${key !== 'program' ? '' : '<div class="sw-programme-tools"><div role="group" aria-label="Program timescale"><button type="button" data-scale="week" aria-pressed="false">Week</button><button type="button" data-scale="month" aria-pressed="true">Month</button><button type="button" data-scale="quarter" aria-pressed="false">Quarter</button></div><button type="button" data-fit-program="">Fit to screen</button></div>'}
       ${definition.markup}</div>`;
     root.querySelector('.sw-console').before(content);
     definition.content = content;
+    if (definition.output === false) continue;
     const output = root.querySelector('[data-output]').cloneNode(true);
     output.removeAttribute('data-output');
     output.dataset.sceneOutput = key;
@@ -159,7 +162,7 @@ export function installControlScenes(root) {
     root.querySelector('.sw-sources').append(output);
   }
   const navItems = [...root.querySelectorAll('.sw-nav-links .sw-nav-item')];
-  for (const [index, key] of [[1, 'pmp'], [2, 'cost'], [3, 'program']]) {
+  for (const [index, key] of [[1, 'pmp'], [2, 'cost'], [3, 'program'], [4, 'procurement']]) {
     const button = doc.createElement('button');
     button.type = 'button';
     button.className = 'sw-nav-item sw-nav-scene';
@@ -171,7 +174,7 @@ export function installControlScenes(root) {
   const picker = doc.createElement('nav');
   picker.className = 'sw-scene-picker';
   picker.setAttribute('aria-label', 'Choose an animation');
-  picker.innerHTML = '<button type="button" data-scene="pmp" aria-pressed="true">Project Plan</button><button type="button" data-scene="cost" aria-pressed="false">Cost Plan</button><button type="button" data-scene="program" aria-pressed="false">Program</button><button type="button" data-play-all="" aria-pressed="false">Play all</button>';
+  picker.innerHTML = '<button type="button" data-scene="pmp" aria-pressed="true">Project Plan</button><button type="button" data-scene="cost" aria-pressed="false">Cost Plan</button><button type="button" data-scene="program" aria-pressed="false">Program</button><button type="button" data-scene="procurement" aria-pressed="false">Procurement</button><button type="button" data-play-all="" aria-pressed="false">Play all</button>';
   root.querySelector('.sw-review-controls').prepend(picker);
   return definitions;
 }

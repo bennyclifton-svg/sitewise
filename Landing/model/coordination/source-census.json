@@ -1,0 +1,1868 @@
+{
+  "source": "duplex.glb",
+  "source_title": "Duplex houses at 22 ARNWOOD STREET MANUREWA",
+  "author": "MyStudioNZ",
+  "license_from_embedded_metadata": "CC-BY-4.0",
+  "source_url": "https://sketchfab.com/3d-models/duplex-houses-at-22-arnwood-street-manurewa-ef88f585f3d045c89c849ddd64495ad5",
+  "mesh_count": 3057,
+  "imported_vertex_count": 901265,
+  "counts": {
+    "toilets": 20,
+    "basins": 20,
+    "showers": 15,
+    "kitchen_sinks": 5,
+    "laundry_sinks": 5,
+    "washing_machines": 5,
+    "cooktops": 5,
+    "named_downpipes": 4
+  },
+  "assemblies": {
+    "toilets": [
+      {
+        "source_assembly": "WC 24 - FlowEq-023",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0"
+        ],
+        "center_blender_world": [
+          -20.8385,
+          -14.3163,
+          0.955
+        ],
+        "bounds_min": [
+          -21.18582534790039,
+          -14.56132698059082,
+          0.5999981760978699
+        ],
+        "bounds_max": [
+          -20.491113662719727,
+          -14.071173667907715,
+          1.3099981546401978
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.001",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.001",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.001"
+        ],
+        "center_blender_world": [
+          -21.0463,
+          -15.5939,
+          0.955
+        ],
+        "bounds_min": [
+          -21.39362335205078,
+          -15.838990211486816,
+          0.5999979972839355
+        ],
+        "bounds_max": [
+          -20.698915481567383,
+          -15.348833084106445,
+          1.3099980354309082
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.002",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.002",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.002"
+        ],
+        "center_blender_world": [
+          -22.1331,
+          -22.2764,
+          0.955
+        ],
+        "bounds_min": [
+          -22.48046875,
+          -22.521480560302734,
+          0.5999971032142639
+        ],
+        "bounds_max": [
+          -21.785757064819336,
+          -22.031328201293945,
+          1.3099970817565918
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.003",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.003",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.003"
+        ],
+        "center_blender_world": [
+          -19.2074,
+          -4.2874,
+          0.655
+        ],
+        "bounds_min": [
+          -19.554737091064453,
+          -4.532501697540283,
+          0.2999994456768036
+        ],
+        "bounds_max": [
+          -18.860027313232422,
+          -4.0423455238342285,
+          1.0099995136260986
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.004",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.004",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.004"
+        ],
+        "center_blender_world": [
+          -18.9996,
+          -3.0098,
+          0.655
+        ],
+        "bounds_min": [
+          -19.34693717956543,
+          -3.2548372745513916,
+          0.2999995946884155
+        ],
+        "bounds_max": [
+          -18.6522274017334,
+          -2.7646825313568115,
+          1.0099997520446777
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.005",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.005",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.005"
+        ],
+        "center_blender_world": [
+          -19.8213,
+          -10.9927,
+          3.675
+        ],
+        "bounds_min": [
+          -20.168655395507812,
+          -11.237783432006836,
+          3.3199987411499023
+        ],
+        "bounds_max": [
+          -19.47394561767578,
+          -10.747629165649414,
+          4.029999256134033
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.006",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.006",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.006"
+        ],
+        "center_blender_world": [
+          -21.1347,
+          -19.0685,
+          3.675
+        ],
+        "bounds_min": [
+          -21.48210334777832,
+          -19.313573837280273,
+          3.319997549057007
+        ],
+        "bounds_max": [
+          -20.787395477294922,
+          -18.82341766357422,
+          4.029997825622559
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.007",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.007",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.007"
+        ],
+        "center_blender_world": [
+          -22.2216,
+          -25.751,
+          3.675
+        ],
+        "bounds_min": [
+          -22.56894302368164,
+          -25.996068954467773,
+          3.3199965953826904
+        ],
+        "bounds_max": [
+          -21.874235153198242,
+          -25.50591278076172,
+          4.029996871948242
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.008",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.008",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.008"
+        ],
+        "center_blender_world": [
+          -19.2959,
+          -7.762,
+          3.375
+        ],
+        "bounds_min": [
+          -19.64321517944336,
+          -8.007087707519531,
+          3.0199992656707764
+        ],
+        "bounds_max": [
+          -18.948505401611328,
+          -7.51693058013916,
+          3.729999303817749
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.009",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.009",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.009"
+        ],
+        "center_blender_world": [
+          -17.9824,
+          0.3138,
+          3.375
+        ],
+        "bounds_min": [
+          -18.32976722717285,
+          0.06870366632938385,
+          3.0200002193450928
+        ],
+        "bounds_max": [
+          -17.635055541992188,
+          0.5588582754135132,
+          3.7300002574920654
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.010",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.010",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.010"
+        ],
+        "center_blender_world": [
+          -20.4193,
+          -14.3293,
+          6.395
+        ],
+        "bounds_min": [
+          -20.76662826538086,
+          -14.574339866638184,
+          6.039998531341553
+        ],
+        "bounds_max": [
+          -20.07192039489746,
+          -14.084184646606445,
+          6.749998569488525
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.011",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.011",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.011"
+        ],
+        "center_blender_world": [
+          -26.0442,
+          -13.6363,
+          6.395
+        ],
+        "bounds_min": [
+          -26.28925323486328,
+          -13.983692169189453,
+          6.039998531341553
+        ],
+        "bounds_max": [
+          -25.79909896850586,
+          -13.288983345031738,
+          6.749998569488525
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.012",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.012",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.012",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.012"
+        ],
+        "center_blender_world": [
+          -20.6446,
+          -15.7144,
+          6.395
+        ],
+        "bounds_min": [
+          -20.991912841796875,
+          -15.959492683410645,
+          6.039998531341553
+        ],
+        "bounds_max": [
+          -20.29720115661621,
+          -15.469335556030273,
+          6.749998569488525
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.013",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.013",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.013"
+        ],
+        "center_blender_world": [
+          -26.1529,
+          -14.5558,
+          6.395
+        ],
+        "bounds_min": [
+          -26.397960662841797,
+          -14.90314769744873,
+          6.039998531341553
+        ],
+        "bounds_max": [
+          -25.90780258178711,
+          -14.208439826965332,
+          6.749998569488525
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.014",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.014",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.014"
+        ],
+        "center_blender_world": [
+          -27.2397,
+          -21.2383,
+          6.395
+        ],
+        "bounds_min": [
+          -27.484804153442383,
+          -21.58563995361328,
+          6.039997577667236
+        ],
+        "bounds_max": [
+          -26.994647979736328,
+          -20.89093017578125,
+          6.749997615814209
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.015",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.015",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.015"
+        ],
+        "center_blender_world": [
+          -21.7314,
+          -22.3969,
+          6.395
+        ],
+        "bounds_min": [
+          -22.078752517700195,
+          -22.641984939575195,
+          6.039997577667236
+        ],
+        "bounds_max": [
+          -21.384044647216797,
+          -22.15182876586914,
+          6.749997615814209
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.016",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.016",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.016",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.016"
+        ],
+        "center_blender_world": [
+          -18.8057,
+          -4.4079,
+          6.095
+        ],
+        "bounds_min": [
+          -19.15302276611328,
+          -4.653002738952637,
+          5.739999771118164
+        ],
+        "bounds_max": [
+          -18.45831298828125,
+          -4.162846565246582,
+          6.449999809265137
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.017",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.017",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.017",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.017"
+        ],
+        "center_blender_world": [
+          -24.314,
+          -3.2493,
+          6.095
+        ],
+        "bounds_min": [
+          -24.559072494506836,
+          -3.596660852432251,
+          5.739999771118164
+        ],
+        "bounds_max": [
+          -24.068918228149414,
+          -2.901951789855957,
+          6.449999809265137
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.018",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.018",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.018",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.018"
+        ],
+        "center_blender_world": [
+          -24.2053,
+          -2.3298,
+          6.095
+        ],
+        "bounds_min": [
+          -24.450363159179688,
+          -2.67720365524292,
+          5.739999771118164
+        ],
+        "bounds_max": [
+          -23.960208892822266,
+          -1.9824941158294678,
+          6.449999809265137
+        ]
+      },
+      {
+        "source_assembly": "WC 24 - FlowEq-023.019",
+        "source_meshes": [
+          "WC 24 - FlowEq-023_Ceramic - Porcelain_0.019",
+          "WC 24 - FlowEq-023_Plastic - Laminate_0.019",
+          "WC 24 - FlowEq-023_Paint - Titanium White_0.019"
+        ],
+        "center_blender_world": [
+          -18.5804,
+          -3.0228,
+          6.095
+        ],
+        "bounds_min": [
+          -18.927743911743164,
+          -3.2678513526916504,
+          5.739999771118164
+        ],
+        "bounds_max": [
+          -18.233030319213867,
+          -2.7776966094970703,
+          6.449999809265137
+        ]
+      }
+    ],
+    "basins": [
+      {
+        "source_assembly": "Basin 24 - FlowEq-023",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0"
+        ],
+        "center_blender_world": [
+          -21.9465,
+          -14.3973,
+          1.5703
+        ],
+        "bounds_min": [
+          -22.277910232543945,
+          -14.66258430480957,
+          1.4449982643127441
+        ],
+        "bounds_max": [
+          -21.61505699157715,
+          -14.13197135925293,
+          1.695543885231018
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.001",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.001",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.001"
+        ],
+        "center_blender_world": [
+          -22.065,
+          -15.1262,
+          1.5703
+        ],
+        "bounds_min": [
+          -22.396451950073242,
+          -15.391456604003906,
+          1.4449981451034546
+        ],
+        "bounds_max": [
+          -21.733598709106445,
+          -14.860845565795898,
+          1.6955437660217285
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.002",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+        ],
+        "center_blender_world": [
+          -23.1515,
+          -21.8067,
+          1.5703
+        ],
+        "bounds_min": [
+          -23.482975006103516,
+          -22.071979522705078,
+          1.4449971914291382
+        ],
+        "bounds_max": [
+          -22.82012176513672,
+          -21.541366577148438,
+          1.6955429315567017
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.003",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.003",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.003"
+        ],
+        "center_blender_world": [
+          -20.2261,
+          -3.8197,
+          1.2703
+        ],
+        "bounds_min": [
+          -20.557565689086914,
+          -4.084968566894531,
+          1.144999623298645
+        ],
+        "bounds_max": [
+          -19.89471435546875,
+          -3.554356098175049,
+          1.3955451250076294
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.004",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.004",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.004"
+        ],
+        "center_blender_world": [
+          -20.1076,
+          -3.0908,
+          1.2703
+        ],
+        "bounds_min": [
+          -20.439022064208984,
+          -3.356096029281616,
+          1.1449997425079346
+        ],
+        "bounds_max": [
+          -19.776168823242188,
+          -2.8254833221435547,
+          1.3955451250076294
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.005",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.005",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.005"
+        ],
+        "center_blender_world": [
+          -20.8072,
+          -10.5338,
+          4.2903
+        ],
+        "bounds_min": [
+          -21.056568145751953,
+          -10.737770080566406,
+          4.164999008178711
+        ],
+        "bounds_max": [
+          -20.55780792236328,
+          -10.329850196838379,
+          4.415544033050537
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.006",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.006",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.006"
+        ],
+        "center_blender_world": [
+          -22.2088,
+          -19.1515,
+          4.2903
+        ],
+        "bounds_min": [
+          -22.45815658569336,
+          -19.35549545288086,
+          4.164997577667236
+        ],
+        "bounds_max": [
+          -21.959396362304688,
+          -18.94757652282715,
+          4.415543079376221
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.007",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+        ],
+        "center_blender_world": [
+          -23.2956,
+          -25.834,
+          4.2903
+        ],
+        "bounds_min": [
+          -23.54499626159668,
+          -26.03799057006836,
+          4.16499662399292
+        ],
+        "bounds_max": [
+          -23.046236038208008,
+          -25.63007164001465,
+          4.415542125701904
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.008",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.008",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.008"
+        ],
+        "center_blender_world": [
+          -20.3699,
+          -7.845,
+          3.9903
+        ],
+        "bounds_min": [
+          -20.6192684173584,
+          -8.049007415771484,
+          3.8649990558624268
+        ],
+        "bounds_max": [
+          -20.120508193969727,
+          -7.641088485717773,
+          4.11554479598999
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.009",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.009",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.009"
+        ],
+        "center_blender_world": [
+          -18.9683,
+          0.7727,
+          3.9903
+        ],
+        "bounds_min": [
+          -19.217679977416992,
+          0.568719744682312,
+          3.8650004863739014
+        ],
+        "bounds_max": [
+          -18.71891975402832,
+          0.97663813829422,
+          4.115546226501465
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.010",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.010",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.010"
+        ],
+        "center_blender_world": [
+          -21.5816,
+          -14.4566,
+          7.0103
+        ],
+        "bounds_min": [
+          -21.913028717041016,
+          -14.721928596496582,
+          6.884998798370361
+        ],
+        "bounds_max": [
+          -21.25017738342285,
+          -14.191315650939941,
+          7.135544300079346
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.011",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.011",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.011"
+        ],
+        "center_blender_world": [
+          -24.621,
+          -12.6599,
+          7.0103
+        ],
+        "bounds_min": [
+          -24.886329650878906,
+          -12.991364479064941,
+          6.884998798370361
+        ],
+        "bounds_max": [
+          -24.355716705322266,
+          -12.328511238098145,
+          7.135544300079346
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.012",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.012",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.012",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.012"
+        ],
+        "center_blender_world": [
+          -25.1523,
+          -15.9264,
+          7.0103
+        ],
+        "bounds_min": [
+          -25.417587280273438,
+          -16.257822036743164,
+          6.884998798370361
+        ],
+        "bounds_max": [
+          -24.886974334716797,
+          -15.594968795776367,
+          7.135544300079346
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.013",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.013",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.013"
+        ],
+        "center_blender_world": [
+          -21.7001,
+          -15.1855,
+          7.0103
+        ],
+        "bounds_min": [
+          -22.031574249267578,
+          -15.450800895690918,
+          6.884998798370361
+        ],
+        "bounds_max": [
+          -21.368722915649414,
+          -14.920190811157227,
+          7.135544300079346
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.014",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+        ],
+        "center_blender_world": [
+          -22.787,
+          -21.868,
+          7.0103
+        ],
+        "bounds_min": [
+          -23.118417739868164,
+          -22.1332950592041,
+          6.884997844696045
+        ],
+        "bounds_max": [
+          -22.455564498901367,
+          -21.60268211364746,
+          7.135543346405029
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.015",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.015",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.015"
+        ],
+        "center_blender_world": [
+          -26.2873,
+          -22.905,
+          7.0103
+        ],
+        "bounds_min": [
+          -26.55259132385254,
+          -23.23642349243164,
+          6.884997844696045
+        ],
+        "bounds_max": [
+          -26.0219783782959,
+          -22.573572158813477,
+          7.135543346405029
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.016",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.016",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.016",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.016"
+        ],
+        "center_blender_world": [
+          -19.8613,
+          -3.879,
+          6.7103
+        ],
+        "bounds_min": [
+          -20.192684173583984,
+          -4.144313812255859,
+          6.585000038146973
+        ],
+        "bounds_max": [
+          -19.529830932617188,
+          -3.6137008666992188,
+          6.835545539855957
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.017",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.017",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.017",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.017"
+        ],
+        "center_blender_world": [
+          -23.3134,
+          -4.6199,
+          6.7103
+        ],
+        "bounds_min": [
+          -23.578699111938477,
+          -4.951332092285156,
+          6.585000038146973
+        ],
+        "bounds_max": [
+          -23.04808807373047,
+          -4.288480281829834,
+          6.835545539855957
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.018",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.018",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.018",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.018"
+        ],
+        "center_blender_world": [
+          -22.7567,
+          -1.1968,
+          6.7103
+        ],
+        "bounds_min": [
+          -23.021963119506836,
+          -1.52820885181427,
+          6.585000514984131
+        ],
+        "bounds_max": [
+          -22.491350173950195,
+          -0.8653559684753418,
+          6.835546016693115
+        ]
+      },
+      {
+        "source_assembly": "Basin 24 - FlowEq-023.019",
+        "source_meshes": [
+          "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.019",
+          "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.019",
+          "Basin 24 - FlowEq-023_Metal - Chrome 01_0.019"
+        ],
+        "center_blender_world": [
+          -19.7427,
+          -3.1501,
+          6.7103
+        ],
+        "bounds_min": [
+          -20.074142456054688,
+          -3.415440320968628,
+          6.585000038146973
+        ],
+        "bounds_max": [
+          -19.411291122436523,
+          -2.8848278522491455,
+          6.835545539855957
+        ]
+      }
+    ],
+    "showers": [
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0"
+        ],
+        "center_blender_world": [
+          -23.1305,
+          -13.9221,
+          1.64
+        ],
+        "bounds_min": [
+          -23.660768508911133,
+          -14.487861633300781,
+          0.5799981355667114
+        ],
+        "bounds_max": [
+          -22.60016632080078,
+          -13.35634994506836,
+          2.699998140335083
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.001",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.001",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.001",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.001",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.001",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.001"
+        ],
+        "center_blender_world": [
+          -23.3441,
+          -15.1998,
+          1.64
+        ],
+        "bounds_min": [
+          -23.86856460571289,
+          -15.765523910522461,
+          0.5799979567527771
+        ],
+        "bounds_max": [
+          -22.819705963134766,
+          -14.634014129638672,
+          2.699997901916504
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.002",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.002",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.002",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+        ],
+        "center_blender_world": [
+          -24.431,
+          -21.8823,
+          1.64
+        ],
+        "bounds_min": [
+          -24.955408096313477,
+          -22.448017120361328,
+          0.5799970626831055
+        ],
+        "bounds_max": [
+          -23.90654754638672,
+          -21.316509246826172,
+          2.6999971866607666
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.003",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.003",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.003",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.003",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.003",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.003"
+        ],
+        "center_blender_world": [
+          -21.5052,
+          -3.8933,
+          1.34
+        ],
+        "bounds_min": [
+          -22.02967643737793,
+          -4.459035396575928,
+          0.2799994647502899
+        ],
+        "bounds_max": [
+          -20.980815887451172,
+          -3.327526330947876,
+          2.3999998569488525
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.004",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.004",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.004",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.004",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.004",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.004"
+        ],
+        "center_blender_world": [
+          -21.2916,
+          -2.6156,
+          1.34
+        ],
+        "bounds_min": [
+          -21.821876525878906,
+          -3.181373357772827,
+          0.27999961376190186
+        ],
+        "bounds_max": [
+          -20.761276245117188,
+          -2.049863815307617,
+          2.4000000953674316
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.005",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.005",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.005",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.005",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.005",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.005"
+        ],
+        "center_blender_world": [
+          -25.0591,
+          -13.6035,
+          7.08
+        ],
+        "bounds_min": [
+          -25.632904052734375,
+          -14.183168411254883,
+          6.019998550415039
+        ],
+        "bounds_max": [
+          -24.485340118408203,
+          -13.023865699768066,
+          8.139999389648438
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.006",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.006",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.006",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.006",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.006",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.006"
+        ],
+        "center_blender_world": [
+          -25.2669,
+          -14.887,
+          7.08
+        ],
+        "bounds_min": [
+          -25.840702056884766,
+          -15.460830688476562,
+          6.019998550415039
+        ],
+        "bounds_max": [
+          -24.693138122558594,
+          -14.31326675415039,
+          8.139999389648438
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.007",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.007",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.007",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+        ],
+        "center_blender_world": [
+          -26.3538,
+          -21.5695,
+          7.08
+        ],
+        "bounds_min": [
+          -26.92754554748535,
+          -22.14332389831543,
+          6.019997596740723
+        ],
+        "bounds_max": [
+          -25.779983520507812,
+          -20.99576187133789,
+          8.139998435974121
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.008",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.008",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.008",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.008",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.008",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.008"
+        ],
+        "center_blender_world": [
+          -23.428,
+          -3.5806,
+          6.78
+        ],
+        "bounds_min": [
+          -24.001813888549805,
+          -4.154340744018555,
+          5.71999979019165
+        ],
+        "bounds_max": [
+          -22.854251861572266,
+          -3.0067782402038574,
+          7.840000152587891
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.009",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.009",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.009",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.009",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.009",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.009"
+        ],
+        "center_blender_world": [
+          -23.2202,
+          -2.297,
+          6.78
+        ],
+        "bounds_min": [
+          -23.79401397705078,
+          -2.876678705215454,
+          5.71999979019165
+        ],
+        "bounds_max": [
+          -22.646451950073242,
+          -1.7173758745193481,
+          7.840000152587891
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.010",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.010",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.010",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.010",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.010",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.010"
+        ],
+        "center_blender_world": [
+          -22.9877,
+          -15.2577,
+          7.08
+        ],
+        "bounds_min": [
+          -23.56145477294922,
+          -15.831525802612305,
+          6.019998550415039
+        ],
+        "bounds_max": [
+          -22.41389274597168,
+          -14.683963775634766,
+          8.139999389648438
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.011",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.011",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.011",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.011",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.011"
+        ],
+        "center_blender_world": [
+          -24.0745,
+          -21.9402,
+          7.08
+        ],
+        "bounds_min": [
+          -24.648300170898438,
+          -22.51402473449707,
+          6.019997596740723
+        ],
+        "bounds_max": [
+          -23.500734329223633,
+          -21.366456985473633,
+          8.139998435974121
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.012",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.012",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.012",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.012",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.012",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.012"
+        ],
+        "center_blender_world": [
+          -20.9351,
+          -2.6736,
+          6.78
+        ],
+        "bounds_min": [
+          -21.5147647857666,
+          -3.2473762035369873,
+          5.71999979019165
+        ],
+        "bounds_max": [
+          -20.35546112060547,
+          -2.0998141765594482,
+          7.840000152587891
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.013",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.013",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.013",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.013",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.013",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.013"
+        ],
+        "center_blender_world": [
+          -21.1488,
+          -3.9513,
+          6.78
+        ],
+        "bounds_min": [
+          -21.722564697265625,
+          -4.525038242340088,
+          5.71999979019165
+        ],
+        "bounds_max": [
+          -20.575002670288086,
+          -3.3774759769439697,
+          7.840000152587891
+        ]
+      },
+      {
+        "source_assembly": "Shower Cabin 24 - FlowEq-023.014",
+        "source_meshes": [
+          "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+          "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+          "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.014",
+          "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.014",
+          "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+        ],
+        "center_blender_world": [
+          -22.774,
+          -13.9801,
+          7.08
+        ],
+        "bounds_min": [
+          -23.353654861450195,
+          -14.553862571716309,
+          6.019998550415039
+        ],
+        "bounds_max": [
+          -22.194353103637695,
+          -13.40630054473877,
+          8.139999389648438
+        ]
+      }
+    ],
+    "kitchen_sinks": [
+      {
+        "source_assembly": "Sink General 24 - FlowEq-023",
+        "source_meshes": [
+          "Sink General 24 - FlowEq-023_Metal - Stainless Steel_0",
+          "Sink General 24 - FlowEq-023_Metal - Chrome 01_0"
+        ],
+        "center_blender_world": [
+          -20.1382,
+          -13.01,
+          4.2357
+        ],
+        "bounds_min": [
+          -20.473875045776367,
+          -13.448925018310547,
+          3.914616584777832
+        ],
+        "bounds_max": [
+          -19.802581787109375,
+          -12.571008682250977,
+          4.556694507598877
+        ]
+      },
+      {
+        "source_assembly": "Sink General 24 - FlowEq-023.001",
+        "source_meshes": [
+          "Sink General 24 - FlowEq-023_Metal - Stainless Steel_0.001",
+          "Sink General 24 - FlowEq-023_Metal - Chrome 01_0.001"
+        ],
+        "center_blender_world": [
+          -20.7896,
+          -17.015,
+          4.2357
+        ],
+        "bounds_min": [
+          -21.12525177001953,
+          -17.45395278930664,
+          3.914616346359253
+        ],
+        "bounds_max": [
+          -20.453960418701172,
+          -16.576034545898438,
+          4.556694030761719
+        ]
+      },
+      {
+        "source_assembly": "Sink General 24 - FlowEq-023.002",
+        "source_meshes": [
+          "Sink General 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+          "Sink General 24 - FlowEq-023_Metal - Chrome 01_0.002"
+        ],
+        "center_blender_world": [
+          -21.9246,
+          -23.9936,
+          4.2357
+        ],
+        "bounds_min": [
+          -22.260251998901367,
+          -24.43255615234375,
+          3.9146153926849365
+        ],
+        "bounds_max": [
+          -21.588958740234375,
+          -23.55463981628418,
+          4.556693077087402
+        ]
+      },
+      {
+        "source_assembly": "Sink General 24 - FlowEq-023.003",
+        "source_meshes": [
+          "Sink General 24 - FlowEq-023_Metal - Stainless Steel_0.003",
+          "Sink General 24 - FlowEq-023_Metal - Chrome 01_0.003"
+        ],
+        "center_blender_world": [
+          -18.9507,
+          -5.7085,
+          3.9357
+        ],
+        "bounds_min": [
+          -19.286361694335938,
+          -6.147463321685791,
+          3.6146178245544434
+        ],
+        "bounds_max": [
+          -18.615068435668945,
+          -5.2695465087890625,
+          4.25669527053833
+        ]
+      },
+      {
+        "source_assembly": "Sink General 24 - FlowEq-023.004",
+        "source_meshes": [
+          "Sink General 24 - FlowEq-023_Metal - Stainless Steel_0.004",
+          "Sink General 24 - FlowEq-023_Metal - Chrome 01_0.004"
+        ],
+        "center_blender_world": [
+          -18.2993,
+          -1.7035,
+          3.9357
+        ],
+        "bounds_min": [
+          -18.634984970092773,
+          -2.14243745803833,
+          3.6146183013916016
+        ],
+        "bounds_max": [
+          -17.96369171142578,
+          -1.264520287513733,
+          4.256695747375488
+        ]
+      }
+    ],
+    "laundry_sinks": [
+      {
+        "source_assembly": "Mop Sink 24 - FlowEq-022",
+        "source_meshes": [
+          "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0",
+          "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0"
+        ],
+        "center_blender_world": [
+          -24.0098,
+          -13.9044,
+          1.0327
+        ],
+        "bounds_min": [
+          -24.382781982421875,
+          -14.277355194091797,
+          0.5652143955230713
+        ],
+        "bounds_max": [
+          -23.636863708496094,
+          -13.531437873840332,
+          1.5002145767211914
+        ]
+      },
+      {
+        "source_assembly": "Mop Sink 24 - FlowEq-022.001",
+        "source_meshes": [
+          "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.001",
+          "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.001"
+        ],
+        "center_blender_world": [
+          -24.1782,
+          -14.9398,
+          1.0327
+        ],
+        "bounds_min": [
+          -24.55117416381836,
+          -15.312718391418457,
+          0.565214216709137
+        ],
+        "bounds_max": [
+          -23.805255889892578,
+          -14.566802978515625,
+          1.5002143383026123
+        ]
+      },
+      {
+        "source_assembly": "Mop Sink 24 - FlowEq-022.002",
+        "source_meshes": [
+          "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.002",
+          "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.002"
+        ],
+        "center_blender_world": [
+          -25.2651,
+          -21.6223,
+          1.0327
+        ],
+        "bounds_min": [
+          -25.638011932373047,
+          -21.995210647583008,
+          0.5652133226394653
+        ],
+        "bounds_max": [
+          -24.8920955657959,
+          -21.249296188354492,
+          1.5002135038375854
+        ]
+      },
+      {
+        "source_assembly": "Mop Sink 24 - FlowEq-022.003",
+        "source_meshes": [
+          "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.003",
+          "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.003"
+        ],
+        "center_blender_world": [
+          -22.3393,
+          -3.6333,
+          0.6907
+        ],
+        "bounds_min": [
+          -22.712282180786133,
+          -4.006231784820557,
+          0.2231648713350296
+        ],
+        "bounds_max": [
+          -21.966365814208984,
+          -3.2603156566619873,
+          1.1581650972366333
+        ]
+      },
+      {
+        "source_assembly": "Mop Sink 24 - FlowEq-022.004",
+        "source_meshes": [
+          "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.004",
+          "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.004"
+        ],
+        "center_blender_world": [
+          -22.1709,
+          -2.5979,
+          0.7327
+        ],
+        "bounds_min": [
+          -22.54388999938965,
+          -2.9708664417266846,
+          0.2652158737182617
+        ],
+        "bounds_max": [
+          -21.7979736328125,
+          -2.2249510288238525,
+          1.2002159357070923
+        ]
+      }
+    ],
+    "washing_machines": [
+      {
+        "source_assembly": "WashingMachine - FU - 060",
+        "source_meshes": [
+          "WashingMachine - FU - 060_GDLM8_Material_001-material_0",
+          "WashingMachine - FU - 060_GDLM9_cot_002-material_0",
+          "WashingMachine - FU - 060_GDLM10_Material_002-material_0"
+        ],
+        "center_blender_world": [
+          -23.9146,
+          -13.2883,
+          0.8984
+        ],
+        "bounds_min": [
+          -24.24456214904785,
+          -13.614340782165527,
+          0.5233907103538513
+        ],
+        "bounds_max": [
+          -23.584548950195312,
+          -12.962345123291016,
+          1.2733908891677856
+        ]
+      },
+      {
+        "source_assembly": "WashingMachine - FU - 060.001",
+        "source_meshes": [
+          "WashingMachine - FU - 060_GDLM8_Material_001-material_0.001",
+          "WashingMachine - FU - 060_GDLM9_cot_002-material_0.001",
+          "WashingMachine - FU - 060_GDLM10_Material_002-material_0.001"
+        ],
+        "center_blender_world": [
+          -24.2838,
+          -15.555,
+          0.8984
+        ],
+        "bounds_min": [
+          -24.61418342590332,
+          -15.880728721618652,
+          0.5233904123306274
+        ],
+        "bounds_max": [
+          -23.95339012145996,
+          -15.229269981384277,
+          1.2733906507492065
+        ]
+      },
+      {
+        "source_assembly": "WashingMachine - FU - 060.002",
+        "source_meshes": [
+          "WashingMachine - FU - 060_GDLM8_Material_001-material_0.002",
+          "WashingMachine - FU - 060_GDLM9_cot_002-material_0.002",
+          "WashingMachine - FU - 060_GDLM10_Material_002-material_0.002"
+        ],
+        "center_blender_world": [
+          -25.3707,
+          -22.2375,
+          0.8984
+        ],
+        "bounds_min": [
+          -25.696584701538086,
+          -22.5588321685791,
+          0.5233895182609558
+        ],
+        "bounds_max": [
+          -25.044836044311523,
+          -21.916112899780273,
+          1.2733896970748901
+        ]
+      },
+      {
+        "source_assembly": "WashingMachine - FU - 060.003",
+        "source_meshes": [
+          "WashingMachine - FU - 060_GDLM8_Material_001-material_0.003",
+          "WashingMachine - FU - 060_GDLM9_cot_002-material_0.003",
+          "WashingMachine - FU - 060_GDLM10_Material_002-material_0.003"
+        ],
+        "center_blender_world": [
+          -22.4449,
+          -4.2485,
+          0.6143
+        ],
+        "bounds_min": [
+          -22.77528953552246,
+          -4.574239253997803,
+          0.22316479682922363
+        ],
+        "bounds_max": [
+          -22.114498138427734,
+          -3.9227802753448486,
+          1.0053662061691284
+        ]
+      },
+      {
+        "source_assembly": "WashingMachine - FU - 060.004",
+        "source_meshes": [
+          "WashingMachine - FU - 060_GDLM8_Material_001-material_0.004",
+          "WashingMachine - FU - 060_GDLM9_cot_002-material_0.004",
+          "WashingMachine - FU - 060_GDLM10_Material_002-material_0.004"
+        ],
+        "center_blender_world": [
+          -22.0552,
+          -1.9857,
+          0.5984
+        ],
+        "bounds_min": [
+          -22.405704498291016,
+          -2.314551591873169,
+          0.22339221835136414
+        ],
+        "bounds_max": [
+          -21.704599380493164,
+          -1.6569147109985352,
+          0.9733923673629761
+        ]
+      }
+    ],
+    "cooktops": [
+      {
+        "source_assembly": "Cooktop Built-in 24 - FU - 059",
+        "source_meshes": [
+          "Cooktop Built-in 24 - FU - 059_Plastic - Laminate_0",
+          "Cooktop Built-in 24 - FU - 059_Metal - Iron_0",
+          "Cooktop Built-in 24 - FU - 059_Metal - Chrome 01_0"
+        ],
+        "center_blender_world": [
+          -21.4677,
+          -14.3806,
+          4.111
+        ],
+        "bounds_min": [
+          -21.81442642211914,
+          -14.73999309539795,
+          4.069998264312744
+        ],
+        "bounds_max": [
+          -21.120967864990234,
+          -14.021202087402344,
+          4.151998519897461
+        ]
+      },
+      {
+        "source_assembly": "Cooktop Built-in 24 - FU - 059.001",
+        "source_meshes": [
+          "Cooktop Built-in 24 - FU - 059_Plastic - Laminate_0.001",
+          "Cooktop Built-in 24 - FU - 059_Metal - Iron_0.001",
+          "Cooktop Built-in 24 - FU - 059_Metal - Chrome 01_0.001"
+        ],
+        "center_blender_world": [
+          -21.6162,
+          -15.2937,
+          4.111
+        ],
+        "bounds_min": [
+          -21.96293067932129,
+          -15.653094291687012,
+          4.069998264312744
+        ],
+        "bounds_max": [
+          -21.269474029541016,
+          -14.934304237365723,
+          4.151998043060303
+        ]
+      },
+      {
+        "source_assembly": "Cooktop Built-in 24 - FU - 059.002",
+        "source_meshes": [
+          "Cooktop Built-in 24 - FU - 059_Plastic - Laminate_0.002",
+          "Cooktop Built-in 24 - FU - 059_Metal - Iron_0.002",
+          "Cooktop Built-in 24 - FU - 059_Metal - Chrome 01_0.002"
+        ],
+        "center_blender_world": [
+          -22.703,
+          -21.9762,
+          4.111
+        ],
+        "bounds_min": [
+          -23.049774169921875,
+          -22.335590362548828,
+          4.069997310638428
+        ],
+        "bounds_max": [
+          -22.3563175201416,
+          -21.61680030822754,
+          4.151997089385986
+        ]
+      },
+      {
+        "source_assembly": "Cooktop Built-in 24 - FU - 059.003",
+        "source_meshes": [
+          "Cooktop Built-in 24 - FU - 059__0"
+        ],
+        "center_blender_world": [
+          -19.7773,
+          -3.9872,
+          3.811
+        ],
+        "bounds_min": [
+          -20.124042510986328,
+          -4.346606731414795,
+          3.7699997425079346
+        ],
+        "bounds_max": [
+          -19.430585861206055,
+          -3.627817153930664,
+          3.8519999980926514
+        ]
+      },
+      {
+        "source_assembly": "Cooktop Built-in 24 - FU - 059.004",
+        "source_meshes": [
+          "Cooktop Built-in 24 - FU - 059__0.001"
+        ],
+        "center_blender_world": [
+          -19.6288,
+          -3.0741,
+          3.811
+        ],
+        "bounds_min": [
+          -19.97553825378418,
+          -3.433504819869995,
+          3.7699999809265137
+        ],
+        "bounds_max": [
+          -19.282079696655273,
+          -2.7147135734558105,
+          3.8519997596740723
+        ]
+      }
+    ],
+    "named_downpipes": [
+      {
+        "source_assembly": "roof_downpipe - FU - 054",
+        "source_meshes": [
+          "roof_downpipe - FU - 054_Metal - Nickel_0"
+        ],
+        "center_blender_world": [
+          -30.1998,
+          -13.3042,
+          1.665
+        ],
+        "bounds_min": [
+          -30.471712112426758,
+          -13.389824867248535,
+          0.36319878697395325
+        ],
+        "bounds_max": [
+          -29.927900314331055,
+          -13.218588829040527,
+          2.9668264389038086
+        ]
+      },
+      {
+        "source_assembly": "roof_downpipe - FU - 054.001",
+        "source_meshes": [
+          "roof_downpipe - FU - 054_Metal - Nickel_0.001"
+        ],
+        "center_blender_world": [
+          -30.2394,
+          -13.5474,
+          1.665
+        ],
+        "bounds_min": [
+          -30.511268615722656,
+          -13.633040428161621,
+          0.36319875717163086
+        ],
+        "bounds_max": [
+          -29.967456817626953,
+          -13.461804389953613,
+          2.9668264389038086
+        ]
+      },
+      {
+        "source_assembly": "roof_downpipe - FU - 054.002",
+        "source_meshes": [
+          "roof_downpipe - FU - 054_Metal - Nickel_0.002"
+        ],
+        "center_blender_world": [
+          -28.4005,
+          -2.2409,
+          1.3894
+        ],
+        "bounds_min": [
+          -28.672378540039062,
+          -2.3265535831451416,
+          0.11206651479005814
+        ],
+        "bounds_max": [
+          -28.12856674194336,
+          -2.1553173065185547,
+          2.666827917098999
+        ]
+      },
+      {
+        "source_assembly": "roof_downpipe - FU - 054.003",
+        "source_meshes": [
+          "roof_downpipe - FU - 054_Metal - Nickel_0.003"
+        ],
+        "center_blender_world": [
+          -28.3609,
+          -1.9977,
+          1.3628
+        ],
+        "bounds_min": [
+          -28.6328182220459,
+          -2.083338737487793,
+          0.058730751276016235
+        ],
+        "bounds_max": [
+          -28.089008331298828,
+          -1.9121028184890747,
+          2.666828155517578
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Assembly counts are inferred from imported object names, not a verified quantity survey.",
+    "Dimensions use imported coordinates; survey scale has not been independently verified.",
+    "No approved engineering or planning documents supplied.",
+    "Five dwellings inferred from kitchens and appliances; verify against drawings before factual publication."
+  ]
+}

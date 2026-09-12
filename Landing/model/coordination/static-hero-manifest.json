@@ -1,0 +1,72 @@
+{
+  "stage": "Static opening hero; animation deferred",
+  "source_scene": "sitewise-siting-study.blend",
+  "assets": {
+    "isometric": "/landing-assets/coordination/sitewise-hero-isometric.webp",
+    "plan": "/landing-assets/coordination/sitewise-hero-plan.svg"
+  },
+  "lot": [
+    [
+      12,
+      -22
+    ],
+    [
+      12,
+      22
+    ],
+    [
+      -12,
+      22
+    ],
+    [
+      -12,
+      -22
+    ]
+  ],
+  "building_bounds": {
+    "min": [
+      -6.32481575012207,
+      -15.123210906982422
+    ],
+    "max": [
+      6.6989946365356445,
+      15.387602806091309
+    ]
+  },
+  "building_rotation_radians": 0.16122774779952984,
+  "camera": {
+    "position": [
+      -44.0,
+      -65.0,
+      58.0
+    ],
+    "target": [
+      0.0,
+      0.0,
+      1.5
+    ],
+    "ortho_scale": 62.0
+  },
+  "image_size": [
+    1200,
+    1320
+  ],
+  "ground": "Level rich-blue ground; near #125BA7 family, lit scene color",
+  "source_transform_check": "All building source transforms unchanged from registered siting scene",
+  "plan_roof_faces": 34,
+  "plan_roof_edges": 59,
+  "warm_glazing": [
+    "DOO - 020_Glass - Clear Fast_0",
+    "DOO - 020_Glass - Clear Fast_0.002",
+    "DOO - 020_Glass - Clear Fast_0.003"
+  ],
+  "provenance": {
+    "building_title": "Duplex houses at 22 ARNWOOD STREET MANUREWA",
+    "author": "MyStudioNZ",
+    "license_from_metadata": "CC-BY-4.0",
+    "source_url": "https://sketchfab.com/3d-models/duplex-houses-at-22-arnwood-street-manurewa-ef88f585f3d045c89c849ddd64495ad5",
+    "modifications": "Chalk/blue materials, selective interior warmth, art-direction lighting, illustrative source-derived parcel placement",
+    "cadastral": "Perspective artwork rectified into an illustrative local parcel; no CRS/survey/utility verification"
+  },
+  "structural_direction": "No structural overlay in this hero; reinforced-concrete columns/slabs are the active future direction"
+}

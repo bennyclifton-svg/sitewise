@@ -24,8 +24,40 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup?.(); cleanup = undefined; vi.useRealTimers(); vi.unstubAllGlobals(); document.body.innerHTML = ''; });
 function mount(options) { cleanup = mountLandingDemo(root, options); visibility([{ isIntersecting: true }]); }
+function setLayout(element, parent, top, height = 24, border = 0) {
+  Object.defineProperties(element, {
+    offsetParent: { configurable: true, value: parent },
+    offsetTop: { configurable: true, value: top },
+    offsetHeight: { configurable: true, value: height },
+    clientTop: { configurable: true, value: border },
+  });
+}
 
 describe('landing cost plan and program', () => {
+  it('keeps hero entry and console float independent of scene playback', () => {
+    const animations = ['sw-hero-enter', 'sw-console-float', 'sw-metal-reflection', 'sw-thinking'].map(animationName => {
+      const animation = { animationName, playState: 'running', pause: vi.fn(), play: vi.fn() };
+      animation.pause.mockImplementation(() => { animation.playState = 'paused'; });
+      animation.play.mockImplementation(() => { animation.playState = 'running'; });
+      return animation;
+    });
+    root.getAnimations = () => animations;
+    const heroAnimate = vi.fn();
+    get('.sw-coordination-copy').animate = heroAnimate;
+    mount();
+    get('[data-play]').click();
+    expect(animations.slice(2).map(animation => animation.playState)).toEqual(['paused', 'paused']);
+    get('[data-play]').click();
+    expect(animations.slice(2).map(animation => animation.playState)).toEqual(['running', 'running']);
+    choose('cost');
+    get('[data-send]').click();
+    for (const animation of animations.slice(0, 2)) {
+      expect(animation.pause).not.toHaveBeenCalled();
+      expect(animation.play).not.toHaveBeenCalled();
+    }
+    expect(heroAnimate).not.toHaveBeenCalled();
+  });
+
   it('keeps the shells, starts blank and builds the cost groups before rows', () => {
     mount();
     const nav = get('.sw-nav'), repository = get('.sw-repository'), console = get('.sw-console');
@@ -143,13 +175,15 @@ describe('landing cost plan and program', () => {
     cleanup(); cleanup = undefined; vi.advanceTimersByTime(40000); expect(built('program')).toBe(0); expect(vi.getTimerCount()).toBe(0);
   });
 
-  it('loops all three scenes with a readable hold, and lets manual selection stop the cycle', () => {
+  it('loops through procurement with a readable hold, and lets manual selection stop the cycle', () => {
     mount({ playAll: true }); vi.advanceTimersByTime(13000);
     expect(root.dataset.activeScene).toBe('pmp'); expect(get('[data-document]').getAttribute('aria-busy')).toBe('false');
     vi.advanceTimersByTime(6000); expect(root.dataset.activeScene).toBe('pmp');
     vi.advanceTimersByTime(1000); expect(root.dataset.activeScene).toBe('cost');
     vi.advanceTimersByTime(25000); expect(root.dataset.activeScene).toBe('program');
-    vi.advanceTimersByTime(26000); expect(root.dataset.activeScene).toBe('pmp'); expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(26000); expect(root.dataset.activeScene).toBe('procurement'); expect(vi.getTimerCount()).toBe(1);
+    for (let steps = 0; steps < 160 && root.dataset.activeScene === 'procurement'; steps++) vi.advanceTimersToNextTimer();
+    expect(root.dataset.activeScene).toBe('pmp');
     choose('cost'); expect(get('[data-play-all]').getAttribute('aria-pressed')).toBe('false');
     vi.advanceTimersByTime(50000); expect(root.dataset.activeScene).toBe('cost'); expect(vi.getTimerCount()).toBe(0);
   });
@@ -162,6 +196,44 @@ describe('landing cost plan and program', () => {
     const stopped = built('program'); vi.advanceTimersByTime(6000); expect(built('program')).toBe(stopped);
     preference.matches = true; motionChange(); expect(built('program')).toBe(29); expect(vi.getTimerCount()).toBe(0);
     choose('cost'); expect(built('cost')).toBe(26); expect(content('cost').hasAttribute('inert')).toBe(false); expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['cost', 'program'])('follows %s rows in layout coordinates when the console is tilted', key => {
+    mount(); choose(key);
+    const view = content(key).querySelector('[data-document]');
+    const editor = get('.sw-editor');
+    const section = content(key).querySelector('.sw-control-section');
+    const rows = [...section.querySelectorAll('[data-build-row]')];
+    setLayout(editor, root, 80, 900, 3);
+    setLayout(view, editor, 200, 202, 1);
+    Object.defineProperties(view, { clientHeight: { value: 200 }, scrollHeight: { value: 1200 } });
+    view.getBoundingClientRect = () => ({ top: 400, bottom: 540 });
+    if (key === 'cost') {
+      // Table rows can have an offset parent outside the unpositioned scroller.
+      const table = content(key).querySelector('table');
+      setLayout(table, editor, 240, 1200, 2);
+      setLayout(section, table, 59);
+      rows.slice(0, 3).forEach((row, index) => setLayout(row, table, 539 + index * 24));
+    } else {
+      const body = content(key).querySelector('.sw-programme-body');
+      setLayout(body, view, 90, 1000, 1);
+      setLayout(section, body, 9);
+      setLayout(section.querySelector('.sw-stage-heading'), section, 0);
+      rows.slice(0, 3).forEach((row, index) => setLayout(row, section, 480 + index * 24));
+    }
+    rows.slice(0, 3).forEach(row => { row.getBoundingClientRect = () => ({ top: 450, bottom: 462 }); });
+    for (let elapsed = 0; elapsed < 9000 && built(key) === 0; elapsed += 10) vi.advanceTimersByTime(10);
+    expect(built(key)).toBe(1);
+    const target = key === 'cost' ? 482 : 486;
+    expect(view.scrollTop).toBe(target);
+    view.dispatchEvent(new Event('scroll'));
+    vi.advanceTimersByTime(key === 'cost' ? 560 : 600);
+    expect(built(key)).toBe(3);
+    expect(view.scrollTop).toBe(target);
+    expect(get('[data-play]').textContent).toBe('Pause scene');
+    view.dispatchEvent(new Event('wheel', { bubbles: true }));
+    vi.advanceTimersByTime(1000);
+    expect(built(key)).toBe(3);
   });
 
   it('switches the program timescale and fits it without editing the project dates', () => {

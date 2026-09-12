@@ -33,6 +33,7 @@ from app.database.document_classification_override import (
 from app.database.stripe_customer import StripeCustomer
 from app.database.stripe_subscription import StripeSubscription
 from app.database.user import User
+from app.database.prompt_library import PromptLibrary
 from app.database.workspace_file import WorkspaceFile
 from app.database.workflow_run import WorkflowRun
 from app.cost_plan.models import (
@@ -51,6 +52,7 @@ from app.email.models import (
 )
 
 __all__ = [
+    "PromptLibrary",
     "Base",
     "AgentTurn",
     "ActivityEvent",

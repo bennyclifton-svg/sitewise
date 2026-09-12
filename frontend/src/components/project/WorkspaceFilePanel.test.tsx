@@ -1,8 +1,12 @@
-import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, render as renderUI, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkspaceFilePanel } from "@/components/project/WorkspaceFilePanel";
+import { api } from "@/lib/api";
+import { applyProjectResourceSignal } from "@/lib/queries/project-data";
 import type { EvidencePreview } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -12,6 +16,12 @@ vi.mock("@/lib/api", () => ({
 }));
 
 const PROJECT_ID = "project-1";
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return { client, ...renderUI(ui, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  }) };
+}
 
 function evidence(overrides: Partial<EvidencePreview> = {}): EvidencePreview {
   return {
@@ -31,6 +41,39 @@ function evidence(overrides: Partial<EvidencePreview> = {}): EvidencePreview {
 }
 
 describe("WorkspaceFilePanel", () => {
+  it("refreshes changed evidence without blanking cached content and isolates projects", async () => {
+    vi.mocked(api.getProjectEvidenceDocument).mockReset();
+    vi.mocked(api.getProjectEvidenceDocument).mockResolvedValue(evidence());
+    const summary = evidence({ content: null });
+    const view = render(<WorkspaceFilePanel projectId={PROJECT_ID} evidence={summary} />);
+    await screen.findByRole("heading", { name: "Page 1" });
+    let finish!: (value: EvidencePreview) => void;
+    vi.mocked(api.getProjectEvidenceDocument).mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    act(() => applyProjectResourceSignal(view.client, { projectId: PROJECT_ID, resourceType: "source_document" }));
+    expect(screen.getByRole("heading", { name: "Page 1" })).toBeInTheDocument();
+    await act(async () => finish(evidence({ content: "## New evidence" })));
+    await screen.findByRole("heading", { name: "New evidence" });
+    vi.mocked(api.getProjectEvidenceDocument).mockResolvedValue(evidence({ content: "## Other project" }));
+    view.rerender(<WorkspaceFilePanel projectId="project-2" evidence={summary} />);
+    expect(screen.queryByRole("heading", { name: "New evidence" })).not.toBeInTheDocument();
+    await screen.findByRole("heading", { name: "Other project" });
+    expect(api.getProjectEvidenceDocument).toHaveBeenLastCalledWith("project-2", summary.id);
+  });
+  it("reuses loaded content when a file is reopened, but fetches a new revision", async () => {
+    vi.mocked(api.getProjectEvidenceDocument).mockReset();
+    vi.mocked(api.getProjectEvidenceDocument).mockResolvedValue(evidence());
+    const summary = evidence({ content: null, revision: "A" });
+    const view = render(<WorkspaceFilePanel projectId={PROJECT_ID} evidence={summary} />);
+    await screen.findByRole("heading", { name: "Page 1" });
+    view.rerender(<WorkspaceFilePanel projectId={PROJECT_ID} evidence={null} />);
+    view.rerender(<WorkspaceFilePanel projectId={PROJECT_ID} evidence={summary} />);
+    expect(screen.getByRole("heading", { name: "Page 1" })).toBeInTheDocument();
+    expect(api.getProjectEvidenceDocument).toHaveBeenCalledTimes(1);
+    vi.mocked(api.getProjectEvidenceDocument).mockResolvedValue(evidence({ content: "## Revised content" }));
+    view.rerender(<WorkspaceFilePanel projectId={PROJECT_ID} evidence={{ ...summary, revision: "B" }} />);
+    await screen.findByRole("heading", { name: "Revised content" });
+    expect(api.getProjectEvidenceDocument).toHaveBeenCalledTimes(2);
+  });
   it("renders the markdown tab as formatted content", () => {
     render(
       <WorkspaceFilePanel
@@ -100,7 +143,7 @@ describe("WorkspaceFilePanel", () => {
     const yaml = container.querySelector("pre");
     expect(yaml?.textContent).toContain("document:");
     expect(container.querySelector("pre")?.textContent).toContain('filename: "Kaposi.pdf"');
-    expect(container.querySelector(".text-sky-700")).not.toBeNull();
+    expect(container.querySelector("[class*='--sw-link']")).not.toBeNull();
 
     await user.click(screen.getByRole("tab", { name: "Raw" }));
     expect(container.querySelector("pre")?.textContent).toBe(

@@ -1,0 +1,84 @@
+@font-face {
+  font-family: 'Manifa Advertising';
+  src: url('./fonts/ManifaAdvertising-BoldWide.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* The actual drawn corner cuts belong to the font, not per-letter CSS masks. */
+#sitewise-landing .sw-coordination h1,
+#sitewise-landing .sw-workspace-intro h2,
+#sitewise-landing .sw-workflow h2,
+#sitewise-landing .sw-closing h2 {
+  font-family: 'Manifa Advertising', 'Hanken Grotesk', sans-serif;
+  font-weight: 600;
+  font-synthesis: none;
+  font-feature-settings: 'ss06';
+  text-transform: uppercase;
+  letter-spacing: -.025em;
+  line-height: 1.08;
+}
+
+#sitewise-landing .sw-coordination h1 {
+  font-family: 'Manifa Advertising', 'Hanken Grotesk', sans-serif;
+  font-weight: 600;
+  font-feature-settings: 'ss06';
+  font-size: clamp(30px, 3.2vw, 56px);
+}
+#sitewise-landing .sw-workspace-intro h2,
+#sitewise-landing .sw-workflow h2,
+#sitewise-landing .sw-closing h2 { font-size: clamp(28px, 3.2vw, 48px); }
+
+@media (max-width: 799px) {
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(28px, 8vw, 52px); }
+}
+
+#sitewise-landing .sw-coordination-copy{padding-top:clamp(140px,18vh,190px);padding-bottom:70px}
+#sitewise-landing .sw-coordination-intro{margin-top:28px}
+#sitewise-landing [data-day-night],#sitewise-landing [data-motion-pause]{display:grid;place-items:center;width:40px;height:40px;padding:9px;border-radius:50%}
+#sitewise-landing .sw-view-controls svg{width:20px;height:20px}
+#sitewise-landing [data-day-night] [data-scene-icon=sun],#sitewise-landing [data-day-night][aria-pressed=true] [data-scene-icon=moon]{display:none}
+#sitewise-landing [data-day-night][aria-pressed=true] [data-scene-icon=sun]{display:block}
+.sw-source-credits{padding:12px 28px;background:#071c39;color:#96a7bd;font:10px/1.6 'Hanken Grotesk',sans-serif}
+.sw-source-credits a{color:inherit}
+
+#sitewise-landing .sw-coordination h1 .sw-headline-line{display:block;color:#f3f5fc}
+#sitewise-landing .sw-coordination h1 .sw-detail-reveal{margin-top:.42em;color:#8ebeff;font-family:'Manifa Advertising','Hanken Grotesk',sans-serif;font-weight:600;font-feature-settings:'ss06';font-size:.82em;line-height:1.2;letter-spacing:-.015em;text-transform:none}
+#sitewise-landing .sw-coordination { position: relative; }
+.sw-letter-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: clip;
+  pointer-events: none;
+}
+.sw-building-letter {
+  position: absolute;
+  display: block;
+  white-space: pre;
+  transform-origin: center;
+  will-change: transform;
+}
+.sw-typed-copy, .sw-type-cursor {
+  position: absolute;
+  display: block;
+  white-space: pre;
+  will-change: transform;
+}
+.sw-type-cursor {
+  width: .62em;
+  height: .78em;
+  background: #f3f5fc;
+  border-radius: 1px;
+}
+@media(max-width:799px){#sitewise-landing .sw-coordination-copy{padding-top:150px}}
+
+/* Preserve the original artwork, including its blue symbol. */
+#sitewise-landing .sw-masthead a.sw-wordmark,
+#sitewise-landing .sw-footer .sw-wordmark { display:inline-flex; align-items:center; width:auto; }
+#sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { display:block; width:190px; height:auto; filter:none; }
+#sitewise-landing .sw-footer .sw-original-logo { display:block; width:160px; height:auto; }
+@media(max-width:799px) {
+  #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { width:158px; }
+}

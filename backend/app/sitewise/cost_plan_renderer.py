@@ -319,7 +319,7 @@ def _render_budget_and_breakdown(
             "Construction rows are an indicative benchmark split until a tendered "
             "trade schedule is available."
             if family == "residential_class1_new"
-            else _no_rate_pack_disclosure(family)
+            else _no_rate_pack_disclosure(family, state=project.state)
         )
     )
     return "\n".join(
@@ -364,7 +364,7 @@ def _render_commitments_allowances(
         if main_works
         else (
             "- Construction rows are lump-sum TBC placeholders, not tendered prices."
-            if coverage_spec(family).structure_only
+            if coverage_spec(family, state=project.state).structure_only
             else "- Construction benchmark rows are assumptions, not tendered prices."
         )
     )
@@ -709,7 +709,7 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
         "data_centre",
     }
     is_commercial_fitout = family == "commercial_fitout"
-    is_structure_only = coverage_spec(family).structure_only
+    is_structure_only = coverage_spec(family, state=project.state).structure_only
     pc_allowance_rows = _PC_ALLOWANCE_ROWS_BY_FAMILY[family]
     allowance_category = (
         "Client-direct and landlord works"
@@ -741,7 +741,7 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
         # Structure-only families have no benchmark split, so the subtotal stays TBC
         # even when a construction ceiling is evidenced.
         construction_subtotal = (
-            f"${ceiling:,}" if benchmark_pct is not None and ceiling is not None else "TBC"
+            f"${ceiling:,}" if not is_structure_only and benchmark_pct is not None and ceiling is not None else "TBC"
         )
 
     rows = [
@@ -808,8 +808,8 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
             "Workbook-ready groups: Fees and charges → Consultants → Construction → "
             "Contingency / allowances."
         )
-        taxonomy_line = f"Construction rows follow the {coverage_spec(family).label}."
-        benchmark_line = _no_rate_pack_disclosure(family)
+        taxonomy_line = f"Construction rows follow the {coverage_spec(family, state=project.state).label}."
+        benchmark_line = _no_rate_pack_disclosure(family, state=project.state)
     elif is_commercial_fitout:
         workbook_groups_line = (
             "Workbook-ready groups: Fees and statutory charges → Consultants → "
@@ -817,17 +817,17 @@ def _render_cost_breakdown(project: Project, pack: CostPlanEvidencePack) -> str:
             "Contingency / allowances."
         )
         taxonomy_line = (
-            "Construction rows follow the NSW Class 5 office / serviced-office "
+            f"Construction rows follow the {project.state} Class 5 office / serviced-office "
             "commercial fit-out taxonomy structure only — no rate pack."
         )
-        benchmark_line = _no_rate_pack_disclosure(family)
+        benchmark_line = _no_rate_pack_disclosure(family, state=project.state)
     elif is_structure_only:
         workbook_groups_line = (
             "Workbook-ready groups: Fees and charges → Consultants → Construction → "
             "Client/owner direct allowances (where applicable) → Contingency / allowances."
         )
-        taxonomy_line = f"Construction rows follow the {coverage_spec(family).label}."
-        benchmark_line = _no_rate_pack_disclosure(family)
+        taxonomy_line = f"Construction rows follow the {coverage_spec(family, state=project.state).label}."
+        benchmark_line = _no_rate_pack_disclosure(family, state=project.state)
     else:
         workbook_groups_line = (
             "Workbook-ready groups: Fees and charges → Consultants → Construction → PC allowances → "

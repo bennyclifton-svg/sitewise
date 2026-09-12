@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Sitewise — cadastral S study</title>
+  <style>
+    @font-face{font-family:Satoshi;src:url('./Satoshi-Bold.woff2') format('woff2');font-weight:700;font-display:swap}
+    *{box-sizing:border-box}body{margin:0;background:#F9F7F3;color:#171717;font:16px/1.55 Arial,sans-serif}
+    main{max-width:1320px;margin:auto;padding:56px 44px 72px}.eyebrow,.meta{font:11px/1.5 ui-monospace,Consolas,monospace;letter-spacing:.11em;text-transform:uppercase}.eyebrow{color:#12606D}
+    h1{font-family:Satoshi,Arial,sans-serif;font-size:clamp(34px,4vw,56px);font-weight:700;letter-spacing:-.045em;line-height:1.06;margin:18px 0}
+    .intro{max-width:660px;color:#555751;font-size:17px;margin:0 0 32px}.meta{color:#66685F}.compare{display:grid;grid-template-columns:1fr 1fr;border:1px solid #C8C8C0}.panel{padding:24px 30px 30px;min-height:326px;background:#FFF}.panel+.panel{border-left:1px solid #C8C8C0;background:#EFF5F5}
+    .display{height:190px;display:flex;align-items:center;justify-content:center}.mark{width:132px;height:132px;flex:none;fill:currentColor}.current{display:inline-block;width:118px;height:124px;background:currentColor;mask:url('./current-mark.png') center/contain no-repeat;-webkit-mask:url('./current-mark.png') center/contain no-repeat}
+    .caption{font-size:14px;max-width:370px;color:#555751;margin:0}.caption strong{color:#171717}.rule{border:0;border-top:1px solid #C8C8C0;margin:40px 0 26px}
+    .construction{display:grid;grid-template-columns:1.05fr 1fr;gap:54px;align-items:center}.construction svg{width:100%;height:auto;background:#EDF0E9;max-height:240px}.construction h2,.applications h2{font:700 25px/1.2 Satoshi,Arial,sans-serif;letter-spacing:-.035em;margin:0 0 16px}.construction p{font-size:15px;color:#555751;margin:10px 0}.construction .meta{margin-top:20px}
+    .applications{margin-top:38px;display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #C8C8C0}.app{padding:26px 30px;background:#F9F7F3}.app.dark{background:#0A0A0A;color:#F9F7F3}.app.dark .meta{color:#A8A8A8}.lockup{display:flex;align-items:center;gap:14px;margin:28px 0 42px}.lockup .mark{width:54px;height:54px}.wordmark{font:700 40px/1 Satoshi,Arial,sans-serif;letter-spacing:-.05em}.scales{display:flex;align-items:flex-end;gap:38px}.scale{display:flex;flex-direction:column;align-items:center;gap:14px}.scale small{font:11px ui-monospace,Consolas,monospace;color:#66685F}.dark .scale small{color:#A8A8A8}.scale .mark{display:block}
+    footer{margin-top:30px;display:flex;justify-content:space-between;gap:24px;font-size:12px;color:#66685F}a{color:#12606D;text-underline-offset:3px}a:focus-visible{outline:2px solid #12606D;outline-offset:4px}
+    @media(max-width:760px){main{padding:30px 20px 48px}.compare,.construction,.applications{grid-template-columns:1fr}.panel+.panel{border-left:0;border-top:1px solid #C8C8C0}.construction{gap:24px}.panel{min-height:290px}.wordmark{font-size:34px}footer{flex-direction:column;gap:8px}}
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden"><defs><path id="parcel" d="M32 8H112V32H56L48 40V48L56 64L48 72L8 40V32Z"/><symbol id="mark" viewBox="0 0 120 120"><use href="#parcel"/><use href="#parcel" transform="rotate(180 60 60)"/></symbol></defs></svg>
+  <main>
+    <div class="eyebrow">Sitewise / identity study 01 / 08 September 2026</div>
+    <h1>Two parcels.<br>One recognisable S.</h1>
+    <p class="intro">An evolution of the existing two-stroke mark, using the straight boundaries, corner cuts and access returns of the cadastral landscape.</p>
+    <section class="compare" aria-label="Current mark and proposed mark comparison">
+      <div class="panel"><div class="meta">Current / rounded strokes</div><div class="display"><span class="current" role="img" aria-label="Current Sitewise S"></span></div><p class="caption">The familiar S silhouette, with soft curved elbows and an open centre.</p></div>
+      <div class="panel"><div class="meta">Proposed / parcel geometry</div><div class="display"><svg class="mark" role="img" aria-label="Proposed angular cadastral S"><use href="#mark"/></svg></div><p class="caption"><strong>Same two-part idea.</strong> Angular boundaries and a stepped return make the connection to land and access more explicit.</p></div>
+    </section>
+    <hr class="rule">
+    <section class="construction" aria-label="How the concept is constructed">
+      <svg viewBox="0 0 560 230" role="img" aria-labelledby="construction-title"><title id="construction-title">One parcel form rotated 180 degrees to produce the second identical part</title>
+        <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#12606D" stroke-opacity=".09"/></pattern></defs><rect width="560" height="230" fill="url(#grid)"/>
+        <g transform="translate(35 45) scale(1.15)" fill="#12606D"><use href="#parcel"/></g>
+        <path d="M199 106H255m-8-6 8 6-8 6" fill="none" stroke="#555751" stroke-width="1.5"/><text x="228" y="139" text-anchor="middle" fill="#555751" font-family="Consolas,monospace" font-size="11">180°</text>
+        <g transform="translate(284 38) scale(1.27)"><use href="#parcel" fill="#12606D"/><use href="#parcel" transform="rotate(180 60 60)" fill="#DEDF88" stroke="#71722F" stroke-width=".5"/></g>
+        <text x="35" y="207" fill="#555751" font-family="Consolas,monospace" font-size="10">ONE MASTER SHAPE</text><text x="284" y="207" fill="#555751" font-family="Consolas,monospace" font-size="10">TWO IDENTICAL FORMS · OPEN ACCESS</text>
+      </svg>
+      <div><h2>Boundaries give it character.</h2><p>One angular form is repeated with a half-turn. Chamfered corners suggest a street edge; the inner step suggests the access handle of a parcel.</p><p>The clear gap between the forms keeps the mark open and separates the two strokes. Use one colour in the identity; the construction colours only explain the geometry.</p><p class="meta">Abstract parcel language / no legal lot is reproduced</p></div>
+    </section>
+    <section class="applications" aria-label="Light and dark use and scale checks">
+      <div class="app"><div class="meta">Chalk / single colour</div><div class="lockup"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg><span class="wordmark">Sitewise</span></div><div class="scales"><div class="scale"><svg class="mark" style="width:16px;height:16px" aria-label="Concept at 16 pixels" role="img"><use href="#mark"/></svg><small>16 px</small></div><div class="scale"><svg class="mark" style="width:24px;height:24px" aria-label="Concept at 24 pixels" role="img"><use href="#mark"/></svg><small>24 px</small></div><div class="scale"><svg class="mark" style="width:48px;height:48px" aria-label="Concept at 48 pixels" role="img"><use href="#mark"/></svg><small>48 px</small></div></div></div>
+      <div class="app dark"><div class="meta">Near-black #0A0A0A / reversed</div><div class="lockup"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg><span class="wordmark">Sitewise</span></div><div class="scales"><div class="scale"><svg class="mark" style="width:16px;height:16px" aria-label="Reversed concept at 16 pixels" role="img"><use href="#mark"/></svg><small>16 px</small></div><div class="scale"><svg class="mark" style="width:24px;height:24px" aria-label="Reversed concept at 24 pixels" role="img"><use href="#mark"/></svg><small>24 px</small></div><div class="scale"><svg class="mark" style="width:48px;height:48px" aria-label="Reversed concept at 48 pixels" role="img"><use href="#mark"/></svg><small>48 px</small></div></div></div>
+    </section>
+    <footer><span>Review concept only. Live logo unchanged. Wordmark positioning is provisional.</span><a href="./sitewise-parcel-s.svg">Open vector mark</a></footer>
+  </main>
+</body>
+</html>

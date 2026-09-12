@@ -1,12 +1,11 @@
+import { themeCanvasColours } from "@/lib/colour-tokens";
+
 export type ColorTheme = "dark" | "light";
 
 export const THEME_STORAGE_KEY = "clerk.colorTheme.v1";
 export const THEME_CHANGE_EVENT = "clerk:color-theme-change";
 
-export const THEME_VOID_HEX = {
-  dark: "#060608",
-  light: "#F7F7F4",
-} as const;
+export const THEME_VOID_HEX = themeCanvasColours;
 
 export function isColorTheme(value: unknown): value is ColorTheme {
   return value === "dark" || value === "light";

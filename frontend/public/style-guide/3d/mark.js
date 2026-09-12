@@ -17,6 +17,8 @@
  * what keeps the download usable in Blender or C4D.
  */
 
+import { SITEWISE_PRIMITIVES as colours } from '../sitewise-colours.js';
+
 const H = 0.5;
 
 /* Four planes. Two faces (+Z and −X) are deliberately absent: an open
@@ -29,13 +31,13 @@ const FACES = [
 ];
 
 export const MATERIALS = {
-  graphite: { color: '#2C3037', roughness: 0.52, metalness: 0.16, envMapIntensity: 0.88 },
-  carbon:   { color: '#191C21', roughness: 0.44, metalness: 0.20, envMapIntensity: 0.85 },
-  bone:     { color: '#D6D6D0', roughness: 0.78, metalness: 0.02, envMapIntensity: 0.55 },
+  graphite: { color: colours['neutral-800'], roughness: 0.52, metalness: 0.16, envMapIntensity: 0.88 },
+  carbon:   { color: colours['neutral-950'], roughness: 0.44, metalness: 0.20, envMapIntensity: 0.85 },
+  bone:     { color: colours['neutral-100'], roughness: 0.78, metalness: 0.02, envMapIntensity: 0.55 },
   glass:    {
-    color: '#2F72C4', roughness: 0.05, metalness: 0,
+    color: colours['cyan-300'], roughness: 0.05, metalness: 0,
     transmission: 0.92, thickness: 0.22, ior: 1.46,
-    attenuationColor: '#1D5FAE', attenuationDistance: 0.7,
+    attenuationColor: colours['cyan-700'], attenuationDistance: 0.7,
     specularIntensity: 1, envMapIntensity: 2.1
   }
 };
@@ -74,7 +76,7 @@ export function buildMark(THREE) {
     delete spec.envMapIntensity;
     const m = new Ctor({ ...spec, side: THREE.DoubleSide, vertexColors: true });
     m.envMapIntensity = env;
-    m.name = key === 'glass' ? 'glazing_blue' : 'facet_' + key;
+    m.name = key === 'glass' ? 'glazing_cyan' : 'facet_' + key;
     made[key] = m;
     return m;
   };
@@ -108,10 +110,10 @@ export function studioEnvironment(THREE, renderer) {
   const x = c.getContext('2d');
 
   const bg = x.createLinearGradient(0, 0, 0, 512);
-  bg.addColorStop(0, '#1a1e26');
-  bg.addColorStop(0.48, '#0b0d11');
-  bg.addColorStop(0.52, '#15171c');
-  bg.addColorStop(1, '#2a2d33');
+  bg.addColorStop(0, colours['neutral-900']);
+  bg.addColorStop(0.48, colours['neutral-950']);
+  bg.addColorStop(0.52, colours['neutral-900']);
+  bg.addColorStop(1, colours['neutral-800']);
   x.fillStyle = bg;
   x.fillRect(0, 0, 1024, 512);
 
@@ -128,9 +130,9 @@ export function studioEnvironment(THREE, renderer) {
     x.fillRect(0, 0, 1024, 512);
     x.restore();
   };
-  blob(300, 110, 300, 190, '#ffffff', 1);     // key softbox
-  blob(760, 170, 190, 150, '#9fc4ee', 0.55);  // cool rim
-  blob(520, 470, 460, 130, '#c9d4e2', 0.28);  // floor bounce
+  blob(300, 110, 300, 190, colours['neutral-0'], 1);     // key softbox
+  blob(760, 170, 190, 150, colours['cyan-200'], 0.55);  // cool rim
+  blob(520, 470, 460, 130, colours['neutral-200'], 0.28);  // floor bounce
 
   const tex = new THREE.CanvasTexture(c);
   tex.mapping = THREE.EquirectangularReflectionMapping;
@@ -167,10 +169,10 @@ export function applyLighting(THREE, scene, renderer, opts = {}) {
 
   const lights = {};
 
-  lights.ambient = new THREE.HemisphereLight(0xdfe6f2, 0x0a0b0d, 0.10);
+  lights.ambient = new THREE.HemisphereLight(colours['neutral-100'], colours['neutral-950'], 0.10);
   scene.add(lights.ambient);
 
-  lights.key = new THREE.DirectionalLight(0xffffff, 0.34);
+  lights.key = new THREE.DirectionalLight(colours['neutral-0'], 0.34);
   lights.key.position.set(-2.6, 3.4, 2.2);
   lights.key.castShadow = true;
   lights.key.shadow.mapSize.set(2048, 2048);
@@ -178,11 +180,11 @@ export function applyLighting(THREE, scene, renderer, opts = {}) {
   lights.key.shadow.normalBias = 0.025;
   scene.add(lights.key);
 
-  lights.rim = new THREE.DirectionalLight(0x9fc4ee, 0.22);
+  lights.rim = new THREE.DirectionalLight(colours['cyan-200'], 0.22);
   lights.rim.position.set(-3, 1.4, -3.2);
   scene.add(lights.rim);
 
-  lights.raking = new THREE.DirectionalLight(0xdfe8f5, 0.28);
+  lights.raking = new THREE.DirectionalLight(colours['neutral-100'], 0.28);
   lights.raking.position.set(4.5, 3.2, 1.2);
   lights.raking.castShadow = true;
   lights.raking.shadow.mapSize.set(2048, 2048);
@@ -193,12 +195,12 @@ export function applyLighting(THREE, scene, renderer, opts = {}) {
   scene.add(lights.raking);
 
   // The key. Close enough that falloff varies measurably across each plane.
-  lights.aperture = new THREE.PointLight(0xf2f6fb, 17, 7, 2);
+  lights.aperture = new THREE.PointLight(colours['neutral-50'], 17, 7, 2);
   lights.aperture.position.set(-0.8, 1.15, 0.9);
   scene.add(lights.aperture);
 
   // Picks out the wall and floor interiors.
-  lights.interior = new THREE.PointLight(0xdce6f2, 1.6, 2.6, 2);
+  lights.interior = new THREE.PointLight(colours['neutral-100'], 1.6, 2.6, 2);
   lights.interior.position.set(0.05, 0, -0.05);
   scene.add(lights.interior);
 

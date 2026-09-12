@@ -14,10 +14,10 @@ RECORD_ID = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 def test_upsert_workspace_file_uses_atomic_on_conflict() -> None:
     session = AsyncMock()
     execute_result = MagicMock()
-    execute_result.scalar_one.return_value = RECORD_ID
     session.execute = AsyncMock(return_value=execute_result)
     record = MagicMock()
     record.id = RECORD_ID
+    execute_result.scalar_one_or_none.return_value = record
     session.get = AsyncMock(return_value=record)
 
     result = run_async(
@@ -39,15 +39,15 @@ def test_upsert_workspace_file_uses_atomic_on_conflict() -> None:
     compiled = str(statement)
     assert "ON CONFLICT" in compiled.upper()
     assert "uq_workspace_files_project_workspace_path" in compiled
-    session.get.assert_awaited_once_with(
-        workspace_files_module.WorkspaceFile, RECORD_ID
-    )
+    session.execute.assert_awaited_once()
+    session.get.assert_not_awaited()
+    assert statement.get_execution_options()["populate_existing"] is True
 
 
 def test_upsert_workspace_file_raises_when_row_missing_after_write() -> None:
     session = AsyncMock()
     execute_result = MagicMock()
-    execute_result.scalar_one.return_value = RECORD_ID
+    execute_result.scalar_one_or_none.return_value = None
     session.execute = AsyncMock(return_value=execute_result)
     session.get = AsyncMock(return_value=None)
 

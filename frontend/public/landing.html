@@ -3,40 +3,121 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light">
-  <meta name="theme-color" content="#fefcf5">
-  <meta name="description" content="The New AI Powered Construction Management Platform.">
-  <title>SiteWise — Read. Organise. Update.</title>
+  <meta name="theme-color" content="#F9F7F3">
+  <meta name="description" content="Understand the whole building. Bring every discipline, decision and delivery package together in SiteWise, the project workspace for construction professionals.">
+  <title>SiteWise — Understand the whole building.</title>
   <link rel="icon" type="image/png" href="./brand/sitewise-mark.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="preload" href="./landing-assets/fonts/funnel-display/FunnelDisplay.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./landing-assets/fonts/ManifaAdvertising-BoldWide.woff2" as="font" type="font/woff2" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style-guide/sitewise-colours.css?v=1.1.0-charcoal">
   <link rel="stylesheet" href="./style-guide/satoshi-font.css">
+  <link rel="stylesheet" href="./landing-assets/landing-display-font.css?v=20260907-bold">
   <link rel="stylesheet" href="./landing-assets/landing-story.css?v=20260906-thin-frame">
   <link rel="stylesheet" href="./landing-assets/landing-controls.css?v=20260906-programme-grid">
+  <link rel="stylesheet" href="./landing-assets/landing-procurement.css?v=20260907-civil-rfp">
+  <link rel="stylesheet" href="./landing-assets/landing-layout.css?v=20260907-bold-hero">
+  <link rel="stylesheet" href="./landing-assets/landing-console.css?v=20260908-charcoal">
+  <link rel="stylesheet" href="./landing-assets/landing-composition.css?v=20260908-building">
+  <link rel="stylesheet" href="./landing-assets/landing-theme.css?v=20260908-charcoal">
+  <link rel="stylesheet" href="./landing-assets/landing-coordination.css?v=20260909-full-plan">
+  <link rel="stylesheet" href="./landing-assets/landing-experience.css?v=funnel-1">
+  <link rel="stylesheet" href="./landing-assets/landing-headlines.css?v=block-type-1">
+  <link rel="stylesheet" href="./landing-assets/landing-map-cta.css?v=fine-grain-2">
 </head>
 <body>
 <a class="sw-skip" href="#main">Skip to content</a>
 <main id="main">
-<div id="sitewise-landing" aria-label="SiteWise project workspace demonstration">
+<div id="sitewise-landing" aria-label="SiteWise">
   <div class="sw-page">
     <header class="sw-masthead">
-      <img class="sw-brand" src="./brand/sitewise-lockup-light.png" alt="SiteWise" width="584" height="129">
+      <a class="sw-brand sw-wordmark" href="#main" aria-label="SiteWise"><img class="sw-original-logo" src="./brand/sitewise-lockup-dark.png" alt="SiteWise" width="579" height="128"></a>
       <nav class="sw-masthead-actions" aria-label="Site navigation">
         <a href="/login">Open SiteWise</a>
         <a class="sw-cta" href="mailto:hello@sitewise.au?subject=Project%20walkthrough">Book a project walkthrough</a>
       </nav>
     </header>
-    <section class="sw-hero" aria-label="SiteWise introduction">
-      <h1><span class="sw-changing-line">Read. Organise. Update.</span></h1>
-      <p>The New AI Powered Construction Management Platform.</p>
+    <section class="sw-coordination" aria-labelledby="sw-hero-title">
+      <figure class="sw-coordination-model">
+        <div class="sw-scene-viewport">
+          <img src="./landing-assets/coordination/sitewise-hero-perspective.webp" width="1200" height="1320" alt="Chalk-white townhouses, shared driveway and private gardens within an ink-blue cadastral field." fetchpriority="high" decoding="async">
+        </div>
+        <div class="sw-system-controls">
+          <div class="sw-system-options" role="group" aria-label="Building systems">
+            <button type="button" data-system="all" aria-label="Whole project" aria-pressed="true" disabled><span aria-hidden="true">ALL</span><span class="sw-system-label">Whole project</span></button>
+            <button type="button" data-system="architecture" aria-label="Architecture" aria-pressed="false" disabled><span aria-hidden="true">ARC</span><span class="sw-system-label">Architecture</span></button>
+            <button type="button" data-system="structure" aria-label="Structure" aria-pressed="false" disabled><span aria-hidden="true">STR</span><span class="sw-system-label">Structure</span></button>
+            <button type="button" data-system="electrical" aria-label="Electrical" aria-pressed="false" disabled><span aria-hidden="true">ELE</span><span class="sw-system-label">Electrical</span></button>
+            <button type="button" data-system="mechanical" aria-label="Mechanical" aria-pressed="false" disabled><span aria-hidden="true">MEC</span><span class="sw-system-label">Mechanical</span></button>
+            <button type="button" data-system="hydraulic" aria-label="Hydraulic" aria-pressed="false" disabled><span aria-hidden="true">HYD</span><span class="sw-system-label">Hydraulic</span></button>
+            <button type="button" data-system="civil" aria-label="Civil" aria-pressed="false" disabled><span aria-hidden="true">CIV</span><span class="sw-system-label">Civil</span></button>
+            <button type="button" data-system="landscape" aria-label="Landscape" aria-pressed="false" disabled><span aria-hidden="true">LAN</span><span class="sw-system-label">Landscape</span></button>
+            <button type="button" data-system="interiors" aria-label="Interiors" aria-pressed="false" disabled><span aria-hidden="true">INT</span><span class="sw-system-label">Interiors</span></button>
+          </div>
+        </div>
+        <div class="sw-camera-nav" role="group" aria-label="Architectural views">
+          <button type="button" data-camera-view="top" aria-pressed="false" disabled>Top</button>
+          <button type="button" data-camera-view="front" aria-pressed="false" disabled>Front</button>
+          <button type="button" data-camera-view="side" aria-pressed="false" disabled>Side</button>
+          <button type="button" data-camera-view="rear" aria-pressed="false" disabled>Rear</button>
+          <button type="button" data-camera-view="isometric" aria-pressed="true" disabled>Isometric</button>
+        </div>
+        <div class="sw-sun-control">
+          <label for="sw-sun-time">Daylight <output data-sun-label for="sw-sun-time">14:00</output></label>
+          <input id="sw-sun-time" data-sun-time type="range" min="6" max="20" step="0.05" value="14" aria-label="Time of day" disabled>
+          <span>06:00</span><span>Illustrative sun path</span><span>20:00</span>
+        </div>
+        <div class="sw-scene-toolbar">
+          <div class="sw-view-controls"><button type="button" data-motion-pause aria-label="Pause animation" aria-pressed="false" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></button></div>
+          <p data-scene-status role="status" class="sw-visually-hidden">Loading the coordinated project…</p>
+        </div>
+      </figure>
+      <div class="sw-coordination-reading">
+        <div class="sw-coordination-copy">
+          <h1 id="sw-hero-title" aria-label="Understand the whole building in detail.">
+            <span class="sw-headline-line" data-typed-line>Understand</span>
+            <span class="sw-headline-line" data-typed-line>the whole</span>
+            <span class="sw-headline-line"><span data-building-word>building</span></span>
+            <span class="sw-headline-line sw-detail-reveal">in detail.</span>
+          </h1>
+          <p class="sw-coordination-intro">Bring every discipline, decision and delivery package together.</p>
+          <a class="sw-cta sw-map-cta" href="#project-demo">
+            <svg class="sw-map-cta-boundary" viewBox="0 0 320 64" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+              <path class="sw-map-cta-warm-edge" d="M1 1H305L319 15V63"/>
+              <path class="sw-map-cta-cool-edge" d="M319 63H1V1"/>
+              <path class="sw-map-cta-trace" d="M1 1H305L319 15V63H1Z" pathLength="100"/>
+            </svg>
+            <span>Explore how SiteWise works</span>
+            <svg class="sw-map-cta-arrow" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg>
+          </a>
+        </div>
+
+        <figure class="sw-coordination-plan">
+          <img src="./landing-assets/coordination/sitewise-cadastral-plan.svg?v=20260909-nsw-parcels" alt="North-up cadastral plan of Seven Hills, using NSW Spatial Services lot boundaries." width="1400" height="1100" decoding="async">
+        </figure>
+      </div>
     </section>
 
-    <div class="sw-surround">
+    <div class="sw-opening" id="project-workspace">
+      <div class="sw-workspace-intro">
+        <p class="sw-coordination-eyebrow">02 / The project workspace</p>
+        <h2>From understanding<br>to moving forward.</h2>
+        <p>Explore the project plan, cost plan, program and procurement in one connected workspace.</p>
+      </div>
+    <div class="sw-demo" id="project-demo" role="region" aria-label="Interactive SiteWise demonstration" tabindex="-1">
+    <div class="sw-device-scale">
+    <div class="sw-surround" data-theme="dark">
+      <button class="sw-theme-toggle" data-theme-toggle="" type="button" aria-label="Switch tablet to light mode" aria-pressed="true" title="Switch tablet to light mode">
+        <svg data-theme-icon="sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"/></svg>
+        <svg data-theme-icon="moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z"/></svg>
+      </button>
       <section class="sw-workspace" aria-label="Seven Hills project workspace preview">
 
         <div class="sw-workspace-grid">
           <nav class="sw-nav" aria-label="Project navigation">
-            <img class="sw-nav-brand" data-nav-brand="" alt="SiteWise" src="./brand/sitewise-lockup-light.png">
+            <span class="sw-nav-brand sw-logo"><img data-nav-brand="" alt="SiteWise" src="./brand/sitewise-lockup-dark.png"></span>
             <div class="sw-project-picker" aria-label="Selected project: Seven Hills Townhouse"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path></svg><span>Seven Hills Townhouse</span><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-down" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></div>
             <div class="sw-nav-links"><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2 lucide-settings-2" aria-hidden="true"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>Project Profile</span><span class="sw-nav-item" aria-current="page"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>Project Plan</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-hand-coins" aria-hidden="true"><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"></path><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"></path><path d="m2 16 6 6"></path><circle cx="16" cy="9" r="2.9"></circle><circle cx="6" cy="5" r="3"></circle></svg>Cost Plan</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-no-axes-gantt" aria-hidden="true"><path d="M6 5h12"></path><path d="M4 12h10"></path><path d="M12 19h8"></path></svg>Program</span><span class="sw-nav-item"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-list" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>Procurement</span></div>
             <div class="sw-chats"><div class="sw-chats-heading"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square" aria-hidden="true"><path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z"></path></svg><span>Chats</span></div><p class="sw-chat-title">Establish the project</p><p class="sw-chat-title">Review consultant advice</p></div>
@@ -238,7 +319,7 @@
           <aside class="sw-repository" aria-label="Project document repository">
             <h3><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-open" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"></path></svg>Project documents</h3>
             <div class="sw-repo-columns" aria-hidden="true"><span>Document</span><span>Rev</span><span>Category</span><span></span></div>
-            <div class="sw-sources"><div class="sw-repo-row" data-file="qs" data-source-title="Feasibility cost and programme advice · Rev 1" data-source-excerpt="The February 2025 construction forecast is $10.07m excluding GST: $270,000 above the client budget. The $350,000 OSD allowance and founding allowances remain provisional."><button type="button" class="sw-source" data-source="qs" aria-pressed="false">Cost advice</button><span class="sw-repo-rev">1</span><span class="sw-repo-category">Cost</span><button type="button" class="sw-bin" disabled="" aria-label="Remove cost advice (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
+            <div class="sw-sources" role="region" aria-label="Browse project sources" tabindex="0"><div class="sw-repo-row" data-file="qs" data-source-title="Feasibility cost and programme advice · Rev 1" data-source-excerpt="The February 2025 construction forecast is $10.07m excluding GST: $270,000 above the client budget. The $350,000 OSD allowance and founding allowances remain provisional."><button type="button" class="sw-source" data-source="qs" aria-pressed="false">Cost advice</button><span class="sw-repo-rev">1</span><span class="sw-repo-category">Cost</span><button type="button" class="sw-bin" disabled="" aria-label="Remove cost advice (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
 <div class="sw-repo-row" data-file="brief" data-source-title="Client development brief · Rev A" data-source-excerpt="Twelve attached two-storey dwellings across three lots is the feasibility target. Eight three-bedroom and four four-bedroom homes; no basement. Site area: 3,240 m². Construction budget: $9.8m excluding GST."><button type="button" class="sw-source" data-source="brief" aria-pressed="false">Client brief</button><span class="sw-repo-rev">A</span><span class="sw-repo-category">Brief</span><button type="button" class="sw-bin" disabled="" aria-label="Remove client brief (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
 <div class="sw-repo-row" data-file="handover" data-source-title="Acquisition handover email · 19 February 2025" data-source-excerpt="The acquisition case shows twelve dwellings. Confirm deep soil, waste collection, OSD and fill before the board confirms the design budget. The vendor folder includes the plan, title, planning advice and desktop ground note."><button type="button" class="sw-source" data-source="handover" aria-pressed="false">Handover email</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Client</span><button type="button" class="sw-bin" disabled="" aria-label="Remove handover email (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
 <div class="sw-repo-row" data-file="dp" data-source-title="Deposited plan extract · DP 1187426" data-source-excerpt="Lots 41, 42 and 43 total 3,240 m² with 54.0 m frontage. A 3.0 m rear drainage easement records geometry only; drainage capacity and permission to build are not established."><button type="button" class="sw-source" data-source="dp" aria-pressed="false">Deposited plan</button><span class="sw-repo-rev">—</span><span class="sw-repo-category">Survey</span><button type="button" class="sw-bin" disabled="" aria-label="Remove deposited plan (preview)"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash" aria-hidden="true"><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button></div>
@@ -256,10 +337,41 @@
     <div class="sw-review-controls" aria-label="Animation review controls"><span data-stage-label="">Project plan · draft complete</span><div class="sw-playback"><button type="button" data-show-result="" hidden="">Show result</button><button type="button" class="sw-play" data-play="" hidden="">Play scene</button></div></div>
 
     <div class="sw-live-status" aria-live="polite" data-status=""></div>
+    </div>
+    <p class="sw-demo-caption">Seven Hills Townhouse <span>Synthetic project demonstration</span></p>
+    </div>
+    </div>
+    <div class="sw-hero-foot"><p>Built around the way construction projects actually work.</p><a class="sw-text-link" href="#how-it-works">Take a closer look<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 4v15m-6-6 6 6 6-6"/></svg></a></div>
   </div>
+  <section class="sw-workflow" id="how-it-works" aria-labelledby="sw-workflow-title">
+    <div class="sw-workflow-inner">
+      <div class="sw-workflow-copy">
+        <h2 id="sw-workflow-title">Less chasing.<br>More moving forward.</h2>
+        <p class="sw-section-intro">The brief changes. New advice arrives. The numbers move. Bring it all back to one project workspace.</p>
+        <dl class="sw-workflow-list">
+          <div><dt>Start with what you know.</dt><dd>Bring your briefs, reports and project documents together. Give each conversation the context of the job.</dd></div>
+          <div><dt>Put the information to work.</dt><dd>Draft a project plan, build a cost plan or develop a programme. Keep the source documents within reach.</dd></div>
+          <div><dt>Keep the next step clear.</dt><dd>Review new advice, update the plan and see what needs attention. Your professional judgement stays at the centre.</dd></div>
+        </dl>
+        <a class="sw-text-link" href="#project-demo">See it in the demo<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></a>
+      </div>
+    </div>
+  </section>
+  <section class="sw-closing" aria-labelledby="sw-closing-title">
+    <h2 id="sw-closing-title">Bring a project.<br>See what’s possible.</h2>
+    <div><p>Take a closer look at how SiteWise could fit your work.</p><a class="sw-cta" href="mailto:hello@sitewise.au?subject=Project%20walkthrough">Book a project walkthrough<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6"/></svg></a></div>
+  </section>
+  <footer class="sw-footer"><span class="sw-wordmark"><img class="sw-original-logo" src="./brand/sitewise-lockup-light.png" alt="SiteWise" width="584" height="129"></span><p>Construction moves forward.</p><a href="mailto:hello@sitewise.au">hello@sitewise.au</a></footer>
+  <p class="sw-model-credit">Building model: <a href="https://sketchfab.com/3d-models/duplex-houses-at-22-arnwood-street-manurewa-ef88f585f3d045c89c849ddd64495ad5">Duplex houses at 22 Arnwood Street Manurewa</a> by MyStudioNZ, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Adapted materials, lighting, illustrative siting and perimeter fencing. · <a href="https://sketchfab.com/3d-models/land-rover-defender-edition-grasmere-green-b7596dc0abc749c3b076d1f830715a54">Vehicle: PROJECT CAR90</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a> (simplified)</p>
 </div>
 </main>
-<script type="module" src="./landing-assets/landing-sequence.js?v=20260906-programme-grid"></script>
+<script type="module" src="./landing-assets/landing-sequence.js?v=20260909-headline-motion"></script>
+<script type="module" src="./landing-assets/landing-composition.js?v=20260908-building"></script>
+<script type="module" src="./landing-assets/coordination/viewer.js?v=20260909-faint-context"></script>
+<script type="module" src="./landing-assets/landing-theme.js?v=20260908-charcoal"></script>
 
 
+<script type="module" src="./landing-assets/landing-experience.js?v=1"></script>
+<script type="module" src="./landing-assets/landing-headlines.js?v=block-type-1"></script>
+<div class="sw-source-credits">          <a href="https://data.nsw.gov.au/data/dataset/spatial-services-nsw-cadastre">© NSW Spatial Services</a> · <a href="https://creativecommons.org/licenses/by/3.0/au/">CC BY 3.0 AU</a> · Styled cadastral extract</div>
 </body></html>

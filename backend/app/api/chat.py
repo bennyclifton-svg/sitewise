@@ -37,8 +37,16 @@ from app.agent.turn_context import (
     build_agent_prompt,
 )
 from app.projects.snapshot import get_project_snapshot
+from app.projects.profile import (
+    ProfileDependencyConflict,
+    ProfileRevisionConflict,
+    ProfileValidationError,
+    apply_profile_patch,
+)
 from app.projects.profile_proposals import accept_profile_proposal
+from app.schemas.projects import ProjectProfileChange, ProjectProfilePatch
 from app.agent.mutation_intent import (
+    PROFILE_SETUP_REASON,
     MutationIntent,
     classify_mutation_intent,
     is_profile_proposal_confirmation,
@@ -585,6 +593,49 @@ def _project_scale(project: Project | Any) -> dict[str, Any]:
     return dict(scale) if isinstance(scale, dict) else {}
 
 
+async def _apply_extracted_setup_patch(
+    session: AsyncSession,
+    *,
+    project: Project,
+    mutation_intent: MutationIntent,
+) -> ProjectProfileChange | None:
+    """Persist values already parsed from a spoken setup brief.
+
+    Commit on a nested session so the profile lands even if the later agent
+    turn fails or the model never calls a write tool.
+    """
+    if (
+        mutation_intent.reason != PROFILE_SETUP_REASON
+        or not mutation_intent.profile_patch
+    ):
+        return None
+    patch = ProjectProfilePatch(
+        expected_revision=project.profile_revision,
+        **dict(mutation_intent.profile_patch),
+    )
+    try:
+        factory = get_session_factory()
+        async with factory() as setup_session:
+            fresh = await setup_session.get(Project, project.id)
+            if fresh is None:
+                return None
+            change = await apply_profile_patch(
+                setup_session,
+                project=fresh,
+                patch=patch,
+                actor_source="agent",
+            )
+            await setup_session.commit()
+        await session.refresh(project)
+        return change
+    except (
+        ProfileDependencyConflict,
+        ProfileRevisionConflict,
+        ProfileValidationError,
+    ):
+        return None
+
+
 def _profile_proposal_to_accept(
     *,
     user_text: str,
@@ -747,7 +798,42 @@ async def post_agent_stream(
             selected_documents=selected_documents,
         )
     confirmed_profile_change = None
+    applied_setup_change = None
     if reserved:
+        applied_setup_change = await _apply_extracted_setup_patch(
+            session,
+            project=project,
+            mutation_intent=mutation_intent,
+        )
+        if applied_setup_change is not None:
+            snapshot = await get_project_snapshot(
+                session,
+                project_id=project.id,
+                owner_user_id=user.id,
+            )
+            applied_values = {
+                field: getattr(applied_setup_change.profile, field)
+                for field in applied_setup_change.changed_fields
+            }
+            agent_prompt = build_agent_prompt(
+                user_text,
+                project_id=str(thread.project_id),
+                title=project.title,
+                archetype=project.archetype,
+                state=project.state,
+                phase=project.phase,
+                building_class=project.building_class,
+                work_type=project.work_type,
+                project_metadata=getattr(project, "project_metadata", None),
+                history=[
+                    HistoryMessage(role=message.role, content=message.content)
+                    for message in prior_messages
+                ],
+                mutation_intent=mutation_intent,
+                snapshot=snapshot,
+                applied_setup_values=applied_values,
+                selected_documents=selected_documents,
+            )
         proposal = _profile_proposal_to_accept(
             user_text=user_text,
             mutation_intent=mutation_intent,
@@ -884,7 +970,8 @@ async def post_agent_stream(
                         quota=quota_state.quota,
                         percent=quota_state.percent,
                     )
-                if confirmed_profile_change is not None:
+                profile_change = applied_setup_change or confirmed_profile_change
+                if profile_change is not None:
                     yield clerk_status_event(
                         "Updated project profile",
                         kind="resource",
@@ -892,9 +979,9 @@ async def post_agent_stream(
                         resourceType="project_profile",
                         resourceId=str(thread.project_id),
                         action="updated",
-                        revision=confirmed_profile_change.new_revision,
-                        changedFields=list(confirmed_profile_change.changed_fields),
-                        clearedFields=list(confirmed_profile_change.cleared_fields),
+                        revision=profile_change.new_revision,
+                        changedFields=list(profile_change.changed_fields),
+                        clearedFields=list(profile_change.cleared_fields),
                     )
                 async with agent_turn_status_bus.subscribe(str(turn_id)) as statuses:
                     if plan_command:

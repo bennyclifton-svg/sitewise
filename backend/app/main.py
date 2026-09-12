@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 
 import app.database.models  # noqa: F401 — register all SQLAlchemy mappers before API routes
 from app.api.auth import router as auth_router
+from app.api.prompt_library import router as prompt_library_router
 from app.api.billing import router as billing_router
 from app.api.chat import router as chat_router
 from app.api.config import router as config_router
@@ -142,6 +143,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError):
 
 
 fastapi_app.include_router(auth_router)
+fastapi_app.include_router(prompt_library_router)
 fastapi_app.include_router(inbound_email_router)
 fastapi_app.include_router(billing_router)
 fastapi_app.include_router(config_router)

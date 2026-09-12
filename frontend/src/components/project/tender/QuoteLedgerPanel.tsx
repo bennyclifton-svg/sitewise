@@ -108,7 +108,7 @@ export function QuoteLedgerPanel({
             <div
               className={cn(
                 "flex justify-between",
-                ledger.residual_cents !== 0 && "text-amber-700",
+                ledger.residual_cents !== 0 && "text-[var(--sw-warning-text)]",
               )}
             >
               <span>Residual</span>

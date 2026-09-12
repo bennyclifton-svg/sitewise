@@ -574,8 +574,11 @@ def _role_drafting_note(*, draft_mode: DraftMode, state: str) -> str:
         )
 
     state_note = (
-        f"State is {state}. Apply NSW-deep-default guidance with inline non-NSW gap "
-        "callouts where state-specific instruments differ."
+        f"State is {state}. Use shared cost categories from the NSW references "
+        "as structure only. Do not apply NSW rates, statutory charges, BASIX, "
+        "Sydney Water or NSW approval requirements to this project. Use explicit "
+        "local guidance and active-project evidence; leave unsupported local "
+        "prices TBC and identify requirements needing local confirmation."
         if state != "NSW"
         else "State is NSW (deep default in seeds)."
     )
@@ -945,6 +948,27 @@ def render_typed_cost_plan_markdown(
         "All figures are **ex GST** unless marked otherwise.",
         "",
     ]
+    sourced_forecast = [
+        item for item in items
+        if any(ref.get("kind") == "construction_forecast" for ref in item.source_refs)
+    ]
+    if sourced_forecast:
+        total = sum((item.budget or Decimal("0") for item in sourced_forecast), Decimal("0"))
+        lines.extend([
+            "## Control decision", "",
+            "Source construction forecast allowances are retained for review, including "
+            "their stated uncertainties. They are not an accepted contract or commitment.", "",
+            f"- Source construction forecast (ex GST): **${total:,.0f}**",
+        ])
+        if stated_budget is not None:
+            difference = total - stated_budget
+            lines.extend([
+                f"- Stated construction budget (ex GST): **${stated_budget:,.0f}**",
+                f"- Forecast {'above' if difference >= 0 else 'below'} budget: **${abs(difference):,.0f}**",
+            ])
+        lines.extend(["", "Fees and consultants outside this construction forecast remain separate; "
+                      "unpriced rows require evidence.", "", "## Cost breakdown", "", table, ""])
+        return "\n".join(lines)
     if stated_budget is not None:
         envelope_total = (
             forecast.construction_envelope_total
@@ -1256,14 +1280,16 @@ async def save_cost_plan_workbook_artifact(
         through_cost_plan_version=draft.version,
     )
     if typed_state is not None and typed_state.items:
-        workbook = build_typed_cost_plan_workbook(
+        workbook = await asyncio.to_thread(
+            build_typed_cost_plan_workbook,
             project_title=project.title,
             state=typed_state,
             invoice_rows=invoice_rows,
             generated_at=generated_at,
         )
     else:
-        workbook = build_cost_plan_workbook_for_export(
+        workbook = await asyncio.to_thread(
+            build_cost_plan_workbook_for_export,
             project_title=project.title,
             markdown=markdown,
             version=draft.version,
@@ -1435,6 +1461,23 @@ async def run_create_cost_plan_typed(
     )
 
     typed_items = _typed_cost_items(project, pack)
+    from app.cost_plan.construction_forecast import extract_construction_forecast
+
+    try:
+        source_forecast = extract_construction_forecast(cost_documents)
+    except ValueError as exc:
+        raise WorkflowValidationError(str(exc)) from exc
+    if source_forecast:
+        if has_main_works_cost_document:
+            raise WorkflowValidationError(
+                "Construction forecast and main-works pricing require source selection."
+            )
+        # A complete source forecast replaces the construction envelope, including
+        # scaffold PC/contingency rows that would otherwise double-count its scope.
+        typed_items = [
+            item for item in typed_items
+            if item.category.lower() not in {"construction", "pc allowances", "contingency"}
+        ] + source_forecast
     typed_items, stated_budget, forecast = apply_indicative_budget_allocation(
         project,
         typed_items,

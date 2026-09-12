@@ -20,7 +20,7 @@ export function workflowStatusBadgeClass(status: WorkflowStatus): string {
     case "running":
       return "border-[var(--wf-info-border)] bg-[var(--wf-info-bg)] text-[var(--wf-info-text)]";
     case "draft":
-      return "border-[var(--wf-ok-border)] bg-[var(--wf-ok-bg)] text-[var(--wf-ok-text)]";
+      return "border-[var(--wf-draft-border)] bg-[var(--wf-draft-bg)] text-[var(--wf-draft-text)]";
     case "ready":
       return "border-[var(--wf-ready-border)] bg-[var(--wf-ready-bg)] text-[var(--wf-ready-text)]";
     case "unavailable":
@@ -40,10 +40,10 @@ export function workflowSpineNodeClass(
     return `${base} border-dashed border-muted-foreground/40 text-muted-foreground/50`;
   }
   if (status === "draft") {
-    return `${base} border-[var(--wf-ok-text)] bg-[var(--wf-ok-text)] text-primary-foreground`;
+    return `${base} border-dashed border-[var(--wf-draft-border)] bg-[var(--wf-draft-bg)] text-[var(--wf-draft-text)]`;
   }
   if (status === "running") {
-    return `${base} border-[var(--wf-info-text)] bg-[var(--wf-info-text)] text-primary-foreground animate-[wf-pulse_2.2s_ease-in-out_infinite]`;
+    return `${base} border-[var(--wf-info-border)] bg-[var(--wf-info-bg)] text-[var(--wf-info-text)] animate-[wf-pulse_2.2s_ease-in-out_infinite]`;
   }
   if (status === "ready") {
     return `${base} border-[var(--wf-info-text)] text-[var(--wf-info-text)]${

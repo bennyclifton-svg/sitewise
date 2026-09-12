@@ -1,0 +1,3408 @@
+{
+  "scene": "sitewise-lighting-checkpoint.blend",
+  "method": "Source-mesh ray casts: center and eight trim-edge samples; world-space curtain/source BVH overlap check.",
+  "mounts": [
+    {
+      "id": "G01",
+      "room": "Ground entry",
+      "uvz": [
+        -4.65,
+        -1.9,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 009_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G02",
+      "room": "Ground multipurpose room",
+      "uvz": [
+        -3.35,
+        0.2,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G03",
+      "room": "Ground multipurpose room",
+      "uvz": [
+        -1.6,
+        0.2,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G04",
+      "room": "Ground stair approach",
+      "uvz": [
+        -0.15,
+        -1.05,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G05",
+      "room": "Laundry",
+      "uvz": [
+        0.47,
+        1.1,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G06",
+      "room": "Ground bedroom",
+      "uvz": [
+        1.85,
+        -0.8,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199910163879395,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G07",
+      "room": "Ground bedroom",
+      "uvz": [
+        3.3,
+        -0.8,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199907779693604,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G08",
+      "room": "Ground bathroom",
+      "uvz": [
+        1.55,
+        1.35,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "G09",
+      "room": "Ground bathroom",
+      "uvz": [
+        3.12,
+        1.35,
+        2.92
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199917316436768,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 008_Wall white plaster_0.002",
+            "z": 2.9199914932250977,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "L01",
+      "room": "Kitchen preparation",
+      "uvz": [
+        2.65,
+        -0.8,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.63999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "L02",
+      "room": "Kitchen preparation",
+      "uvz": [
+        2.65,
+        1.25,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "L03",
+      "room": "Living room",
+      "uvz": [
+        -2.65,
+        0.8,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "L04",
+      "room": "Living room",
+      "uvz": [
+        -2.65,
+        -0.85,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "L05",
+      "room": "Living powder room",
+      "uvz": [
+        3.5,
+        -2.08,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639990329742432,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U01",
+      "room": "West bedroom",
+      "uvz": [
+        -3.7,
+        0.2,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U02",
+      "room": "West bedroom",
+      "uvz": [
+        -2.5,
+        -1.9,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U03",
+      "room": "East bedroom",
+      "uvz": [
+        2.0,
+        -0.8,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U04",
+      "room": "East bedroom",
+      "uvz": [
+        3.75,
+        -0.8,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U05",
+      "room": "West ensuite",
+      "uvz": [
+        -1.5,
+        0.55,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U06",
+      "room": "West ensuite",
+      "uvz": [
+        -0.55,
+        1.35,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389992713928223,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U07",
+      "room": "East ensuite",
+      "uvz": [
+        1.7,
+        1.35,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U08",
+      "room": "East ensuite",
+      "uvz": [
+        3.45,
+        1.35,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U09",
+      "room": "Upper landing",
+      "uvz": [
+        0.55,
+        0.2,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.389991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "U10",
+      "room": "Upper stair",
+      "uvz": [
+        0.55,
+        -1.75,
+        8.39
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.035",
+            "z": 8.38999080657959,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "D01",
+      "room": "Dining pendants",
+      "uvz": [
+        0.3,
+        0.73,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    },
+    {
+      "id": "D02",
+      "room": "Dining pendants",
+      "uvz": [
+        1.18,
+        0.73,
+        5.64
+      ],
+      "mount_coverage": 9,
+      "samples": [
+        {
+          "offset": [
+            0,
+            0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.067,
+            0.0
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.04737615433949869,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            4.1025667771436334e-18,
+            0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.04737615433949868,
+            0.04737615433949869
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.067,
+            8.205133554287267e-18
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991760253906,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -0.0473761543394987,
+            -0.04737615433949868
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            -1.23077003314309e-17,
+            -0.067
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        },
+        {
+          "offset": [
+            0.047376154339498676,
+            -0.0473761543394987
+          ],
+          "first": {
+            "source": "SLA - 010_Wall white plaster_0.024",
+            "z": 5.639991283416748,
+            "normal_z": -1.0
+          },
+          "at_expected_ceiling": true
+        }
+      ]
+    }
+  ],
+  "curtain_checks": [
+    {
+      "object": "SW Curtain | rail",
+      "min": [
+        -5.135373115539551,
+        -1.2052135467529297,
+        8.201326370239258
+      ],
+      "max": [
+        -5.080299377441406,
+        1.3491331338882446,
+        8.229999542236328
+      ],
+      "bvh_overlaps": []
+    },
+    {
+      "object": "SW Curtain | left panel",
+      "min": [
+        -5.149523735046387,
+        -1.2649998664855957,
+        5.989999771118164
+      ],
+      "max": [
+        -5.0150861740112305,
+        -0.686683177947998,
+        8.209736824035645
+      ],
+      "bvh_overlaps": []
+    },
+    {
+      "object": "SW Curtain | right panel",
+      "min": [
+        -5.144915580749512,
+        0.7894369959831238,
+        5.989999771118164
+      ],
+      "max": [
+        -5.010477066040039,
+        1.3750009536743164,
+        8.209736824035645
+      ],
+      "bvh_overlaps": []
+    }
+  ],
+  "pendant_mesh_bounds": [
+    {
+      "object": "SW Asset Pendant 1 | 01 DiningTable.001_Chrome_0",
+      "min": [
+        0.28969085216522217,
+        0.7020794153213501,
+        4.787840366363525
+      ],
+      "max": [
+        0.3102937638759613,
+        0.7567774653434753,
+        4.924026012420654
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 1 | 02 DiningTable.001_Glass_0",
+      "min": [
+        0.24615296721458435,
+        0.6755880117416382,
+        4.743528366088867
+      ],
+      "max": [
+        0.3538322150707245,
+        0.7832689881324768,
+        4.910341262817383
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 1 | 03 DiningTable.001_Gold_0",
+      "min": [
+        0.2760109603404999,
+        0.7054454684257507,
+        4.879066467285156
+      ],
+      "max": [
+        0.32397401332855225,
+        0.7534086108207703,
+        4.923369407653809
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 1 | 04 DiningTable.001_White1_0",
+      "min": [
+        0.08373577892780304,
+        0.5135453939437866,
+        4.630000114440918
+      ],
+      "max": [
+        0.5162642598152161,
+        0.946455180644989,
+        5.640000343322754
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 2 | 01 DiningTable.001_Chrome_0",
+      "min": [
+        1.1696866750717163,
+        0.7020784616470337,
+        4.787840366363525
+      ],
+      "max": [
+        1.190292477607727,
+        0.7567769885063171,
+        4.924026012420654
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 2 | 02 DiningTable.001_Glass_0",
+      "min": [
+        1.1261579990386963,
+        0.6755885481834412,
+        4.743528366088867
+      ],
+      "max": [
+        1.233830213546753,
+        0.7832683324813843,
+        4.910341262817383
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 2 | 03 DiningTable.001_Gold_0",
+      "min": [
+        1.1560096740722656,
+        0.7054449915885925,
+        4.879066467285156
+      ],
+      "max": [
+        1.2039779424667358,
+        0.7534089088439941,
+        4.923369407653809
+      ]
+    },
+    {
+      "object": "SW Asset Pendant 2 | 04 DiningTable.001_White1_0",
+      "min": [
+        0.9637354016304016,
+        0.5135440826416016,
+        4.630000114440918
+      ],
+      "max": [
+        1.3962647914886475,
+        0.9464549422264099,
+        5.640000343322754
+      ]
+    }
+  ],
+  "curtain_inward_offset_trials": [
+    {
+      "positive_u_offset": 0.05,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    },
+    {
+      "positive_u_offset": 0.08,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    },
+    {
+      "positive_u_offset": 0.1,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    },
+    {
+      "positive_u_offset": 0.12,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    },
+    {
+      "positive_u_offset": 0.15,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    },
+    {
+      "positive_u_offset": 0.2,
+      "objects": [
+        {
+          "object": "SW Curtain | rail",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | left panel",
+          "overlaps": []
+        },
+        {
+          "object": "SW Curtain | right panel",
+          "overlaps": []
+        }
+      ]
+    }
+  ],
+  "source_dining_table": [
+    {
+      "object": "Dining Table Rectangle 24 - FU - 058_Metal - Nickel_0.002",
+      "min": [
+        -0.055496592074632645,
+        0.2867879867553711,
+        3.929997205734253
+      ],
+      "max": [
+        1.5525342226028442,
+        1.1758219003677368,
+        3.9699974060058594
+      ]
+    },
+    {
+      "object": "Dining Table Rectangle 24 - FU - 058_Metal - Gold_0.002",
+      "min": [
+        -0.32653287053108215,
+        0.015751928091049194,
+        3.219996929168701
+      ],
+      "max": [
+        1.8235703706741333,
+        1.446855902671814,
+        4.069997787475586
+      ]
+    }
+  ]
+}

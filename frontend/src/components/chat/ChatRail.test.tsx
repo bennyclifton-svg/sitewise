@@ -70,7 +70,8 @@ describe("ChatRail failure boundary", () => {
     );
 
     const frame = container.querySelector(".px-4.lg\\:px-6");
-    expect(frame).toHaveClass("w-full", "min-w-0", "px-4", "lg:px-6");
+    expect(frame).toHaveClass("w-full", "min-w-0", "px-4", "pb-3", "lg:px-6");
+    expect(frame).not.toHaveClass("py-3");
     expect(frame).not.toHaveClass("max-w-6xl");
   });
 });

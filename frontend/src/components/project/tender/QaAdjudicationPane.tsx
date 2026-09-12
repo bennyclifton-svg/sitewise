@@ -421,7 +421,7 @@ export function QaAdjudicationPane({
         </FieldLabel>
 
         {error ? (
-          <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+          <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
             {error}
           </p>
         ) : null}

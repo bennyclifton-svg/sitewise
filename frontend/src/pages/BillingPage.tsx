@@ -110,7 +110,7 @@ export function BillingPage() {
       <main className="mx-auto grid w-full max-w-6xl gap-4 px-4 py-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <section className="space-y-4">
           {error ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            <div className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-4 text-sm text-destructive">
               {error}
             </div>
           ) : null}
@@ -220,13 +220,13 @@ function QuotaPanel({
         <span className="text-sm font-medium tabular-nums">{percent}%</span>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+        <div className="h-full bg-[var(--sw-data-1)]" style={{ width: `${percent}%` }} />
       </div>
       <p className="mt-2 text-sm text-muted-foreground">
         {quota.used_turns} of {quota.quota} turns this month
       </p>
       {quota.warning ? (
-        <p className="mt-3 border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] px-3 py-2 text-sm text-[var(--sw-caution)]">
+        <p className="mt-3 border border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] px-3 py-2 text-sm text-[var(--sw-caution)]">
           You are near this month's agent quota.
         </p>
       ) : null}

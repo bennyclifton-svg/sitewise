@@ -1,0 +1,10 @@
+{
+  "source_features": 1805,
+  "unique_footprints": 1805,
+  "shared_boundaries": 9197,
+  "visible_parcels": 477,
+  "median_visible_area_m2": 605.8,
+  "maximum_edge_length_error_m": 0.0012535318063129353,
+  "projection": "GDA2020 / MGA zone 56 (EPSG:7856)",
+  "transform": "Translation and Y-axis reflection only; 1 SVG unit = 1 metre"
+}

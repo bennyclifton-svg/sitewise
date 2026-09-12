@@ -356,7 +356,7 @@ export function TenderMatrix({
         <p className="border-b bg-muted px-4 py-2 text-sm text-muted-foreground">{qaNote}</p>
       ) : null}
       {qaError ? (
-        <p className="border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+        <p className="border-b border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-4 py-2 text-sm text-destructive">
           {qaError}
         </p>
       ) : null}
@@ -682,7 +682,7 @@ function MatrixCellRow({
             ) : null}
             {mappingChoices.length ? (
               <span
-                className="grid size-4 shrink-0 place-items-center rounded-full bg-primary text-[0.65rem] font-bold text-primary-foreground"
+                className="grid size-4 shrink-0 place-items-center rounded-full bg-[var(--sw-info-bg)] text-[0.65rem] font-bold text-[var(--sw-info-text)]"
                 title="Mapping choices"
                 aria-hidden
               >

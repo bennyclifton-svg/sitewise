@@ -1,0 +1,4895 @@
+{
+  "module": "wet_services",
+  "coordinate_contract": "Registered site XY; no module rotation",
+  "status": "Illustrative coordination geometry; no sizing, falls, capacity or compliance certification",
+  "units": "Imported model coordinate units; not verified metres",
+  "objects": [
+    "V3 | WC 24 - FlowEq-023.002 sanitary branch",
+    "V3 | WC 24 - FlowEq-023.007 sanitary branch",
+    "V3 | WC 24 - FlowEq-023.014 sanitary branch",
+    "V3 | WC 24 - FlowEq-023.015 sanitary branch",
+    "V3 | Basin 24 - FlowEq-023.002 sanitary branch",
+    "V3 | Basin 24 - FlowEq-023.007 sanitary branch",
+    "V3 | Basin 24 - FlowEq-023.014 sanitary branch",
+    "V3 | Basin 24 - FlowEq-023.015 sanitary branch",
+    "V3 | Shower Cabin 24 - FlowEq-023.002 sanitary branch",
+    "V3 | Shower Cabin 24 - FlowEq-023.007 sanitary branch",
+    "V3 | Shower Cabin 24 - FlowEq-023.011 sanitary branch",
+    "V3 | Mop Sink 24 - FlowEq-022.002 sanitary branch",
+    "V3 | WashingMachine - FU - 060.002 sanitary branch",
+    "V3 | Fitted kitchen sink sanitary branch",
+    "V3 | Continuous upper soil stack",
+    "V3 | Continuous lower soil stack",
+    "V3 | SAN-stack-to-collector",
+    "V3 | SAN-site-collector",
+    "V3 | SAN-street-branch",
+    "V3 | SAN-main-west",
+    "V3 | SAN-main-east",
+    "V3 | Soil stack access collar",
+    "V3 | Soil stack access collar.001",
+    "V3 | Soil stack access collar.002",
+    "V3 | WAT-main-west",
+    "V3 | WAT-main-east",
+    "V3 | WAT-street-to-boundary",
+    "V3 | WAT-meter-entry",
+    "V3 | Potable meter and isolation assembly",
+    "V3 | Potable meter enclosure",
+    "V3 | WAT-site-main-0",
+    "V3 | WAT-feed-0",
+    "V3 | Dwelling 1 isolation valve",
+    "V3 | WAT-site-main-1",
+    "V3 | WAT-feed-1",
+    "V3 | Dwelling 2 isolation valve",
+    "V3 | WAT-site-main-2",
+    "V3 | WAT-feed-2",
+    "V3 | Dwelling 3 isolation valve",
+    "V3 | WAT-site-main-3",
+    "V3 | WAT-feed-3",
+    "V3 | Dwelling 4 isolation valve",
+    "V3 | WAT-site-main-4",
+    "V3 | WAT-feed-4",
+    "V3 | Dwelling 5 isolation valve",
+    "V3 | WAT-focus-feed",
+    "V3 | WAT-cold-riser-1",
+    "V3 | WAT-hot-riser-1",
+    "V3 | WAT-cold-riser-2",
+    "V3 | WAT-hot-riser-2",
+    "V3 | WAT-heater-cold",
+    "V3 | Water heater storage vessel connection",
+    "V3 | Illustrative electric water heater vessel",
+    "V3 | Water heater electrical service compartment",
+    "V3 | WAT-heater-hot",
+    "V3 | WAT-cold-branch-00",
+    "V3 | WAT-cold-branch-01",
+    "V3 | WAT-cold-branch-02",
+    "V3 | WAT-cold-branch-03",
+    "V3 | WAT-cold-branch-04",
+    "V3 | WAT-hot-branch-04",
+    "V3 | WAT-cold-branch-05",
+    "V3 | WAT-hot-branch-05",
+    "V3 | WAT-cold-branch-06",
+    "V3 | WAT-hot-branch-06",
+    "V3 | WAT-cold-branch-07",
+    "V3 | WAT-hot-branch-07",
+    "V3 | WAT-cold-branch-08",
+    "V3 | WAT-hot-branch-08",
+    "V3 | WAT-cold-branch-09",
+    "V3 | WAT-hot-branch-09",
+    "V3 | WAT-cold-branch-10",
+    "V3 | WAT-hot-branch-10",
+    "V3 | WAT-cold-branch-11",
+    "V3 | WAT-hot-branch-11",
+    "V3 | WAT-cold-branch-12",
+    "V3 | WAT-cold-branch-13",
+    "V3 | WAT-hot-branch-13",
+    "V3 | WAT-hose-feed-side",
+    "V3 | Potable side hose tap handle",
+    "V3 | WAT-hose-feed-rear",
+    "V3 | Potable rear hose tap handle",
+    "V3 | West rainwater gutter",
+    "V3 | RWT-downpipe-route-west",
+    "V3 | RWT-downpipe-collector-west",
+    "V3 | East rainwater gutter",
+    "V3 | RWT-downpipe-route-east",
+    "V3 | RWT-downpipe-collector-east",
+    "V3 | RWT-collector-to-filter",
+    "V3 | RWT-filter-link",
+    "V3 | RWT-filter-to-tank",
+    "V3 | Underground rainwater tank - separate from potable supply",
+    "V3 | Rainwater pre-tank filter chamber",
+    "V3 | Rainwater tank maintenance access",
+    "V3 | RWT-tank-pump",
+    "V3 | RWT-pump-through",
+    "V3 | Non-potable rainwater garden pump",
+    "V3 | RWT-pump-garden-header",
+    "V3 | RWT-garden-feed-near",
+    "V3 | Rainwater-only garden tap near",
+    "V3 | RWT-garden-feed-rear",
+    "V3 | Rainwater-only garden tap rear",
+    "V3 | RWT-overflow-to-boundary",
+    "V3 | RWT-overflow-street-branch",
+    "V3 | RWT-street-main-west",
+    "V3 | RWT-street-main-east",
+    "V3 | MEC-extract-ground-bath",
+    "V3 | ground-bath ceiling extract face",
+    "V3 | ground-bath exterior grille frame",
+    "V3 | ground-bath grille louvre 1",
+    "V3 | ground-bath grille louvre 2",
+    "V3 | ground-bath grille louvre 3",
+    "V3 | ground-bath grille louvre 4",
+    "V3 | ground-bath grille louvre 5",
+    "V3 | MEC-extract-laundry",
+    "V3 | laundry ceiling extract face",
+    "V3 | laundry exterior grille frame",
+    "V3 | laundry grille louvre 1",
+    "V3 | laundry grille louvre 2",
+    "V3 | laundry grille louvre 3",
+    "V3 | laundry grille louvre 4",
+    "V3 | laundry grille louvre 5",
+    "V3 | MEC-extract-living-powder",
+    "V3 | living-powder ceiling extract face",
+    "V3 | living-powder exterior grille frame",
+    "V3 | living-powder grille louvre 1",
+    "V3 | living-powder grille louvre 2",
+    "V3 | living-powder grille louvre 3",
+    "V3 | living-powder grille louvre 4",
+    "V3 | living-powder grille louvre 5",
+    "V3 | MEC-extract-upper-west-ensuite",
+    "V3 | upper-west-ensuite ceiling extract face",
+    "V3 | upper-west-ensuite exterior grille frame",
+    "V3 | upper-west-ensuite grille louvre 1",
+    "V3 | upper-west-ensuite grille louvre 2",
+    "V3 | upper-west-ensuite grille louvre 3",
+    "V3 | upper-west-ensuite grille louvre 4",
+    "V3 | upper-west-ensuite grille louvre 5",
+    "V3 | MEC-extract-upper-east-ensuite",
+    "V3 | upper-east-ensuite ceiling extract face",
+    "V3 | upper-east-ensuite exterior grille frame",
+    "V3 | upper-east-ensuite grille louvre 1",
+    "V3 | upper-east-ensuite grille louvre 2",
+    "V3 | upper-east-ensuite grille louvre 3",
+    "V3 | upper-east-ensuite grille louvre 4",
+    "V3 | upper-east-ensuite grille louvre 5",
+    "V3 | MEC-range-hood",
+    "V3 | Range hood weather cap",
+    "V3 | SAN-vent",
+    "V3 | MEC-cavity-neck-0",
+    "V3 | Whirlybird 1 roof flashing",
+    "V3 | Whirlybird 1 curved vane 1",
+    "V3 | Whirlybird 1 curved vane 2",
+    "V3 | Whirlybird 1 curved vane 3",
+    "V3 | Whirlybird 1 curved vane 4",
+    "V3 | Whirlybird 1 curved vane 5",
+    "V3 | Whirlybird 1 curved vane 6",
+    "V3 | Whirlybird 1 curved vane 7",
+    "V3 | Whirlybird 1 curved vane 8",
+    "V3 | Whirlybird 1 curved vane 9",
+    "V3 | Whirlybird 1 curved vane 10",
+    "V3 | Whirlybird 1 curved vane 11",
+    "V3 | Whirlybird 1 curved vane 12",
+    "V3 | Whirlybird 1 curved vane 13",
+    "V3 | Whirlybird 1 curved vane 14",
+    "V3 | MEC-cavity-neck-1",
+    "V3 | Whirlybird 2 roof flashing",
+    "V3 | Whirlybird 2 curved vane 1",
+    "V3 | Whirlybird 2 curved vane 2",
+    "V3 | Whirlybird 2 curved vane 3",
+    "V3 | Whirlybird 2 curved vane 4",
+    "V3 | Whirlybird 2 curved vane 5",
+    "V3 | Whirlybird 2 curved vane 6",
+    "V3 | Whirlybird 2 curved vane 7",
+    "V3 | Whirlybird 2 curved vane 8",
+    "V3 | Whirlybird 2 curved vane 9",
+    "V3 | Whirlybird 2 curved vane 10",
+    "V3 | Whirlybird 2 curved vane 11",
+    "V3 | Whirlybird 2 curved vane 12",
+    "V3 | Whirlybird 2 curved vane 13",
+    "V3 | Whirlybird 2 curved vane 14"
+  ],
+  "endpoints": [
+    {
+      "id": "SAN-stack-0",
+      "point": [
+        5.68,
+        -10.3,
+        -0.3
+      ],
+      "subsystem": "sanitary",
+      "label": "Soil stack level connection",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-stack-1",
+      "point": [
+        5.68,
+        -10.3,
+        2.62
+      ],
+      "subsystem": "sanitary",
+      "label": "Soil stack level connection",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-stack-2",
+      "point": [
+        5.68,
+        -10.3,
+        5.34
+      ],
+      "subsystem": "sanitary",
+      "label": "Soil stack level connection",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-fixture-00",
+      "point": [
+        4.246731162071228,
+        -9.783352851867676,
+        0.6199971032142639
+      ],
+      "subsystem": "sanitary",
+      "label": "WC 24 - FlowEq-023.002 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.002",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.002"
+      ]
+    },
+    {
+      "id": "SAN-fixture-01",
+      "point": [
+        4.7171783447265625,
+        -13.227078437805176,
+        3.3399965953826904
+      ],
+      "subsystem": "sanitary",
+      "label": "WC 24 - FlowEq-023.007 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.007",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.007"
+      ]
+    },
+    {
+      "id": "SAN-fixture-02",
+      "point": [
+        -0.9737229645252228,
+        -9.605345726013184,
+        6.059997577667236
+      ],
+      "subsystem": "sanitary",
+      "label": "WC 24 - FlowEq-023.014 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.014",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.014"
+      ]
+    },
+    {
+      "id": "SAN-fixture-03",
+      "point": [
+        4.662581443786621,
+        -9.837803840637207,
+        6.059997577667236
+      ],
+      "subsystem": "sanitary",
+      "label": "WC 24 - FlowEq-023.015 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.015",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.015"
+      ]
+    },
+    {
+      "id": "SAN-fixture-04",
+      "point": [
+        3.172831177711487,
+        -9.503353595733643,
+        1.4849970531463623
+      ],
+      "subsystem": "sanitary",
+      "label": "Basin 24 - FlowEq-023.002 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "SAN-fixture-05",
+      "point": [
+        3.677143096923828,
+        -13.501608848571777,
+        4.204996604919433
+      ],
+      "subsystem": "sanitary",
+      "label": "Basin 24 - FlowEq-023.007 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "SAN-fixture-06",
+      "point": [
+        3.542502522468567,
+        -9.505352020263672,
+        6.924997825622558
+      ],
+      "subsystem": "sanitary",
+      "label": "Basin 24 - FlowEq-023.014 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+      ]
+    },
+    {
+      "id": "SAN-fixture-07",
+      "point": [
+        0.25407651253044605,
+        -11.090813636779785,
+        6.924997825622558
+      ],
+      "subsystem": "sanitary",
+      "label": "Basin 24 - FlowEq-023.015 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.015",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.015"
+      ]
+    },
+    {
+      "id": "SAN-fixture-08",
+      "point": [
+        1.9221272468566895,
+        -9.783350467681885,
+        0.6199970436096192
+      ],
+      "subsystem": "sanitary",
+      "label": "Shower Cabin 24 - FlowEq-023.002 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.002",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "SAN-fixture-09",
+      "point": [
+        -0.025921329855918884,
+        -9.78335189819336,
+        6.059997577667236
+      ],
+      "subsystem": "sanitary",
+      "label": "Shower Cabin 24 - FlowEq-023.007 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.007",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "SAN-fixture-10",
+      "point": [
+        2.2832741737365723,
+        -9.783353328704834,
+        6.059997577667236
+      ],
+      "subsystem": "sanitary",
+      "label": "Shower Cabin 24 - FlowEq-023.011 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.011",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.011",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.011"
+      ]
+    },
+    {
+      "id": "SAN-fixture-11",
+      "point": [
+        1.0571304857730865,
+        -9.660606861114502,
+        0.935213406085968
+      ],
+      "subsystem": "sanitary",
+      "label": "Mop Sink 24 - FlowEq-022.002 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.002",
+        "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.002"
+      ]
+    },
+    {
+      "id": "SAN-fixture-12",
+      "point": [
+        1.2961871242523193,
+        -10.004586219787598,
+        1.143389518260956
+      ],
+      "subsystem": "sanitary",
+      "label": "WashingMachine - FU - 060.002 waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "WashingMachine - FU - 060_GDLM8_Material_001-material_0.002",
+        "WashingMachine - FU - 060_GDLM9_cot_002-material_0.002",
+        "WashingMachine - FU - 060_GDLM10_Material_002-material_0.002"
+      ]
+    },
+    {
+      "id": "SAN-fixture-13",
+      "point": [
+        4.7264204025268555,
+        -11.094677448272705,
+        3.99
+      ],
+      "subsystem": "sanitary",
+      "label": "Fitted kitchen sink waste outlet",
+      "role": "fixture",
+      "source_objects": [
+        "Kitchen source | Object_54"
+      ]
+    },
+    {
+      "id": "SAN-collector",
+      "point": [
+        6.35,
+        -10.3,
+        -0.85
+      ],
+      "subsystem": "sanitary",
+      "label": "Underground side collector",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-boundary",
+      "point": [
+        6.35,
+        -22.0,
+        -1.12
+      ],
+      "subsystem": "sanitary",
+      "label": "Sanitary connection at front boundary",
+      "role": "site-boundary",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-street-tie",
+      "point": [
+        6.35,
+        -27.5,
+        -1.45
+      ],
+      "subsystem": "sanitary",
+      "label": "Illustrative sewer connection in street",
+      "role": "street-network",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-street-west",
+      "point": [
+        -24.0,
+        -27.5,
+        -1.45
+      ],
+      "subsystem": "sanitary",
+      "label": "Illustrative street sewer west",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-street-east",
+      "point": [
+        24.0,
+        -27.5,
+        -1.45
+      ],
+      "subsystem": "sanitary",
+      "label": "Illustrative street sewer east",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-street-tie",
+      "point": [
+        6.55,
+        -32.0,
+        -0.9
+      ],
+      "subsystem": "potable",
+      "label": "Illustrative potable street connection",
+      "role": "street-network",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-street-west",
+      "point": [
+        -24.0,
+        -32.0,
+        -0.9
+      ],
+      "subsystem": "potable",
+      "label": "Illustrative potable main west",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-street-east",
+      "point": [
+        24.0,
+        -32.0,
+        -0.9
+      ],
+      "subsystem": "potable",
+      "label": "Illustrative potable main east",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-meter-in",
+      "point": [
+        6.55,
+        -21.8,
+        0.28
+      ],
+      "subsystem": "potable",
+      "label": "Potable meter inlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-meter-out",
+      "point": [
+        6.55,
+        -21.4,
+        0.28
+      ],
+      "subsystem": "potable",
+      "label": "Potable meter outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-boundary",
+      "point": [
+        6.55,
+        -22.0,
+        -0.6
+      ],
+      "subsystem": "potable",
+      "label": "Potable boundary connection",
+      "role": "site-boundary",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-site-header-0",
+      "point": [
+        6.55,
+        -10.93335,
+        -0.55
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 1 distribution junction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-dwelling-0",
+      "point": [
+        5.95,
+        -10.93335,
+        0.3
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 1 water feed",
+      "role": "dwelling-feed",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-site-header-1",
+      "point": [
+        6.55,
+        -4.01305,
+        -0.55
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 2 distribution junction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-dwelling-1",
+      "point": [
+        5.95,
+        -4.01305,
+        0.3
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 2 water feed",
+      "role": "dwelling-feed",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-site-header-2",
+      "point": [
+        6.55,
+        -0.7186,
+        -0.55
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 3 distribution junction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-dwelling-2",
+      "point": [
+        5.95,
+        -0.7186,
+        0.3
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 3 water feed",
+      "role": "dwelling-feed",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-site-header-3",
+      "point": [
+        6.55,
+        7.442,
+        -0.55
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 4 distribution junction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-dwelling-3",
+      "point": [
+        5.95,
+        7.442,
+        0.3
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 4 water feed",
+      "role": "dwelling-feed",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-site-header-4",
+      "point": [
+        6.55,
+        10.73645,
+        -0.55
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 5 distribution junction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-dwelling-4",
+      "point": [
+        5.95,
+        10.73645,
+        0.3
+      ],
+      "subsystem": "potable",
+      "label": "Dwelling 5 water feed",
+      "role": "dwelling-feed",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-cold-level-0",
+      "point": [
+        5.95,
+        -10.75,
+        -0.04
+      ],
+      "subsystem": "potable",
+      "label": "Cold water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-cold-level-1",
+      "point": [
+        5.95,
+        -10.75,
+        2.82
+      ],
+      "subsystem": "potable",
+      "label": "Cold water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-cold-level-2",
+      "point": [
+        5.95,
+        -10.75,
+        5.54
+      ],
+      "subsystem": "potable",
+      "label": "Cold water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-hot-level-0",
+      "point": [
+        6.1,
+        -10.75,
+        0.02
+      ],
+      "subsystem": "potable",
+      "label": "Hot water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-hot-level-1",
+      "point": [
+        6.1,
+        -10.75,
+        2.88
+      ],
+      "subsystem": "potable",
+      "label": "Hot water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-hot-level-2",
+      "point": [
+        6.1,
+        -10.75,
+        5.6
+      ],
+      "subsystem": "potable",
+      "label": "Hot water floor distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-heater-in",
+      "point": [
+        6.32,
+        -12.65,
+        0.28
+      ],
+      "subsystem": "potable",
+      "label": "Illustrative electric water heater inlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-heater-out",
+      "point": [
+        6.32,
+        -12.65,
+        1.88
+      ],
+      "subsystem": "potable",
+      "label": "Illustrative electric water heater outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-cold-fixture-00",
+      "point": [
+        4.346731162071228,
+        -9.648346939086913,
+        0.899997103214264
+      ],
+      "subsystem": "potable",
+      "label": "WC 24 - FlowEq-023.002 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.002",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.002"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-01",
+      "point": [
+        4.817178344726562,
+        -13.092072525024413,
+        3.6199965953826903
+      ],
+      "subsystem": "potable",
+      "label": "WC 24 - FlowEq-023.007 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.007",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.007"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-02",
+      "point": [
+        -0.8737229645252228,
+        -9.325344123840331,
+        6.339997577667236
+      ],
+      "subsystem": "potable",
+      "label": "WC 24 - FlowEq-023.014 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.014",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.014"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-03",
+      "point": [
+        4.762581443786621,
+        -9.702797927856444,
+        6.339997577667236
+      ],
+      "subsystem": "potable",
+      "label": "WC 24 - FlowEq-023.015 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "WC 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+        "WC 24 - FlowEq-023_Plastic - Laminate_0.015",
+        "WC 24 - FlowEq-023_Paint - Titanium White_0.015"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-04",
+      "point": [
+        3.272831177711487,
+        -9.323352851867675,
+        1.7649970531463623
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.002 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-04",
+      "point": [
+        3.1978311777114867,
+        -9.323352851867675,
+        1.7649970531463623
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.002 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-05",
+      "point": [
+        3.777143096923828,
+        -13.37156394958496,
+        4.484996604919433
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.007 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-05",
+      "point": [
+        3.702143096923828,
+        -13.37156394958496,
+        4.484996604919433
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.007 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-06",
+      "point": [
+        3.642502522468567,
+        -9.325351753234862,
+        7.204997825622558
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.014 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-06",
+      "point": [
+        3.567502522468567,
+        -9.325351753234862,
+        7.204997825622558
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.014 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.014",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.014",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.014"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-07",
+      "point": [
+        0.35407651253044603,
+        -10.830813446044921,
+        7.204997825622558
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.015 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.015",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.015"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-07",
+      "point": [
+        0.279076512530446,
+        -10.830813446044921,
+        7.204997825622558
+      ],
+      "subsystem": "potable",
+      "label": "Basin 24 - FlowEq-023.015 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.015",
+        "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.015",
+        "Basin 24 - FlowEq-023_Metal - Chrome 01_0.015"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-08",
+      "point": [
+        2.0221272468566895,
+        -9.323349990844726,
+        1.549997043609619
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.002 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.002",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-08",
+      "point": [
+        1.9471272468566896,
+        -9.323349990844726,
+        1.549997043609619
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.002 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.002",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.002",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.002",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.002"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-09",
+      "point": [
+        0.07407867014408112,
+        -9.323350944519042,
+        6.9899975776672365
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.007 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.007",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-09",
+      "point": [
+        -0.000921329855918876,
+        -9.323350944519042,
+        6.9899975776672365
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.007 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.007",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.007",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.007",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.007"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-10",
+      "point": [
+        2.3832741737365724,
+        -9.323351898193359,
+        6.9899975776672365
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.011 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.011",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.011",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.011"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-10",
+      "point": [
+        2.308274173736572,
+        -9.323351898193359,
+        6.9899975776672365
+      ],
+      "subsystem": "potable",
+      "label": "Shower Cabin 24 - FlowEq-023.011 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.011",
+        "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.011",
+        "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.011",
+        "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.011"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-11",
+      "point": [
+        1.1571304857730866,
+        -9.375606575012206,
+        1.215213406085968
+      ],
+      "subsystem": "potable",
+      "label": "Mop Sink 24 - FlowEq-022.002 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.002",
+        "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.002"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-11",
+      "point": [
+        1.0821304857730867,
+        -9.375606575012206,
+        1.215213406085968
+      ],
+      "subsystem": "potable",
+      "label": "Mop Sink 24 - FlowEq-022.002 hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.002",
+        "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.002"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-12",
+      "point": [
+        1.1452351570129395,
+        -10.044586219787597,
+        0.8233895182609559
+      ],
+      "subsystem": "potable",
+      "label": "WashingMachine - FU - 060.002 cold water",
+      "role": "fixture",
+      "source_objects": [
+        "WashingMachine - FU - 060_GDLM8_Material_001-material_0.002",
+        "WashingMachine - FU - 060_GDLM9_cot_002-material_0.002",
+        "WashingMachine - FU - 060_GDLM10_Material_002-material_0.002"
+      ]
+    },
+    {
+      "id": "WAT-cold-fixture-13",
+      "point": [
+        4.92,
+        -11.332,
+        4.13
+      ],
+      "subsystem": "potable",
+      "label": "Fitted kitchen sink cold water",
+      "role": "fixture",
+      "source_objects": [
+        "Kitchen source | Object_54"
+      ]
+    },
+    {
+      "id": "WAT-hot-fixture-13",
+      "point": [
+        4.845,
+        -11.332,
+        4.13
+      ],
+      "subsystem": "potable",
+      "label": "Fitted kitchen sink hot water",
+      "role": "fixture",
+      "source_objects": [
+        "Kitchen source | Object_54"
+      ]
+    },
+    {
+      "id": "WAT-hose-side",
+      "point": [
+        5.9,
+        -10.5,
+        0.72
+      ],
+      "subsystem": "potable",
+      "label": "Potable side hose tap",
+      "role": "hose-tap",
+      "source_objects": []
+    },
+    {
+      "id": "WAT-hose-rear",
+      "point": [
+        6.55,
+        15.0,
+        0.72
+      ],
+      "subsystem": "potable",
+      "label": "Potable rear hose tap",
+      "role": "hose-tap",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-collector",
+      "point": [
+        6.22,
+        -14.7,
+        -0.58
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater-only underground collector",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-gutter-west-rear",
+      "point": [
+        -4.856543941497803,
+        -9.113348007202148,
+        8.392583274841309
+      ],
+      "subsystem": "rainwater",
+      "label": "west roof gutter rear",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-gutter-west-front",
+      "point": [
+        -4.856543941497803,
+        -13.843655586242676,
+        8.367583274841309
+      ],
+      "subsystem": "rainwater",
+      "label": "west gutter downpipe outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-downpipe-west",
+      "point": [
+        -4.856543941497803,
+        -13.843655586242676,
+        -0.42
+      ],
+      "subsystem": "rainwater",
+      "label": "west downpipe below ground",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-gutter-east-rear",
+      "point": [
+        5.259675903320312,
+        -9.113348007202148,
+        8.38481845855713
+      ],
+      "subsystem": "rainwater",
+      "label": "east roof gutter rear",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-gutter-east-front",
+      "point": [
+        5.259675903320312,
+        -13.843655586242676,
+        8.359818458557129
+      ],
+      "subsystem": "rainwater",
+      "label": "east gutter downpipe outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-downpipe-east",
+      "point": [
+        5.259675903320312,
+        -13.843655586242676,
+        -0.42
+      ],
+      "subsystem": "rainwater",
+      "label": "east downpipe below ground",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-filter-in",
+      "point": [
+        7.2,
+        -16.9,
+        -0.64
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater pre-tank filter inlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-filter-out",
+      "point": [
+        7.48,
+        -17.1,
+        -0.72
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater filter outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-tank-in",
+      "point": [
+        7.6,
+        -17.35,
+        -0.86
+      ],
+      "subsystem": "rainwater",
+      "label": "Underground rainwater tank inlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-tank-out",
+      "point": [
+        8.55,
+        -18.3,
+        -1.82
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater tank pump suction",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-tank-overflow",
+      "point": [
+        8.72,
+        -17.3,
+        -0.89
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater tank high-level overflow",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-pump-in",
+      "point": [
+        9.42,
+        -18.0,
+        0.13
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater pump inlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-pump-out",
+      "point": [
+        9.7,
+        -18.0,
+        0.2
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater pump non-potable outlet",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-garden-header",
+      "point": [
+        10.6,
+        -16.0,
+        -0.34
+      ],
+      "subsystem": "rainwater",
+      "label": "Non-potable garden distribution",
+      "role": "junction",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-garden-tap-near",
+      "point": [
+        10.6,
+        -15.8,
+        0.67
+      ],
+      "subsystem": "rainwater",
+      "label": "Non-potable rainwater garden tap near",
+      "role": "non-potable-tap",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-garden-tap-rear",
+      "point": [
+        10.6,
+        17.0,
+        0.67
+      ],
+      "subsystem": "rainwater",
+      "label": "Non-potable rainwater garden tap rear",
+      "role": "non-potable-tap",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-boundary-overflow",
+      "point": [
+        7.2,
+        -22.0,
+        -1.02
+      ],
+      "subsystem": "rainwater",
+      "label": "Rainwater overflow at front boundary",
+      "role": "site-boundary",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-street-tie",
+      "point": [
+        7.2,
+        -25.0,
+        -1.18
+      ],
+      "subsystem": "rainwater",
+      "label": "Illustrative stormwater street connection",
+      "role": "street-network",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-street-west",
+      "point": [
+        -24.0,
+        -25.0,
+        -1.18
+      ],
+      "subsystem": "rainwater",
+      "label": "Illustrative stormwater main west",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "RWT-street-east",
+      "point": [
+        24.0,
+        -25.0,
+        -1.18
+      ],
+      "subsystem": "rainwater",
+      "label": "Illustrative stormwater main east",
+      "role": "network-extent",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-room-ground-bath",
+      "point": [
+        3.5,
+        -10.0,
+        2.86
+      ],
+      "subsystem": "ventilation",
+      "label": "ground-bath ceiling extract",
+      "role": "room-extract",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-wall-ground-bath",
+      "point": [
+        4.712183982658386,
+        -9.95,
+        2.72
+      ],
+      "subsystem": "ventilation",
+      "label": "ground-bath exterior extract grille",
+      "role": "exterior-terminal",
+      "source_objects": [
+        "SW - 573_Wall white plaster_0.008"
+      ]
+    },
+    {
+      "id": "MEC-room-laundry",
+      "point": [
+        1.1,
+        -9.65,
+        2.86
+      ],
+      "subsystem": "ventilation",
+      "label": "laundry ceiling extract",
+      "role": "room-extract",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-wall-laundry",
+      "point": [
+        1.1,
+        -9.158367788696289,
+        2.72
+      ],
+      "subsystem": "ventilation",
+      "label": "laundry exterior extract grille",
+      "role": "exterior-terminal",
+      "source_objects": [
+        "SW - 571_Wall white plaster_0.008"
+      ]
+    },
+    {
+      "id": "MEC-room-living-powder",
+      "point": [
+        4.25,
+        -13.15,
+        5.58
+      ],
+      "subsystem": "ventilation",
+      "label": "living-powder ceiling extract",
+      "role": "room-extract",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-wall-living-powder",
+      "point": [
+        4.35,
+        -13.798667788696289,
+        5.43
+      ],
+      "subsystem": "ventilation",
+      "label": "living-powder exterior extract grille",
+      "role": "exterior-terminal",
+      "source_objects": [
+        "SW - 576_Wall white plaster_0.009"
+      ]
+    },
+    {
+      "id": "MEC-room-upper-west-ensuite",
+      "point": [
+        -0.05,
+        -10.1,
+        8.334999999999999
+      ],
+      "subsystem": "ventilation",
+      "label": "upper-west-ensuite ceiling extract",
+      "role": "room-extract",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-wall-upper-west-ensuite",
+      "point": [
+        -0.1,
+        -9.158367788696289,
+        8.18
+      ],
+      "subsystem": "ventilation",
+      "label": "upper-west-ensuite exterior extract grille",
+      "role": "exterior-terminal",
+      "source_objects": [
+        "SW - 620_Wall white plaster_0.002"
+      ]
+    },
+    {
+      "id": "MEC-room-upper-east-ensuite",
+      "point": [
+        3.5,
+        -10.1,
+        8.334999999999999
+      ],
+      "subsystem": "ventilation",
+      "label": "upper-east-ensuite ceiling extract",
+      "role": "room-extract",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-wall-upper-east-ensuite",
+      "point": [
+        5.162183982658386,
+        -9.95,
+        8.18
+      ],
+      "subsystem": "ventilation",
+      "label": "upper-east-ensuite exterior extract grille",
+      "role": "exterior-terminal",
+      "source_objects": [
+        "SW - 621_Wall white plaster_0.002"
+      ]
+    },
+    {
+      "id": "MEC-hood-port",
+      "point": [
+        4.899384021759033,
+        -9.898467063903809,
+        5.4160003662109375
+      ],
+      "subsystem": "ventilation",
+      "label": "Fitted range hood extract connection",
+      "role": "appliance",
+      "source_objects": [
+        "Kitchen source | Object_54",
+        "Kitchen source | Object_8"
+      ]
+    },
+    {
+      "id": "MEC-hood-roof",
+      "point": [
+        4.82,
+        -9.898467063903809,
+        9.070475578308105
+      ],
+      "subsystem": "ventilation",
+      "label": "Range hood roof weather terminal",
+      "role": "exterior-terminal",
+      "source_objects": []
+    },
+    {
+      "id": "SAN-roof-vent",
+      "point": [
+        4.75,
+        -10.3,
+        9.039232444763183
+      ],
+      "subsystem": "sanitary",
+      "label": "Soil stack roof vent - separate from room ventilation",
+      "role": "air-terminal",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-cavity-0",
+      "point": [
+        -2.55,
+        -12.1,
+        8.798466415405274
+      ],
+      "subsystem": "ventilation",
+      "label": "Roof cavity ventilation inlet",
+      "role": "roof-cavity",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-turbine-0",
+      "point": [
+        -2.55,
+        -12.1,
+        9.498466415405273
+      ],
+      "subsystem": "ventilation",
+      "label": "Roof cavity whirlybird outlet",
+      "role": "exterior-terminal",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-cavity-1",
+      "point": [
+        2.75,
+        -11.2,
+        8.845131607055665
+      ],
+      "subsystem": "ventilation",
+      "label": "Roof cavity ventilation inlet",
+      "role": "roof-cavity",
+      "source_objects": []
+    },
+    {
+      "id": "MEC-turbine-1",
+      "point": [
+        2.75,
+        -11.2,
+        9.545131607055664
+      ],
+      "subsystem": "ventilation",
+      "label": "Roof cavity whirlybird outlet",
+      "role": "exterior-terminal",
+      "source_objects": []
+    }
+  ],
+  "routes": [
+    {
+      "id": "SAN-branch-00",
+      "object": "V3 | WC 24 - FlowEq-023.002 sanitary branch",
+      "label": "WC 24 - FlowEq-023.002 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-00",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          4.246731162071228,
+          -9.783352851867676,
+          0.6199971032142639
+        ],
+        [
+          4.246731162071228,
+          -9.783352851867676,
+          -0.14
+        ],
+        [
+          5.68,
+          -9.783352851867676,
+          -0.19
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 2.7223652930045974,
+      "display_radius": 0.048,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-01",
+      "object": "V3 | WC 24 - FlowEq-023.007 sanitary branch",
+      "label": "WC 24 - FlowEq-023.007 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-01",
+      "end": "SAN-stack-1",
+      "points": [
+        [
+          4.7171783447265625,
+          -13.227078437805176,
+          3.3399965953826904
+        ],
+        [
+          4.7171783447265625,
+          -13.227078437805176,
+          2.72
+        ],
+        [
+          5.68,
+          -13.227078437805176,
+          2.6700000000000004
+        ],
+        [
+          5.68,
+          -10.3,
+          2.62
+        ]
+      ],
+      "length": 4.511621097612787,
+      "display_radius": 0.048,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-02",
+      "object": "V3 | WC 24 - FlowEq-023.014 sanitary branch",
+      "label": "WC 24 - FlowEq-023.014 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-02",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          -0.9737229645252228,
+          -9.605345726013184,
+          6.059997577667236
+        ],
+        [
+          -0.9737229645252228,
+          -9.605345726013184,
+          5.44
+        ],
+        [
+          5.68,
+          -9.605345726013184,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 7.970359809894463,
+      "display_radius": 0.048,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-03",
+      "object": "V3 | WC 24 - FlowEq-023.015 sanitary branch",
+      "label": "WC 24 - FlowEq-023.015 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-03",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          4.662581443786621,
+          -9.837803840637207,
+          6.059997577667236
+        ],
+        [
+          4.662581443786621,
+          -9.837803840637207,
+          5.44
+        ],
+        [
+          5.68,
+          -9.837803840637207,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 2.103536764829547,
+      "display_radius": 0.048,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-04",
+      "object": "V3 | Basin 24 - FlowEq-023.002 sanitary branch",
+      "label": "Basin 24 - FlowEq-023.002 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-04",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          3.172831177711487,
+          -9.503353595733643,
+          1.4849970531463623
+        ],
+        [
+          3.172831177711487,
+          -9.503353595733643,
+          -0.14
+        ],
+        [
+          5.68,
+          -9.503353595733643,
+          -0.19
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 4.936869278952315,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-05",
+      "object": "V3 | Basin 24 - FlowEq-023.007 sanitary branch",
+      "label": "Basin 24 - FlowEq-023.007 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-05",
+      "end": "SAN-stack-1",
+      "points": [
+        [
+          3.677143096923828,
+          -13.501608848571777,
+          4.204996604919433
+        ],
+        [
+          3.677143096923828,
+          -13.501608848571777,
+          2.72
+        ],
+        [
+          5.68,
+          -13.501608848571777,
+          2.6700000000000004
+        ],
+        [
+          5.68,
+          -10.3,
+          2.62
+        ]
+      ],
+      "length": 6.690476772752996,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-06",
+      "object": "V3 | Basin 24 - FlowEq-023.014 sanitary branch",
+      "label": "Basin 24 - FlowEq-023.014 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-06",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          3.542502522468567,
+          -9.505352020263672,
+          6.924997825622558
+        ],
+        [
+          3.542502522468567,
+          -9.505352020263672,
+          5.44
+        ],
+        [
+          5.68,
+          -9.505352020263672,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 4.419299468651123,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-07",
+      "object": "V3 | Basin 24 - FlowEq-023.015 sanitary branch",
+      "label": "Basin 24 - FlowEq-023.015 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-07",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          0.25407651253044605,
+          -11.090813636779785,
+          6.924997825622558
+        ],
+        [
+          0.25407651253044605,
+          -11.090813636779785,
+          5.44
+        ],
+        [
+          5.68,
+          -11.090813636779785,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 7.703544394524157,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-08",
+      "object": "V3 | Shower Cabin 24 - FlowEq-023.002 sanitary branch",
+      "label": "Shower Cabin 24 - FlowEq-023.002 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-08",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          1.9221272468566895,
+          -9.783350467681885,
+          0.6199970436096192
+        ],
+        [
+          1.9221272468566895,
+          -9.783350467681885,
+          -0.14
+        ],
+        [
+          5.68,
+          -9.783350467681885,
+          -0.19
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 5.046432233725425,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-09",
+      "object": "V3 | Shower Cabin 24 - FlowEq-023.007 sanitary branch",
+      "label": "Shower Cabin 24 - FlowEq-023.007 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-09",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          -0.025921329855918884,
+          -9.78335189819336,
+          6.059997577667236
+        ],
+        [
+          -0.025921329855918884,
+          -9.78335189819336,
+          5.44
+        ],
+        [
+          5.68,
+          -9.78335189819336,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 6.845199878868989,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-10",
+      "object": "V3 | Shower Cabin 24 - FlowEq-023.011 sanitary branch",
+      "label": "Shower Cabin 24 - FlowEq-023.011 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-10",
+      "end": "SAN-stack-2",
+      "points": [
+        [
+          2.2832741737365723,
+          -9.783353328704834,
+          6.059997577667236
+        ],
+        [
+          2.2832741737365723,
+          -9.783353328704834,
+          5.44
+        ],
+        [
+          5.68,
+          -9.783353328704834,
+          5.390000000000001
+        ],
+        [
+          5.68,
+          -10.3,
+          5.34
+        ]
+      ],
+      "length": 4.536151866463072,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-11",
+      "object": "V3 | Mop Sink 24 - FlowEq-022.002 sanitary branch",
+      "label": "Mop Sink 24 - FlowEq-022.002 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-11",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          1.0571304857730865,
+          -9.660606861114502,
+          0.935213406085968
+        ],
+        [
+          1.0571304857730865,
+          -9.660606861114502,
+          -0.14
+        ],
+        [
+          5.68,
+          -9.660606861114502,
+          -0.19
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 6.347139547879761,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-12",
+      "object": "V3 | WashingMachine - FU - 060.002 sanitary branch",
+      "label": "WashingMachine - FU - 060.002 sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-12",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          1.2961871242523193,
+          -10.004586219787598,
+          1.143389518260956
+        ],
+        [
+          1.2961871242523193,
+          -10.004586219787598,
+          -0.14
+        ],
+        [
+          5.68,
+          -10.004586219787598,
+          -0.19
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 5.982716491490857,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-branch-13",
+      "object": "V3 | Fitted kitchen sink sanitary branch",
+      "label": "Fitted kitchen sink sanitary branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-fixture-13",
+      "end": "SAN-stack-1",
+      "points": [
+        [
+          4.7264204025268555,
+          -11.094677448272705,
+          3.99
+        ],
+        [
+          4.7264204025268555,
+          -11.094677448272705,
+          2.72
+        ],
+        [
+          5.68,
+          -11.094677448272705,
+          2.6700000000000004
+        ],
+        [
+          5.68,
+          -10.3,
+          2.62
+        ]
+      ],
+      "length": 3.0211384077527974,
+      "display_radius": 0.027,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-stack-upper",
+      "object": "V3 | Continuous upper soil stack",
+      "label": "Continuous upper soil stack",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-stack-2",
+      "end": "SAN-stack-1",
+      "points": [
+        [
+          5.68,
+          -10.3,
+          5.34
+        ],
+        [
+          5.68,
+          -10.3,
+          2.62
+        ]
+      ],
+      "length": 2.7199999999999998,
+      "display_radius": 0.075,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-stack-lower",
+      "object": "V3 | Continuous lower soil stack",
+      "label": "Continuous lower soil stack",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-stack-1",
+      "end": "SAN-stack-0",
+      "points": [
+        [
+          5.68,
+          -10.3,
+          2.62
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ]
+      ],
+      "length": 2.92,
+      "display_radius": 0.075,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-stack-to-collector",
+      "object": "V3 | SAN-stack-to-collector",
+      "label": "SAN-stack-to-collector",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-stack-0",
+      "end": "SAN-collector",
+      "points": [
+        [
+          5.68,
+          -10.3,
+          -0.3
+        ],
+        [
+          5.68,
+          -10.3,
+          -0.85
+        ],
+        [
+          6.35,
+          -10.3,
+          -0.85
+        ]
+      ],
+      "length": 1.22,
+      "display_radius": 0.075,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-site-collector",
+      "object": "V3 | SAN-site-collector",
+      "label": "SAN-site-collector",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-collector",
+      "end": "SAN-boundary",
+      "points": [
+        [
+          6.35,
+          -10.3,
+          -0.85
+        ],
+        [
+          6.35,
+          -22.0,
+          -1.12
+        ]
+      ],
+      "length": 11.703114969955648,
+      "display_radius": 0.085,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-street-branch",
+      "object": "V3 | SAN-street-branch",
+      "label": "SAN-street-branch",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-boundary",
+      "end": "SAN-street-tie",
+      "points": [
+        [
+          6.35,
+          -22.0,
+          -1.12
+        ],
+        [
+          6.35,
+          -27.5,
+          -1.45
+        ]
+      ],
+      "length": 5.509891106002005,
+      "display_radius": 0.085,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-main-west",
+      "object": "V3 | SAN-main-west",
+      "label": "SAN-main-west",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-street-west",
+      "end": "SAN-street-tie",
+      "points": [
+        [
+          -24.0,
+          -27.5,
+          -1.45
+        ],
+        [
+          6.35,
+          -27.5,
+          -1.45
+        ]
+      ],
+      "length": 30.35,
+      "display_radius": 0.15,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-main-east",
+      "object": "V3 | SAN-main-east",
+      "label": "SAN-main-east",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-street-tie",
+      "end": "SAN-street-east",
+      "points": [
+        [
+          6.35,
+          -27.5,
+          -1.45
+        ],
+        [
+          24.0,
+          -27.5,
+          -1.45
+        ]
+      ],
+      "length": 17.65,
+      "display_radius": 0.15,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-main-west",
+      "object": "V3 | WAT-main-west",
+      "label": "WAT-main-west",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-street-west",
+      "end": "WAT-street-tie",
+      "points": [
+        [
+          -24.0,
+          -32.0,
+          -0.9
+        ],
+        [
+          6.55,
+          -32.0,
+          -0.9
+        ]
+      ],
+      "length": 30.55,
+      "display_radius": 0.1,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-main-east",
+      "object": "V3 | WAT-main-east",
+      "label": "WAT-main-east",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-street-tie",
+      "end": "WAT-street-east",
+      "points": [
+        [
+          6.55,
+          -32.0,
+          -0.9
+        ],
+        [
+          24.0,
+          -32.0,
+          -0.9
+        ]
+      ],
+      "length": 17.45,
+      "display_radius": 0.1,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-street-to-boundary",
+      "object": "V3 | WAT-street-to-boundary",
+      "label": "WAT-street-to-boundary",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-street-tie",
+      "end": "WAT-boundary",
+      "points": [
+        [
+          6.55,
+          -32.0,
+          -0.9
+        ],
+        [
+          6.55,
+          -22.0,
+          -0.6
+        ]
+      ],
+      "length": 10.004498987955369,
+      "display_radius": 0.055,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-meter-entry",
+      "object": "V3 | WAT-meter-entry",
+      "label": "WAT-meter-entry",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-boundary",
+      "end": "WAT-meter-in",
+      "points": [
+        [
+          6.55,
+          -22.0,
+          -0.6
+        ],
+        [
+          6.55,
+          -21.8,
+          -0.6
+        ],
+        [
+          6.55,
+          -21.8,
+          0.28
+        ]
+      ],
+      "length": 1.0799999999999992,
+      "display_radius": 0.035,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-meter",
+      "object": "V3 | Potable meter and isolation assembly",
+      "label": "Potable meter and isolation assembly",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-meter-in",
+      "end": "WAT-meter-out",
+      "points": [
+        [
+          6.55,
+          -21.8,
+          0.28
+        ],
+        [
+          6.55,
+          -21.4,
+          0.28
+        ]
+      ],
+      "length": 0.40000000000000213,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-site-main-0",
+      "object": "V3 | WAT-site-main-0",
+      "label": "WAT-site-main-0",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-meter-out",
+      "end": "WAT-site-header-0",
+      "points": [
+        [
+          6.55,
+          -21.4,
+          0.28
+        ],
+        [
+          6.55,
+          -21.4,
+          -0.55
+        ],
+        [
+          6.55,
+          -10.93335,
+          -0.55
+        ]
+      ],
+      "length": 11.296649999999998,
+      "display_radius": 0.04,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-feed-0",
+      "object": "V3 | WAT-feed-0",
+      "label": "WAT-feed-0",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-0",
+      "end": "WAT-dwelling-0",
+      "points": [
+        [
+          6.55,
+          -10.93335,
+          -0.55
+        ],
+        [
+          5.95,
+          -10.93335,
+          -0.55
+        ],
+        [
+          5.95,
+          -10.93335,
+          0.3
+        ]
+      ],
+      "length": 1.4499999999999997,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-site-main-1",
+      "object": "V3 | WAT-site-main-1",
+      "label": "WAT-site-main-1",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-0",
+      "end": "WAT-site-header-1",
+      "points": [
+        [
+          6.55,
+          -10.93335,
+          -0.55
+        ],
+        [
+          6.55,
+          -4.01305,
+          -0.55
+        ]
+      ],
+      "length": 6.920300000000001,
+      "display_radius": 0.04,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-feed-1",
+      "object": "V3 | WAT-feed-1",
+      "label": "WAT-feed-1",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-1",
+      "end": "WAT-dwelling-1",
+      "points": [
+        [
+          6.55,
+          -4.01305,
+          -0.55
+        ],
+        [
+          5.95,
+          -4.01305,
+          -0.55
+        ],
+        [
+          5.95,
+          -4.01305,
+          0.3
+        ]
+      ],
+      "length": 1.4499999999999997,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-site-main-2",
+      "object": "V3 | WAT-site-main-2",
+      "label": "WAT-site-main-2",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-1",
+      "end": "WAT-site-header-2",
+      "points": [
+        [
+          6.55,
+          -4.01305,
+          -0.55
+        ],
+        [
+          6.55,
+          -0.7186,
+          -0.55
+        ]
+      ],
+      "length": 3.29445,
+      "display_radius": 0.04,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-feed-2",
+      "object": "V3 | WAT-feed-2",
+      "label": "WAT-feed-2",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-2",
+      "end": "WAT-dwelling-2",
+      "points": [
+        [
+          6.55,
+          -0.7186,
+          -0.55
+        ],
+        [
+          5.95,
+          -0.7186,
+          -0.55
+        ],
+        [
+          5.95,
+          -0.7186,
+          0.3
+        ]
+      ],
+      "length": 1.4499999999999997,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-site-main-3",
+      "object": "V3 | WAT-site-main-3",
+      "label": "WAT-site-main-3",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-2",
+      "end": "WAT-site-header-3",
+      "points": [
+        [
+          6.55,
+          -0.7186,
+          -0.55
+        ],
+        [
+          6.55,
+          7.442,
+          -0.55
+        ]
+      ],
+      "length": 8.1606,
+      "display_radius": 0.04,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-feed-3",
+      "object": "V3 | WAT-feed-3",
+      "label": "WAT-feed-3",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-3",
+      "end": "WAT-dwelling-3",
+      "points": [
+        [
+          6.55,
+          7.442,
+          -0.55
+        ],
+        [
+          5.95,
+          7.442,
+          -0.55
+        ],
+        [
+          5.95,
+          7.442,
+          0.3
+        ]
+      ],
+      "length": 1.4499999999999997,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-site-main-4",
+      "object": "V3 | WAT-site-main-4",
+      "label": "WAT-site-main-4",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-3",
+      "end": "WAT-site-header-4",
+      "points": [
+        [
+          6.55,
+          7.442,
+          -0.55
+        ],
+        [
+          6.55,
+          10.73645,
+          -0.55
+        ]
+      ],
+      "length": 3.2944499999999994,
+      "display_radius": 0.04,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-feed-4",
+      "object": "V3 | WAT-feed-4",
+      "label": "WAT-feed-4",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-4",
+      "end": "WAT-dwelling-4",
+      "points": [
+        [
+          6.55,
+          10.73645,
+          -0.55
+        ],
+        [
+          5.95,
+          10.73645,
+          -0.55
+        ],
+        [
+          5.95,
+          10.73645,
+          0.3
+        ]
+      ],
+      "length": 1.4499999999999997,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-focus-feed",
+      "object": "V3 | WAT-focus-feed",
+      "label": "WAT-focus-feed",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-dwelling-0",
+      "end": "WAT-cold-level-0",
+      "points": [
+        [
+          5.95,
+          -10.93335,
+          0.3
+        ],
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ]
+      ],
+      "length": 0.3862864513544324,
+      "display_radius": 0.03,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-riser-1",
+      "object": "V3 | WAT-cold-riser-1",
+      "label": "WAT-cold-riser-1",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-level-1",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -10.75,
+          2.82
+        ]
+      ],
+      "length": 2.86,
+      "display_radius": 0.03,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-riser-1",
+      "object": "V3 | WAT-hot-riser-1",
+      "label": "WAT-hot-riser-1",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-0",
+      "end": "WAT-hot-level-1",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          0.02
+        ],
+        [
+          6.1,
+          -10.75,
+          2.88
+        ]
+      ],
+      "length": 2.86,
+      "display_radius": 0.026,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-riser-2",
+      "object": "V3 | WAT-cold-riser-2",
+      "label": "WAT-cold-riser-2",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-1",
+      "end": "WAT-cold-level-2",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          2.82
+        ],
+        [
+          5.95,
+          -10.75,
+          5.54
+        ]
+      ],
+      "length": 2.72,
+      "display_radius": 0.03,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-riser-2",
+      "object": "V3 | WAT-hot-riser-2",
+      "label": "WAT-hot-riser-2",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-1",
+      "end": "WAT-hot-level-2",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          2.88
+        ],
+        [
+          6.1,
+          -10.75,
+          5.6
+        ]
+      ],
+      "length": 2.7199999999999998,
+      "display_radius": 0.026,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-heater-cold",
+      "object": "V3 | WAT-heater-cold",
+      "label": "WAT-heater-cold",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-dwelling-0",
+      "end": "WAT-heater-in",
+      "points": [
+        [
+          5.95,
+          -10.93335,
+          0.3
+        ],
+        [
+          6.32,
+          -10.93335,
+          0.3
+        ],
+        [
+          6.32,
+          -12.65,
+          0.28
+        ]
+      ],
+      "length": 2.086766502032236,
+      "display_radius": 0.025,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-heater-internal",
+      "object": "V3 | Water heater storage vessel connection",
+      "label": "Water heater storage vessel connection",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-heater-in",
+      "end": "WAT-heater-out",
+      "points": [
+        [
+          6.32,
+          -12.65,
+          0.28
+        ],
+        [
+          6.32,
+          -12.65,
+          1.88
+        ]
+      ],
+      "length": 1.5999999999999999,
+      "display_radius": 0.12,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-heater-hot",
+      "object": "V3 | WAT-heater-hot",
+      "label": "WAT-heater-hot",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-heater-out",
+      "end": "WAT-hot-level-0",
+      "points": [
+        [
+          6.32,
+          -12.65,
+          1.88
+        ],
+        [
+          6.1,
+          -12.65,
+          1.88
+        ],
+        [
+          6.1,
+          -12.65,
+          0.02
+        ],
+        [
+          6.1,
+          -10.75,
+          0.02
+        ]
+      ],
+      "length": 3.980000000000001,
+      "display_radius": 0.026,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-00",
+      "object": "V3 | WAT-cold-branch-00",
+      "label": "WAT-cold-branch-00",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-fixture-00",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -9.648346939086913,
+          -0.04
+        ],
+        [
+          4.346731162071228,
+          -9.648346939086913,
+          -0.04
+        ],
+        [
+          4.346731162071228,
+          -9.648346939086913,
+          0.899997103214264
+        ]
+      ],
+      "length": 3.644919002056123,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-01",
+      "object": "V3 | WAT-cold-branch-01",
+      "label": "WAT-cold-branch-01",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-1",
+      "end": "WAT-cold-fixture-01",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          2.82
+        ],
+        [
+          5.95,
+          -13.092072525024413,
+          2.82
+        ],
+        [
+          4.817178344726562,
+          -13.092072525024413,
+          2.82
+        ],
+        [
+          4.817178344726562,
+          -13.092072525024413,
+          3.6199965953826903
+        ]
+      ],
+      "length": 4.274890775680541,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-02",
+      "object": "V3 | WAT-cold-branch-02",
+      "label": "WAT-cold-branch-02",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-02",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -9.325344123840331,
+          5.54
+        ],
+        [
+          -0.8737229645252228,
+          -9.325344123840331,
+          5.54
+        ],
+        [
+          -0.8737229645252228,
+          -9.325344123840331,
+          6.339997577667236
+        ]
+      ],
+      "length": 9.048376418352127,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-03",
+      "object": "V3 | WAT-cold-branch-03",
+      "label": "WAT-cold-branch-03",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-03",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -9.702797927856444,
+          5.54
+        ],
+        [
+          4.762581443786621,
+          -9.702797927856444,
+          5.54
+        ],
+        [
+          4.762581443786621,
+          -9.702797927856444,
+          6.339997577667236
+        ]
+      ],
+      "length": 3.034618206024171,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-04",
+      "object": "V3 | WAT-cold-branch-04",
+      "label": "WAT-cold-branch-04",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-fixture-04",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -9.323352851867675,
+          -0.04
+        ],
+        [
+          3.272831177711487,
+          -9.323352851867675,
+          -0.04
+        ],
+        [
+          3.272831177711487,
+          -9.323352851867675,
+          1.7649970531463623
+        ]
+      ],
+      "length": 5.908813023567201,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-04",
+      "object": "V3 | WAT-hot-branch-04",
+      "label": "WAT-hot-branch-04",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-0",
+      "end": "WAT-hot-fixture-04",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          0.02
+        ],
+        [
+          6.1,
+          -9.323352851867675,
+          0.02
+        ],
+        [
+          3.1978311777114867,
+          -9.323352851867675,
+          0.02
+        ],
+        [
+          3.1978311777114867,
+          -9.323352851867675,
+          1.7649970531463623
+        ]
+      ],
+      "length": 6.0738130235672,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-05",
+      "object": "V3 | WAT-cold-branch-05",
+      "label": "WAT-cold-branch-05",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-1",
+      "end": "WAT-cold-fixture-05",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          2.82
+        ],
+        [
+          5.95,
+          -13.37156394958496,
+          2.82
+        ],
+        [
+          3.777143096923828,
+          -13.37156394958496,
+          2.82
+        ],
+        [
+          3.777143096923828,
+          -13.37156394958496,
+          4.484996604919433
+        ]
+      ],
+      "length": 6.459417457580566,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-05",
+      "object": "V3 | WAT-hot-branch-05",
+      "label": "WAT-hot-branch-05",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-1",
+      "end": "WAT-hot-fixture-05",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          2.88
+        ],
+        [
+          6.1,
+          -13.37156394958496,
+          2.88
+        ],
+        [
+          3.702143096923828,
+          -13.37156394958496,
+          2.88
+        ],
+        [
+          3.702143096923828,
+          -13.37156394958496,
+          4.484996604919433
+        ]
+      ],
+      "length": 6.624417457580565,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-06",
+      "object": "V3 | WAT-cold-branch-06",
+      "label": "WAT-cold-branch-06",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-06",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -9.325351753234862,
+          5.54
+        ],
+        [
+          3.642502522468567,
+          -9.325351753234862,
+          5.54
+        ],
+        [
+          3.642502522468567,
+          -9.325351753234862,
+          7.204997825622558
+        ]
+      ],
+      "length": 5.397143549919129,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-06",
+      "object": "V3 | WAT-hot-branch-06",
+      "label": "WAT-hot-branch-06",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-2",
+      "end": "WAT-hot-fixture-06",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          5.6
+        ],
+        [
+          6.1,
+          -9.325351753234862,
+          5.6
+        ],
+        [
+          3.567502522468567,
+          -9.325351753234862,
+          5.6
+        ],
+        [
+          3.567502522468567,
+          -9.325351753234862,
+          7.204997825622558
+        ]
+      ],
+      "length": 5.56214354991913,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-07",
+      "object": "V3 | WAT-cold-branch-07",
+      "label": "WAT-cold-branch-07",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-07",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -10.830813446044921,
+          5.54
+        ],
+        [
+          0.35407651253044603,
+          -10.830813446044921,
+          5.54
+        ],
+        [
+          0.35407651253044603,
+          -10.830813446044921,
+          7.204997825622558
+        ]
+      ],
+      "length": 7.341734759137034,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-07",
+      "object": "V3 | WAT-hot-branch-07",
+      "label": "WAT-hot-branch-07",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-2",
+      "end": "WAT-hot-fixture-07",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          5.6
+        ],
+        [
+          6.1,
+          -10.830813446044921,
+          5.6
+        ],
+        [
+          0.279076512530446,
+          -10.830813446044921,
+          5.6
+        ],
+        [
+          0.279076512530446,
+          -10.830813446044921,
+          7.204997825622558
+        ]
+      ],
+      "length": 7.506734759137033,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-08",
+      "object": "V3 | WAT-cold-branch-08",
+      "label": "WAT-cold-branch-08",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-fixture-08",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -9.323349990844726,
+          -0.04
+        ],
+        [
+          2.0221272468566895,
+          -9.323349990844726,
+          -0.04
+        ],
+        [
+          2.0221272468566895,
+          -9.323349990844726,
+          1.549997043609619
+        ]
+      ],
+      "length": 6.944519805908204,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-08",
+      "object": "V3 | WAT-hot-branch-08",
+      "label": "WAT-hot-branch-08",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-0",
+      "end": "WAT-hot-fixture-08",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          0.02
+        ],
+        [
+          6.1,
+          -9.323349990844726,
+          0.02
+        ],
+        [
+          1.9471272468566896,
+          -9.323349990844726,
+          0.02
+        ],
+        [
+          1.9471272468566896,
+          -9.323349990844726,
+          1.549997043609619
+        ]
+      ],
+      "length": 7.109519805908203,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-09",
+      "object": "V3 | WAT-cold-branch-09",
+      "label": "WAT-cold-branch-09",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-09",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -9.323350944519042,
+          5.54
+        ],
+        [
+          0.07407867014408112,
+          -9.323350944519042,
+          5.54
+        ],
+        [
+          0.07407867014408112,
+          -9.323350944519042,
+          6.9899975776672365
+        ]
+      ],
+      "length": 8.752567963004115,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-09",
+      "object": "V3 | WAT-hot-branch-09",
+      "label": "WAT-hot-branch-09",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-2",
+      "end": "WAT-hot-fixture-09",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          5.6
+        ],
+        [
+          6.1,
+          -9.323350944519042,
+          5.6
+        ],
+        [
+          -0.000921329855918876,
+          -9.323350944519042,
+          5.6
+        ],
+        [
+          -0.000921329855918876,
+          -9.323350944519042,
+          6.9899975776672365
+        ]
+      ],
+      "length": 8.917567963004114,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-10",
+      "object": "V3 | WAT-cold-branch-10",
+      "label": "WAT-cold-branch-10",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-2",
+      "end": "WAT-cold-fixture-10",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          5.54
+        ],
+        [
+          5.95,
+          -9.323351898193359,
+          5.54
+        ],
+        [
+          2.3832741737365724,
+          -9.323351898193359,
+          5.54
+        ],
+        [
+          2.3832741737365724,
+          -9.323351898193359,
+          6.9899975776672365
+        ]
+      ],
+      "length": 6.443371505737305,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-10",
+      "object": "V3 | WAT-hot-branch-10",
+      "label": "WAT-hot-branch-10",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-2",
+      "end": "WAT-hot-fixture-10",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          5.6
+        ],
+        [
+          6.1,
+          -9.323351898193359,
+          5.6
+        ],
+        [
+          2.308274173736572,
+          -9.323351898193359,
+          5.6
+        ],
+        [
+          2.308274173736572,
+          -9.323351898193359,
+          6.9899975776672365
+        ]
+      ],
+      "length": 6.608371505737306,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-11",
+      "object": "V3 | WAT-cold-branch-11",
+      "label": "WAT-cold-branch-11",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-fixture-11",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -9.375606575012206,
+          -0.04
+        ],
+        [
+          1.1571304857730866,
+          -9.375606575012206,
+          -0.04
+        ],
+        [
+          1.1571304857730866,
+          -9.375606575012206,
+          1.215213406085968
+        ]
+      ],
+      "length": 7.422476345300675,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-11",
+      "object": "V3 | WAT-hot-branch-11",
+      "label": "WAT-hot-branch-11",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-0",
+      "end": "WAT-hot-fixture-11",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          0.02
+        ],
+        [
+          6.1,
+          -9.375606575012206,
+          0.02
+        ],
+        [
+          1.0821304857730867,
+          -9.375606575012206,
+          0.02
+        ],
+        [
+          1.0821304857730867,
+          -9.375606575012206,
+          1.215213406085968
+        ]
+      ],
+      "length": 7.587476345300675,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-12",
+      "object": "V3 | WAT-cold-branch-12",
+      "label": "WAT-cold-branch-12",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-0",
+      "end": "WAT-cold-fixture-12",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          -0.04
+        ],
+        [
+          5.95,
+          -10.044586219787597,
+          -0.04
+        ],
+        [
+          1.1452351570129395,
+          -10.044586219787597,
+          -0.04
+        ],
+        [
+          1.1452351570129395,
+          -10.044586219787597,
+          0.8233895182609559
+        ]
+      ],
+      "length": 6.373568141460419,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-cold-branch-13",
+      "object": "V3 | WAT-cold-branch-13",
+      "label": "WAT-cold-branch-13",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-cold-level-1",
+      "end": "WAT-cold-fixture-13",
+      "points": [
+        [
+          5.95,
+          -10.75,
+          2.82
+        ],
+        [
+          5.95,
+          -11.332,
+          2.82
+        ],
+        [
+          4.92,
+          -11.332,
+          2.82
+        ],
+        [
+          4.92,
+          -11.332,
+          4.13
+        ]
+      ],
+      "length": 2.922000000000001,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hot-branch-13",
+      "object": "V3 | WAT-hot-branch-13",
+      "label": "WAT-hot-branch-13",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-hot-level-1",
+      "end": "WAT-hot-fixture-13",
+      "points": [
+        [
+          6.1,
+          -10.75,
+          2.88
+        ],
+        [
+          6.1,
+          -11.332,
+          2.88
+        ],
+        [
+          4.845,
+          -11.332,
+          2.88
+        ],
+        [
+          4.845,
+          -11.332,
+          4.13
+        ]
+      ],
+      "length": 3.0870000000000006,
+      "display_radius": 0.013,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hose-feed-side",
+      "object": "V3 | WAT-hose-feed-side",
+      "label": "WAT-hose-feed-side",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-dwelling-0",
+      "end": "WAT-hose-side",
+      "points": [
+        [
+          5.95,
+          -10.93335,
+          0.3
+        ],
+        [
+          5.9,
+          -10.5,
+          -0.45
+        ],
+        [
+          5.9,
+          -10.5,
+          0.72
+        ]
+      ],
+      "length": 2.0376359965446342,
+      "display_radius": 0.018,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "WAT-hose-feed-rear",
+      "object": "V3 | WAT-hose-feed-rear",
+      "label": "WAT-hose-feed-rear",
+      "subsystem": "potable",
+      "network": "potable",
+      "start": "WAT-site-header-4",
+      "end": "WAT-hose-rear",
+      "points": [
+        [
+          6.55,
+          10.73645,
+          -0.55
+        ],
+        [
+          6.55,
+          15.0,
+          -0.45
+        ],
+        [
+          6.55,
+          15.0,
+          0.72
+        ]
+      ],
+      "length": 5.434722570402441,
+      "display_radius": 0.018,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-gutter-west",
+      "object": "V3 | West rainwater gutter",
+      "label": "West rainwater gutter",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-gutter-west-rear",
+      "end": "RWT-gutter-west-front",
+      "points": [
+        [
+          -4.856543941497803,
+          -9.113348007202148,
+          8.392583274841309
+        ],
+        [
+          -4.856543941497803,
+          -13.843655586242676,
+          8.367583274841309
+        ]
+      ],
+      "length": 4.730373641936571,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-downpipe-route-west",
+      "object": "V3 | RWT-downpipe-route-west",
+      "label": "RWT-downpipe-route-west",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-gutter-west-front",
+      "end": "RWT-downpipe-west",
+      "points": [
+        [
+          -4.856543941497803,
+          -13.843655586242676,
+          8.367583274841309
+        ],
+        [
+          -4.856543941497803,
+          -13.843655586242676,
+          -0.42
+        ]
+      ],
+      "length": 8.787583274841309,
+      "display_radius": 0.045,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-downpipe-collector-west",
+      "object": "V3 | RWT-downpipe-collector-west",
+      "label": "RWT-downpipe-collector-west",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-downpipe-west",
+      "end": "RWT-collector",
+      "points": [
+        [
+          -4.856543941497803,
+          -13.843655586242676,
+          -0.42
+        ],
+        [
+          -4.856543941497803,
+          -14.7,
+          -0.45
+        ],
+        [
+          6.22,
+          -14.7,
+          -0.58
+        ]
+      ],
+      "length": 11.934176530689788,
+      "display_radius": 0.045,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-gutter-east",
+      "object": "V3 | East rainwater gutter",
+      "label": "East rainwater gutter",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-gutter-east-rear",
+      "end": "RWT-gutter-east-front",
+      "points": [
+        [
+          5.259675903320312,
+          -9.113348007202148,
+          8.38481845855713
+        ],
+        [
+          5.259675903320312,
+          -13.843655586242676,
+          8.359818458557129
+        ]
+      ],
+      "length": 4.730373641936571,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-downpipe-route-east",
+      "object": "V3 | RWT-downpipe-route-east",
+      "label": "RWT-downpipe-route-east",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-gutter-east-front",
+      "end": "RWT-downpipe-east",
+      "points": [
+        [
+          5.259675903320312,
+          -13.843655586242676,
+          8.359818458557129
+        ],
+        [
+          5.259675903320312,
+          -13.843655586242676,
+          -0.42
+        ]
+      ],
+      "length": 8.779818458557129,
+      "display_radius": 0.045,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-downpipe-collector-east",
+      "object": "V3 | RWT-downpipe-collector-east",
+      "label": "RWT-downpipe-collector-east",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-downpipe-east",
+      "end": "RWT-collector",
+      "points": [
+        [
+          5.259675903320312,
+          -13.843655586242676,
+          -0.42
+        ],
+        [
+          5.259675903320312,
+          -14.7,
+          -0.45
+        ],
+        [
+          6.22,
+          -14.7,
+          -0.58
+        ]
+      ],
+      "length": 1.8259530051463941,
+      "display_radius": 0.045,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-collector-to-filter",
+      "object": "V3 | RWT-collector-to-filter",
+      "label": "RWT-collector-to-filter",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-collector",
+      "end": "RWT-filter-in",
+      "points": [
+        [
+          6.22,
+          -14.7,
+          -0.58
+        ],
+        [
+          6.22,
+          -16.9,
+          -0.63
+        ],
+        [
+          7.2,
+          -16.9,
+          -0.64
+        ]
+      ],
+      "length": 3.1806191275466675,
+      "display_radius": 0.055,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-filter-link",
+      "object": "V3 | RWT-filter-link",
+      "label": "RWT-filter-link",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-filter-in",
+      "end": "RWT-filter-out",
+      "points": [
+        [
+          7.2,
+          -16.9,
+          -0.64
+        ],
+        [
+          7.48,
+          -17.1,
+          -0.72
+        ]
+      ],
+      "length": 0.3532704346531157,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-filter-to-tank",
+      "object": "V3 | RWT-filter-to-tank",
+      "label": "RWT-filter-to-tank",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-filter-out",
+      "end": "RWT-tank-in",
+      "points": [
+        [
+          7.48,
+          -17.1,
+          -0.72
+        ],
+        [
+          7.6,
+          -17.35,
+          -0.86
+        ]
+      ],
+      "length": 0.3106444913401811,
+      "display_radius": 0.055,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-tank-pump",
+      "object": "V3 | RWT-tank-pump",
+      "label": "RWT-tank-pump",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-tank-out",
+      "end": "RWT-pump-in",
+      "points": [
+        [
+          8.55,
+          -18.3,
+          -1.82
+        ],
+        [
+          9.42,
+          -18.3,
+          -1.82
+        ],
+        [
+          9.42,
+          -18,
+          -1.82
+        ],
+        [
+          9.42,
+          -18.0,
+          0.13
+        ]
+      ],
+      "length": 3.12,
+      "display_radius": 0.026,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-pump-through",
+      "object": "V3 | RWT-pump-through",
+      "label": "RWT-pump-through",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-pump-in",
+      "end": "RWT-pump-out",
+      "points": [
+        [
+          9.42,
+          -18.0,
+          0.13
+        ],
+        [
+          9.7,
+          -18.0,
+          0.2
+        ]
+      ],
+      "length": 0.28861739379323564,
+      "display_radius": 0.07,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-pump-garden-header",
+      "object": "V3 | RWT-pump-garden-header",
+      "label": "RWT-pump-garden-header",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-pump-out",
+      "end": "RWT-garden-header",
+      "points": [
+        [
+          9.7,
+          -18.0,
+          0.2
+        ],
+        [
+          10.6,
+          -18,
+          0.2
+        ],
+        [
+          10.6,
+          -18,
+          -0.34
+        ],
+        [
+          10.6,
+          -16.0,
+          -0.34
+        ]
+      ],
+      "length": 3.4400000000000004,
+      "display_radius": 0.022,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-garden-feed-near",
+      "object": "V3 | RWT-garden-feed-near",
+      "label": "RWT-garden-feed-near",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-garden-header",
+      "end": "RWT-garden-tap-near",
+      "points": [
+        [
+          10.6,
+          -16.0,
+          -0.34
+        ],
+        [
+          10.6,
+          -15.8,
+          -0.34
+        ],
+        [
+          10.6,
+          -15.8,
+          0.67
+        ]
+      ],
+      "length": 1.2099999999999993,
+      "display_radius": 0.018,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-garden-feed-rear",
+      "object": "V3 | RWT-garden-feed-rear",
+      "label": "RWT-garden-feed-rear",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-garden-header",
+      "end": "RWT-garden-tap-rear",
+      "points": [
+        [
+          10.6,
+          -16.0,
+          -0.34
+        ],
+        [
+          10.6,
+          17.0,
+          -0.34
+        ],
+        [
+          10.6,
+          17.0,
+          0.67
+        ]
+      ],
+      "length": 34.01,
+      "display_radius": 0.018,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-overflow-to-boundary",
+      "object": "V3 | RWT-overflow-to-boundary",
+      "label": "RWT-overflow-to-boundary",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-tank-overflow",
+      "end": "RWT-boundary-overflow",
+      "points": [
+        [
+          8.72,
+          -17.3,
+          -0.89
+        ],
+        [
+          7.2,
+          -17.3,
+          -0.92
+        ],
+        [
+          7.2,
+          -22.0,
+          -1.02
+        ]
+      ],
+      "length": 6.221359733223153,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-overflow-street-branch",
+      "object": "V3 | RWT-overflow-street-branch",
+      "label": "RWT-overflow-street-branch",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-boundary-overflow",
+      "end": "RWT-street-tie",
+      "points": [
+        [
+          7.2,
+          -22.0,
+          -1.02
+        ],
+        [
+          7.2,
+          -25.0,
+          -1.18
+        ]
+      ],
+      "length": 3.004263636900064,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-street-main-west",
+      "object": "V3 | RWT-street-main-west",
+      "label": "RWT-street-main-west",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-street-west",
+      "end": "RWT-street-tie",
+      "points": [
+        [
+          -24.0,
+          -25.0,
+          -1.18
+        ],
+        [
+          7.2,
+          -25.0,
+          -1.18
+        ]
+      ],
+      "length": 31.2,
+      "display_radius": 0.12,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "RWT-street-main-east",
+      "object": "V3 | RWT-street-main-east",
+      "label": "RWT-street-main-east",
+      "subsystem": "rainwater",
+      "network": "rainwater",
+      "start": "RWT-street-tie",
+      "end": "RWT-street-east",
+      "points": [
+        [
+          7.2,
+          -25.0,
+          -1.18
+        ],
+        [
+          24.0,
+          -25.0,
+          -1.18
+        ]
+      ],
+      "length": 16.8,
+      "display_radius": 0.12,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-extract-ground-bath",
+      "object": "V3 | MEC-extract-ground-bath",
+      "label": "MEC-extract-ground-bath",
+      "subsystem": "ventilation",
+      "network": "room-extract-ground-bath",
+      "start": "MEC-room-ground-bath",
+      "end": "MEC-wall-ground-bath",
+      "points": [
+        [
+          3.5,
+          -10.0,
+          2.86
+        ],
+        [
+          3.5,
+          -10.0,
+          2.72
+        ],
+        [
+          4.712183982658386,
+          -9.95,
+          2.72
+        ]
+      ],
+      "length": 1.3532147410139501,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-extract-laundry",
+      "object": "V3 | MEC-extract-laundry",
+      "label": "MEC-extract-laundry",
+      "subsystem": "ventilation",
+      "network": "room-extract-laundry",
+      "start": "MEC-room-laundry",
+      "end": "MEC-wall-laundry",
+      "points": [
+        [
+          1.1,
+          -9.65,
+          2.86
+        ],
+        [
+          1.1,
+          -9.65,
+          2.72
+        ],
+        [
+          1.1,
+          -9.158367788696289,
+          2.72
+        ]
+      ],
+      "length": 0.6316322113037112,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-extract-living-powder",
+      "object": "V3 | MEC-extract-living-powder",
+      "label": "MEC-extract-living-powder",
+      "subsystem": "ventilation",
+      "network": "room-extract-living-powder",
+      "start": "MEC-room-living-powder",
+      "end": "MEC-wall-living-powder",
+      "points": [
+        [
+          4.25,
+          -13.15,
+          5.58
+        ],
+        [
+          4.25,
+          -13.15,
+          5.43
+        ],
+        [
+          4.35,
+          -13.798667788696289,
+          5.43
+        ]
+      ],
+      "length": 0.8063306332117472,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-extract-upper-west-ensuite",
+      "object": "V3 | MEC-extract-upper-west-ensuite",
+      "label": "MEC-extract-upper-west-ensuite",
+      "subsystem": "ventilation",
+      "network": "room-extract-upper-west-ensuite",
+      "start": "MEC-room-upper-west-ensuite",
+      "end": "MEC-wall-upper-west-ensuite",
+      "points": [
+        [
+          -0.05,
+          -10.1,
+          8.334999999999999
+        ],
+        [
+          -0.05,
+          -10.1,
+          8.18
+        ],
+        [
+          -0.1,
+          -9.158367788696289,
+          8.18
+        ]
+      ],
+      "length": 1.097958759100691,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-extract-upper-east-ensuite",
+      "object": "V3 | MEC-extract-upper-east-ensuite",
+      "label": "MEC-extract-upper-east-ensuite",
+      "subsystem": "ventilation",
+      "network": "room-extract-upper-east-ensuite",
+      "start": "MEC-room-upper-east-ensuite",
+      "end": "MEC-wall-upper-east-ensuite",
+      "points": [
+        [
+          3.5,
+          -10.1,
+          8.334999999999999
+        ],
+        [
+          3.5,
+          -10.1,
+          8.18
+        ],
+        [
+          5.162183982658386,
+          -9.95,
+          8.18
+        ]
+      ],
+      "length": 1.823938462678026,
+      "display_radius": 0.06,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-range-hood",
+      "object": "V3 | MEC-range-hood",
+      "label": "MEC-range-hood",
+      "subsystem": "ventilation",
+      "network": "kitchen-extract",
+      "start": "MEC-hood-port",
+      "end": "MEC-hood-roof",
+      "points": [
+        [
+          4.899384021759033,
+          -9.898467063903809,
+          5.4160003662109375
+        ],
+        [
+          5.38,
+          -9.898467063903809,
+          5.52
+        ],
+        [
+          5.38,
+          -9.898467063903809,
+          8.16
+        ],
+        [
+          4.82,
+          -9.898467063903809,
+          8.16
+        ],
+        [
+          4.82,
+          -9.898467063903809,
+          9.070475578308105
+        ]
+      ],
+      "length": 4.602214983246108,
+      "display_radius": 0.115,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "SAN-vent",
+      "object": "V3 | SAN-vent",
+      "label": "SAN-vent",
+      "subsystem": "sanitary",
+      "network": "sanitary",
+      "start": "SAN-stack-2",
+      "end": "SAN-roof-vent",
+      "points": [
+        [
+          5.68,
+          -10.3,
+          5.34
+        ],
+        [
+          5.68,
+          -10.3,
+          8.14
+        ],
+        [
+          4.75,
+          -10.3,
+          8.14
+        ],
+        [
+          4.75,
+          -10.3,
+          9.039232444763183
+        ]
+      ],
+      "length": 4.629232444763183,
+      "display_radius": 0.065,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-cavity-neck-0",
+      "object": "V3 | MEC-cavity-neck-0",
+      "label": "MEC-cavity-neck-0",
+      "subsystem": "ventilation",
+      "network": "roof-cavity-0",
+      "start": "MEC-cavity-0",
+      "end": "MEC-turbine-0",
+      "points": [
+        [
+          -2.55,
+          -12.1,
+          8.798466415405274
+        ],
+        [
+          -2.55,
+          -12.1,
+          9.498466415405273
+        ]
+      ],
+      "length": 0.6999999999999993,
+      "display_radius": 0.12,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    },
+    {
+      "id": "MEC-cavity-neck-1",
+      "object": "V3 | MEC-cavity-neck-1",
+      "label": "MEC-cavity-neck-1",
+      "subsystem": "ventilation",
+      "network": "roof-cavity-1",
+      "start": "MEC-cavity-1",
+      "end": "MEC-turbine-1",
+      "points": [
+        [
+          2.75,
+          -11.2,
+          8.845131607055665
+        ],
+        [
+          2.75,
+          -11.2,
+          9.545131607055664
+        ]
+      ],
+      "length": 0.6999999999999993,
+      "display_radius": 0.12,
+      "status": "Illustrative route and connection; sizing and coordination unverified"
+    }
+  ],
+  "equipment": [
+    {
+      "id": "electric-water-heater",
+      "subsystem": "potable",
+      "ports": [
+        "WAT-heater-in",
+        "WAT-heater-out"
+      ],
+      "electrical_endpoint": [
+        6.6,
+        -12.65,
+        0.94
+      ]
+    },
+    {
+      "id": "rainwater-tank",
+      "subsystem": "rainwater",
+      "ports": [
+        "RWT-tank-in",
+        "RWT-tank-out",
+        "RWT-tank-overflow"
+      ]
+    },
+    {
+      "id": "rainwater-filter",
+      "subsystem": "rainwater",
+      "ports": [
+        "RWT-filter-in",
+        "RWT-filter-out"
+      ]
+    },
+    {
+      "id": "rainwater-pump",
+      "subsystem": "rainwater",
+      "ports": [
+        "RWT-pump-in",
+        "RWT-pump-out"
+      ],
+      "electrical_endpoint": [
+        9.55,
+        -18,
+        0.32
+      ]
+    },
+    {
+      "id": "extract-fan-ground-bath",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-room-ground-bath",
+        "MEC-wall-ground-bath"
+      ],
+      "electrical_endpoint": [
+        3.5,
+        -10.0,
+        2.86
+      ],
+      "wall_source": "SW - 573_Wall white plaster_0.008"
+    },
+    {
+      "id": "extract-fan-laundry",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-room-laundry",
+        "MEC-wall-laundry"
+      ],
+      "electrical_endpoint": [
+        1.1,
+        -9.65,
+        2.86
+      ],
+      "wall_source": "SW - 571_Wall white plaster_0.008"
+    },
+    {
+      "id": "extract-fan-living-powder",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-room-living-powder",
+        "MEC-wall-living-powder"
+      ],
+      "electrical_endpoint": [
+        4.25,
+        -13.15,
+        5.58
+      ],
+      "wall_source": "SW - 576_Wall white plaster_0.009"
+    },
+    {
+      "id": "extract-fan-upper-west-ensuite",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-room-upper-west-ensuite",
+        "MEC-wall-upper-west-ensuite"
+      ],
+      "electrical_endpoint": [
+        -0.05,
+        -10.1,
+        8.334999999999999
+      ],
+      "wall_source": "SW - 620_Wall white plaster_0.002"
+    },
+    {
+      "id": "extract-fan-upper-east-ensuite",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-room-upper-east-ensuite",
+        "MEC-wall-upper-east-ensuite"
+      ],
+      "electrical_endpoint": [
+        3.5,
+        -10.1,
+        8.334999999999999
+      ],
+      "wall_source": "SW - 621_Wall white plaster_0.002"
+    },
+    {
+      "id": "roof-cavity-turbine-0",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-cavity-0",
+        "MEC-turbine-0"
+      ],
+      "connection": "Roof cavity only; no room extract connection"
+    },
+    {
+      "id": "roof-cavity-turbine-1",
+      "subsystem": "ventilation",
+      "ports": [
+        "MEC-cavity-1",
+        "MEC-turbine-1"
+      ],
+      "connection": "Roof cavity only; no room extract connection"
+    }
+  ],
+  "source_fixture_endpoints": {
+    "WC 24 - FlowEq-023_Ceramic - Porcelain_0.002": [
+      "SAN-fixture-00",
+      "WAT-cold-fixture-00"
+    ],
+    "WC 24 - FlowEq-023_Plastic - Laminate_0.002": [
+      "SAN-fixture-00",
+      "WAT-cold-fixture-00"
+    ],
+    "WC 24 - FlowEq-023_Paint - Titanium White_0.002": [
+      "SAN-fixture-00",
+      "WAT-cold-fixture-00"
+    ],
+    "WC 24 - FlowEq-023_Ceramic - Porcelain_0.007": [
+      "SAN-fixture-01",
+      "WAT-cold-fixture-01"
+    ],
+    "WC 24 - FlowEq-023_Plastic - Laminate_0.007": [
+      "SAN-fixture-01",
+      "WAT-cold-fixture-01"
+    ],
+    "WC 24 - FlowEq-023_Paint - Titanium White_0.007": [
+      "SAN-fixture-01",
+      "WAT-cold-fixture-01"
+    ],
+    "WC 24 - FlowEq-023_Ceramic - Porcelain_0.014": [
+      "SAN-fixture-02",
+      "WAT-cold-fixture-02"
+    ],
+    "WC 24 - FlowEq-023_Plastic - Laminate_0.014": [
+      "SAN-fixture-02",
+      "WAT-cold-fixture-02"
+    ],
+    "WC 24 - FlowEq-023_Paint - Titanium White_0.014": [
+      "SAN-fixture-02",
+      "WAT-cold-fixture-02"
+    ],
+    "WC 24 - FlowEq-023_Ceramic - Porcelain_0.015": [
+      "SAN-fixture-03",
+      "WAT-cold-fixture-03"
+    ],
+    "WC 24 - FlowEq-023_Plastic - Laminate_0.015": [
+      "SAN-fixture-03",
+      "WAT-cold-fixture-03"
+    ],
+    "WC 24 - FlowEq-023_Paint - Titanium White_0.015": [
+      "SAN-fixture-03",
+      "WAT-cold-fixture-03"
+    ],
+    "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.002": [
+      "SAN-fixture-04",
+      "WAT-cold-fixture-04",
+      "WAT-hot-fixture-04"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.002": [
+      "SAN-fixture-04",
+      "WAT-cold-fixture-04",
+      "WAT-hot-fixture-04"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Chrome 01_0.002": [
+      "SAN-fixture-04",
+      "WAT-cold-fixture-04",
+      "WAT-hot-fixture-04"
+    ],
+    "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.007": [
+      "SAN-fixture-05",
+      "WAT-cold-fixture-05",
+      "WAT-hot-fixture-05"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.007": [
+      "SAN-fixture-05",
+      "WAT-cold-fixture-05",
+      "WAT-hot-fixture-05"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Chrome 01_0.007": [
+      "SAN-fixture-05",
+      "WAT-cold-fixture-05",
+      "WAT-hot-fixture-05"
+    ],
+    "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.014": [
+      "SAN-fixture-06",
+      "WAT-cold-fixture-06",
+      "WAT-hot-fixture-06"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.014": [
+      "SAN-fixture-06",
+      "WAT-cold-fixture-06",
+      "WAT-hot-fixture-06"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Chrome 01_0.014": [
+      "SAN-fixture-06",
+      "WAT-cold-fixture-06",
+      "WAT-hot-fixture-06"
+    ],
+    "Basin 24 - FlowEq-023_Ceramic - Porcelain_0.015": [
+      "SAN-fixture-07",
+      "WAT-cold-fixture-07",
+      "WAT-hot-fixture-07"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Stainless Steel_0.015": [
+      "SAN-fixture-07",
+      "WAT-cold-fixture-07",
+      "WAT-hot-fixture-07"
+    ],
+    "Basin 24 - FlowEq-023_Metal - Chrome 01_0.015": [
+      "SAN-fixture-07",
+      "WAT-cold-fixture-07",
+      "WAT-hot-fixture-07"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.002": [
+      "SAN-fixture-08",
+      "WAT-cold-fixture-08",
+      "WAT-hot-fixture-08"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.002": [
+      "SAN-fixture-08",
+      "WAT-cold-fixture-08",
+      "WAT-hot-fixture-08"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.002": [
+      "SAN-fixture-08",
+      "WAT-cold-fixture-08",
+      "WAT-hot-fixture-08"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.002": [
+      "SAN-fixture-08",
+      "WAT-cold-fixture-08",
+      "WAT-hot-fixture-08"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.002": [
+      "SAN-fixture-08",
+      "WAT-cold-fixture-08",
+      "WAT-hot-fixture-08"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.007": [
+      "SAN-fixture-09",
+      "WAT-cold-fixture-09",
+      "WAT-hot-fixture-09"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.007": [
+      "SAN-fixture-09",
+      "WAT-cold-fixture-09",
+      "WAT-hot-fixture-09"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.007": [
+      "SAN-fixture-09",
+      "WAT-cold-fixture-09",
+      "WAT-hot-fixture-09"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.007": [
+      "SAN-fixture-09",
+      "WAT-cold-fixture-09",
+      "WAT-hot-fixture-09"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.007": [
+      "SAN-fixture-09",
+      "WAT-cold-fixture-09",
+      "WAT-hot-fixture-09"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Stainless Steel_0.011": [
+      "SAN-fixture-10",
+      "WAT-cold-fixture-10",
+      "WAT-hot-fixture-10"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Ceramic - Porcelain_0.011": [
+      "SAN-fixture-10",
+      "WAT-cold-fixture-10",
+      "WAT-hot-fixture-10"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Aluminium_0.011": [
+      "SAN-fixture-10",
+      "WAT-cold-fixture-10",
+      "WAT-hot-fixture-10"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Glass - Clear Fast_0.011": [
+      "SAN-fixture-10",
+      "WAT-cold-fixture-10",
+      "WAT-hot-fixture-10"
+    ],
+    "Shower Cabin 24 - FlowEq-023_Metal - Chrome 01_0.011": [
+      "SAN-fixture-10",
+      "WAT-cold-fixture-10",
+      "WAT-hot-fixture-10"
+    ],
+    "Mop Sink 24 - FlowEq-022_Metal - Stainless Steel_0.002": [
+      "SAN-fixture-11",
+      "WAT-cold-fixture-11",
+      "WAT-hot-fixture-11"
+    ],
+    "Mop Sink 24 - FlowEq-022_Ceramic - Porcelain_0.002": [
+      "SAN-fixture-11",
+      "WAT-cold-fixture-11",
+      "WAT-hot-fixture-11"
+    ],
+    "WashingMachine - FU - 060_GDLM8_Material_001-material_0.002": [
+      "SAN-fixture-12",
+      "WAT-cold-fixture-12"
+    ],
+    "WashingMachine - FU - 060_GDLM9_cot_002-material_0.002": [
+      "SAN-fixture-12",
+      "WAT-cold-fixture-12"
+    ],
+    "WashingMachine - FU - 060_GDLM10_Material_002-material_0.002": [
+      "SAN-fixture-12",
+      "WAT-cold-fixture-12"
+    ],
+    "Kitchen source | Object_54": [
+      "SAN-fixture-13",
+      "WAT-cold-fixture-13",
+      "WAT-hot-fixture-13",
+      "MEC-hood-port"
+    ],
+    "SW - 573_Wall white plaster_0.008": [
+      "MEC-wall-ground-bath"
+    ],
+    "SW - 571_Wall white plaster_0.008": [
+      "MEC-wall-laundry"
+    ],
+    "SW - 576_Wall white plaster_0.009": [
+      "MEC-wall-living-powder"
+    ],
+    "SW - 620_Wall white plaster_0.002": [
+      "MEC-wall-upper-west-ensuite"
+    ],
+    "SW - 621_Wall white plaster_0.002": [
+      "MEC-wall-upper-east-ensuite"
+    ],
+    "Kitchen source | Object_8": [
+      "MEC-hood-port"
+    ]
+  },
+  "fixture_count": 14,
+  "dwelling_feeds": [
+    "WAT-dwelling-0",
+    "WAT-dwelling-1",
+    "WAT-dwelling-2",
+    "WAT-dwelling-3",
+    "WAT-dwelling-4"
+  ],
+  "validation": {
+    "continuous_routes": 96,
+    "endpoints": 109,
+    "separate_subsystems": true,
+    "base_fixture_transforms_changed": 0,
+    "roof_outlets_anchored_by_raycast": true
+  },
+  "pending": [
+    "Consultant verification of capacity, gradients, routes and access.",
+    "Resolve floor penetrations, external riser enclosure and structure interfaces.",
+    "Verify water-heater and pump electrical provisions, rainwater treatment and overflow approval.",
+    "Street network positions and connection permissions require investigation."
+  ]
+}

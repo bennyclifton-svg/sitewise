@@ -642,17 +642,20 @@ def _parse_from_markdown_table(preview: str) -> dict[str, str | Confidence] | No
             fields.setdefault("title", value)
         elif label in {"revision", "rev"}:
             fields.setdefault("revision", value)
+        elif label in {"proponent", "issuing firm", "prepared by"}:
+            fields.setdefault("issuing_firm", value)
 
     drawing_number = fields.get("document_number")
     drawing_title = fields.get("title")
     revision_raw = fields.get("revision")
 
-    if not drawing_number and not drawing_title and not frontmatter_title:
+    if not drawing_number and not drawing_title and not frontmatter_title and not fields.get("issuing_firm"):
         return None
 
     return {
         "document_number": drawing_number or "",
         "title": drawing_title or frontmatter_title or "",
+        "issuing_firm": fields.get("issuing_firm", ""),
         "revision": _normalize_revision(revision_raw or ""),
         "confidence": "high" if drawing_number and drawing_title else "medium",
     }

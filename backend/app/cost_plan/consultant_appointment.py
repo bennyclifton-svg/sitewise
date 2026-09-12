@@ -594,9 +594,9 @@ def _resolve_discipline(
 ) -> str:
     for candidate in (
         override,
-        str(metadata.get("discipline") or "") or None,
         _match_value(_DISCIPLINE_CELL_RE, content),
         _heading_discipline(content),
+        str(metadata.get("discipline") or "") or None,
     ):
         mapped = map_discipline_to_register_label(candidate)
         if mapped:
@@ -614,6 +614,12 @@ def _resolve_firm(
 ) -> str:
     if override and override.strip() and not is_noise_firm_candidate(override):
         return override.strip()
+    # The consultant named in an appointment is not its issuing client.
+    for cells in _table_rows(content):
+        if len(cells) == 2 and _normalize(cells[0]) in {"consultant", "proponent"}:
+            named_firm = _strip_markdown(cells[1]).strip()
+            if named_firm and not is_noise_firm_candidate(named_firm):
+                return named_firm
     meta_firm = str(metadata.get("issuing_firm") or "").strip()
     if meta_firm and not is_noise_firm_candidate(meta_firm):
         return meta_firm
@@ -633,7 +639,7 @@ def _heading_discipline(content: str) -> str | None:
     heading = _first_heading(content)
     if not heading:
         return None
-    match = re.search(r"fee proposal\s+[—-]\s+(.+)$", heading, re.IGNORECASE)
+    match = re.search(r"(?:fee proposal|letter of appointment)\s+[—–-]\s+(.+)$", heading, re.IGNORECASE)
     return match.group(1).strip() if match else None
 
 

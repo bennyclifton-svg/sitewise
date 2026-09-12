@@ -12,6 +12,7 @@ import {
   Inbox,
   Loader2,
   LoaderCircle,
+  MessageSquareText,
   Send,
   TableProperties,
   Trash,
@@ -33,6 +34,7 @@ import { createPortal } from "react-dom";
 
 import { ActivityFeed } from "@/components/project/ActivityFeed";
 import { PulsePanel } from "@/components/project/PulsePanel";
+import { PromptLibraryPanel } from "@/components/project/PromptLibraryPanel";
 import {
   IngestProgressStrip,
   type IngestUploadProgress,
@@ -53,6 +55,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { api } from "@/lib/api";
+import {
+  isDraftNotFoundError,
+  missingDraftDeleteResult,
+  repositoryArtefactDrafts,
+} from "@/lib/artefact-drafts";
 import {
   DOCUMENT_CATEGORIES,
   DOCUMENT_CLASSES,
@@ -274,6 +281,8 @@ export function DocumentRepositoryPanel({
   const deleteDraft = useDeleteDraft(projectId);
   const [activePanelView, setActivePanelView] =
     useState<RepositoryPanelView>("schedule");
+  const [promptsOpen, setPromptsOpen] = useState(false);
+  const [promptsVisited, setPromptsVisited] = useState(false);
   const [openTreeSections, setOpenTreeSections] = useState<Set<RepositoryTreeSectionId>>(
     () => new Set(["activity", "admin"]),
   );
@@ -318,14 +327,12 @@ export function DocumentRepositoryPanel({
     () =>
       sortScheduleRows(
         [
-          ...artefactDrafts
-            .filter((draft) => draft.workflow_type !== "sort_files")
-            .map((draft) => ({
-              kind: "artefact" as const,
-              id: draft.id,
-              draft,
-              title: abbreviateArtefactTitle(draft.title),
-            })),
+          ...repositoryArtefactDrafts(artefactDrafts).map((draft) => ({
+            kind: "artefact" as const,
+            id: draft.id,
+            draft,
+            title: abbreviateArtefactTitle(draft.title),
+          })),
           ...evidence.map((item) => ({
             kind: "source" as const,
             id: item.id,
@@ -627,7 +634,13 @@ export function DocumentRepositoryPanel({
     setUploadError(null);
     setBulkDeletingIds((current) => new Set(current).add(draft.id));
     try {
-      const result = await deleteDraft.mutateAsync(draft.id);
+      let result;
+      try {
+        result = await deleteDraft.mutateAsync(draft.id);
+      } catch (error) {
+        if (!isDraftNotFoundError(error)) throw error;
+        result = missingDraftDeleteResult(draft);
+      }
       onArtefactDeleted?.(result);
       setSelectedIds((current) => {
         if (!current.has(draft.id)) return current;
@@ -702,6 +715,10 @@ export function DocumentRepositoryPanel({
         const result = await deleteDraft.mutateAsync(draft.id);
         onArtefactDeleted?.(result);
       } catch (error) {
+        if (isDraftNotFoundError(error)) {
+          onArtefactDeleted?.(missingDraftDeleteResult(draft));
+          continue;
+        }
         failedIds.add(draft.id);
         const detail =
           error instanceof ApiError ? error.message : "Please try again.";
@@ -948,7 +965,7 @@ export function DocumentRepositoryPanel({
     <div
       className={cn(
         "document-repository-panel relative flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden transition-colors",
-        isDragging && "bg-primary/5",
+        isDragging && "bg-[var(--sw-selection-bg)]",
       )}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
@@ -981,10 +998,10 @@ export function DocumentRepositoryPanel({
       ) : null}
 
       {isDragging ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-primary bg-primary/10 p-6 text-center">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] p-6 text-center">
           <div>
-            <Upload className="mx-auto size-8 text-primary" aria-hidden />
-            <p className="mt-3 text-sm font-medium text-primary">Drop to upload to _inbox/</p>
+            <Upload className="mx-auto size-8 text-[var(--sw-selection-text)]" aria-hidden />
+            <p className="mt-3 text-sm font-medium text-[var(--sw-selection-text)]">Drop to upload to _inbox/</p>
             <p className="mt-1 text-xs text-muted-foreground">
               PDF, DOCX, and Markdown supported
             </p>
@@ -1005,29 +1022,16 @@ export function DocumentRepositoryPanel({
               size="icon-xs"
               className={cn(
                 toolbarIconButtonClass,
-                activePanelView === "schedule" && toolbarIconButtonActiveClass,
+                !promptsOpen && toolbarIconButtonActiveClass,
               )}
-              aria-label="Document schedule"
-              aria-pressed={activePanelView === "schedule"}
-              title="Document schedule"
-              onClick={() => setActivePanelView("schedule")}
+              aria-label={promptsOpen ? "Show documents" : activePanelView === "schedule" ? "Switch to tree view" : "Switch to document list"}
+              title={promptsOpen ? "Show documents" : activePanelView === "schedule" ? "Document list · switch to tree view" : "Document tree · switch to list view"}
+              onClick={() => {
+                if (promptsOpen) setPromptsOpen(false);
+                else setActivePanelView((view) => view === "schedule" ? "tree" : "schedule");
+              }}
             >
-              <TableProperties className="size-3.5" aria-hidden />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              className={cn(
-                toolbarIconButtonClass,
-                activePanelView === "tree" && toolbarIconButtonActiveClass,
-              )}
-              aria-label="Tree view"
-              aria-pressed={activePanelView === "tree"}
-              title="Tree view"
-              onClick={() => setActivePanelView("tree")}
-            >
-              <FolderTree className="size-3.5" aria-hidden />
+              {activePanelView === "schedule" ? <TableProperties className="size-3.5" aria-hidden /> : <FolderTree className="size-3.5" aria-hidden />}
             </Button>
             <Button
               type="button"
@@ -1048,7 +1052,7 @@ export function DocumentRepositoryPanel({
                 size="icon-xs"
                 className={toolbarIconButtonClass}
                 aria-label="Sort files"
-                title="Sort files"
+                title="Sort inbox files into the project repository"
                 disabled={!overlayReady || isRunningSortFiles}
                 onClick={onRunSortFiles}
               >
@@ -1076,7 +1080,7 @@ export function DocumentRepositoryPanel({
                 }
                 aria-pressed={pulseOpen}
                 title="Correspondence"
-                onClick={() => setPulseOpen((open) => !open)}
+                onClick={() => { setPromptsOpen(false); setPulseOpen((open) => !open); }}
               >
                 <Activity className="size-3.5" aria-hidden />
                 {pulseFeed.attention_count > 0 ? (
@@ -1108,8 +1112,20 @@ export function DocumentRepositoryPanel({
                 <Send className="size-3.5" aria-hidden />
               </Button>
             ) : null}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className={cn(toolbarIconButtonClass, promptsOpen && toolbarIconButtonActiveClass)}
+              aria-label="Prompts"
+              aria-pressed={promptsOpen}
+              title="Personal prompts"
+              onClick={() => { setPromptsVisited(true); setPromptsOpen((open) => !open); setPulseOpen(false); }}
+            >
+              <MessageSquareText className="size-3.5" aria-hidden />
+            </Button>
           </div>
-          {activePanelView === "schedule" && selectedScheduleRows.length ? (
+          {!promptsOpen && activePanelView === "schedule" && selectedScheduleRows.length ? (
             <span className="shrink-0 text-xs text-muted-foreground">
               {selectedScheduleRows.length} selected
             </span>
@@ -1128,7 +1144,7 @@ export function DocumentRepositoryPanel({
 
       {uploadError ? (
         <div
-          className="mx-3 mt-3 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+          className="mx-3 mt-3 flex items-start gap-2 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-xs text-destructive"
           role="alert"
         >
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -1152,7 +1168,7 @@ export function DocumentRepositoryPanel({
         return (
           <div
             key={analysis.staging_id}
-            className="mx-3 mt-3 border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-xs"
+            className="mx-3 mt-3 border border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] p-3 text-xs"
           >
             <p className="font-medium text-[var(--sw-caution)]">
               {proposal.sourceFile.name} — looks like a drawing set
@@ -1180,7 +1196,7 @@ export function DocumentRepositoryPanel({
               <button
                 type="button"
                 disabled={resolving}
-                className="inline-flex items-center gap-1.5 rounded-sm bg-primary px-2.5 py-1.5 font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 sw-primary-action rounded-sm bg-primary px-2.5 py-1.5 font-medium text-primary-foreground transition-colors hover:bg-[var(--sw-action-primary-hover)] active:bg-[var(--sw-action-primary-pressed)] disabled:pointer-events-none"
                 onClick={() => void resolveSplit(proposal, "split")}
               >
                 {resolving ? (
@@ -1202,6 +1218,7 @@ export function DocumentRepositoryPanel({
       })}
 
       <div className="cockpit-scroll min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        {promptsVisited ? <div hidden={!promptsOpen}><PromptLibraryPanel /></div> : null}
         {pulseOpen && pulseFeed ? (
           <>
             <PulsePanel
@@ -1238,7 +1255,7 @@ export function DocumentRepositoryPanel({
                     type="button"
                     data-testid="pulse-email-send"
                     disabled={pulseEmailSending}
-                    className="mt-1.5 inline-flex items-center rounded-sm bg-primary px-2.5 py-1 text-[0.65rem] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+                    className="mt-1.5 inline-flex items-center sw-primary-action rounded-sm bg-primary px-2.5 py-1 text-[0.65rem] font-medium text-primary-foreground transition-colors hover:bg-[var(--sw-action-primary-hover)] active:bg-[var(--sw-action-primary-pressed)] disabled:pointer-events-none"
                     onClick={onSendPulseEmailDraft}
                   >
                     {pulseEmailSending ? "Sending…" : "Send"}
@@ -1273,7 +1290,7 @@ export function DocumentRepositoryPanel({
             ) : null}
           </>
         ) : null}
-        {activePanelView === "tree" ? (
+        {promptsOpen ? null : activePanelView === "tree" ? (
           <div className="px-1.5 py-2">
             <WorkspaceExplorer
               key={projectId}
@@ -1426,7 +1443,7 @@ export function DocumentRepositoryPanel({
                       deleteEvidence.isPending ||
                       deleteDraft.isPending
                     }
-                    className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
+                    className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-[var(--sw-error-bg)] hover:text-[var(--sw-error-text)] disabled:pointer-events-none disabled:opacity-35"
                     aria-label={
                       selectedScheduleRows.length
                         ? `Delete ${selectedScheduleRows.length} selected ${selectedScheduleRows.length === 1 ? "document" : "documents"}`
@@ -1463,7 +1480,7 @@ export function DocumentRepositoryPanel({
                   const deletingRow = bulkDeletingIds.has(draft.id);
                   return (
                     <tr
-                      key={draft.id}
+                      key={`artefact:${draft.id}`}
                       className={cn(
                         "sw-table-row group/repo-row cursor-pointer select-none border-b text-muted-foreground hover:text-foreground",
                         selected && "sw-table-row--active",
@@ -1487,7 +1504,7 @@ export function DocumentRepositoryPanel({
                         <button
                           type="button"
                           disabled={deletingRow}
-                          className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
+                          className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-opacity hover:bg-[var(--sw-error-bg)] hover:text-[var(--sw-error-text)] hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
                           aria-label={`Delete ${title}`}
                           title="Delete document"
                           onClick={(event) => {
@@ -1570,7 +1587,7 @@ export function DocumentRepositoryPanel({
                       <button
                         type="button"
                         disabled={deletingRow}
-                        className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
+                        className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-opacity hover:bg-[var(--sw-error-bg)] hover:text-[var(--sw-error-text)] hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-50"
                         aria-label={`Delete ${row.title}`}
                         title="Delete document"
                         onClick={(event) => {
@@ -1630,7 +1647,7 @@ export function DocumentRepositoryPanel({
             disabled={isUploading}
             className={cn(
               "flex h-full min-h-[18rem] w-full items-center justify-center rounded-md border border-dashed p-6 text-center transition-colors",
-              !isUploading && "hover:border-primary hover:bg-muted/40",
+              !isUploading && "hover:border-[var(--sw-selection-border)] hover:bg-[var(--sw-selection-bg)]",
               isUploading && "cursor-not-allowed opacity-60",
             )}
             onClick={() => fileInputRef.current?.click()}

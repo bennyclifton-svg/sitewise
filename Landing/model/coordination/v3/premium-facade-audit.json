@@ -1,0 +1,790 @@
+{
+  "screens": [
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.035",
+      "blades": 9,
+      "glazing_bounds": [
+        [
+          -4.887985706329346,
+          -12.028250694274902,
+          6.7729973793029785
+        ],
+        [
+          -4.763021469116211,
+          -10.138447761535645,
+          7.9069976806640625
+        ]
+      ],
+      "screen_width_m": 0.92,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 01 vertical louvre 1",
+        "Premium | Window 01 vertical louvre 2",
+        "Premium | Window 01 vertical louvre 3",
+        "Premium | Window 01 vertical louvre 4",
+        "Premium | Window 01 vertical louvre 5",
+        "Premium | Window 01 vertical louvre 6",
+        "Premium | Window 01 vertical louvre 7",
+        "Premium | Window 01 vertical louvre 8",
+        "Premium | Window 01 vertical louvre 9",
+        "Premium | Window 01 bottom carrier",
+        "Premium | Window 01 top carrier",
+        "Premium | Window 01 frame standoff",
+        "Premium | Window 01 carrier ear",
+        "Premium | Window 01 frame standoff.001",
+        "Premium | Window 01 carrier ear.001",
+        "Premium | Window 01 frame standoff.002",
+        "Premium | Window 01 carrier ear.002",
+        "Premium | Window 01 frame standoff.003",
+        "Premium | Window 01 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.055",
+      "blades": 9,
+      "glazing_bounds": [
+        [
+          -4.887979507446289,
+          -4.957947731018066,
+          6.772998332977295
+        ],
+        [
+          -4.7630157470703125,
+          -3.068145751953125,
+          7.906998634338379
+        ]
+      ],
+      "screen_width_m": 0.92,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 02 vertical louvre 1",
+        "Premium | Window 02 vertical louvre 2",
+        "Premium | Window 02 vertical louvre 3",
+        "Premium | Window 02 vertical louvre 4",
+        "Premium | Window 02 vertical louvre 5",
+        "Premium | Window 02 vertical louvre 6",
+        "Premium | Window 02 vertical louvre 7",
+        "Premium | Window 02 vertical louvre 8",
+        "Premium | Window 02 vertical louvre 9",
+        "Premium | Window 02 bottom carrier",
+        "Premium | Window 02 top carrier",
+        "Premium | Window 02 frame standoff",
+        "Premium | Window 02 carrier ear",
+        "Premium | Window 02 frame standoff.001",
+        "Premium | Window 02 carrier ear.001",
+        "Premium | Window 02 frame standoff.002",
+        "Premium | Window 02 carrier ear.002",
+        "Premium | Window 02 frame standoff.003",
+        "Premium | Window 02 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.050",
+      "blades": 9,
+      "glazing_bounds": [
+        [
+          -4.887978553771973,
+          -1.663498878479004,
+          6.772998809814453
+        ],
+        [
+          -4.76301383972168,
+          0.22630134224891663,
+          7.906999111175537
+        ]
+      ],
+      "screen_width_m": 0.92,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 03 vertical louvre 1",
+        "Premium | Window 03 vertical louvre 2",
+        "Premium | Window 03 vertical louvre 3",
+        "Premium | Window 03 vertical louvre 4",
+        "Premium | Window 03 vertical louvre 5",
+        "Premium | Window 03 vertical louvre 6",
+        "Premium | Window 03 vertical louvre 7",
+        "Premium | Window 03 vertical louvre 8",
+        "Premium | Window 03 vertical louvre 9",
+        "Premium | Window 03 bottom carrier",
+        "Premium | Window 03 top carrier",
+        "Premium | Window 03 frame standoff",
+        "Premium | Window 03 carrier ear",
+        "Premium | Window 03 frame standoff.001",
+        "Premium | Window 03 carrier ear.001",
+        "Premium | Window 03 frame standoff.002",
+        "Premium | Window 03 carrier ear.002",
+        "Premium | Window 03 frame standoff.003",
+        "Premium | Window 03 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.041",
+      "blades": 9,
+      "glazing_bounds": [
+        [
+          -4.887970447540283,
+          6.497101306915283,
+          6.4730000495910645
+        ],
+        [
+          -4.76300573348999,
+          8.386902809143066,
+          7.607000350952148
+        ]
+      ],
+      "screen_width_m": 0.92,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 04 vertical louvre 1",
+        "Premium | Window 04 vertical louvre 2",
+        "Premium | Window 04 vertical louvre 3",
+        "Premium | Window 04 vertical louvre 4",
+        "Premium | Window 04 vertical louvre 5",
+        "Premium | Window 04 vertical louvre 6",
+        "Premium | Window 04 vertical louvre 7",
+        "Premium | Window 04 vertical louvre 8",
+        "Premium | Window 04 vertical louvre 9",
+        "Premium | Window 04 bottom carrier",
+        "Premium | Window 04 top carrier",
+        "Premium | Window 04 frame standoff",
+        "Premium | Window 04 carrier ear",
+        "Premium | Window 04 frame standoff.001",
+        "Premium | Window 04 carrier ear.001",
+        "Premium | Window 04 frame standoff.002",
+        "Premium | Window 04 carrier ear.002",
+        "Premium | Window 04 frame standoff.003",
+        "Premium | Window 04 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.037",
+      "blades": 9,
+      "glazing_bounds": [
+        [
+          -4.88796854019165,
+          9.791552543640137,
+          6.473000526428223
+        ],
+        [
+          -4.763004302978516,
+          11.681354522705078,
+          7.607000827789307
+        ]
+      ],
+      "screen_width_m": 0.92,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 05 vertical louvre 1",
+        "Premium | Window 05 vertical louvre 2",
+        "Premium | Window 05 vertical louvre 3",
+        "Premium | Window 05 vertical louvre 4",
+        "Premium | Window 05 vertical louvre 5",
+        "Premium | Window 05 vertical louvre 6",
+        "Premium | Window 05 vertical louvre 7",
+        "Premium | Window 05 vertical louvre 8",
+        "Premium | Window 05 vertical louvre 9",
+        "Premium | Window 05 bottom carrier",
+        "Premium | Window 05 top carrier",
+        "Premium | Window 05 frame standoff",
+        "Premium | Window 05 carrier ear",
+        "Premium | Window 05 frame standoff.001",
+        "Premium | Window 05 carrier ear.001",
+        "Premium | Window 05 frame standoff.002",
+        "Premium | Window 05 carrier ear.002",
+        "Premium | Window 05 frame standoff.003",
+        "Premium | Window 05 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.842287003993988,
+          4.2657270431518555,
+          3.0784082412719727
+        ],
+        [
+          1.5320895910263062,
+          4.449629783630371,
+          4.86403751373291
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 06 vertical louvre 1",
+        "Premium | Window 06 vertical louvre 2",
+        "Premium | Window 06 vertical louvre 3",
+        "Premium | Window 06 vertical louvre 4",
+        "Premium | Window 06 vertical louvre 5",
+        "Premium | Window 06 bottom carrier",
+        "Premium | Window 06 top carrier",
+        "Premium | Window 06 frame standoff",
+        "Premium | Window 06 carrier ear",
+        "Premium | Window 06 frame standoff.001",
+        "Premium | Window 06 carrier ear.001",
+        "Premium | Window 06 frame standoff.002",
+        "Premium | Window 06 carrier ear.002",
+        "Premium | Window 06 frame standoff.003",
+        "Premium | Window 06 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.006",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8202753663063049,
+          -13.913169860839844,
+          3.352996587753296
+        ],
+        [
+          1.5540783405303955,
+          -13.773651123046875,
+          5.164034843444824
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 07 vertical louvre 1",
+        "Premium | Window 07 vertical louvre 2",
+        "Premium | Window 07 vertical louvre 3",
+        "Premium | Window 07 vertical louvre 4",
+        "Premium | Window 07 vertical louvre 5",
+        "Premium | Window 07 bottom carrier",
+        "Premium | Window 07 top carrier",
+        "Premium | Window 07 frame standoff",
+        "Premium | Window 07 carrier ear",
+        "Premium | Window 07 frame standoff.001",
+        "Premium | Window 07 carrier ear.001",
+        "Premium | Window 07 frame standoff.002",
+        "Premium | Window 07 carrier ear.002",
+        "Premium | Window 07 frame standoff.003",
+        "Premium | Window 07 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.011",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8202943801879883,
+          13.726749420166016,
+          3.0530004501342773
+        ],
+        [
+          1.5540971755981445,
+          13.866267204284668,
+          4.864038467407227
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 08 vertical louvre 1",
+        "Premium | Window 08 vertical louvre 2",
+        "Premium | Window 08 vertical louvre 3",
+        "Premium | Window 08 vertical louvre 4",
+        "Premium | Window 08 vertical louvre 5",
+        "Premium | Window 08 bottom carrier",
+        "Premium | Window 08 top carrier",
+        "Premium | Window 08 frame standoff",
+        "Premium | Window 08 carrier ear",
+        "Premium | Window 08 frame standoff.001",
+        "Premium | Window 08 carrier ear.001",
+        "Premium | Window 08 frame standoff.002",
+        "Premium | Window 08 carrier ear.002",
+        "Premium | Window 08 frame standoff.003",
+        "Premium | Window 08 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.016",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8422830104827881,
+          -7.189323425292969,
+          3.378406524658203
+        ],
+        [
+          1.532085657119751,
+          -7.005420207977295,
+          5.164035797119141
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 09 vertical louvre 1",
+        "Premium | Window 09 vertical louvre 2",
+        "Premium | Window 09 vertical louvre 3",
+        "Premium | Window 09 vertical louvre 4",
+        "Premium | Window 09 vertical louvre 5",
+        "Premium | Window 09 bottom carrier",
+        "Premium | Window 09 top carrier",
+        "Premium | Window 09 frame standoff",
+        "Premium | Window 09 carrier ear",
+        "Premium | Window 09 frame standoff.001",
+        "Premium | Window 09 carrier ear.001",
+        "Premium | Window 09 frame standoff.002",
+        "Premium | Window 09 carrier ear.002",
+        "Premium | Window 09 frame standoff.003",
+        "Premium | Window 09 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.046",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8202943801879883,
+          13.726749420166016,
+          5.773000240325928
+        ],
+        [
+          1.5540971755981445,
+          13.866267204284668,
+          7.584038257598877
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 10 vertical louvre 1",
+        "Premium | Window 10 vertical louvre 2",
+        "Premium | Window 10 vertical louvre 3",
+        "Premium | Window 10 vertical louvre 4",
+        "Premium | Window 10 vertical louvre 5",
+        "Premium | Window 10 bottom carrier",
+        "Premium | Window 10 top carrier",
+        "Premium | Window 10 frame standoff",
+        "Premium | Window 10 carrier ear",
+        "Premium | Window 10 frame standoff.001",
+        "Premium | Window 10 carrier ear.001",
+        "Premium | Window 10 frame standoff.002",
+        "Premium | Window 10 carrier ear.002",
+        "Premium | Window 10 frame standoff.003",
+        "Premium | Window 10 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.051",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8422880172729492,
+          2.273766040802002,
+          6.098408222198486
+        ],
+        [
+          1.5320903062820435,
+          2.4576704502105713,
+          7.884037017822266
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 11 vertical louvre 1",
+        "Premium | Window 11 vertical louvre 2",
+        "Premium | Window 11 vertical louvre 3",
+        "Premium | Window 11 vertical louvre 4",
+        "Premium | Window 11 vertical louvre 5",
+        "Premium | Window 11 bottom carrier",
+        "Premium | Window 11 top carrier",
+        "Premium | Window 11 frame standoff",
+        "Premium | Window 11 carrier ear",
+        "Premium | Window 11 frame standoff.001",
+        "Premium | Window 11 carrier ear.001",
+        "Premium | Window 11 frame standoff.002",
+        "Premium | Window 11 carrier ear.002",
+        "Premium | Window 11 frame standoff.003",
+        "Premium | Window 11 carrier ear.003"
+      ]
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.054",
+      "blades": 5,
+      "glazing_bounds": [
+        [
+          0.8422830104827881,
+          -7.189323425292969,
+          6.09840726852417
+        ],
+        [
+          1.532085657119751,
+          -7.005420207977295,
+          7.884036540985107
+        ]
+      ],
+      "screen_width_m": 0.53,
+      "clearance_to_existing_glass_m": 0.255,
+      "parts": [
+        "Premium | Window 12 vertical louvre 1",
+        "Premium | Window 12 vertical louvre 2",
+        "Premium | Window 12 vertical louvre 3",
+        "Premium | Window 12 vertical louvre 4",
+        "Premium | Window 12 vertical louvre 5",
+        "Premium | Window 12 bottom carrier",
+        "Premium | Window 12 top carrier",
+        "Premium | Window 12 frame standoff",
+        "Premium | Window 12 carrier ear",
+        "Premium | Window 12 frame standoff.001",
+        "Premium | Window 12 carrier ear.001",
+        "Premium | Window 12 frame standoff.002",
+        "Premium | Window 12 carrier ear.002",
+        "Premium | Window 12 frame standoff.003",
+        "Premium | Window 12 carrier ear.003"
+      ]
+    }
+  ],
+  "brick_panels": [
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.002",
+      "faces": 1007,
+      "axis": 1,
+      "plane": 2.335666873931885
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.009",
+      "faces": 1434,
+      "axis": 1,
+      "plane": -7.067323425292969
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.004",
+      "faces": 420,
+      "axis": 1,
+      "plane": 2.3227035789489747
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.014",
+      "faces": 1434,
+      "axis": 1,
+      "plane": -13.837623336791992
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.018",
+      "faces": 1425,
+      "axis": 1,
+      "plane": -9.119376441955566
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.020",
+      "faces": 1435,
+      "axis": 1,
+      "plane": 4.387727519989014
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.010",
+      "faces": 975,
+      "axis": 1,
+      "plane": 13.777746894836426
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.012",
+      "faces": 420,
+      "axis": 1,
+      "plane": 13.77775357055664
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.033",
+      "faces": 462,
+      "axis": 0,
+      "plane": 4.751157501220703
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.013",
+      "faces": 351,
+      "axis": 1,
+      "plane": 2.3346960334777833
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.035",
+      "faces": 978,
+      "axis": 1,
+      "plane": 2.3356749801635743
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.036",
+      "faces": 330,
+      "axis": 0,
+      "plane": -4.87673685836792
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.037",
+      "faces": 978,
+      "axis": 1,
+      "plane": -7.067316749572754
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.038",
+      "faces": 476,
+      "axis": 0,
+      "plane": 4.751153209686279
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.014",
+      "faces": 351,
+      "axis": 1,
+      "plane": -7.066355922698975
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.040",
+      "faces": 316,
+      "axis": 0,
+      "plane": -4.876739242553711
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.041",
+      "faces": 978,
+      "axis": 1,
+      "plane": -13.83761856842041
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.042",
+      "faces": 329,
+      "axis": 0,
+      "plane": -4.876743534088135
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.043",
+      "faces": 1353,
+      "axis": 1,
+      "plane": -9.119377395629883
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.015",
+      "faces": 351,
+      "axis": 1,
+      "plane": -13.836654403686524
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.045",
+      "faces": 481,
+      "axis": 0,
+      "plane": 4.751148918151856
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.046",
+      "faces": 978,
+      "axis": 1,
+      "plane": 4.38773371887207
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.047",
+      "faces": 330,
+      "axis": 0,
+      "plane": -4.876731136322022
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.048",
+      "faces": 462,
+      "axis": 0,
+      "plane": 4.751161315917969
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.016",
+      "faces": 351,
+      "axis": 1,
+      "plane": 4.3886945457458495
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.050",
+      "faces": 476,
+      "axis": 0,
+      "plane": 4.751165607452393
+    },
+    {
+      "source": "CI Tools Wall Covering - _Paint - Anthracite_0.017",
+      "faces": 351,
+      "axis": 1,
+      "plane": 13.78974602508545
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.052",
+      "faces": 316,
+      "axis": 0,
+      "plane": -4.876724937438965
+    },
+    {
+      "source": "CI Tools Wall Covering - _Weatherboard - White_0.053",
+      "faces": 978,
+      "axis": 1,
+      "plane": 13.790723541259766
+    }
+  ],
+  "balcony_bands": [
+    {
+      "block": 1,
+      "y": [
+        -13.82,
+        -9.14
+      ],
+      "slab_top": 3.22,
+      "radius_m": 0.26
+    },
+    {
+      "block": 2,
+      "y": [
+        -7.05,
+        2.32
+      ],
+      "slab_top": 3.22,
+      "radius_m": 0.26
+    },
+    {
+      "block": 3,
+      "y": [
+        4.405,
+        13.775
+      ],
+      "slab_top": 2.92,
+      "radius_m": 0.26
+    }
+  ],
+  "planters": [
+    {
+      "dwelling": 1,
+      "footprint": [
+        -5.32,
+        -4.85,
+        -13.669999999999998,
+        -13.09
+      ],
+      "clear_depth_to_balcony_door_m": 1.291
+    },
+    {
+      "dwelling": 2,
+      "footprint": [
+        -5.32,
+        -4.85,
+        -6.8999999999999995,
+        -6.319999999999999
+      ],
+      "clear_depth_to_balcony_door_m": 1.291
+    },
+    {
+      "dwelling": 3,
+      "footprint": [
+        -5.32,
+        -4.85,
+        1.5899999999999999,
+        2.17
+      ],
+      "clear_depth_to_balcony_door_m": 1.291
+    },
+    {
+      "dwelling": 4,
+      "footprint": [
+        -5.32,
+        -4.85,
+        4.550000000000001,
+        5.130000000000001
+      ],
+      "clear_depth_to_balcony_door_m": 1.291
+    },
+    {
+      "dwelling": 5,
+      "footprint": [
+        -5.32,
+        -4.85,
+        13.05,
+        13.629999999999999
+      ],
+      "clear_depth_to_balcony_door_m": 1.291
+    }
+  ],
+  "access": [
+    {
+      "door": "DOO - 019_Wood - Walnut Vertical_0.002",
+      "unchanged": true,
+      "new_ground_planters": 0
+    },
+    {
+      "door": "DOO - 019_Wood - Walnut Vertical_0",
+      "unchanged": true,
+      "new_ground_planters": 0
+    },
+    {
+      "door": "DOO - 019_Wood - Walnut Vertical_0.001",
+      "unchanged": true,
+      "new_ground_planters": 0
+    },
+    {
+      "door": "DOO - 019_Wood - Walnut Vertical_0.003",
+      "unchanged": true,
+      "new_ground_planters": 0
+    },
+    {
+      "door": "DOO - 019_Wood - Walnut Vertical_0.004",
+      "unchanged": true,
+      "new_ground_planters": 0
+    }
+  ],
+  "source": "sitewise-chalk-v10.blend",
+  "preserved_source_meshes": 5633,
+  "hidden_replaced_coverings_and_trims": [
+    "CI Tools Wall Covering - _Weatherboard - White_0.002",
+    "CI Tools Wall Covering - _Weatherboard - White_0.009",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.004",
+    "CI Tools Wall Covering - _Weatherboard - White_0.014",
+    "CI Tools Wall Covering - _Weatherboard - White_0.018",
+    "CI Tools Wall Covering - _Weatherboard - White_0.020",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.010",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.012",
+    "CI Tools Wall Covering - _Weatherboard - White_0.033",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.013",
+    "CI Tools Wall Covering - _Weatherboard - White_0.035",
+    "CI Tools Wall Covering - _Weatherboard - White_0.036",
+    "CI Tools Wall Covering - _Weatherboard - White_0.037",
+    "CI Tools Wall Covering - _Weatherboard - White_0.038",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.014",
+    "CI Tools Wall Covering - _Weatherboard - White_0.040",
+    "CI Tools Wall Covering - _Weatherboard - White_0.041",
+    "CI Tools Wall Covering - _Weatherboard - White_0.042",
+    "CI Tools Wall Covering - _Weatherboard - White_0.043",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.015",
+    "CI Tools Wall Covering - _Weatherboard - White_0.045",
+    "CI Tools Wall Covering - _Weatherboard - White_0.046",
+    "CI Tools Wall Covering - _Weatherboard - White_0.047",
+    "CI Tools Wall Covering - _Weatherboard - White_0.048",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.016",
+    "CI Tools Wall Covering - _Weatherboard - White_0.050",
+    "CI Tools Wall Covering - _Paint - Anthracite_0.017",
+    "CI Tools Wall Covering - _Weatherboard - White_0.052",
+    "CI Tools Wall Covering - _Weatherboard - White_0.053",
+    "Facade | 36 shallow surround head",
+    "Facade | 36 shallow surround sill",
+    "Facade | 36 shallow surround left",
+    "Facade | 36 shallow surround right",
+    "Facade | 56 shallow surround head",
+    "Facade | 56 shallow surround sill",
+    "Facade | 56 shallow surround left",
+    "Facade | 56 shallow surround right",
+    "Facade | 51 shallow surround head",
+    "Facade | 51 shallow surround sill",
+    "Facade | 51 shallow surround left",
+    "Facade | 51 shallow surround right",
+    "Facade | 42 shallow surround head",
+    "Facade | 42 shallow surround sill",
+    "Facade | 42 shallow surround left",
+    "Facade | 42 shallow surround right",
+    "Facade | 38 shallow surround head",
+    "Facade | 38 shallow surround sill",
+    "Facade | 38 shallow surround left",
+    "Facade | 38 shallow surround right"
+  ],
+  "new_objects": 309,
+  "new_ground_planters": 0,
+  "checks": [
+    "All source mesh vertices, topology and transforms unchanged",
+    "Every louvre blade lies within a named window glazing projection",
+    "Every louvre blade has at least 255 mm clearance to existing glazing envelope",
+    "No new louvre blade or planter intersects a door bounding volume",
+    "No garden beds added to ground-level entries, garage aprons or steps"
+  ]
+}

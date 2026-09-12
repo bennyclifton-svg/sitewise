@@ -5,6 +5,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { ArrowUp } from "lucide-react";
 
 import {
   getSelectedAgentModel,
@@ -258,7 +259,7 @@ export function ChatComposer({
 
   return (
     <form
-      className="sw-composer"
+      className={cn("sw-composer", fieldFocused && "is-focused")}
       onSubmit={(event) => {
         event.preventDefault();
         if (canSubmit) onSubmit();
@@ -526,32 +527,13 @@ function DepthIcon({
 }
 
 function SendMark() {
-  return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
-      <path d="M22 5.5L37 14.1L22 22.7L7 14.1Z" fill="#2C3037" />
-      <path d="M22 22.7L7 31.3L22 39.9Z" fill="#D6D6D0" />
-      <path d="M22 22.7L37 14.1L37 31.3Z" fill="#123564" />
-      <path d="M22 22.7L37 31.3L22 39.9Z" fill="#2F72C4" />
-      <path
-        d="M22 22.7L37 14.1"
-        stroke="#A9C6E8"
-        strokeWidth="1"
-        opacity=".32"
-      />
-      <path
-        d="M22 22.7L7 14.1"
-        stroke="#8C95A2"
-        strokeWidth="1"
-        opacity=".26"
-      />
-    </svg>
-  );
+  return <ArrowUp aria-hidden="true" strokeWidth={2} />;
 }
 
 function StopMark() {
   return (
-    <svg width="44" height="44" viewBox="0 0 44 44" fill="none" aria-hidden="true">
-      <rect x="14" y="14" width="16" height="16" fill="currentColor" opacity=".85" />
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+      <rect x="2.5" y="2.5" width="9" height="9" rx="1.5" />
     </svg>
   );
 }

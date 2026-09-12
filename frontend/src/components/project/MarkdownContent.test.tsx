@@ -444,7 +444,7 @@ Scope.`}
     expect(profile.querySelector("[data-status-dot='info']")).toBeTruthy();
     expect(confirm.querySelector("[data-status-dot='caution']")).toBeTruthy();
     expect(conflictCitation).toHaveClass("evidence-status-chip");
-    expect(conflictCitation.className).toMatch(/sw-critical/);
+    expect(conflictCitation.className).toMatch(/sw-error-text/);
   });
 
   it("collapses the transmittal schedule behind a chevron", async () => {

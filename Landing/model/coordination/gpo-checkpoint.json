@@ -1,0 +1,2148 @@
+{
+  "collection": "CHECKPOINT 03 | General power outlets",
+  "type": "Australian/NZ double GPO",
+  "materials": "Chalk-white plate with geometric dark socket slots",
+  "source_scene": "sitewise-lighting-checkpoint.blend",
+  "count": 24,
+  "outlets": [
+    {
+      "id": "GPO-G01",
+      "room": "Ground entry",
+      "purpose": "General cleaning/entry point",
+      "uvz": [
+        -4.249998569488525,
+        -2.5351791381835938,
+        0.8999999761581421
+      ],
+      "world_xyz": [
+        -5.844198226928711,
+        -12.902813911437988,
+        0.8999999761581421
+      ],
+      "host_wall_source": "SW - 572_Wall white plaster_0.008",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-G01 | Ground entry",
+      "objects": [
+        "GPO-G01 | plate",
+        "GPO-G01 | left switch",
+        "GPO-G01 | left active slot",
+        "GPO-G01 | left neutral slot",
+        "GPO-G01 | left earth slot",
+        "GPO-G01 | right switch",
+        "GPO-G01 | right active slot",
+        "GPO-G01 | right neutral slot",
+        "GPO-G01 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.353957258653706e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.353957258653706e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.353957258653706e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.353957258653706e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9082797281243946e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G02",
+      "room": "Ground multipurpose",
+      "purpose": "General workpoint",
+      "uvz": [
+        -4.249999046325684,
+        1.8551216125488281,
+        0.8999999761581421
+      ],
+      "world_xyz": [
+        -5.139423370361328,
+        -8.569451332092285,
+        0.8999999761581421
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-G02 | Ground multipurpose",
+      "objects": [
+        "GPO-G02 | plate",
+        "GPO-G02 | left switch",
+        "GPO-G02 | left active slot",
+        "GPO-G02 | left neutral slot",
+        "GPO-G02 | left earth slot",
+        "GPO-G02 | right switch",
+        "GPO-G02 | right active slot",
+        "GPO-G02 | right neutral slot",
+        "GPO-G02 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3500155988819748e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3500155988819748e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3500155988819748e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3500155988819748e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G03",
+      "room": "Ground multipurpose",
+      "purpose": "General workpoint",
+      "uvz": [
+        -1.2499998807907104,
+        1.8551214933395386,
+        0.8999999761581421
+      ],
+      "world_xyz": [
+        -2.1783313751220703,
+        -9.051041603088379,
+        0.8999999761581421
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-G03 | Ground multipurpose",
+      "objects": [
+        "GPO-G03 | plate",
+        "GPO-G03 | left switch",
+        "GPO-G03 | left active slot",
+        "GPO-G03 | left neutral slot",
+        "GPO-G03 | left earth slot",
+        "GPO-G03 | right switch",
+        "GPO-G03 | right active slot",
+        "GPO-G03 | right neutral slot",
+        "GPO-G03 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.0994415283203125e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.0994415283203125e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 3.815162898494067e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G04",
+      "room": "Ground multipurpose",
+      "purpose": "Flexible workpoint",
+      "uvz": [
+        -2.3000025749206543,
+        -1.445180892944336,
+        1.0999999046325684
+      ],
+      "world_xyz": [
+        -3.7445144653320312,
+        -12.139985084533691,
+        1.0999999046325684
+      ],
+      "host_wall_source": "SW - 573_Wall white plaster_0.007",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-G04 | Ground multipurpose",
+      "objects": [
+        "GPO-G04 | plate",
+        "GPO-G04 | left switch",
+        "GPO-G04 | left active slot",
+        "GPO-G04 | left neutral slot",
+        "GPO-G04 | left earth slot",
+        "GPO-G04 | right switch",
+        "GPO-G04 | right active slot",
+        "GPO-G04 | right neutral slot",
+        "GPO-G04 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.881173275971343e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.881173275971343e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.242843272384511e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.242843272384511e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G05",
+      "room": "Laundry",
+      "purpose": "General utility point; dedicated laundry appliance point separate",
+      "uvz": [
+        0.8292449712753296,
+        0.7200027108192444,
+        1.649999976158142
+      ],
+      "world_xyz": [
+        -0.3082733154296875,
+        -10.505220413208008,
+        1.649999976158142
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.007",
+      "normal_world": [
+        -0.9870309829711914,
+        0.16053014993667603,
+        -0.0
+      ],
+      "normal_uv": [
+        -1.000000098720193,
+        0.0,
+        -0.0
+      ],
+      "root_object": "GPO-G05 | Laundry",
+      "objects": [
+        "GPO-G05 | plate",
+        "GPO-G05 | left switch",
+        "GPO-G05 | left active slot",
+        "GPO-G05 | left neutral slot",
+        "GPO-G05 | left earth slot",
+        "GPO-G05 | right switch",
+        "GPO-G05 | right active slot",
+        "GPO-G05 | right neutral slot",
+        "GPO-G05 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.440411326121637e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.440411326121637e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.27280691290275e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2672121301573098e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9073486328125e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G06",
+      "room": "Ground bedroom",
+      "purpose": "Bedside left",
+      "uvz": [
+        1.4499993324279785,
+        -2.535179615020752,
+        0.8999999761581421
+      ],
+      "world_xyz": [
+        -0.2181243896484375,
+        -13.817835807800293,
+        0.8999999761581421
+      ],
+      "host_wall_source": "SW - 572_Wall white plaster_0.006",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-G06 | Ground bedroom",
+      "objects": [
+        "GPO-G06 | plate",
+        "GPO-G06 | left switch",
+        "GPO-G06 | left active slot",
+        "GPO-G06 | left neutral slot",
+        "GPO-G06 | left earth slot",
+        "GPO-G06 | right switch",
+        "GPO-G06 | right active slot",
+        "GPO-G06 | right neutral slot",
+        "GPO-G06 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4817479723281923e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4817479723281923e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2302260065406736e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2302260065406736e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G07",
+      "room": "Ground bedroom",
+      "purpose": "Bedside right",
+      "uvz": [
+        3.700000047683716,
+        -2.5351834297180176,
+        0.8999999761581421
+      ],
+      "world_xyz": [
+        2.002695083618164,
+        -14.179032325744629,
+        0.8999999761581421
+      ],
+      "host_wall_source": "SW - 572_Wall white plaster_0.006",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-G07 | Ground bedroom",
+      "objects": [
+        "GPO-G07 | plate",
+        "GPO-G07 | left switch",
+        "GPO-G07 | left active slot",
+        "GPO-G07 | left neutral slot",
+        "GPO-G07 | left earth slot",
+        "GPO-G07 | right switch",
+        "GPO-G07 | right active slot",
+        "GPO-G07 | right neutral slot",
+        "GPO-G07 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5277869245977755e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5277869245977755e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2686131390209653e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2686131390209653e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9073486328125e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-G08",
+      "room": "Ground bathroom",
+      "purpose": "General wet-room provision for consultant review",
+      "uvz": [
+        3.6499998569488525,
+        0.8549160957336426,
+        1.619999885559082
+      ],
+      "world_xyz": [
+        2.497556686401367,
+        -10.824872970581055,
+        1.619999885559082
+      ],
+      "host_wall_source": "SW - 576_Wall white plaster_0.019",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-G08 | Ground bathroom",
+      "objects": [
+        "GPO-G08 | plate",
+        "GPO-G08 | left switch",
+        "GPO-G08 | left active slot",
+        "GPO-G08 | left neutral slot",
+        "GPO-G08 | left earth slot",
+        "GPO-G08 | right switch",
+        "GPO-G08 | right active slot",
+        "GPO-G08 | right neutral slot",
+        "GPO-G08 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.53127104981722e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5266237824995157e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1980385328675377e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9110702922202824e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L01",
+      "room": "Living",
+      "purpose": "General workpoint clear of sofa",
+      "uvz": [
+        -3.720000743865967,
+        1.8551220893859863,
+        3.6399998664855957
+      ],
+      "world_xyz": [
+        -4.616298675537109,
+        -8.654531478881836,
+        3.6399998664855957
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-L01 | Living",
+      "objects": [
+        "GPO-L01 | plate",
+        "GPO-L01 | left switch",
+        "GPO-L01 | left active slot",
+        "GPO-L01 | left neutral slot",
+        "GPO-L01 | left earth slot",
+        "GPO-L01 | right switch",
+        "GPO-L01 | right active slot",
+        "GPO-L01 | right neutral slot",
+        "GPO-L01 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3696104637475082e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3486991523486091e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3696104637475082e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3486991523486091e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L02",
+      "room": "Living",
+      "purpose": "Media/workpoint on solid stair-side wall",
+      "uvz": [
+        -1.25,
+        -1.4451830387115479,
+        3.6399996280670166
+      ],
+      "world_xyz": [
+        -2.7081298828125,
+        -12.308544158935547,
+        3.6399996280670166
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.008",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-L02 | Living",
+      "objects": [
+        "GPO-L02 | plate",
+        "GPO-L02 | left switch",
+        "GPO-L02 | left active slot",
+        "GPO-L02 | left neutral slot",
+        "GPO-L02 | left earth slot",
+        "GPO-L02 | right switch",
+        "GPO-L02 | right active slot",
+        "GPO-L02 | right neutral slot",
+        "GPO-L02 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9586967577912466e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9586967577912466e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5451289888400699e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5451289888400699e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 2.384185791015625e-07
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L03",
+      "room": "Living",
+      "purpose": "General charging point",
+      "uvz": [
+        -0.5799998641014099,
+        1.8551183938980103,
+        3.6399998664855957
+      ],
+      "world_xyz": [
+        -1.5170211791992188,
+        -9.158599853515625,
+        3.6399998664855957
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-L03 | Living",
+      "objects": [
+        "GPO-L03 | plate",
+        "GPO-L03 | left switch",
+        "GPO-L03 | left active slot",
+        "GPO-L03 | left neutral slot",
+        "GPO-L03 | left earth slot",
+        "GPO-L03 | right switch",
+        "GPO-L03 | right active slot",
+        "GPO-L03 | right neutral slot",
+        "GPO-L03 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2894456179609261e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2672121301573098e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4551348228137138e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4354699347963686e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L04",
+      "room": "Dining",
+      "purpose": "General dining provision",
+      "uvz": [
+        1.4500012397766113,
+        1.855116605758667,
+        3.6600000858306885
+      ],
+      "world_xyz": [
+        0.4866523742675781,
+        -9.484477996826172,
+        3.6600000858306885
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-L04 | Dining",
+      "objects": [
+        "GPO-L04 | plate",
+        "GPO-L04 | left switch",
+        "GPO-L04 | left active slot",
+        "GPO-L04 | left neutral slot",
+        "GPO-L04 | left earth slot",
+        "GPO-L04 | right switch",
+        "GPO-L04 | right active slot",
+        "GPO-L04 | right neutral slot",
+        "GPO-L04 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.228781230931777e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2516975402832031e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4805486617534424e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.49962253873457e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L05",
+      "room": "Kitchen worktop",
+      "purpose": "General worktop power between sink and hob",
+      "uvz": [
+        4.4842939376831055,
+        0.6499994993209839,
+        4.429999351501465
+      ],
+      "world_xyz": [
+        3.288135528564453,
+        -11.16106128692627,
+        4.429999351501465
+      ],
+      "host_wall_source": "SW - 575_Wall white plaster_0.008",
+      "normal_world": [
+        -0.9870309829711914,
+        0.16053014993667603,
+        -0.0
+      ],
+      "normal_uv": [
+        -1.000000098720193,
+        0.0,
+        -0.0
+      ],
+      "root_object": "GPO-L05 | Kitchen worktop",
+      "objects": [
+        "GPO-L05 | plate",
+        "GPO-L05 | left switch",
+        "GPO-L05 | left active slot",
+        "GPO-L05 | left neutral slot",
+        "GPO-L05 | left earth slot",
+        "GPO-L05 | right switch",
+        "GPO-L05 | right active slot",
+        "GPO-L05 | right neutral slot",
+        "GPO-L05 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 2.6973983046972182e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L06",
+      "room": "Kitchen worktop",
+      "purpose": "General worktop power beside return",
+      "uvz": [
+        4.484295845031738,
+        1.730000615119934,
+        4.429999828338623
+      ],
+      "world_xyz": [
+        3.4615097045898438,
+        -10.095067024230957,
+        4.429999828338623
+      ],
+      "host_wall_source": "SW - 575_Wall white plaster_0.008",
+      "normal_world": [
+        -0.9870309829711914,
+        0.16053014993667603,
+        -0.0
+      ],
+      "normal_uv": [
+        -1.000000098720193,
+        0.0,
+        -0.0
+      ],
+      "root_object": "GPO-L06 | Kitchen worktop",
+      "objects": [
+        "GPO-L06 | plate",
+        "GPO-L06 | left switch",
+        "GPO-L06 | left active slot",
+        "GPO-L06 | left neutral slot",
+        "GPO-L06 | left earth slot",
+        "GPO-L06 | right switch",
+        "GPO-L06 | right active slot",
+        "GPO-L06 | right neutral slot",
+        "GPO-L06 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9490749542362644e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9490749542362644e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9490749542362644e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.9490749542362644e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9073486328125e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-L07",
+      "room": "Living powder room",
+      "purpose": "General wet-room provision for consultant review",
+      "uvz": [
+        2.4500012397766113,
+        -2.5351853370666504,
+        4.37999963760376
+      ],
+      "world_xyz": [
+        0.7689075469970703,
+        -13.978371620178223,
+        4.37999963760376
+      ],
+      "host_wall_source": "SW - 576_Wall white plaster_0.009",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-L07 | Living powder room",
+      "objects": [
+        "GPO-L07 | plate",
+        "GPO-L07 | left switch",
+        "GPO-L07 | left active slot",
+        "GPO-L07 | left neutral slot",
+        "GPO-L07 | left earth slot",
+        "GPO-L07 | right switch",
+        "GPO-L07 | right active slot",
+        "GPO-L07 | right neutral slot",
+        "GPO-L07 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.228781230931777e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.228781230931777e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4805486617534424e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4805486617534424e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 2.6973983046972182e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U01",
+      "room": "West bedroom",
+      "purpose": "Bedside left",
+      "uvz": [
+        -4.769999027252197,
+        1.855118989944458,
+        6.400000095367432
+      ],
+      "world_xyz": [
+        -5.652679443359375,
+        -8.485978126525879,
+        6.400000095367432
+      ],
+      "host_wall_source": "SW - 620_Wall white plaster_0.002",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-U01 | West bedroom",
+      "objects": [
+        "GPO-U01 | plate",
+        "GPO-U01 | left switch",
+        "GPO-U01 | left active slot",
+        "GPO-U01 | left neutral slot",
+        "GPO-U01 | left earth slot",
+        "GPO-U01 | right switch",
+        "GPO-U01 | right active slot",
+        "GPO-U01 | right neutral slot",
+        "GPO-U01 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.015782985847835e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.900487198971853e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3486991523486091e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.066240299940009e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 4.76837158203125e-07
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U02",
+      "room": "West bedroom",
+      "purpose": "Bedside right",
+      "uvz": [
+        -2.559999704360962,
+        1.855117917060852,
+        6.400000095367432
+      ],
+      "world_xyz": [
+        -3.471342086791992,
+        -8.840750694274902,
+        6.400000095367432
+      ],
+      "host_wall_source": "SW - 620_Wall white plaster_0.002",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-U02 | West bedroom",
+      "objects": [
+        "GPO-U02 | plate",
+        "GPO-U02 | left switch",
+        "GPO-U02 | left active slot",
+        "GPO-U02 | left neutral slot",
+        "GPO-U02 | left earth slot",
+        "GPO-U02 | right switch",
+        "GPO-U02 | right active slot",
+        "GPO-U02 | right neutral slot",
+        "GPO-U02 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.0921145409088427e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.0921145409088427e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U03",
+      "room": "West bedroom",
+      "purpose": "General desk/workpoint",
+      "uvz": [
+        -2.800001621246338,
+        -1.4451837539672852,
+        6.419999122619629
+      ],
+      "world_xyz": [
+        -4.238029479980469,
+        -12.059722900390625,
+        6.419999122619629
+      ],
+      "host_wall_source": "SW - 624_Wall white plaster_0.002",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-U03 | West bedroom",
+      "objects": [
+        "GPO-U03 | plate",
+        "GPO-U03 | left switch",
+        "GPO-U03 | left active slot",
+        "GPO-U03 | left neutral slot",
+        "GPO-U03 | left earth slot",
+        "GPO-U03 | right switch",
+        "GPO-U03 | right active slot",
+        "GPO-U03 | right neutral slot",
+        "GPO-U03 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.132480599880018e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3486991523486091e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 9.5367431640625e-07
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.3486991523486091e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U04",
+      "room": "East bedroom",
+      "purpose": "Bedside left",
+      "uvz": [
+        1.8400012254714966,
+        -2.5351850986480713,
+        6.400000095367432
+      ],
+      "world_xyz": [
+        0.16681861877441406,
+        -13.880448341369629,
+        6.400000095367432
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.014",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-U04 | East bedroom",
+      "objects": [
+        "GPO-U04 | plate",
+        "GPO-U04 | left switch",
+        "GPO-U04 | left active slot",
+        "GPO-U04 | left neutral slot",
+        "GPO-U04 | left earth slot",
+        "GPO-U04 | right switch",
+        "GPO-U04 | right active slot",
+        "GPO-U04 | right neutral slot",
+        "GPO-U04 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 3.002204956880338e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.1132347466034695e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5500252050983139e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2219179328691195e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 1.9073486328125e-06
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U05",
+      "room": "East bedroom",
+      "purpose": "Bedside right",
+      "uvz": [
+        4.089999675750732,
+        -2.5351874828338623,
+        6.400000095367432
+      ],
+      "world_xyz": [
+        2.387636184692383,
+        -14.241642951965332,
+        6.400000095367432
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.014",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-U05 | East bedroom",
+      "objects": [
+        "GPO-U05 | plate",
+        "GPO-U05 | left switch",
+        "GPO-U05 | left active slot",
+        "GPO-U05 | left neutral slot",
+        "GPO-U05 | left earth slot",
+        "GPO-U05 | right switch",
+        "GPO-U05 | right active slot",
+        "GPO-U05 | right neutral slot",
+        "GPO-U05 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.8310637681574623e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.6656007498500226e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 8.596304119739507e-07
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U06",
+      "room": "East bedroom",
+      "purpose": "General desk/workpoint",
+      "uvz": [
+        4.019999980926514,
+        0.7661646604537964,
+        6.399999618530273
+      ],
+      "world_xyz": [
+        2.8485107421875,
+        -10.971869468688965,
+        6.399999618530273
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.020",
+      "normal_world": [
+        -0.16053014993667603,
+        -0.9870309829711914,
+        -0.0
+      ],
+      "normal_uv": [
+        0.0,
+        -1.000000098720193,
+        -0.0
+      ],
+      "root_object": "GPO-U06 | East bedroom",
+      "objects": [
+        "GPO-U06 | plate",
+        "GPO-U06 | left switch",
+        "GPO-U06 | left active slot",
+        "GPO-U06 | left neutral slot",
+        "GPO-U06 | left earth slot",
+        "GPO-U06 | right switch",
+        "GPO-U06 | right active slot",
+        "GPO-U06 | right neutral slot",
+        "GPO-U06 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.1920928955078125e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 7.152557373046875e-07
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5266237824995157e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 2.2492363767758854e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 4.76837158203125e-07
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U07",
+      "room": "West ensuite",
+      "purpose": "General wet-room provision away from shower and basin",
+      "uvz": [
+        -1.976354956626892,
+        0.12000176310539246,
+        7.139999866485596
+      ],
+      "world_xyz": [
+        -3.1738052368164062,
+        -10.647056579589844,
+        7.139999866485596
+      ],
+      "host_wall_source": "SW - 623_Wall white plaster_0.006",
+      "normal_world": [
+        0.9870309829711914,
+        -0.16053014993667603,
+        0.0
+      ],
+      "normal_uv": [
+        1.000000098720193,
+        0.0,
+        0.0
+      ],
+      "root_object": "GPO-U07 | West ensuite",
+      "objects": [
+        "GPO-U07 | plate",
+        "GPO-U07 | left switch",
+        "GPO-U07 | left active slot",
+        "GPO-U07 | left neutral slot",
+        "GPO-U07 | left earth slot",
+        "GPO-U07 | right switch",
+        "GPO-U07 | right active slot",
+        "GPO-U07 | right neutral slot",
+        "GPO-U07 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5993604499100135e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5993604499100135e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U08",
+      "room": "East ensuite",
+      "purpose": "General wet-room provision for consultant review",
+      "uvz": [
+        3.8400003910064697,
+        0.8561628460884094,
+        7.159999847412109
+      ],
+      "world_xyz": [
+        2.685293197631836,
+        -10.854143142700195,
+        7.159999847412109
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.020",
+      "normal_world": [
+        0.16053014993667603,
+        0.9870309829711914,
+        0.0
+      ],
+      "normal_uv": [
+        0.0,
+        1.000000098720193,
+        0.0
+      ],
+      "root_object": "GPO-U08 | East ensuite",
+      "objects": [
+        "GPO-U08 | plate",
+        "GPO-U08 | left switch",
+        "GPO-U08 | left active slot",
+        "GPO-U08 | left neutral slot",
+        "GPO-U08 | left earth slot",
+        "GPO-U08 | right switch",
+        "GPO-U08 | right active slot",
+        "GPO-U08 | right neutral slot",
+        "GPO-U08 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.2839233415447482e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5993604499100135e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5993604499100135e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 0.0
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    },
+    {
+      "id": "GPO-U09",
+      "room": "Upper landing",
+      "purpose": "General cleaning point",
+      "uvz": [
+        0.011196024715900421,
+        0.5000020861625671,
+        6.37999963760376
+      ],
+      "world_xyz": [
+        -1.1510295867919922,
+        -10.591046333312988,
+        6.37999963760376
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.016",
+      "normal_world": [
+        0.9870309829711914,
+        -0.16053014993667603,
+        0.0
+      ],
+      "normal_uv": [
+        1.000000098720193,
+        0.0,
+        0.0
+      ],
+      "root_object": "GPO-U09 | Upper landing",
+      "objects": [
+        "GPO-U09 | plate",
+        "GPO-U09 | left switch",
+        "GPO-U09 | left active slot",
+        "GPO-U09 | left neutral slot",
+        "GPO-U09 | left earth slot",
+        "GPO-U09 | right switch",
+        "GPO-U09 | right active slot",
+        "GPO-U09 | right neutral slot",
+        "GPO-U09 | right earth slot"
+      ],
+      "wall_offset_m": 0.001,
+      "plate_dimensions_m": [
+        0.115,
+        0.073,
+        0.011
+      ],
+      "plate_corner_checks": [
+        {
+          "local_xy": [
+            -0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4354699347963686e-06
+        },
+        {
+          "local_xy": [
+            -0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.4354699347963686e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            -0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5125963140069866e-06
+        },
+        {
+          "local_xy": [
+            0.0575,
+            0.0365
+          ],
+          "host_hit": true,
+          "error_m": 1.5125963140069866e-06
+        },
+        {
+          "local_xy": [
+            0,
+            0
+          ],
+          "host_hit": true,
+          "error_m": 4.76837158203125e-07
+        }
+      ],
+      "visible_geometry_overlaps": [],
+      "status": "Illustrative provision; circuit and load unassigned; electrical consultant placement review pending",
+      "dedicated_appliance_power": "Separate, not represented by this general-purpose outlet"
+    }
+  ],
+  "rejected": [],
+  "scope": "General-purpose power only. Illustrative positions, not a compliance or circuit design.",
+  "validation": "All accepted outlets raycast to an actual source wall at center and four plate corners; visible geometry checked for triangle overlap."
+}

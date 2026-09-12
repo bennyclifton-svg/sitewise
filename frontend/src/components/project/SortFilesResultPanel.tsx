@@ -16,18 +16,18 @@ const OUTCOME_LABELS: Record<string, string> = {
 
 const OUTCOME_CLASSES: Record<string, string> = {
   moved:
-    "border-[color-mix(in_oklch,var(--sw-positive)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-positive)_10%,transparent)] text-[var(--sw-positive)]",
+    "border-[var(--sw-success-border)] bg-[var(--sw-success-bg)] text-[var(--sw-positive)]",
   "already-filed":
     "border-[color-mix(in_oklch,var(--sw-beam)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] text-[var(--sw-beam)]",
   waiting:
     "border-[color-mix(in_oklch,var(--sw-beam)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)] text-[var(--sw-beam)]",
   "needs-review":
-    "border-[color-mix(in_oklch,var(--sw-caution)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)] text-[var(--sw-caution)]",
+    "border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] text-[var(--sw-caution)]",
   unresolved:
-    "border-[color-mix(in_oklch,var(--sw-caution)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)] text-[var(--sw-caution)]",
+    "border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] text-[var(--sw-caution)]",
   skipped: "border-muted-foreground/20 bg-muted/40 text-muted-foreground",
-  failed: "border-destructive/30 bg-destructive/5 text-destructive",
-  refused: "border-destructive/30 bg-destructive/5 text-destructive",
+  failed: "border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] text-destructive",
+  refused: "border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] text-destructive",
 };
 
 function countOf(summary: SortFilesSummary, key: keyof SortFilesSummary): number {

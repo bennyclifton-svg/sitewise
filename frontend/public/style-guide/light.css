@@ -24,14 +24,7 @@
   inset: -20% -20% auto -20%;
   height: 150vh;
   z-index: 0;
-  background: linear-gradient(
-    101deg,
-    transparent 40%,
-    rgba(150, 190, 235, 0.16) 47%,
-    rgba(190, 215, 240, 0.24) 50%,
-    rgba(150, 190, 235, 0.13) 53%,
-    transparent 60%
-  );
+  background: none;
   filter: blur(46px);
   mix-blend-mode: plus-lighter;
   animation: sw-sun 54s var(--sw-ease-ambient) infinite;
@@ -42,19 +35,14 @@
   inset: 0;
   z-index: 1;
   mix-blend-mode: plus-lighter;
-  background: radial-gradient(
-    var(--sw-key-radius) circle at var(--sw-key-x) var(--sw-key-y),
-    var(--sw-key-tint),
-    rgba(126, 168, 220, 0.05) 42%,
-    transparent 68%
-  );
+  background: none;
 }
 
 /* Falloff toward the edges of the frame. */
 .sw-light-vignette {
   inset: 0;
   z-index: 2;
-  background: radial-gradient(120% 90% at 50% 0%, transparent 30%, rgba(0, 0, 0, 0.72) 100%);
+  background: none;
 }
 
 /* Film grain. Without it, large soft gradients band on 8-bit displays. */
@@ -63,7 +51,7 @@
   z-index: 60;
   opacity: var(--sw-grain-opacity);
   mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-image: none;
 }
 
 @keyframes sw-sun {
@@ -139,11 +127,7 @@
 /* BOUNCE — saturated surfaces bleed their hue onto neighbours, at most
    8%. Blue bounces; grey does not. Apply to the receiving element. */
 .sw-bounce-blue {
-  background-image: radial-gradient(
-    closest-side,
-    rgba(47, 114, 196, var(--sw-bounce-max)),
-    transparent
-  );
+  background-image: none;
 }
 
 /* ---------------------------------------------------------------
@@ -164,12 +148,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(
-    102deg,
-    transparent var(--sw-sweep),
-    rgba(255, 255, 255, 0.12) calc(var(--sw-sweep) + 6%),
-    transparent calc(var(--sw-sweep) + 14%)
-  );
+  background: none;
   animation: sw-sheen 9s linear infinite;
 }
 
@@ -186,7 +165,7 @@
 }
 
 html[data-theme="light"] .sw-light-vignette {
-  background: radial-gradient(120% 90% at 50% 0%, transparent 40%, rgba(25, 28, 33, 0.07) 100%);
+  background: none;
 }
 
 html[data-theme="light"] .sw-light-sun {

@@ -16,7 +16,7 @@ from app.sitewise.mobilisation_evidence import (
 )
 
 _BUDGET_CEILING_PATTERN = re.compile(
-    r"(?:working budget ceiling|construction budget confirmed|construction budget ceiling)"
+    r"(?:working budget ceiling|construction budget confirmed|construction budget ceiling|construction budget)"
     r"[^$\n]{0,120}\$\s*([\d,]+)",
     re.IGNORECASE,
 )
@@ -72,14 +72,6 @@ class ReceivedCostProposal(BaseModel):
     evidence_ref: str
 
 
-_GAP_RESOLVED_BY_OWNER_BRIEF = frozenset(
-    {
-        "Owner project brief formal sign-off",
-        "Construction budget",
-    }
-)
-
-
 class CostPlanEvidencePack(BaseModel):
     """Structured cost-plan facts from project evidence documents."""
 
@@ -115,8 +107,8 @@ class CostPlanEvidencePack(BaseModel):
     def gaps(self) -> list[str]:
         gaps = list(self.mobilisation.gaps)
         if self.owner_brief_on_file and self.construction_budget_ceiling:
-            gaps = [gap for gap in gaps if gap not in _GAP_RESOLVED_BY_OWNER_BRIEF]
-        elif self.owner_brief_on_file and self.owner_brief_signed_date:
+            gaps = [gap for gap in gaps if gap != "Construction budget"]
+        if self.owner_brief_on_file and self.owner_brief_signed_date:
             gaps = [gap for gap in gaps if gap != "Owner project brief formal sign-off"]
         return gaps
 
@@ -144,7 +136,11 @@ def _split_document_texts(source_texts: list[str]) -> tuple[str, str, str]:
     other_parts: list[str] = []
     for text in source_texts:
         lower = text.lower()
-        if "owner project brief" in lower or "working budget ceiling" in lower:
+        if (
+            "owner project brief" in lower
+            or "working budget ceiling" in lower
+            or re.search(r"^#{1,6}\s+client development brief\b", lower, re.MULTILINE)
+        ):
             owner_brief_parts.append(text)
         elif "planning pathway memo" in lower or "cdc screening" in lower:
             planning_parts.append(text)

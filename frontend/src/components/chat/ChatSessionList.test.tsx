@@ -128,7 +128,10 @@ describe("ChatSessionList", () => {
     expect(screen.getByLabelText("Chat sessions")).not.toContainElement(menu);
 
     await userEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
-    expect(screen.getByLabelText("Thread title")).toHaveValue("Tender review");
+    const titleInput = screen.getByLabelText("Thread title");
+    expect(titleInput).toHaveValue("Tender review");
+    expect(titleInput).toHaveClass("chat-thread-rename", "border-0", "bg-transparent");
+    expect(titleInput).not.toHaveClass("rounded-[var(--cockpit-control-radius)]");
   });
 
   it("uses the thinking text treatment on a live navigation title", async () => {

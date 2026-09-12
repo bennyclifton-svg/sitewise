@@ -86,6 +86,13 @@ uv run alembic upgrade head
 uv run uvicorn app.main:app --reload
 ```
 
+For agent testing while code is being edited, omit `--reload`. Reloading the
+backend can interrupt active Pi turns. Start it from `backend/` with:
+
+```bash
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+
 For PDF/table extraction work, run the backend with OpenDataLoader hybrid:
 
 ```powershell
@@ -95,6 +102,9 @@ For PDF/table extraction work, run the backend with OpenDataLoader hybrid:
 That starts the OpenDataLoader hybrid server on `http://127.0.0.1:5002`, waits
 for it to become healthy, configures the Clerk backend to use it, then starts
 FastAPI on `http://127.0.0.1:8000`.
+
+The launcher leaves auto-reload off so backend edits do not interrupt agent
+testing. Add `-Reload` for API development when no long-running turns are active.
 
 To start the OpenDataLoader hybrid server manually in its own terminal:
 

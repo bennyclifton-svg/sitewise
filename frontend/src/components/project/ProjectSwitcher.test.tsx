@@ -44,6 +44,35 @@ describe("ProjectSwitcher", () => {
     ).toHaveTextContent("Newtown Heritage Extension");
   });
 
+  it("puts create project first and keeps a long list scrollable", async () => {
+    const user = userEvent.setup();
+    const manyProjects = Array.from({ length: 24 }, (_, index) => ({
+      ...activeProject,
+      id: `project-${index + 1}`,
+      slug: `project-${index + 1}`,
+      title: index === 0 ? activeProject.title : `Project ${index + 1}`,
+    }));
+
+    render(
+      <MemoryRouter>
+        <ProjectSwitcher projects={manyProjects} activeProject={activeProject} />
+      </MemoryRouter>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Project: Newtown Heritage Extension" }),
+    );
+
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items[0]).toBe("Create project");
+    expect(items[1]).toBe("All projects");
+    expect(items.at(-1)).toBe("Project 24");
+
+    const menu = screen.getByRole("menu");
+    expect(menu.className).toMatch(/max-h-\[var\(--radix-dropdown-menu-content-available-height\)\]/);
+    expect(menu.querySelector(".overflow-y-auto")).not.toBeNull();
+  });
+
   it("renames the active project from the switcher menu", async () => {
     const user = userEvent.setup();
     const onRename = vi.fn().mockResolvedValue(undefined);

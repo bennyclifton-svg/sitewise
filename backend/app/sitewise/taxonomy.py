@@ -354,6 +354,42 @@ def work_scope_items_for(
     )
 
 
+def work_scope_groups_for(
+    work_type: str | None,
+    selected_values: list[str] | tuple[str, ...] | None,
+) -> tuple[tuple[str, tuple[str, ...]], ...]:
+    """Selected work-scope labels grouped by profiler category, taxonomy order."""
+    selected = {value for value in (selected_values or ()) if value}
+    if not selected:
+        return ()
+    groups: list[tuple[str, tuple[str, ...]]] = []
+    seen: set[str] = set()
+    raw_work_type = (
+        _work_scope_config()["work_types"].get(work_type) if work_type else None
+    )
+    if isinstance(raw_work_type, dict):
+        for category in raw_work_type.get("categories", []):
+            labels = tuple(
+                str(raw_item.get("label") or raw_item.get("value") or "")
+                for raw_item in category.get("items", [])
+                if str(raw_item.get("value") or "") in selected
+            )
+            if not labels:
+                continue
+            groups.append((str(category.get("label") or category.get("value") or ""), labels))
+            seen.update(
+                str(raw_item.get("value") or "")
+                for raw_item in category.get("items", [])
+                if str(raw_item.get("value") or "") in selected
+            )
+    leftover = tuple(
+        value.replace("_", " ") for value in selected_values or () if value not in seen
+    )
+    if leftover:
+        groups.append(("Other", leftover))
+    return tuple(groups)
+
+
 def work_scope_options_for(work_type: str | None) -> tuple[WorkScopeItem, ...]:
     """Return the complete profiler scope schema applicable to a work type."""
     if not work_type:

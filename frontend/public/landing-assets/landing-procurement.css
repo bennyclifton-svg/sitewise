@@ -1,0 +1,79 @@
+/* ProcurementStrategyGrid and ProcurementRequestPanel, within the existing demo shell. */
+#sitewise-landing .sw-procurement-document{padding:0 4px 18px 0;position:relative}
+#sitewise-landing .sw-procurement-tools{display:flex;gap:8px;padding:15px 0}
+#sitewise-landing .sw-procurement-tools button,#sitewise-landing .sw-rfp-toolbar button{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--sw-line);border-radius:18px;padding:7px 10px;background:var(--sw-sheet);color:var(--sw-ink);font-size:12px;line-height:1.4;font-weight:400}
+#sitewise-landing .sw-procurement-tools button:first-child{background:var(--sw-action-primary);color:var(--sw-action-primary-text);font-weight:500}
+#sitewise-landing .sw-procurement-tools svg,#sitewise-landing .sw-rfp-toolbar svg{width:15px;height:15px;flex:none}
+#sitewise-landing .sw-procurement-grid-wrap{overflow-x:auto}
+#sitewise-landing .sw-procurement-grid{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;line-height:1.4;border:1px solid var(--sw-line);background:var(--sw-sheet)}
+#sitewise-landing .sw-procurement-grid col{width:12%}
+#sitewise-landing .sw-procurement-grid .sw-discipline-column{width:23%}
+#sitewise-landing .sw-procurement-grid .sw-status-column{width:37%}
+#sitewise-landing .sw-procurement-grid .sw-row-actions-column{width:4%}
+#sitewise-landing .sw-procurement-grid th,#sitewise-landing .sw-procurement-grid td{padding:0;border-bottom:1px solid var(--sw-line);vertical-align:middle;text-align:left;font-weight:400;overflow-wrap:normal}
+#sitewise-landing .sw-procurement-grid thead th{height:44px;font-size:11px;color:var(--sw-muted);background:var(--sw-side);padding:4px 6px;box-sizing:border-box}
+#sitewise-landing .sw-procurement-grid th:first-child{border-right:1px solid var(--sw-line)}
+#sitewise-landing .sw-procurement-grid [data-column-heading]{display:flex;align-items:center;justify-content:space-between;gap:2px;transition:opacity 480ms ease}
+#sitewise-landing .sw-procurement-grid [data-column-heading] svg{width:12px;height:12px;flex:none}
+#sitewise-landing .sw-procurement-grid [data-heading-pending]{opacity:0}
+#sitewise-landing .sw-procurement-group th{padding:10px;font-size:11px;font-weight:500;text-transform:uppercase;background:var(--sw-side)}
+#sitewise-landing .sw-procurement-group .sw-thinking{margin-top:10px;max-width:82%}
+#sitewise-landing .sw-procurement-grid .is-filled .sw-thinking{height:0;opacity:0;margin-top:0}
+#sitewise-landing .sw-procurement-grid [data-build-row]{opacity:1;transition:opacity 500ms ease}
+#sitewise-landing .sw-procurement-grid [data-build-row]:not(.is-built){opacity:0}
+#sitewise-landing .sw-procurement-cell{padding:8px 6px;min-height:44px;box-sizing:border-box;display:flex;align-items:center;transition:opacity 500ms ease}
+#sitewise-landing .sw-empty-firm{color:var(--sw-muted);font-size:11px}
+#sitewise-landing .sw-procurement-status{gap:3px;padding:6px 2px}
+#sitewise-landing .sw-status-segments{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--sw-line);border-radius:5px;flex:1;min-width:0;overflow:hidden;color:var(--sw-muted);font-size:8px;line-height:1.2;background:var(--sw-side)}
+#sitewise-landing .sw-status-segments span{padding:7px 1px;text-align:center}
+#sitewise-landing .sw-status-segments span+span{border-left:1px solid var(--sw-line)}
+#sitewise-landing .sw-rfp-open{display:grid;place-items:center;width:26px;min-width:26px;min-height:32px;background:transparent;border:0;color:var(--sw-blue);padding:5px;transition:opacity 450ms ease,transform 450ms cubic-bezier(.16,1,.3,1)}
+#sitewise-landing .sw-rfp-open svg{width:16px;height:16px}
+#sitewise-landing .sw-rfp-open[data-draft-pending]{opacity:0;transform:translateY(3px);visibility:hidden}
+#sitewise-landing .sw-rfp-open:hover{background:var(--sw-selection);border-radius:4px}
+#sitewise-landing .sw-row-menu{font-size:17px;padding:4px;justify-content:center;color:var(--sw-muted)}
+#sitewise-landing .sw-procurement-ready{font-size:12px;color:var(--sw-muted);margin:16px 0;animation:sw-rfp-enter 500ms ease both}
+#sitewise-landing [data-procurement-register]{opacity:1;transition:opacity 420ms ease,transform 420ms cubic-bezier(.16,1,.3,1)}
+#sitewise-landing [data-procurement-exit] [data-procurement-register]{opacity:0;transform:translateY(-6px)}
+#sitewise-landing [data-procurement-reader]:not([hidden]){animation:sw-rfp-enter 500ms ease both}
+#sitewise-landing .sw-rfp-toolbar{position:sticky;top:0;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;background:var(--sw-sheet);border-bottom:1px solid var(--sw-line);font-size:11px;color:var(--sw-muted)}
+#sitewise-landing .sw-rfp-toolbar button{background:transparent;border-color:transparent;padding-left:0}
+#sitewise-landing .sw-rfp-toolbar button:hover{color:var(--sw-blue)}
+#sitewise-landing .sw-rfp{font-size:14px;line-height:1.65;color:var(--sw-ink);padding:20px 8px 8px 0}
+#sitewise-landing .sw-rfp h3{font-size:20px;font-weight:500;line-height:1.4;margin:0 0 24px;max-width:34ch;letter-spacing:-.015em}
+#sitewise-landing .sw-rfp-section{padding-bottom:18px}
+#sitewise-landing .sw-rfp-section h4{font-size:16px;font-weight:500;line-height:1.45;color:var(--sw-blue)}
+#sitewise-landing .sw-rfp-section .sw-thinking{max-width:78%}
+#sitewise-landing .sw-rfp-block{opacity:0;transform:translateY(3px);transition:opacity 600ms ease,transform 600ms cubic-bezier(.16,1,.3,1)}
+#sitewise-landing .sw-rfp-block.is-built{opacity:1;transform:none}
+#sitewise-landing .sw-rfp p{margin:0 0 14px}
+#sitewise-landing .sw-rfp ol,#sitewise-landing .sw-rfp ul{padding-left:23px;margin:0 0 16px}
+#sitewise-landing .sw-rfp li{padding-left:3px;margin:0 0 13px}
+#sitewise-landing .sw-rfp-block li{opacity:0;transition:opacity 500ms ease;transition-delay:var(--sw-item-delay,0ms)}
+#sitewise-landing .sw-rfp-block.is-built li{opacity:1}
+#sitewise-landing .sw-rfp li::marker{color:var(--sw-muted)}
+#sitewise-landing .sw-rfp strong{font-weight:500}
+#sitewise-landing .sw-rfp-citation{border:0;background:transparent;color:var(--sw-blue);font-size:11px;line-height:1.6;padding:0 2px;vertical-align:super;cursor:pointer}
+#sitewise-landing .sw-rfp-citation:hover{background:var(--sw-selection)}
+#sitewise-landing .sw-rfp-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12px;line-height:1.5;margin:4px 0 18px;font-variant-numeric:tabular-nums}
+#sitewise-landing .sw-rfp-table th,#sitewise-landing .sw-rfp-table td{border-bottom:1px solid var(--sw-line);padding:9px 7px;text-align:left;vertical-align:top;font-weight:400;overflow-wrap:anywhere}
+#sitewise-landing .sw-rfp-table thead th{background:var(--sw-side);font-weight:500;color:var(--sw-muted)}
+#sitewise-landing .sw-rfp-summary{font-size:14px}
+#sitewise-landing .sw-rfp-summary th{width:24%;padding-left:0;color:var(--sw-muted)}
+#sitewise-landing .sw-rfp-summary td:last-child{width:28px;text-align:right;padding-right:0}
+#sitewise-landing .sw-rfp-section[data-section-title="Programme"] th:first-child{width:32%}
+#sitewise-landing .sw-rfp-section[data-section-title="Programme"] th:last-child{width:25%}
+#sitewise-landing [data-procurement-file]:not([hidden]){animation:sw-rfp-enter 480ms ease both}
+#sitewise-landing[data-active-scene="procurement"] .sw-sources{max-height:620px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--sw-line) transparent}
+#sitewise-landing[data-instant] .sw-procurement-document *,#sitewise-landing[data-instant] [data-procurement-file]{transition:none;animation:none}
+@keyframes sw-rfp-enter{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@container control-document (max-width:490px){
+  #sitewise-landing .sw-procurement-grid{min-width:600px}
+  #sitewise-landing .sw-rfp{padding-right:2px}
+  #sitewise-landing .sw-rfp h3{font-size:19px}
+  #sitewise-landing .sw-rfp-table{font-size:11px}
+  #sitewise-landing .sw-rfp-table th,#sitewise-landing .sw-rfp-table td{padding:8px 4px}
+  #sitewise-landing .sw-rfp-summary{font-size:13px}
+}
+@media(pointer:coarse){#sitewise-landing .sw-rfp-open{min-width:32px;min-height:44px}#sitewise-landing .sw-rfp-toolbar button{min-height:44px}#sitewise-landing .sw-rfp-citation{padding:4px}}
+@media(prefers-reduced-motion:reduce){#sitewise-landing .sw-procurement-document *,#sitewise-landing [data-procurement-file]{animation:none!important;transition:none!important}}

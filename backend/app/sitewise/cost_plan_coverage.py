@@ -1,9 +1,9 @@
-"""Single source of truth for supported NSW Cost Plan taxonomy families."""
+"""Cost Plan taxonomy families, with jurisdiction-aware reference disclosures."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
 CoverageFamily = Literal[
@@ -225,32 +225,43 @@ def unsupported_coverage_reason(
         )
     if building_class == "residential":
         return (
-            "Cost Plan residential coverage currently includes NSW Class 1 houses/"
+            "Cost Plan residential coverage currently includes Class 1 houses/"
             "townhouses and selected apartment, BTR, student-housing and social/"
             "affordable-housing projects."
         )
     if building_class == "commercial":
         return (
-            "Cost Plan commercial coverage currently includes NSW office/coworking "
+            "Cost Plan commercial coverage currently includes office/coworking "
             "fit-outs and office/retail base-building new works or extensions."
         )
     if building_class == "industrial":
         return (
-            "Cost Plan industrial coverage currently includes NSW warehouse/logistics, "
+            "Cost Plan industrial coverage currently includes warehouse/logistics, "
             "manufacturing/process, cold-chain and data-centre projects. Dangerous "
             "goods, GMP, cleanroom, battery and waste-to-energy work remains specialist."
         )
     if building_class == "mixed":
         return (
-            "Cost Plan mixed-use coverage currently includes NSW residential-led "
+            "Cost Plan mixed-use coverage currently includes residential-led "
             "apartment/BTR projects with retail or commercial components. Hotel, "
             "aged-care and other specialist combinations need a dedicated reference."
         )
     return (
-        "Cost Plan coverage is currently limited to supported NSW residential, "
+        "Cost Plan coverage is currently limited to supported residential, "
         "commercial, industrial and selected mixed-use reference families."
     )
 
 
-def coverage_spec(family: CoverageFamily) -> CostPlanCoverage:
-    return _COVERAGE[family]
+def coverage_spec(family: CoverageFamily, *, state: str = "NSW") -> CostPlanCoverage:
+    coverage = _COVERAGE[family]
+    if state == "NSW":
+        return coverage
+    return replace(
+        coverage,
+        label=(
+            f"{state} {family.replace('_', ' ')} cost-plan scaffold "
+            "(structure only, adapted from NSW reference; local rates and "
+            "statutory charges require project evidence)"
+        ),
+        structure_only=True,
+    )

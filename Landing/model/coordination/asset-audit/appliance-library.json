@@ -1,0 +1,110 @@
+{
+  "source": "interior-design.glb",
+  "author": "Visthétique",
+  "license": "CC-BY-4.0",
+  "source_url": "https://sketchfab.com/3d-models/modern-apartment-1fbb649cd6624f2bb7b7d6e30c6533a5",
+  "modifications": "Selected geometry extracted, source world transforms baked, pivots centered at base, texture-free chalk/graphite materials applied. No new appliance engineering details asserted.",
+  "assets": [
+    {
+      "name": "SW Asset Fridge",
+      "collection": "SW Asset Fridge",
+      "objects": [
+        "SW Asset Fridge | 01 Refrigator.001_Aluminum.001_0",
+        "SW Asset Fridge | 02 Refrigator.001_Black_0",
+        "SW Asset Fridge | 03 Refrigator.001_BrushedMetalSeamless.001_0",
+        "SW Asset Fridge | 04 Refrigator.001_FrontBlack.001_0"
+      ],
+      "source_pivot": [
+        1.5455213785171509,
+        0.6608326435089111,
+        0.21561233699321747
+      ],
+      "dimensions": [
+        0.6979541778564453,
+        0.7043984532356262,
+        1.8233751058578491
+      ],
+      "forward": [
+        0,
+        -1,
+        0
+      ],
+      "target_positive_x_rotation_z_degrees": 90,
+      "triangles": 19237
+    },
+    {
+      "name": "SW Asset Oven",
+      "collection": "SW Asset Oven",
+      "objects": [
+        "SW Asset Oven | 01 Oven.001_Chrome_0",
+        "SW Asset Oven | 02 Oven.001_FrontDown.001_0",
+        "SW Asset Oven | 03 Oven.001_FrontPanel.001_0",
+        "SW Asset Oven | 04 Oven.001_FrontTop.001_0",
+        "SW Asset Oven | 05 Oven.001_Logo.001_0"
+      ],
+      "source_pivot": [
+        0.6475141048431396,
+        0.6719961166381836,
+        1.1029853820800781
+      ],
+      "dimensions": [
+        0.6943485736846924,
+        0.6441552639007568,
+        0.9851794242858887
+      ],
+      "forward": [
+        0,
+        -1,
+        0
+      ],
+      "target_positive_x_rotation_z_degrees": 90,
+      "triangles": 2699
+    },
+    {
+      "name": "SW Asset Pendant 1",
+      "collection": "SW Asset Pendant 1",
+      "objects": [
+        "SW Asset Pendant 1 | 01 DiningTable.001_Chrome_0",
+        "SW Asset Pendant 1 | 02 DiningTable.001_Glass_0",
+        "SW Asset Pendant 1 | 03 DiningTable.001_Gold_0",
+        "SW Asset Pendant 1 | 04 DiningTable.001_White1_0"
+      ],
+      "source_pivot": [
+        -0.43976378440856934,
+        -1.5260951519012451,
+        1.7626163959503174
+      ],
+      "dimensions": [
+        0.376846581697464,
+        0.37730872631073,
+        1.4121873378753662
+      ],
+      "forward": null,
+      "target_positive_x_rotation_z_degrees": null,
+      "triangles": 5124
+    },
+    {
+      "name": "SW Asset Pendant 2",
+      "collection": "SW Asset Pendant 2",
+      "objects": [
+        "SW Asset Pendant 2 | 01 DiningTable.001_Chrome_0",
+        "SW Asset Pendant 2 | 02 DiningTable.001_Glass_0",
+        "SW Asset Pendant 2 | 03 DiningTable.001_Gold_0",
+        "SW Asset Pendant 2 | 04 DiningTable.001_White1_0"
+      ],
+      "source_pivot": [
+        0.776898980140686,
+        -1.5260951519012451,
+        1.7626163959503174
+      ],
+      "dimensions": [
+        0.3768472671508789,
+        0.37730872631073,
+        1.4121873378753662
+      ],
+      "forward": null,
+      "target_positive_x_rotation_z_degrees": null,
+      "triangles": 5124
+    }
+  ]
+}

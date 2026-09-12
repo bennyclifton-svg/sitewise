@@ -86,7 +86,7 @@ export function ProcurementReviewProgress({
     {run && <>
       <ol aria-label="Comparison stages" className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3 sm:gap-5">
         {stages.map((stage) => <li key={stage.label} aria-current={stage.current ? "step" : undefined} className={cn("flex items-center gap-2 border-t pt-3", stage.current ? "font-medium" : "text-muted-foreground")}>
-          {stage.done ? <Check className="size-4 shrink-0" aria-hidden /> : <Circle className={cn("size-3 shrink-0", stage.current && "fill-current text-primary")} aria-hidden />}
+          {stage.done ? <Check className="size-4 shrink-0" aria-hidden /> : <Circle className={cn("size-3 shrink-0", stage.current && "fill-current text-[var(--sw-link)]")} aria-hidden />}
           <span>{stage.label}<span className="sr-only"> — {stage.done ? "complete" : stage.current ? "current stage" : "up next"}</span></span>
         </li>)}
       </ol>
@@ -97,7 +97,7 @@ export function ProcurementReviewProgress({
           <span className="text-muted-foreground tabular-nums">{totalKnown ? `${readPages} of ${totalPages} pages read` : "Page count available as files open"}</span>
         </div>
         {totalKnown && <div role="progressbar" aria-label="Submission pages read" aria-valuemin={0} aria-valuemax={totalPages} aria-valuenow={readPages} aria-valuetext={`${readPages} of ${totalPages} pages read; recommendation follows`} className="h-1.5 overflow-hidden rounded-full bg-muted">
-          <div className="h-full bg-primary" style={{ width: `${Math.min(100, readPages / totalPages * 100)}%` }} />
+          <div className="h-full bg-[var(--sw-info-icon)]" style={{ width: `${Math.min(100, readPages / totalPages * 100)}%` }} />
         </div>}
         <ul className="divide-y">
           {documents.map((doc) => <li key={doc.id} className="flex flex-col gap-2 py-3 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-6">

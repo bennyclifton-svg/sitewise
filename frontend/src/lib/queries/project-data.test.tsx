@@ -11,6 +11,7 @@ import {
   useProjectEventCursor,
 } from "@/lib/queries/project-data";
 import { workbenchKeys } from "@/lib/queries/workbench";
+import { pulseKeys } from "@/lib/queries/pulse";
 import type { ProjectDetail, ProjectEvent } from "@/lib/types/project";
 
 vi.mock("@/lib/api", () => ({
@@ -84,6 +85,20 @@ describe("project event reconciliation", () => {
       exact: true,
     });
   });
+
+  it.each(["project_evidence", "workflow_run", "email"])(
+    "invalidates all Pulse windows for %s without touching another project",
+    (resourceType) => {
+      const queryClient = client();
+      const keys = [pulseKeys.feed("project-1"), pulseKeys.feed("project-1", "2026-09-01T00:00:00Z")];
+      const otherKey = pulseKeys.feed("project-2");
+      for (const key of [...keys, otherKey]) queryClient.setQueryData(key, {});
+      applyDurableProjectEvent(queryClient, event({ resource_type: resourceType }));
+      for (const key of keys) expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true);
+      expect(queryClient.getQueryState(otherKey)?.isInvalidated).toBe(false);
+      queryClient.clear();
+    },
+  );
 
   it("invalidates the strategy grid after an agent table edit", () => {
     const queryClient = client();

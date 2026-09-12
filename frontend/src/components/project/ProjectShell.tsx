@@ -180,12 +180,7 @@ export function ProjectShell({
               projectAddress={projectAddress}
             />
           </div>
-          <div
-            className={cn(
-              "flex min-h-0 flex-1 flex-col",
-              chatFullScreen && "lg:pt-[var(--cockpit-ribbon-height)]",
-            )}
-          >
+          <div className="flex min-h-0 flex-1 flex-col">
             {!chatFullScreen ? (
               <div className="cockpit-scroll min-h-0 flex-1 overflow-y-auto lg:pt-[var(--cockpit-ribbon-height)]">
                 {children}

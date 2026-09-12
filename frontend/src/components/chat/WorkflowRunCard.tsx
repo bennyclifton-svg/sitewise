@@ -59,7 +59,7 @@ export function WorkflowRunCard({ runRef, projectId, onRetryPlan }: WorkflowRunC
 
   if (isError) {
     return (
-      <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+      <div className="mt-3 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-3 text-sm text-destructive">
         Could not load workflow status
         {error instanceof Error && error.message ? `: ${error.message}` : "."}
       </div>
@@ -73,7 +73,7 @@ export function WorkflowRunCard({ runRef, projectId, onRetryPlan }: WorkflowRunC
 
   if (run.state === "failed" || run.state === "cancelled") {
     return (
-      <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+      <div className="mt-3 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-3 text-sm text-destructive">
         {label} {run.state}
         {run.error_message ? `: ${run.error_message}` : "."}
         {onRetryPlan && (workflowType === "create_project_plan" || workflowType === "refresh_project_plan") ? (

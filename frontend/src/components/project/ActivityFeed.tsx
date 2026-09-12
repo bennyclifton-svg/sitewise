@@ -229,7 +229,7 @@ export function ActivityFeed({
         <button
           type="button"
           disabled={!selectedRuns.length || isDeletingSelection}
-          className="pointer-events-auto inline-flex size-[22px] items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
+          className="pointer-events-auto inline-flex size-[22px] items-center justify-center rounded-sm text-muted-foreground/70 transition-colors hover:bg-[var(--sw-error-bg)] hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
           aria-label={
             selectedRuns.length
               ? `Delete ${selectedRuns.length} selected activity ${selectedRuns.length === 1 ? "item" : "items"}`
@@ -267,7 +267,7 @@ export function ActivityFeed({
             className={cn(
               "overflow-hidden rounded-sm transition-colors",
               selected || expanded
-                ? "bg-primary/10 text-foreground"
+                ? "bg-[var(--sw-selection-bg)] text-foreground"
                 : "text-muted-foreground hover:bg-muted/60",
             )}
           >
@@ -306,7 +306,7 @@ export function ActivityFeed({
               <button
                 type="button"
                 disabled={deleteActivity.isPending}
-                className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-none text-muted-foreground/70 transition-colors hover:bg-destructive/10 hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
+                className="inline-flex size-[22px] shrink-0 items-center justify-center rounded-none text-muted-foreground/70 transition-colors hover:bg-[var(--sw-error-bg)] hover:text-destructive disabled:pointer-events-none disabled:opacity-35"
                 aria-label={`Delete ${runTitle(run)}`}
                 title="Delete activity"
                 onClick={(event) => {
@@ -362,7 +362,7 @@ function ActivityReferenceDisclosure({
     <div className="text-xs">
       <button
         type="button"
-        className="flex h-[22px] w-full items-center gap-1 rounded-none px-1 text-left text-muted-foreground transition-colors hover:bg-primary/10 focus:outline-none focus-visible:outline-none focus-visible:ring-0"
+        className="flex h-[22px] w-full items-center gap-1 rounded-none px-1 text-left text-muted-foreground transition-colors hover:bg-[var(--sw-selection-bg)] focus:outline-none focus-visible:outline-none focus-visible:ring-0"
         aria-expanded={expanded}
         onClick={onToggle}
       >

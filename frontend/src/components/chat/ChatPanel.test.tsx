@@ -491,6 +491,25 @@ describe("ChatPanel collapse control", () => {
     expect(onCollapsedChange).toHaveBeenCalledWith(false);
   });
 
+  it("lets the workbench transcript scroll behind the cockpit ribbon", () => {
+    mockUseChat();
+
+    render(
+      <ChatPanel
+        threadId="thread-1"
+        initialMessages={[]}
+        agentMode
+        projectId="project-1"
+        layout="main"
+        collapsible
+      />,
+    );
+
+    expect(screen.getByRole("log", { name: /conversation history/i })).toHaveClass(
+      "lg:pt-[var(--cockpit-ribbon-height)]",
+    );
+  });
+
   it("shows a collapse control while the panel is expanded", async () => {
     const onCollapsedChange = vi.fn();
     mockUseChat();

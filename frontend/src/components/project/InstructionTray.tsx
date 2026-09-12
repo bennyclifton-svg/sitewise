@@ -77,7 +77,7 @@ export function InstructionTray({
         </div>
       ) : null}
       {error ? (
-        <p className="border-t bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
+        <p className="border-t bg-[var(--sw-error-bg)] px-3 py-1.5 text-xs text-destructive">
           {error}
         </p>
       ) : null}
@@ -88,7 +88,7 @@ export function InstructionTray({
               key={item.id}
               className={cn(
                 "sw-table-row border-b px-3 py-1.5 text-xs text-muted-foreground last:border-b-0",
-                item.error && "bg-destructive/5",
+                item.error && "bg-[var(--sw-error-bg)]",
               )}
             >
               <div className="flex items-center gap-2">

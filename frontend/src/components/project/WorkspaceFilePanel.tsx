@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight, Inbox } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { ClassificationChip } from "@/components/project/ClassificationChip";
 import { MarkdownContent } from "@/components/project/MarkdownContent";
@@ -8,6 +9,7 @@ import { api } from "@/lib/api";
 import { documentCategoryLabel } from "@/lib/classification";
 import { ApiError } from "@/lib/http";
 import { queryClient } from "@/lib/query-client";
+import { projectKeys } from "@/lib/queries/project-data";
 import { pulseKeys } from "@/lib/queries/pulse";
 import { cn } from "@/lib/utils";
 import type { EvidencePreview } from "@/lib/types/project";
@@ -44,48 +46,21 @@ function WorkspaceFilePanelContent({
   projectId: string;
   evidence: EvidencePreview | null;
 }) {
-  const [detail, setDetail] = useState<EvidencePreview | null>(null);
-  const [loadingDetail, setLoadingDetail] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
   const [documentView, setDocumentView] = useState<DocumentView>("markdown");
   const [metadataOpen, setMetadataOpen] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadDetail() {
-      setDetailError(null);
-      if (!evidence) {
-        setDetail(null);
-        setLoadingDetail(false);
-        return;
-      }
-      if (evidence.content) {
-        setDetail(evidence);
-        setLoadingDetail(false);
-        return;
-      }
-
-      setLoadingDetail(true);
-      try {
-        const data = await api.getProjectEvidenceDocument(projectId, evidence.id);
-        if (!cancelled) setDetail(data);
-      } catch (error) {
-        if (!cancelled) {
-          setDetailError(
-            error instanceof ApiError ? error.message : "Could not load document content.",
-          );
-        }
-      } finally {
-        if (!cancelled) setLoadingDetail(false);
-      }
-    }
-
-    void loadDetail();
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, evidence]);
+  const detailQuery = useQuery({
+    queryKey: [...projectKeys.evidenceDocuments(projectId), evidence?.id, evidence?.revision],
+    queryFn: () => api.getProjectEvidenceDocument(projectId, evidence!.id),
+    enabled: Boolean(evidence && evidence.content == null),
+    staleTime: 60_000,
+  });
+  const detail = evidence?.content != null ? evidence : detailQuery.data;
+  const loadingDetail = !detail && detailQuery.isFetching;
+  const detailError = detailQuery.error
+    ? detailQuery.error instanceof ApiError
+      ? detailQuery.error.message
+      : "Could not load document content."
+    : null;
 
   if (!evidence) {
     return (
@@ -289,7 +264,7 @@ function YamlLine({ line }: { line: string }) {
   return (
     <>
       {match[1]}
-      <span className="text-sky-700">{match[2]}</span>
+      <span className="text-[var(--sw-link)]">{match[2]}</span>
       <span className="text-muted-foreground">{match[3]}</span>
       <YamlValue value={match[4]} />
     </>
@@ -305,11 +280,11 @@ function YamlValue({ value }: { value: string }) {
   if (trimmed === "null") {
     valueClass = "text-muted-foreground";
   } else if (trimmed === "|") {
-    valueClass = "text-amber-700";
+    valueClass = "text-[var(--sw-text-secondary)]";
   } else if (/^".*"$/.test(trimmed)) {
-    valueClass = "text-emerald-700";
+    valueClass = "text-[var(--sw-text-primary)]";
   } else if (/^-?\d+(?:\.\d+)?$/.test(trimmed)) {
-    valueClass = "text-violet-700";
+    valueClass = "text-[var(--sw-link)]";
   }
 
   return (

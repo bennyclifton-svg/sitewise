@@ -69,6 +69,7 @@ _CATEGORY_ALIASES: dict[str, str] = {
     "civil stormwater": "civil",
     "civil / stormwater": "civil",
     "civil and stormwater": "civil",
+    "civil and stormwater engineering": "civil",
     "stormwater": "civil",
     "geotech": "geotechnical",
     "geotechnical engineer": "geotechnical",

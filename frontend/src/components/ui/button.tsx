@@ -5,21 +5,21 @@ import { Slot } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap outline-none select-none transition-[color,background-color,border-color,box-shadow] duration-[var(--sw-dur-state)] ease-[var(--sw-ease-state)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/30 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 items-center justify-center rounded-full border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap outline-none select-none transition-[color,background-color,border-color,box-shadow] duration-[var(--sw-dur-state)] ease-[var(--sw-ease-state)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:border-[var(--sw-action-disabled-border)] disabled:bg-[var(--sw-action-disabled-bg)] disabled:text-[var(--sw-action-disabled-text)] aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
         default:
-          "bg-[var(--cockpit-action-surface)] text-white hover:bg-[var(--brand-hover)]",
+          "border-[var(--sw-action-primary-border)] bg-[var(--sw-action-primary)] text-[var(--sw-action-primary-text)] hover:bg-[var(--sw-action-primary-hover)] active:bg-[var(--sw-action-primary-pressed)]",
         outline:
-          "border-[var(--cockpit-border)] bg-[var(--cockpit-control-surface)] text-foreground hover:border-[var(--cockpit-selected-border)] hover:bg-[var(--cockpit-selected-surface)] aria-expanded:border-[var(--cockpit-selected-border)] aria-expanded:bg-[var(--cockpit-selected-surface)]",
+          "border-[var(--sw-border-control)] bg-[var(--sw-input-bg)] text-foreground hover:border-[var(--sw-selection-border)] hover:bg-[var(--sw-selection-bg)] active:bg-[var(--sw-pressed-bg)] aria-expanded:border-[var(--sw-selection-border)] aria-expanded:bg-[var(--sw-selection-bg)]",
         secondary:
-          "border-[var(--cockpit-border)] bg-[var(--cockpit-card-surface)] text-foreground hover:bg-[var(--cockpit-selected-surface)] aria-expanded:bg-[var(--cockpit-selected-surface)]",
+          "border-[var(--sw-action-secondary-border)] bg-[var(--sw-action-secondary)] text-[var(--sw-action-secondary-text)] hover:bg-[var(--sw-action-secondary-hover)] active:bg-[var(--sw-action-secondary-pressed)] aria-expanded:bg-[var(--sw-action-secondary-hover)]",
         ghost:
           "border-transparent hover:bg-[var(--cockpit-selected-surface)] hover:text-foreground aria-expanded:bg-[var(--cockpit-selected-surface)] aria-expanded:text-foreground",
         destructive:
-          "bg-destructive/20 text-destructive hover:bg-destructive/30 focus-visible:border-destructive/40 focus-visible:ring-destructive/40",
-        link: "border-transparent text-[var(--sw-beam-hex)] underline-offset-4 hover:text-[var(--brand-hover)] hover:underline",
+          "border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] text-[var(--sw-error-text)] hover:border-[var(--sw-error-icon)] active:border-[var(--sw-error-text)]",
+        link: "border-transparent text-[var(--sw-link)] underline underline-offset-4 hover:text-[var(--sw-link-hover)]",
       },
       size: {
         default:

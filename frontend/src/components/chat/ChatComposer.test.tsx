@@ -83,6 +83,23 @@ function renderComposer(overrides: {
   return { onChange, onSubmit };
 }
 
+describe("ChatComposer focus", () => {
+  it("lights the console edge when the field is focused", async () => {
+    const user = userEvent.setup();
+    renderComposer();
+
+    const field = screen.getByRole("textbox", { name: "Message" });
+    const composer = field.closest("form");
+    expect(composer).not.toHaveClass("is-focused");
+
+    await user.click(field);
+    expect(composer).toHaveClass("is-focused");
+
+    fireEvent.blur(field);
+    expect(composer).not.toHaveClass("is-focused");
+  });
+});
+
 describe("ChatComposer voice input", () => {
   beforeEach(() => {
     MockSpeechRecognition.reset();

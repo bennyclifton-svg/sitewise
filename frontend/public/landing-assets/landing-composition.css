@@ -1,0 +1,25 @@
+/* Keep the interactive product at its native geometry beneath the site study. */
+#sitewise-landing .sw-opening {
+  padding: 100px clamp(24px, 5vw, 96px) 40px;
+  scroll-margin-top: 24px;
+}
+#sitewise-landing .sw-device-scale { width: auto; zoom: 1; }
+#sitewise-landing .sw-opening .sw-demo {
+  width: 100%;
+  max-width: 1280px;
+  margin: 48px auto 0;
+}
+#sitewise-landing .sw-opening .sw-surround { transform: none; animation: none; }
+#sitewise-landing .sw-opening .sw-review-controls { padding-top: 24px; }
+#sitewise-landing .sw-opening .sw-demo-caption { margin-top: 16px; }
+@media (min-width: 900px) {
+  #sitewise-landing .sw-opening[data-composition="scaled"] .sw-device-scale {
+    width: 1280px;
+    zoom: var(--sw-device-zoom);
+    container-type: inline-size;
+  }
+  #sitewise-landing .sw-opening .sw-document { height: 560px; }
+}
+@media (max-width: 699px) {
+  #sitewise-landing .sw-opening { padding: 64px 16px 24px; }
+}

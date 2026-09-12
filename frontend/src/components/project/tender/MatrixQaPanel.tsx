@@ -265,8 +265,8 @@ export function MappingChoiceControl({
               <option
                 key={trade.id}
                 value={trade.id}
-                className="bg-white text-neutral-900"
-                style={{ color: "#111111", backgroundColor: "#ffffff" }}
+                className="bg-[var(--sw-input-bg)] text-[var(--sw-input-text)]"
+                style={{ color: "var(--sw-input-text)", backgroundColor: "var(--sw-input-bg)" }}
               >
                 {trade.name}
               </option>
@@ -275,8 +275,8 @@ export function MappingChoiceControl({
               <option
                 key={candidate.cell_code}
                 value={candidate.cell_code}
-                className="bg-white text-neutral-900"
-                style={{ color: "#111111", backgroundColor: "#ffffff" }}
+                className="bg-[var(--sw-input-bg)] text-[var(--sw-input-text)]"
+                style={{ color: "var(--sw-input-text)", backgroundColor: "var(--sw-input-bg)" }}
               >
                 {candidate.name ?? candidate.cell_code}
               </option>

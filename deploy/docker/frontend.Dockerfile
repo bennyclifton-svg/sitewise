@@ -22,6 +22,7 @@ ENV VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
 ENV VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
 
 COPY frontend ./
+COPY Landing/design/colour-system/sitewise-colours.json Landing/design/colour-system/sitewise-colours.css /app/Landing/design/colour-system/
 RUN pnpm build
 
 FROM nginx:1.27-alpine AS runtime

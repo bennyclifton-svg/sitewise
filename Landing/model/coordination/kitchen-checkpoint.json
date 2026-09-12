@@ -1,0 +1,190 @@
+{
+  "stage": "Kitchen first fit for review",
+  "source_floor": 3.22,
+  "placement_matrix": [
+    [
+      -0.16053014993667603,
+      0.9870309829711914,
+      0.0,
+      3.543717861175537
+    ],
+    [
+      -0.9870309829711914,
+      -0.16053014993667603,
+      0.0,
+      -9.500554084777832
+    ],
+    [
+      0.0,
+      0.0,
+      1.0,
+      3.2200000286102295
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "objects": [
+    {
+      "object": "Kitchen source | Object_8",
+      "source": "kitchen.glb",
+      "source_object": "Object_8"
+    },
+    {
+      "object": "Kitchen source | Object_7",
+      "source": "kitchen.glb",
+      "source_object": "Object_7"
+    },
+    {
+      "object": "Kitchen source | Object_6",
+      "source": "kitchen.glb",
+      "source_object": "Object_6"
+    },
+    {
+      "object": "Kitchen source | Object_59",
+      "source": "kitchen.glb",
+      "source_object": "Object_59"
+    },
+    {
+      "object": "Kitchen source | Object_54",
+      "source": "kitchen.glb",
+      "source_object": "Object_54"
+    },
+    {
+      "object": "Kitchen source | Object_37",
+      "source": "kitchen.glb",
+      "source_object": "Object_37"
+    },
+    {
+      "object": "Kitchen source | Object_36",
+      "source": "kitchen.glb",
+      "source_object": "Object_36"
+    },
+    {
+      "object": "Kitchen source | Object_35",
+      "source": "kitchen.glb",
+      "source_object": "Object_35"
+    },
+    {
+      "object": "Kitchen source | Object_25",
+      "source": "kitchen.glb",
+      "source_object": "Object_25"
+    },
+    {
+      "object": "Kitchen source | Object_18",
+      "source": "kitchen.glb",
+      "source_object": "Object_18"
+    },
+    {
+      "object": "Kitchen source | Object_17",
+      "source": "kitchen.glb",
+      "source_object": "Object_17"
+    },
+    {
+      "object": "Kitchen source | Object_16",
+      "source": "kitchen.glb",
+      "source_object": "Object_16"
+    },
+    {
+      "object": "Kitchen source | Object_15",
+      "source": "kitchen.glb",
+      "source_object": "Object_15"
+    },
+    {
+      "object": "Kitchen source | Object_14",
+      "source": "kitchen.glb",
+      "source_object": "Object_14"
+    },
+    {
+      "object": "Kitchen source | Object_13",
+      "source": "kitchen.glb",
+      "source_object": "Object_13"
+    },
+    {
+      "object": "Kitchen source | Object_10",
+      "source": "kitchen.glb",
+      "source_object": "Object_10"
+    },
+    {
+      "object": "SW Asset Fridge | 01 Refrigator.001_Aluminum.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; optional water connection unassigned"
+    },
+    {
+      "object": "SW Asset Fridge | 02 Refrigator.001_Black_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; optional water connection unassigned"
+    },
+    {
+      "object": "SW Asset Fridge | 03 Refrigator.001_BrushedMetalSeamless.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; optional water connection unassigned"
+    },
+    {
+      "object": "SW Asset Fridge | 04 Refrigator.001_FrontBlack.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; optional water connection unassigned"
+    },
+    {
+      "object": "SW Asset Oven | 01 Oven.001_Chrome_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; appliance load and circuit unassigned"
+    },
+    {
+      "object": "SW Asset Oven | 02 Oven.001_FrontDown.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; appliance load and circuit unassigned"
+    },
+    {
+      "object": "SW Asset Oven | 03 Oven.001_FrontPanel.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; appliance load and circuit unassigned"
+    },
+    {
+      "object": "SW Asset Oven | 04 Oven.001_FrontTop.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; appliance load and circuit unassigned"
+    },
+    {
+      "object": "SW Asset Oven | 05 Oven.001_Logo.001_0",
+      "source": "interior-design.glb",
+      "service": "Electrical; appliance load and circuit unassigned"
+    },
+    {
+      "object": "Microwave assembly",
+      "source": "Authored",
+      "service": "Electrical; circuit/load unassigned"
+    },
+    {
+      "object": "Induction cooktop",
+      "source": "Authored; gas-specific source geometry removed",
+      "service": "Electrical; circuit/load unassigned"
+    }
+  ],
+  "existing_kitchen_replaced": [
+    "SLA - 012_Wood - Oak Light_0.010",
+    "SLA - 012_Stone - Marble Black_0.010"
+  ],
+  "service_endpoints": {
+    "sink": "Water and waste; former route must be re-anchored to new fitting",
+    "induction_hob": "User-approved all-electric kitchen; electrical circuit/load unassigned",
+    "hood": "Electrical and extract route; terminal unassigned",
+    "fridge": "Electrical",
+    "oven": "Electrical",
+    "microwave": "Electrical",
+    "lights": "Electrical"
+  },
+  "status": "No circuits, duct sizing or structural engineering inferred",
+  "pending": [
+    "Fit/clearance review",
+    "Lighting throughout dwelling",
+    "Curtains/soft furnishings",
+    "Timber frame/roof/slabs/foundations",
+    "MEP routes",
+    "Car/traffic",
+    "Unified site scene and motion"
+  ]
+}

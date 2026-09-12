@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from app.projects.workflow_capabilities import workflow_capabilities
 from app.schemas.project_snapshot import ProjectSnapshot
 
@@ -83,16 +85,14 @@ def test_tender_rejects_non_class_1a_residential_work() -> None:
     assert "Class 1a" in tender.reasons[0]
 
 
-def test_cost_plan_does_not_claim_six_class_or_interstate_coverage() -> None:
+def test_cost_plan_supports_interstate_commercial_coverage() -> None:
     matrix = workflow_capabilities(
         _snapshot(building_class="commercial", subclasses=["office"], state="VIC")
     )
     cost_plan = matrix.capabilities["create_cost_plan"]
 
-    assert cost_plan.status == "unsupported"
-    assert cost_plan.reasons == [
-        "Cost Plan reference-data coverage is currently NSW only."
-    ]
+    assert cost_plan.status == "supported"
+    assert "VIC" in cost_plan.reference_coverage[0]
     assert matrix.capabilities["create_pmp"].status == "supported"
 
 
@@ -147,7 +147,7 @@ def test_cost_plan_rejects_uncovered_specialist_industrial_subclasses() -> None:
         assert cost_plan.status == "unsupported"
 
 
-def test_cost_plan_still_rejects_interstate_industrial() -> None:
+def test_cost_plan_supports_interstate_industrial() -> None:
     cost_plan = workflow_capabilities(
         _snapshot(
             building_class="industrial",
@@ -155,8 +155,20 @@ def test_cost_plan_still_rejects_interstate_industrial() -> None:
             state="VIC",
         )
     ).capabilities["create_cost_plan"]
-    assert cost_plan.status == "unsupported"
-    assert any("NSW" in reason for reason in cost_plan.reasons)
+    assert cost_plan.status == "supported"
+    assert any("VIC" in reason for reason in cost_plan.reasons)
+
+
+@pytest.mark.parametrize("state", ["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"])
+@pytest.mark.parametrize("workflow", [
+    "create_cost_plan", "refresh_cost_plan", "edit_cost_plan",
+    "approved_tender_cost_handoff",
+])
+def test_cost_plan_actions_support_all_australian_jurisdictions(state, workflow):
+    capability = workflow_capabilities(_snapshot(state=state)).capabilities[workflow]
+    assert capability.status == "supported"
+    assert capability.required_confirmations
+    assert state in capability.reference_coverage[0]
 
 
 def test_cost_plan_supports_nsw_class_5_commercial_fitout() -> None:

@@ -445,7 +445,10 @@ export function ChatPanel({
       ? "flex min-h-0 flex-1 flex-col gap-3"
       : "flex h-[min(42rem,calc(100vh-16rem))] min-h-[28rem] min-w-0 flex-col gap-4";
   const historyClass = isEmbedded
-    ? "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto px-1"
+    ? cn(
+        "cockpit-scroll flex h-full min-h-0 flex-col gap-2 overflow-y-auto px-1",
+        isMain && !collapsed && "lg:pt-[var(--cockpit-ribbon-height)]",
+      )
     : "cockpit-scroll flex h-full min-h-0 flex-col gap-3 overflow-y-auto rounded-md border p-4";
 
   return (

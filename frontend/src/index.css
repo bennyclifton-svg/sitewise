@@ -7,142 +7,122 @@
 @import "@fontsource/hanken-grotesk/700.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 
-/* Sitewise semantic bridge — --sw-* comes from /style-guide/tokens.css */
+/* Product aliases consume the shared generated SiteWise semantic colours. */
 :root {
-  /* Product workbench surface ladder. These roles deliberately live in the
-     SPA bridge, so the static drawing-sheet landing page stays unchanged. */
-  --cockpit-app-canvas: #1a1919;
-  --cockpit-workspace-surface: #1a1919;
-  --cockpit-header-surface: #161820;
-  --cockpit-nav-surface: #2d2b2b;
-  --cockpit-side-surface: #2d2c2c;
-  --cockpit-card-surface: #2d2c2c;
-  --cockpit-control-surface: #1a1919;
-  --cockpit-action-surface: #3c3a39;
-  --cockpit-selected-surface: #393e45;
-  --cockpit-selected-border: #5a6d88;
-  --cockpit-border: #3e3c3c;
-  --cockpit-card-border: #3e3c3c;
-  --cockpit-text-primary: #efeeee;
-  --cockpit-text-secondary: #a0aec0;
-  --cockpit-text-faint: #a0aec0;
-  --cockpit-accent: #4285f4;
-  --cockpit-focus: #4285f4;
-  --cockpit-positive: #81b09a;
-  --cockpit-positive-surface: #25382d;
-  --cockpit-scroll-thumb: #5f5e5e;
+  --cockpit-app-canvas: var(--sw-canvas);
+  --cockpit-workspace-surface: var(--sw-canvas);
+  --cockpit-header-surface: var(--sw-surface);
+  --cockpit-nav-surface: var(--sw-surface);
+  --cockpit-side-surface: var(--sw-surface);
+  --cockpit-card-surface: var(--sw-surface);
+  --cockpit-control-surface: var(--sw-input-bg);
+  --cockpit-action-surface: var(--sw-action-primary);
+  --cockpit-selected-surface: var(--sw-selection-bg);
+  --cockpit-selected-border: var(--sw-selection-border);
+  --cockpit-border: var(--sw-border-default);
+  --cockpit-card-border: var(--sw-border-default);
+  --cockpit-text-primary: var(--sw-text-primary);
+  --cockpit-text-secondary: var(--sw-text-secondary);
+  --cockpit-text-faint: var(--sw-text-tertiary);
+  --cockpit-accent: var(--sw-link);
+  --cockpit-focus: var(--sw-action-focus);
+  --cockpit-positive: var(--sw-success-text);
+  --cockpit-positive-surface: var(--sw-success-bg);
+  --cockpit-scroll-thumb: var(--sw-border-strong);
   --cockpit-shell-radius: 1.25rem;
   --cockpit-card-radius: 0.875rem;
   --cockpit-control-radius: 0.875rem;
   --cockpit-shell-gutter: 0.875rem;
-  --cockpit-header-overlay: rgba(23, 23, 23, 0.56);
+  --cockpit-header-overlay: color-mix(in srgb, var(--sw-canvas) 78%, transparent);
   --cockpit-header-shadow: none;
-  --cockpit-nav-shadow: 4px 2px 14px rgba(0, 0, 0, 0.24);
-  --cockpit-floating-shadow: 0 16px 36px rgba(0, 0, 0, 0.32);
+  --cockpit-nav-shadow: 4px 2px 14px color-mix(in oklab, var(--sw-p-neutral-950) 16%, transparent);
+  --cockpit-floating-shadow: 0 16px 36px color-mix(in oklab, var(--sw-p-neutral-950) 24%, transparent);
 
-  /* Compatibility aliases keep legacy direct --sw-* consumers visually
-     coherent until the component migration pass replaces them. */
-  --sw-void: var(--cockpit-workspace-surface);
-  --sw-panel: var(--cockpit-card-surface);
-  --sw-edge: var(--cockpit-border);
-  --sw-void-hex: var(--cockpit-workspace-surface);
-  --sw-panel-hex: var(--cockpit-card-surface);
-  --sw-edge-hex: var(--cockpit-border);
-  --sw-facet-blue: var(--cockpit-accent);
-  --sw-facet-blue-hex: var(--cockpit-accent);
-  --sw-beam: var(--cockpit-accent);
-  --sw-beam-hex: var(--cockpit-accent);
-  --sw-text-primary: var(--cockpit-text-primary);
-  --sw-text-secondary: var(--cockpit-text-secondary);
-  --sw-text-tertiary: var(--cockpit-text-faint);
-  --sw-text-quiet: var(--cockpit-text-faint);
-  --sw-positive: var(--cockpit-positive);
-  --sw-edge-lit: var(--cockpit-card-border);
-  --sw-edge-lit-raised: var(--cockpit-card-border);
-  --sw-edge-side: var(--cockpit-card-border);
-  --sw-edge-shade: var(--cockpit-card-border);
-  --sw-surface-raised: var(--cockpit-card-surface);
+  --bg-app: var(--sw-canvas);
+  --bg-canvas: var(--sw-canvas);
+  --bg-surface: var(--sw-surface);
+  --bg-sunken: var(--sw-surface-inset);
+  --bg-hover: var(--sw-hover-bg);
+  --bg-active: var(--sw-selection-bg);
+  --border-hair: var(--sw-border-default);
+  --border-strong: var(--sw-border-strong);
+  --text-primary: var(--sw-text-primary);
+  --text-body: var(--sw-text-primary);
+  --text-muted: var(--sw-text-secondary);
+  --text-faint: var(--sw-text-tertiary);
+  --text-on-brand: var(--sw-action-primary-text);
+  --brand: var(--sw-action-primary);
+  --brand-hover: var(--sw-action-primary-hover);
+  --brand-text: var(--sw-link);
+  --brand-subtle: var(--sw-selection-bg);
+  --brand-border: var(--sw-selection-border);
+  --brand-ring: var(--sw-action-focus);
 
-  --bg-app: var(--cockpit-app-canvas);
-  --bg-canvas: var(--cockpit-workspace-surface);
-  --bg-surface: var(--cockpit-card-surface);
-  --bg-sunken: var(--cockpit-control-surface);
-  --bg-hover: color-mix(in oklch, var(--cockpit-control-surface) 65%, var(--cockpit-selected-surface));
-  --bg-active: var(--cockpit-selected-surface);
+  --decision-evidenced-bg: var(--sw-info-bg);
+  --decision-evidenced-text: var(--sw-info-text);
+  --decision-evidenced-hover: var(--sw-selection-bg);
+  --decision-assumed-bg: var(--sw-warning-bg);
+  --decision-assumed-text: var(--sw-warning-text);
+  --decision-assumed-hover: var(--sw-warning-bg);
+  --ok-text: var(--sw-success-text);
+  --ok-bg: var(--sw-success-bg);
+  --ok-border: var(--sw-success-border);
+  --warn-text: var(--sw-warning-text);
+  --warn-bg: var(--sw-warning-bg);
+  --warn-border: var(--sw-warning-border);
+  --info-text: var(--sw-info-text);
+  --info-bg: var(--sw-info-bg);
+  --info-border: var(--sw-info-border);
+  --alert-text: var(--sw-error-text);
+  --alert-bg: var(--sw-error-bg);
+  --alert-border: var(--sw-error-border);
 
-  --border-hair: var(--cockpit-border);
-  --border-strong: var(--cockpit-card-border);
-
-  --text-primary: var(--cockpit-text-primary);
-  --text-body: var(--cockpit-text-primary);
-  --text-muted: var(--cockpit-text-secondary);
-  --text-faint: var(--cockpit-text-faint);
-  --text-on-brand: #ffffff;
-
-  --brand: var(--cockpit-accent);
-  --brand-hover: #2677ff;
-  --brand-text: var(--cockpit-accent);
-  --brand-subtle: var(--cockpit-selected-surface);
-  --brand-border: var(--cockpit-selected-border);
-  --brand-ring: var(--cockpit-focus);
-
-  --decision-evidenced-bg: color-mix(in oklch, var(--sw-facet-blue) 18%, transparent);
-  --decision-evidenced-text: var(--sw-beam);
-  --decision-evidenced-hover: color-mix(in oklch, var(--sw-facet-blue) 28%, transparent);
-  --decision-assumed-bg: color-mix(in oklch, var(--sw-beam) 14%, transparent);
-  --decision-assumed-text: var(--sw-beam);
-  --decision-assumed-hover: color-mix(in oklch, var(--sw-beam) 22%, transparent);
-
-  --ok-text: var(--sw-positive);
-  --ok-bg: color-mix(in oklch, var(--sw-positive) 16%, transparent);
-  --ok-border: color-mix(in oklch, var(--sw-positive) 36%, transparent);
-  --warn-text: var(--sw-caution);
-  --warn-bg: color-mix(in oklch, var(--sw-caution) 16%, transparent);
-  --warn-border: color-mix(in oklch, var(--sw-caution) 36%, transparent);
-  --info-text: var(--sw-beam);
-  --info-bg: color-mix(in oklch, var(--sw-beam) 14%, transparent);
-  --info-border: color-mix(in oklch, var(--sw-beam) 32%, transparent);
-  --alert-text: var(--sw-critical);
-  --alert-bg: color-mix(in oklch, var(--sw-critical) 16%, transparent);
-  --alert-border: color-mix(in oklch, var(--sw-critical) 36%, transparent);
-
-  --cockpit-workflow-icon: var(--sw-beam);
+  --cockpit-workflow-icon: var(--sw-info-icon);
   --cockpit-ribbon-height: 7.25rem;
-
-  /* shadcn semantic mapping */
   --radius: var(--cockpit-control-radius);
-  --background: var(--bg-canvas);
-  --foreground: var(--text-primary);
-  --card: var(--bg-surface);
-  --card-foreground: var(--text-primary);
-  --popover: var(--bg-surface);
-  --popover-foreground: var(--text-primary);
-  --primary: var(--brand);
-  --primary-foreground: var(--text-on-brand);
-  --secondary: var(--bg-sunken);
-  --secondary-foreground: var(--text-primary);
-  --muted: var(--bg-sunken);
-  --muted-foreground: var(--text-muted);
-  --accent: var(--brand-subtle);
-  --accent-foreground: var(--brand-text);
-  --destructive: var(--sw-critical);
-  --destructive-foreground: #ffffff;
-  --border: var(--border-hair);
-  --input: var(--border-hair);
-  --ring: var(--brand-ring);
+  --background: var(--sw-canvas);
+  --foreground: var(--sw-text-primary);
+  --card: var(--sw-surface);
+  --card-foreground: var(--sw-text-primary);
+  --popover: var(--sw-surface-elevated);
+  --popover-foreground: var(--sw-text-primary);
+  --primary: var(--sw-action-primary);
+  --primary-foreground: var(--sw-action-primary-text);
+  --secondary: var(--sw-surface-inset);
+  --secondary-foreground: var(--sw-text-primary);
+  --muted: var(--sw-surface-inset);
+  --muted-foreground: var(--sw-text-tertiary);
+  --accent: var(--sw-selection-bg);
+  --accent-foreground: var(--sw-selection-text);
+  --destructive: var(--sw-error-text);
+  --destructive-foreground: var(--sw-error-bg);
+  --border: var(--sw-border-default);
+  --input: var(--sw-border-control);
+  --ring: var(--sw-action-focus);
+  --chart-1: var(--sw-data-1);
+  --chart-2: var(--sw-data-2);
+  --chart-3: var(--sw-data-3);
+  --chart-4: var(--sw-data-4);
+  --chart-5: var(--sw-data-5);
+  --chart-6: var(--sw-data-6);
+  --chart-7: var(--sw-data-7);
+  --chart-8: var(--sw-data-8);
 
-  --wf-info-bg: var(--info-bg);
-  --wf-info-border: var(--info-border);
-  --wf-info-text: var(--info-text);
-  --wf-ok-bg: var(--ok-bg);
-  --wf-ok-border: var(--ok-border);
-  --wf-ok-text: var(--ok-text);
-  --wf-ready-bg: var(--warn-bg);
-  --wf-ready-border: var(--warn-border);
-  --wf-ready-text: var(--warn-text);
-  --wf-danger-bg: var(--alert-bg);
-  --wf-danger-border: var(--alert-border);
-  --wf-danger-text: var(--alert-text);
+  --wf-info-bg: var(--sw-info-bg);
+  --wf-info-border: var(--sw-info-border);
+  --wf-info-text: var(--sw-info-text);
+  --wf-ok-bg: var(--sw-success-bg);
+  --wf-ok-border: var(--sw-success-border);
+  --wf-ok-text: var(--sw-success-text);
+  --wf-ready-bg: var(--sw-info-bg);
+  --wf-ready-border: var(--sw-info-border);
+  --wf-ready-text: var(--sw-info-text);
+  --wf-draft-bg: var(--sw-surface-inset);
+  --wf-draft-border: var(--sw-border-strong);
+  --wf-draft-text: var(--sw-text-secondary);
+  --wf-danger-bg: var(--sw-error-bg);
+  --wf-danger-border: var(--sw-error-border);
+  --wf-danger-text: var(--sw-error-text);
 
   --font-sans: var(--sw-font-sans);
   --font-mono: var(--sw-font-mono);
@@ -153,96 +133,15 @@
   --fs-body: 16px;
   --tr-label: var(--sw-type-label-track);
   --tr-mono: 0.02em;
-
-  color-scheme: dark;
 }
 
-.sw-lockup {
-  display: block;
-  height: 100%;
-  width: auto;
-}
+.sw-lockup { display: block; height: 100%; width: auto; }
+.sw-lockup--on-light { display: none; }
+html[data-theme="light"] .sw-lockup--on-dark { display: none; }
+html[data-theme="light"] .sw-lockup--on-light { display: block; }
 
-.sw-lockup--on-light {
-  display: none;
-}
-
-html[data-theme="light"] .sw-lockup--on-dark {
-  display: none;
-}
-
-html[data-theme="light"] .sw-lockup--on-light {
-  display: block;
-}
-
-html[data-theme="light"] {
-  color-scheme: light;
-  --cockpit-app-canvas: #fefcf5;
-  --cockpit-workspace-surface: #fefcf5;
-  --cockpit-header-surface: #fcfbf7;
-  --cockpit-nav-surface: #f9f6ee;
-  --cockpit-side-surface: #f9f6ee;
-  --cockpit-card-surface: #f9f6ee;
-  --cockpit-control-surface: #fefcf5;
-  --cockpit-action-surface: #3c3a39;
-  --cockpit-selected-surface: #e5ebf0;
-  --cockpit-selected-border: #c5d9f3;
-  --cockpit-border: #e8e6e3;
-  --cockpit-card-border: #e8e6e3;
-  --cockpit-text-primary: #2d2b2b;
-  --cockpit-text-secondary: #4b5563;
-  --cockpit-text-faint: #596579;
-  --cockpit-accent: #4285f4;
-  --cockpit-focus: #3965ff;
-  --cockpit-positive: #81b09a;
-  --cockpit-positive-surface: #e1f2ed;
-  --cockpit-scroll-thumb: #9ca3af;
-  --cockpit-header-overlay: rgba(254, 252, 245, 0.48);
-  --cockpit-header-shadow: none;
-  --cockpit-nav-shadow: 4px 2px 14px rgba(72, 82, 96, 0.1);
-  --cockpit-floating-shadow: 0 16px 38px rgba(72, 82, 96, 0.16);
-  /* The imported style-guide defines higher-specificity light aliases.
-     Rebind them here so every legacy workflow consumes the cockpit palette. */
-  --sw-void: var(--cockpit-workspace-surface);
-  --sw-panel: var(--cockpit-card-surface);
-  --sw-edge: var(--cockpit-border);
-  --sw-void-hex: var(--cockpit-workspace-surface);
-  --sw-panel-hex: var(--cockpit-card-surface);
-  --sw-edge-hex: var(--cockpit-border);
-  --sw-facet-blue: var(--cockpit-accent);
-  --sw-facet-blue-hex: var(--cockpit-accent);
-  --sw-beam: var(--cockpit-accent);
-  --sw-beam-hex: var(--cockpit-accent);
-  --sw-text-primary: var(--cockpit-text-primary);
-  --sw-text-secondary: var(--cockpit-text-secondary);
-  --sw-text-tertiary: var(--cockpit-text-faint);
-  --sw-text-quiet: var(--cockpit-text-faint);
-  --sw-positive: var(--cockpit-positive);
-  --sw-edge-lit: var(--cockpit-card-border);
-  --sw-edge-lit-raised: var(--cockpit-card-border);
-  --sw-edge-side: var(--cockpit-card-border);
-  --sw-edge-shade: var(--cockpit-card-border);
-  --sw-surface-raised: var(--cockpit-card-surface);
-  --bg-hover: color-mix(in oklch, var(--cockpit-control-surface) 60%, var(--cockpit-selected-surface));
-  --bg-active: var(--cockpit-selected-surface);
-  --brand-hover: #2677ff;
-  --accent-foreground: var(--cockpit-accent);
-  --decision-evidenced-text: var(--cockpit-accent);
-  --decision-assumed-text: var(--cockpit-accent);
-  --info-text: var(--cockpit-accent);
-  --cockpit-workflow-icon: var(--cockpit-accent);
-}
-
-/* Dense product chrome: quieter grain so grids stay readable */
-html.sw-atmosphere-dense {
-  --sw-grain-opacity: 0.025;
-  --sw-key-tint: rgba(126, 168, 220, 0.07);
-}
-
-html.sw-atmosphere-dense[data-theme="light"] {
-  --sw-grain-opacity: 0.02;
-  --sw-key-tint: rgba(47, 114, 196, 0.04);
-}
+/* Dense product chrome uses opaque surfaces, without atmospheric colour washes. */
+html.sw-atmosphere-dense { --sw-grain-opacity: 0; --sw-key-tint: transparent; }
 
 @theme inline {
   --font-sans: var(--font-sans);
@@ -492,8 +391,8 @@ html.sw-atmosphere-dense[data-theme="light"] {
     max-height: var(--cockpit-ribbon-height);
     padding-inline: 1rem;
     background: var(--cockpit-header-overlay);
-    -webkit-backdrop-filter: blur(12px) saturate(1.06);
-    backdrop-filter: blur(12px) saturate(1.06);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
     box-shadow: var(--cockpit-header-shadow);
     border: 0;
     border-radius: var(--cockpit-shell-radius) var(--cockpit-shell-radius) 0 0;
@@ -616,8 +515,8 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .workbook-cell--title {
-    color: var(--text-on-brand);
-    background: var(--sw-facet-blue);
+    color: var(--sw-action-secondary-text);
+    background: var(--sw-action-secondary);
     font-weight: 500;
   }
 
@@ -828,9 +727,9 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .program-gantt-surface {
-    color: var(--sw-text-secondary);
+    color: var(--sw-chart-label);
     color-scheme: inherit;
-    background: var(--sw-panel);
+    background: var(--sw-chart-surface);
     border-color: var(--sw-edge);
   }
 
@@ -847,15 +746,11 @@ html.sw-atmosphere-dense[data-theme="light"] {
 
   .program-gantt-activity-bar {
     border-radius: 2px;
-    background: var(--sw-beam);
+    background: var(--sw-data-1);
   }
 
   .program-gantt-summary-bar {
-    background: color-mix(
-      in oklch,
-      var(--sw-text-primary) 82%,
-      var(--sw-beam)
-    );
+    background: var(--sw-data-8);
   }
 
   .program-gantt-endpoint-stroke {
@@ -934,16 +829,21 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .program-gantt-field {
-    border: 1px solid transparent !important;
+    border: 0 !important;
     background: transparent !important;
-    color: var(--sw-text-secondary) !important;
+    color: inherit !important;
     box-shadow: none !important;
+    outline: none !important;
+    outline-offset: 0 !important;
+    font: inherit;
   }
 
   .program-gantt-field:hover,
   .program-gantt-field:focus-visible {
-    border-color: var(--sw-edge) !important;
-    background: color-mix(in oklch, var(--sw-panel) 70%, transparent) !important;
+    border: 0 !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   .program-gantt-calendar {
@@ -980,10 +880,11 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .cost-plan-field:focus-visible {
-    border-color: var(--sw-beam) !important;
+    border-color: var(--sw-text-primary) !important;
     background: var(--sw-void) !important;
-    outline: none;
-    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--sw-beam) 45%, transparent) !important;
+    outline: none !important;
+    outline-offset: 0 !important;
+    box-shadow: none !important;
   }
 
   .cost-plan-field--attention {
@@ -994,6 +895,11 @@ html.sw-atmosphere-dense[data-theme="light"] {
   .cost-plan-field optgroup {
     background: var(--sw-panel);
     color: var(--sw-text-primary);
+  }
+
+  .cost-plan-field::-webkit-calendar-picker-indicator {
+    display: none;
+    -webkit-appearance: none;
   }
 
   /* Compact Excel-like Cost Plan grid: shared cell borders, no inter-cell buffer. */
@@ -1089,7 +995,7 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .cost-plan-grid-table tr.cost-plan-grid-row--selected > td {
-    background: color-mix(in oklch, var(--sw-beam) 14%, var(--sw-panel));
+    background: var(--sw-selection-bg);
   }
 
   .cost-plan-grid-table tbody {
@@ -1106,21 +1012,26 @@ html.sw-atmosphere-dense[data-theme="light"] {
     width: 100%;
     height: 1.5rem;
     margin: 0;
+    appearance: none;
     border: 0 !important;
     border-radius: 0;
     background: transparent !important;
     box-shadow: none !important;
-    outline: none;
+    outline: none !important;
+    outline-offset: 0 !important;
     padding: 0.15rem 0.25rem;
     font: inherit;
     line-height: 1.2;
     color: inherit;
   }
 
+  .cost-plan-grid-input:focus,
   .cost-plan-grid-input:focus-visible {
-    background: var(--sw-void) !important;
-    box-shadow: inset 0 0 0 1px var(--brand-text) !important;
-    color: var(--brand-text);
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    outline-offset: 0 !important;
+    color: inherit;
   }
 
   .cost-plan-grid-input--money {
@@ -1166,13 +1077,13 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .cost-plan-grid-action:hover {
-    background: color-mix(in oklch, var(--sw-beam) 16%, var(--sw-panel));
+    background: var(--sw-selection-bg);
     color: var(--sw-text-primary);
   }
 
   .cost-plan-grid-action--danger:hover {
-    background: color-mix(in oklch, var(--destructive) 18%, transparent);
-    color: var(--destructive);
+    background: var(--sw-error-bg);
+    color: var(--sw-error-text);
   }
 
   .cost-invoice-register {
@@ -1291,22 +1202,28 @@ html.sw-atmosphere-dense[data-theme="light"] {
     height: 1.5rem;
     min-height: 1.5rem;
     margin: 0;
-    border: 0;
+    appearance: none;
+    border: 0 !important;
     border-radius: 0;
     background: transparent;
-    box-shadow: none;
-    outline: none;
+    box-shadow: none !important;
+    outline: none !important;
+    outline-offset: 0 !important;
     padding: 0 0.25rem;
     font: inherit;
     line-height: 1.2;
     color: inherit;
   }
 
+  .cost-invoice-field:focus,
   .cost-invoice-field:focus-visible,
+  .cost-invoice-paid-toggle:focus,
   .cost-invoice-paid-toggle:focus-visible {
-    background: var(--sw-void);
-    box-shadow: inset 0 0 0 1px var(--brand-text);
-    color: var(--brand-text);
+    background: transparent;
+    box-shadow: none !important;
+    outline: none !important;
+    outline-offset: 0 !important;
+    color: inherit;
   }
 
   .cost-invoice-field option,
@@ -1487,20 +1404,20 @@ html.sw-atmosphere-dense[data-theme="light"] {
 
   .artifact-sheet,
   .artifact-workbook {
-    --background: #ffffff;
-    --foreground: #191c21;
-    --muted: #f4f4f1;
-    --muted-foreground: #5c5f66;
-    --secondary: #f4f4f1;
-    --secondary-foreground: #191c21;
-    --border: #d6d6d0;
-    --text-primary: #191c21;
-    --text-body: #2c3037;
-    --text-muted: #5c5f66;
-    color: #2c3037 !important;
+    --background: var(--sw-p-neutral-0);
+    --foreground: var(--sw-p-neutral-900);
+    --muted: var(--sw-p-neutral-100);
+    --muted-foreground: var(--sw-p-neutral-600);
+    --secondary: var(--sw-p-neutral-100);
+    --secondary-foreground: var(--sw-p-neutral-900);
+    --border: var(--sw-p-neutral-200);
+    --text-primary: var(--sw-p-neutral-900);
+    --text-body: var(--sw-p-neutral-700);
+    --text-muted: var(--sw-p-neutral-600);
+    color: var(--sw-p-neutral-700) !important;
     color-scheme: light;
-    background: #ffffff !important;
-    border-color: #d6d6d0 !important;
+    background: var(--sw-p-neutral-0) !important;
+    border-color: var(--sw-p-neutral-200) !important;
   }
 
   .artifact-sheet {
@@ -1514,61 +1431,61 @@ html.sw-atmosphere-dense[data-theme="light"] {
   .artifact-sheet .draft-markdown .pmp-table-wrap,
   .artifact-sheet .draft-markdown th,
   .artifact-sheet .draft-markdown td {
-    border-color: #d6d6d0 !important;
+    border-color: var(--sw-p-neutral-200) !important;
   }
 
   .artifact-sheet .draft-markdown,
   .artifact-sheet .draft-markdown td {
-    color: #2c3037 !important;
+    color: var(--sw-p-neutral-700) !important;
   }
 
   .artifact-sheet .draft-markdown h1,
   .artifact-sheet .draft-markdown h3,
   .artifact-sheet .draft-markdown h4,
   .artifact-sheet .draft-markdown strong {
-    color: #191c21 !important;
+    color: var(--sw-p-neutral-900) !important;
   }
 
   .artifact-sheet .draft-markdown h2,
   .artifact-sheet .draft-markdown a {
-    color: #245b9c !important;
+    color: var(--sw-p-cyan-700) !important;
   }
 
   .artifact-sheet .draft-markdown thead {
-    color: #ffffff !important;
-    background: #2c3037 !important;
+    color: var(--sw-p-neutral-0) !important;
+    background: var(--sw-p-neutral-700) !important;
   }
 
   .artifact-sheet .draft-markdown th {
-    color: #ffffff !important;
+    color: var(--sw-p-neutral-0) !important;
   }
 
   .artifact-sheet .draft-markdown tbody tr:nth-child(even) {
-    background: #f4f4f1 !important;
+    background: var(--sw-p-neutral-100) !important;
   }
 
   .artifact-workbook .workbook-cell {
-    color: #2c3037 !important;
-    background: #ffffff !important;
+    color: var(--sw-p-neutral-700) !important;
+    background: var(--sw-p-neutral-0) !important;
   }
 
   .artifact-workbook .workbook-cell--title,
   .artifact-workbook .workbook-cell--grand {
-    color: #ffffff !important;
-    background: #2f72c4 !important;
+    color: var(--sw-p-neutral-0) !important;
+    background: var(--sw-p-cyan-700) !important;
   }
 
   .artifact-workbook .workbook-cell--header {
-    color: #ffffff !important;
-    background: #2c3037 !important;
+    color: var(--sw-p-neutral-0) !important;
+    background: var(--sw-p-neutral-700) !important;
   }
 
   .artifact-workbook .workbook-cell--subtitle,
   .artifact-workbook .workbook-cell--control,
   .artifact-workbook .workbook-cell--subtotal,
   .artifact-workbook .workbook-cell--muted {
-    color: #191c21 !important;
-    background: #f4f4f1 !important;
+    color: var(--sw-p-neutral-900) !important;
+    background: var(--sw-p-neutral-100) !important;
   }
 
   .draft-markdown {
@@ -1581,7 +1498,7 @@ html.sw-atmosphere-dense[data-theme="light"] {
     display: block;
     margin-bottom: 0.75rem;
     font-size: 9pt;
-    color: #444;
+    color: var(--sw-p-neutral-700);
   }
 
   .draft-markdown .pmp-table-wrap {
@@ -1605,7 +1522,7 @@ html.sw-atmosphere-dense[data-theme="light"] {
   }
 
   .draft-markdown .evidence-status-chip {
-    border: 1px solid #999;
+    border: 1px solid var(--sw-p-neutral-500);
     color: black !important;
     background: transparent !important;
   }
@@ -1721,6 +1638,12 @@ html.sw-atmosphere-dense[data-theme="light"] {
 /* ── SiteWise chat composer ───────────────────────────────────────────────
    Tokens are CSS custom properties on .sw-composer — override from the theme
    layer rather than editing rules. Markup lives in ChatComposer.tsx.        */
+@property --sw-composer-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 210deg;
+}
+
 .sw-composer {
   --sw-composer-bg: var(--cockpit-card-surface);
   --sw-composer-edge: var(--cockpit-card-border);
@@ -1730,8 +1653,9 @@ html.sw-atmosphere-dense[data-theme="light"] {
   --sw-composer-ink-dim: var(--sw-text-quiet);
   --sw-composer-ink-mid: var(--sw-text-secondary);
   --sw-composer-placeholder: var(--sw-text-quiet);
-  --sw-composer-blue: var(--sw-facet-blue-hex, #2f72c4);
-  --sw-composer-sky: var(--sw-beam-hex, #7fb0e4);
+  --sw-composer-blue: var(--sw-link);
+  --sw-composer-sky: var(--sw-link);
+  --sw-composer-sweep: 210deg;
 
   position: relative;
   width: 100%;
@@ -1744,13 +1668,54 @@ html.sw-atmosphere-dense[data-theme="light"] {
   color: var(--sw-composer-ink);
   font-family: var(--sw-font-sans);
   font-weight: var(--sw-weight-body);
+  transition:
+    border-color var(--sw-dur-state) var(--sw-ease-state);
+}
+
+.sw-composer.is-focused,
+.sw-composer:has(.sw-field textarea:focus) {
+  border-color: color-mix(in oklch, var(--sw-composer-sky) 78%, var(--sw-composer-edge));
+}
+
+.sw-composer.is-focused .sw-collapse,
+.sw-composer:has(.sw-field textarea:focus) .sw-collapse {
+  border-color: color-mix(in oklch, var(--sw-composer-sky) 58%, var(--sw-composer-edge));
+}
+
+.sw-composer::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  padding: 1px;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--sw-composer-sweep),
+    transparent 0 72%,
+    color-mix(in oklch, var(--sw-composer-sky) 88%, white) 86%,
+    transparent 100%
+  );
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+
+.sw-composer.is-focused::after,
+.sw-composer:has(.sw-field textarea:focus)::after {
+  animation: sw-composer-sweep 680ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 html[data-theme="light"] .sw-composer {
   --sw-composer-edge: var(--cockpit-card-border);
   --sw-composer-edge-top: var(--cockpit-card-border);
   --sw-composer-rule: var(--cockpit-border);
-  --sw-composer-sky: var(--sw-facet-blue-hex, #2f72c4);
+  --sw-composer-sky: var(--sw-link);
 }
 
 .sw-collapse {
@@ -1845,6 +1810,13 @@ html[data-theme="light"] .sw-composer {
   opacity: 0.7;
 }
 
+.sw-field textarea:focus,
+.sw-field textarea:focus-visible {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 .sw-caret {
   display: inline-block;
   flex: 0 0 auto;
@@ -1866,6 +1838,20 @@ html[data-theme="light"] .sw-composer {
   }
   100% {
     opacity: 1;
+  }
+}
+
+@keyframes sw-composer-sweep {
+  0% {
+    opacity: 0;
+    --sw-composer-sweep: 200deg;
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    --sw-composer-sweep: 560deg;
   }
 }
 
@@ -1923,8 +1909,8 @@ html[data-theme="light"] .sw-composer {
 }
 
 .sw-depth button[aria-pressed="true"] {
-  color: var(--sw-composer-blue);
-  background: color-mix(in oklch, var(--sw-composer-blue) 22%, transparent);
+  color: var(--sw-selection-text);
+  background: var(--sw-selection-bg);
   box-shadow: inset 0 -1.5px 0 var(--sw-composer-blue);
 }
 
@@ -1948,8 +1934,8 @@ html[data-theme="light"] .sw-composer {
 }
 
 .sw-icon.is-listening {
-  color: var(--text-on-brand);
-  background: var(--sw-composer-blue);
+  color: var(--sw-selection-text);
+  background: var(--sw-selection-bg);
 }
 
 .sw-icon:disabled {
@@ -2136,30 +2122,33 @@ html[data-theme="light"] .sw-composer {
 
 .sw-send {
   flex: 0 0 auto;
-  width: 76px;
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  margin: 0 10px 0 4px;
   border: 0;
-  border-left: 1px solid var(--sw-composer-edge);
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: transparent;
-  color: var(--sw-composer-ink-dim);
+  background: var(--sw-action-primary);
+  color: var(--sw-action-primary-text);
   cursor: pointer;
   transition: background var(--sw-dur-state) var(--sw-ease-state);
 }
 
 .sw-send svg {
-  width: 36px;
-  height: 36px;
+  width: 18px;
+  height: 18px;
 }
 
 .sw-send:hover:not(:disabled) {
-  background: rgba(47, 114, 196, 0.1);
+  background: var(--sw-action-primary-hover);
 }
 
 .sw-send:disabled {
-  opacity: 0.38;
   cursor: default;
-  background: transparent;
+  background: var(--sw-action-disabled-bg);
+  color: var(--sw-action-disabled-text);
 }
 
 @media (max-width: 640px) {
@@ -2175,12 +2164,14 @@ html[data-theme="light"] .sw-composer {
   }
 
   .sw-send {
-    width: 64px;
+    width: 40px;
+    height: 40px;
+    margin-right: 8px;
   }
 
   .sw-send svg {
-    width: 30px;
-    height: 30px;
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -2212,25 +2203,10 @@ html[data-theme="light"] .sw-composer {
 }
 
 .streaming-status-live {
-  --sw-status-sheen: color-mix(in oklch, var(--sw-facet-blue-hex, #2f72c4) 58%, white);
-  color: var(--brand-text);
+  color: var(--sw-info-text);
   letter-spacing: 0.012em;
   transform: translateY(1px);
-  background-image: linear-gradient(
-    105deg,
-    var(--sw-facet-blue-hex, #2f72c4) 0%,
-    var(--sw-facet-blue-hex, #2f72c4) 40%,
-    var(--sw-status-sheen) 50%,
-    var(--sw-facet-blue-hex, #2f72c4) 60%,
-    var(--sw-facet-blue-hex, #2f72c4) 100%
-  );
-  background-size: 260% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation:
-    sw-status-arrive var(--sw-dur-enter, 420ms) var(--sw-ease-enter, cubic-bezier(0.22, 1, 0.36, 1)) both,
-    sw-status-signal var(--sw-dur-ambient, 9s) var(--sw-ease-ambient, cubic-bezier(0.45, 0, 0.55, 1)) 420ms infinite;
+  animation: sw-status-arrive var(--sw-dur-enter, 420ms) var(--sw-ease-enter) both;
 }
 
 .streaming-status-error {
@@ -2242,6 +2218,12 @@ html[data-theme="light"] .sw-composer {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sw-composer.is-focused::after,
+  .sw-composer:has(.sw-field textarea:focus)::after {
+    animation: none;
+    opacity: 0;
+  }
+
   .streaming-status-live,
   .streaming-status-error {
     animation: none;
@@ -2254,7 +2236,59 @@ html[data-theme="light"] .sw-composer {
   }
 }
 
-html[data-theme="light"] .streaming-status-live {
-  --sw-status-sheen: color-mix(in oklch, var(--sw-facet-blue-hex, #2f72c4) 78%, black);
-}
 
+/* Shared native-control treatment also covers custom project controls. */
+#root :where(button, input, select, textarea, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--sw-action-focus);
+  outline-offset: 3px;
+  --tw-ring-shadow: 0 0 transparent;
+  --tw-ring-offset-shadow: 0 0 transparent;
+}
+#root :where(
+  .cost-plan-grid-input,
+  .cost-plan-field,
+  .cost-invoice-field,
+  .cost-invoice-paid-toggle,
+  .program-gantt-field,
+  .chat-thread-rename,
+  .sw-field textarea
+):is(:focus, :focus-visible) {
+  outline: none;
+  outline-offset: 0;
+  box-shadow: none;
+}
+.chat-thread-rename {
+  border: 0 !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  box-shadow: none !important;
+  font: inherit;
+}
+#root :where(input, select, textarea):not(:disabled) {
+  border-color: var(--sw-border-control);
+}
+#root :where(
+  .cost-plan-grid-input,
+  .cost-invoice-field,
+  .program-gantt-field,
+  .chat-thread-rename,
+  .sw-field textarea
+):not(:disabled) {
+  border-color: transparent;
+}
+#root :where(input, select, textarea)::placeholder {
+  color: var(--sw-input-placeholder);
+  opacity: 1;
+}
+#root :where(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--sw-error-border);
+}
+#root :where(button, input, select, textarea):disabled {
+  color: var(--sw-action-disabled-text);
+  background-color: var(--sw-action-disabled-bg);
+  border-color: var(--sw-action-disabled-border);
+  opacity: 1;
+}
+.sw-primary-action {
+  border: 1px solid var(--sw-action-primary-border);
+}

@@ -24,7 +24,13 @@ from app.sitewise.cost_plan_evidence import CostPlanEvidencePack
 from app.sitewise.mobilisation_evidence import GAP_CERTIFIER, pack_has_gap
 
 
-def _no_rate_pack_disclosure(family: CoverageFamily) -> str:
+def _no_rate_pack_disclosure(family: CoverageFamily, *, state: str = "NSW") -> str:
+    if state != "NSW":
+        return (
+            f"The {state} scaffold supplies cost categories only. Local rates, "
+            "authority charges and approval requirements need project evidence; "
+            "unpriced items remain TBC."
+        )
     if family == "industrial_warehouse":
         return (
             "No NSW industrial rate pack exists yet — this is a structure-only "
@@ -507,7 +513,7 @@ def _budget_amount(raw: str | None) -> float | None:
 def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLine]:
     family = _coverage_family(project)
     is_commercial_fitout = family == "commercial_fitout"
-    is_structure_only = coverage_spec(family).structure_only
+    is_structure_only = coverage_spec(family, state=project.state).structure_only
     fee_rows = _FEE_ROWS_BY_FAMILY[family]
     consultant_rows = _CONSULTANT_ROWS_BY_FAMILY[family]
     construction_rows = _CONSTRUCTION_ROWS_BY_FAMILY[family]
@@ -567,7 +573,7 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
             )
         )
     ceiling = _parse_amount(pack.construction_budget_ceiling)
-    if benchmark_pct is not None and ceiling is not None:
+    if not is_structure_only and benchmark_pct is not None and ceiling is not None:
         pct_by_label = dict(benchmark_pct)
         running = 0
         last_index = len(construction_rows) - 1
@@ -646,6 +652,18 @@ def _build_rows(project: Project, pack: CostPlanEvidencePack) -> list[CostPlanLi
             ),
         )
     )
+    if project.state != "NSW":
+        local_labels = {
+            "DA and CC authority fees": "Planning and building approval fees",
+            "BASIX certificate fee": "Energy and sustainability certification fees",
+            "Sydney Water / infrastructure": "Water authority / infrastructure",
+            "BASIX / energy assessor": "Energy / sustainability assessor",
+            "Principal certifier": "Building certifier / surveyor",
+        }
+        rows = [
+            replace(row, cost_item=local_labels.get(row.cost_item, row.cost_item))
+            for row in rows
+        ]
     return _overlay_received_proposal_rows(rows, pack)
 
 

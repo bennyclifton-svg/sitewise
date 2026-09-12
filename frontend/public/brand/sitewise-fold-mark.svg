@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>SiteWise folded plan mark</title>
+  <path d="M49 10H22Q10 10 10 22V23Q10 32 22 32H42Q54 32 54 42V43Q54 54 42 54H15" stroke="#f3f5fc" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M49 21H23Q21 21 21 23Q21 25 24 25H42Q61 25 61 42M15 43H41Q43 43 43 41Q43 39 40 39H22Q3 39 3 22" stroke="#8ebeff" stroke-width="3" stroke-linecap="round"/>
+</svg>

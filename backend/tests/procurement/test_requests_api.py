@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -98,6 +98,118 @@ def test_other_project_owner_cannot_list_requests(client: TestClient) -> None:
         response = client.get(f"/projects/{PROJECT_ID}/procurement-requests")
 
     assert response.status_code == 403
+
+
+@pytest.mark.parametrize("count", [5, 25, 100])
+def test_list_batches_draft_summaries_without_loading_bodies(
+    client: TestClient, mock_session: AsyncMock, count: int
+) -> None:
+    drafts = {
+        uuid.UUID(int=index + 100): dict(
+            id=uuid.UUID(int=index + 100),
+            project_id=PROJECT_ID,
+            workflow_type=f"consultant_procurement_{index}",
+            version=2,
+            status="draft",
+            title=f"RFP {index}",
+            workspace_path=f"rfp/{index}.md",
+            author_user_id=USER_ID,
+            model=None,
+            runtime="pi",
+            created_at=NOW,
+            updated_at=NOW,
+        )
+        for index in range(count)
+    }
+    requests = [
+        SimpleNamespace(
+            **{
+                **_view().model_dump(exclude={"current_draft"}),
+                "id": uuid.UUID(int=index + 1000),
+                "current_draft_artifact_id": draft_id,
+            }
+        )
+        for index, draft_id in enumerate(drafts)
+    ]
+    # Keep the former per-row path functional so this fails on query count,
+    # rather than on an unrelated mock/response validation error.
+    mock_session.get.side_effect = lambda _model, draft_id: SimpleNamespace(
+        **drafts[draft_id]
+    )
+    result = MagicMock()
+    result.mappings.return_value.all.return_value = list(drafts.values())
+    mock_session.execute.return_value = result
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.list_procurement_requests",
+            new=AsyncMock(return_value=requests),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/procurement-requests")
+
+    assert response.status_code == 200
+    rows = response.json()["requests"]
+    assert len(rows) == count
+    assert [row["current_draft"]["id"] for row in rows] == [str(key) for key in drafts]
+    assert all("markdown" not in row["current_draft"] for row in rows)
+    assert "content_markdown" not in rows[0]["current_draft"]
+    mock_session.get.assert_not_awaited()
+    mock_session.execute.assert_awaited_once()
+    statement = mock_session.execute.call_args.args[0]
+    assert "content_markdown" not in {
+        column.key for column in statement.selected_columns
+    }
+    assert "provenance_metadata" not in {
+        column.key for column in statement.selected_columns
+    }
+    assert PROJECT_ID in statement.compile().params.values()
+    assert "draft_summaries;dur=" in response.headers["server-timing"]
+
+
+def test_list_without_drafts_does_not_query_drafts(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    request = SimpleNamespace(**_view().model_dump(exclude={"current_draft"}))
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.list_procurement_requests",
+            new=AsyncMock(return_value=[request]),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/procurement-requests")
+    assert response.status_code == 200
+    assert response.json()["requests"][0]["current_draft"] is None
+    mock_session.get.assert_not_awaited()
+    mock_session.execute.assert_not_awaited()
+
+
+def test_list_preserves_request_when_its_draft_is_missing(
+    client: TestClient, mock_session: AsyncMock
+) -> None:
+    request = SimpleNamespace(
+        **{
+            **_view().model_dump(exclude={"current_draft"}),
+            "current_draft_artifact_id": uuid.UUID(int=99),
+        }
+    )
+    result = MagicMock()
+    result.mappings.return_value.all.return_value = []
+    mock_session.execute.return_value = result
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch(
+            "app.api.projects.list_procurement_requests",
+            new=AsyncMock(return_value=[request]),
+        ),
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/procurement-requests")
+    assert response.status_code == 200
+    assert response.json()["requests"][0]["current_draft"] is None
+    assert response.json()["requests"][0]["current_draft_artifact_id"] == str(
+        request.current_draft_artifact_id
+    )
 
 
 def test_status_update_maps_lifecycle_conflict(client: TestClient) -> None:

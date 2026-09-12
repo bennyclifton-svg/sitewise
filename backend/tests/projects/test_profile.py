@@ -441,6 +441,32 @@ def _project(**overrides):
     return SimpleNamespace(**values)
 
 
+def test_spoken_setup_brief_patch_is_valid_for_a_new_house() -> None:
+    from app.agent.mutation_intent import classify_mutation_intent
+
+    intent = classify_mutation_intent(
+        "Please set up project. Or a two Storey 4 bedroom. Bathroom. Double garage home. "
+        "It will be. Planning by DA, there's no contamination. No environmental constraints, "
+        "no flood exposure, no heritage, no Bush fire. There's no access constraints. "
+        "The procurement route will be. Design and construct. Please set up a project profile "
+        "to begin with."
+    )
+    project = _orm_project(
+        title="Spec Home",
+        project_metadata={"taxonomy": {"subclasses": ["house"]}},
+    )
+    plan = validate_profile_patch(
+        project,
+        ProjectProfilePatch(expected_revision=1, **dict(intent.profile_patch)),
+    )
+
+    assert "scale" in plan.changed_fields
+    assert "complexity" in plan.changed_fields
+    assert plan.after.scale == {"storeys": 2, "bedrooms": 4, "garage_spaces": 2}
+    assert plan.after.complexity["planning"] == "da"
+    assert plan.after.complexity["procurement_route"] == "design_construct"
+
+
 def _orm_project(**overrides) -> Project:
     values = {
         "id": uuid.uuid4(),

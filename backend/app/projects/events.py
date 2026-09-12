@@ -65,7 +65,9 @@ async def publish_project_event(
         result = await session.execute(
             select(Project)
             .where(Project.id == project_id)
-            .with_for_update()
+            # Event counters do not change project keys. Stay compatible with
+            # FK references acquired by concurrent intake transactions.
+            .with_for_update(key_share=True)
             .execution_options(populate_existing=True)
         )
         project = result.scalar_one_or_none()

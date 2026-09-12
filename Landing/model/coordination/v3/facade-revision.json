@@ -1,0 +1,298 @@
+{
+  "source": "sitewise-detail-v5.blend",
+  "checkpoint": "sitewise-facade-v6.blend",
+  "preserved_meshes": 4990,
+  "windows": [
+    {
+      "window": "WD - 006_Glass - Clear Fast_0",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.001",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.002",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.003",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.004",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.005",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.006",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.007",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.008",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.009",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.010",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.011",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.012",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.013",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.014",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.015",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.016",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.017",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.018",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.019",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.020",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.021",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.022",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.023",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.024",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.025",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.026",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.027",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.028",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.029",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.030",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.031",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.032",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.033",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.034",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.035",
+      "treatment": "shallow surround",
+      "projection_m": 0.27
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.036",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.037",
+      "treatment": "shallow surround",
+      "projection_m": 0.27
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.038",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.039",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.040",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.041",
+      "treatment": "shallow surround",
+      "projection_m": 0.27
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.042",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.043",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.044",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.045",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.046",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.047",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.048",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.049",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.050",
+      "treatment": "shallow surround",
+      "projection_m": 0.27
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.051",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.052",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.053",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.054",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.055",
+      "treatment": "shallow surround",
+      "projection_m": 0.27
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.056",
+      "treatment": "quiet reveal",
+      "projection_m": 0.12
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.057",
+      "treatment": "horizontal blade",
+      "projection_m": 0.48
+    }
+  ],
+  "side_bays": 5
+}

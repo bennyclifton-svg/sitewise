@@ -42,6 +42,17 @@ describe("color theme", () => {
     expect(document.documentElement.style.colorScheme).toBe("light");
   });
 
+  it("keeps browser chrome in the selected canvas colour", () => {
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.append(meta);
+    applyTheme("light");
+    expect(meta.content).toBe("#F9F7F3");
+    applyTheme("dark");
+    expect(meta.content).toBe("#0A0A0A");
+    meta.remove();
+  });
+
   it("persists the theme and applies it", () => {
     setTheme("light");
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("light");

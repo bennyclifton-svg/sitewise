@@ -1,0 +1,188 @@
+/* Use the same Petrol family for the site field and the registered plan. */
+#sitewise-landing {
+  --sw-site-blue: var(--sw-p-cyan-700);
+  max-width: none;
+}
+#sitewise-landing .sw-page { position: relative; padding: 0; }
+#sitewise-landing .sw-masthead {
+  position: absolute;
+  z-index: 3;
+  inset: 0 0 auto;
+  padding: 30px clamp(24px, 3.4vw, 64px);
+  flex-wrap: nowrap;
+}
+#sitewise-landing .sw-masthead .sw-brand {
+  width: 152px;
+  flex-shrink: 0;
+  --sw-text-primary: var(--sw-p-neutral-0);
+}
+#sitewise-landing .sw-masthead .sw-brand > img { filter: brightness(0) invert(1); }
+#sitewise-landing .sw-masthead-actions { gap: 24px; }
+#sitewise-landing .sw-masthead-actions .sw-cta { padding: 10px 20px; }
+#sitewise-landing .sw-coordination {
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  min-height: 780px;
+  height: min(100svh, 1080px);
+  background: var(--sw-canvas);
+}
+#sitewise-landing .sw-coordination figure { margin: 0; }
+#sitewise-landing .sw-coordination-model {
+  position: relative;
+  overflow: hidden;
+  background: var(--sw-site-blue);
+}
+#sitewise-landing .sw-coordination-model > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+#sitewise-landing .sw-scene-viewport { position: absolute; inset: 0; }
+#sitewise-landing .sw-scene-viewport > img,
+#sitewise-landing .sw-scene-viewport > canvas { width: 100%; height: 100%; display: block; position: absolute; inset: 0; object-fit: cover; }
+#sitewise-landing .is-live .sw-scene-viewport > img { visibility: hidden; }
+#sitewise-landing .sw-system-controls { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); padding: 5px; font-family: 'Hanken Grotesk', Arial, sans-serif; color: #F9F7F3; background: #0F1F22; border: 1px solid #42666B; border-radius: 28px; }
+#sitewise-landing .sw-scene-toolbar { position: absolute; bottom: 48px; left: 92px; right: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font: 12px 'Hanken Grotesk', Arial, sans-serif; color: #F9F7F3; }
+#sitewise-landing .sw-system-controls button { font: inherit; color: inherit; cursor: pointer; }
+#sitewise-landing .sw-scene-toolbar button { border: 1px solid #587479; background: #0F1F22; border-radius: 20px; color: inherit; font: inherit; cursor: pointer; padding: 9px 16px; }
+#sitewise-landing .sw-system-options { display: flex; flex-direction: column; gap: 3px; }
+#sitewise-landing .sw-system-options button { position: relative; width: 40px; height: 40px; padding: 0; font-size: 13px; border: 1px solid transparent; border-radius: 50%; background: transparent; }
+#sitewise-landing .sw-system-label { display: none; position: absolute; left: calc(100% + 14px); top: 50%; transform: translateY(-50%); white-space: nowrap; color: #F9F7F3; background: #0F1F22; border: 1px solid #42666B; border-radius: 5px; padding: 7px 10px; font-size: 12px; pointer-events: none; }
+#sitewise-landing .sw-system-options button:hover .sw-system-label,
+#sitewise-landing .sw-system-options button:focus-visible .sw-system-label { display: block; }
+#sitewise-landing .sw-system-options button[aria-pressed="true"] { background: #DEDF88; border-color: #DEDF88; color: #0A0A0A; }
+#sitewise-landing .sw-system-options button.is-preview:not([aria-pressed="true"]) { background: #15444D; border-color: #93CEDD; }
+#sitewise-landing .sw-system-controls button:focus-visible { outline: 2px solid #DEDF88; outline-offset: 3px; }
+#sitewise-landing .sw-scene-toolbar button:focus-visible { outline: 2px solid #DEDF88; outline-offset: 3px; }
+#sitewise-landing .sw-system-controls button:disabled { opacity: .5; cursor: wait; }
+#sitewise-landing [data-scene-status] { font-size: 11px; color: #F9F7F3; margin: 0; min-height: 14px; text-shadow: 0 1px 4px #0F1F22; }
+#sitewise-landing .sw-coordination-model figcaption {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 24px 9px;
+  background: transparent;
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+#sitewise-landing .sw-coordination-reading {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#sitewise-landing .sw-coordination-copy {
+  position: relative;
+  z-index: 1;
+  padding: clamp(148px, 16vh, 184px) clamp(32px, 4.1vw, 78px) 20px;
+}
+#sitewise-landing .sw-coordination-eyebrow {
+  margin: 0 0 24px;
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--sw-text-secondary);
+}
+#sitewise-landing .sw-coordination h1 {
+  font: 700 clamp(46px, 4.7vw, 86px)/1.02 Satoshi, Arial, sans-serif;
+  letter-spacing: -.055em;
+  margin: 0;
+  color: var(--sw-text-primary);
+}
+#sitewise-landing .sw-coordination-intro {
+  max-width: 31ch;
+  margin: 24px 0;
+  font-size: clamp(16px, 1.2vw, 19px);
+  line-height: 1.55;
+  color: var(--sw-text-secondary);
+}
+#sitewise-landing .sw-coordination-copy .sw-cta { min-height: 48px; }
+#sitewise-landing .sw-coordination-plan {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+#sitewise-landing .sw-coordination-plan > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  object-fit: cover;
+  object-position: center;
+}
+#sitewise-landing .sw-coordination-plan figcaption {
+  position: absolute;
+  bottom: 26px;
+  left: clamp(32px, 4.1vw, 78px);
+  background: var(--sw-canvas);
+  padding: 4px 8px 4px 0;
+  color: var(--sw-text-secondary);
+  font-size: 11px;
+  letter-spacing: .04em;
+}
+#sitewise-landing .sw-coordination-plan figcaption a { color: inherit; text-underline-offset: 3px; }
+#sitewise-landing .sw-workspace-intro { max-width: 1280px; margin: auto; }
+#sitewise-landing .sw-opening > .sw-coordination-copy { max-width: 1280px; width: 100%; margin-inline: auto; padding: 0 0 48px; }
+#sitewise-landing .sw-opening #sw-hero-title { font: 700 clamp(46px, 4.7vw, 86px)/1.02 Satoshi, Arial, sans-serif; letter-spacing: -.04em; margin: 0; color: var(--sw-text-primary); }
+#sitewise-landing .sw-workspace-intro h2 {
+  margin: 0;
+  font: 500 clamp(34px, 3.5vw, 54px)/1.1 Satoshi, Arial, sans-serif;
+  letter-spacing: -.04em;
+}
+#sitewise-landing .sw-workspace-intro > p:last-child {
+  max-width: 48ch;
+  color: var(--sw-text-secondary);
+  margin: 24px 0 0;
+  font-size: 17px;
+  line-height: 1.6;
+}
+#sitewise-landing .sw-hero-foot,
+#sitewise-landing .sw-closing,
+#sitewise-landing .sw-footer { max-width: 1280px; margin-inline: auto; }
+#sitewise-landing .sw-hero-foot { padding-inline: 24px; }
+#sitewise-landing .sw-model-credit {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px 28px;
+  color: var(--sw-text-secondary);
+  font-size: 11px;
+  line-height: 1.6;
+}
+#sitewise-landing .sw-model-credit a { color: inherit; text-underline-offset: 3px; }
+@media (min-width: 800px) and (max-height: 850px) {
+  #sitewise-landing .sw-coordination-copy { padding-top: 120px; }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(46px, 4.3vw, 72px); }
+}
+@media (max-width: 1100px) {
+  #sitewise-landing .sw-masthead-actions { gap: 16px; }
+  #sitewise-landing .sw-masthead-actions .sw-cta { font-size: 12px; padding-inline: 14px; }
+  #sitewise-landing .sw-coordination-copy { padding-inline: 30px; }
+  #sitewise-landing .sw-coordination-model figcaption { flex-direction: column; gap: 4px; }
+}
+@media (max-width: 799px) {
+  #sitewise-landing .sw-masthead { padding: 24px; align-items: center; }
+  #sitewise-landing .sw-masthead .sw-brand { width: 132px; }
+  #sitewise-landing .sw-masthead-actions .sw-cta { display: none; }
+  #sitewise-landing .sw-masthead-actions a:not(.sw-cta) { color: #fff; }
+  #sitewise-landing .sw-coordination { grid-template-columns: 1fr; height: auto; }
+  #sitewise-landing .sw-coordination-model { height: 680px; }
+  #sitewise-landing .sw-system-controls { left: 12px; padding: 4px; }
+  #sitewise-landing .sw-system-options button { width: 38px; height: 38px; }
+  #sitewise-landing .sw-scene-toolbar { left: 76px; right: 16px; }
+  #sitewise-landing .sw-coordination-model > img { object-fit: cover; }
+  #sitewise-landing .sw-coordination-model figcaption { flex-direction: row; padding-inline: 24px; }
+  #sitewise-landing .sw-coordination-copy { padding: 48px 28px 8px; }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(48px, 9vw, 72px); }
+  #sitewise-landing .sw-coordination-plan { flex: none; height: 500px; }
+  #sitewise-landing .sw-coordination-plan figcaption { left: 28px; }
+  #sitewise-landing .sw-footer { padding-inline: 24px; }
+}

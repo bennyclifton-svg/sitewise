@@ -27,7 +27,9 @@ from ingest.consultant_firm import (
 )
 
 # Map leftover long labels onto the canonical register names.
-_DISCIPLINE_TO_REGISTER: dict[str, str] = {}
+_DISCIPLINE_TO_REGISTER: dict[str, str] = {
+    "building services": "Building Services",
+}
 
 APPOINTED_STATUS = "Appointed"
 
@@ -72,6 +74,8 @@ def map_discipline_to_register_label(discipline: str | None) -> str | None:
     if slug != "none" and slug in CONSULTANT_CATEGORIES:
         return category_label(slug)
     key = re.sub(r"\s+", " ", discipline).strip().lower()
+    if key in _DISCIPLINE_TO_REGISTER:
+        return _DISCIPLINE_TO_REGISTER[key]
     key = re.sub(r"\s+(services|engineering|engineer)$", "", key).strip()
     if key in _DISCIPLINE_TO_REGISTER:
         return _DISCIPLINE_TO_REGISTER[key]

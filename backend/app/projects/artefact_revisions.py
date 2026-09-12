@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.activity_events import record_activity_events
@@ -330,6 +330,11 @@ async def set_export_result(
     job.error = error
     job.status = "failed" if error else "ready"
     await session.flush()
+    await _publish_export_result(session, job)
+    return job
+
+
+async def _publish_export_result(session: AsyncSession, job: ArtefactExport) -> None:
     await publish_project_event(
         session,
         project_id=job.project_id,
@@ -341,7 +346,6 @@ async def set_export_result(
         payload={"export_type": job.export_type, "status": job.status},
         deduplication_key=f"artefact-export:{job.id}:{job.attempt_count}:{job.status}",
     )
-    return job
 
 
 async def set_export_result_for_path(
@@ -353,17 +357,24 @@ async def set_export_result_for_path(
     error: str | None = None,
 ) -> ArtefactExport | None:
     result = await session.execute(
-        select(ArtefactExport).where(
+        update(ArtefactExport).where(
             ArtefactExport.draft_id == revision.id,
             ArtefactExport.workspace_path == workspace_path,
         )
+        .values(
+            attempt_count=ArtefactExport.attempt_count + 1,
+            content_hash=content_hash,
+            error=error,
+            status="failed" if error else "ready",
+        )
+        .returning(ArtefactExport)
+        .execution_options(populate_existing=True)
     )
     job = result.scalar_one_or_none()
     if job is None:
         return None
-    return await set_export_result(
-        session, job=job, content_hash=content_hash, error=error
-    )
+    await _publish_export_result(session, job)
+    return job
 
 
 async def mark_stale(

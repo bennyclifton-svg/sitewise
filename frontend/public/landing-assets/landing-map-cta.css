@@ -1,0 +1,79 @@
+/* A translucent parcel label: the map below remains the source of its linework. */
+#sitewise-landing .sw-coordination-copy .sw-map-cta {
+  position: relative;
+  isolation: isolate;
+  min-height: 58px;
+  max-width: 100%;
+  padding: 16px 25px;
+  gap: 22px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  background: transparent;
+  color: #f3f5fc;
+  text-shadow: 0 1px 3px #071c39;
+  font-weight: 500;
+  transition: background-color 350ms ease, color 200ms ease;
+}
+#sitewise-landing .sw-map-cta::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: url('./parcel-grain.svg') repeat;
+  background-size: 96px 96px;
+  mix-blend-mode: multiply;
+}
+#sitewise-landing .sw-map-cta .sw-map-cta-boundary {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  pointer-events: none;
+}
+#sitewise-landing .sw-map-cta-boundary path {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1.5;
+}
+#sitewise-landing .sw-map-cta-warm-edge { stroke: #da886a; }
+#sitewise-landing .sw-map-cta-cool-edge { stroke: #8ebeff; }
+#sitewise-landing .sw-map-cta-trace {
+  stroke: #f2e7b7;
+  stroke-dasharray: 7 93;
+  opacity: 0;
+}
+#sitewise-landing .sw-map-cta-arrow { flex: none; transition: transform 250ms ease; }
+#sitewise-landing .sw-map-cta:is(:hover, :focus-visible) {
+  background: #e5dda9;
+  color: #102017;
+  text-shadow: none;
+}
+#sitewise-landing .sw-map-cta:is(:hover, :focus-visible)::before {
+  opacity: .32;
+  animation: sw-parcel-grain 600ms steps(1, end) infinite;
+}
+#sitewise-landing .sw-map-cta:is(:hover, :focus-visible) .sw-map-cta-trace {
+  opacity: .9;
+  animation: sw-parcel-trace 2800ms linear infinite;
+}
+#sitewise-landing .sw-map-cta:is(:hover, :focus-visible) .sw-map-cta-arrow { transform: translateX(3px); }
+#sitewise-landing .sw-map-cta:focus-visible { outline: none; text-decoration: underline; text-underline-offset: 5px; }
+#sitewise-landing .sw-map-cta:focus-visible .sw-map-cta-boundary path { stroke: #102017; stroke-width: 2; }
+#sitewise-landing .sw-map-cta:active { background: #d5cb94; }
+@keyframes sw-parcel-grain {
+  0%, 100% { background-position: 0 0; }
+  25% { background-position: 7px -3px; }
+  50% { background-position: -4px 5px; }
+  75% { background-position: 3px 8px; }
+}
+@keyframes sw-parcel-trace { to { stroke-dashoffset: -100; } }
+@media (prefers-reduced-motion: reduce) {
+  #sitewise-landing .sw-map-cta,
+  #sitewise-landing .sw-map-cta-arrow { transition: none; }
+  #sitewise-landing .sw-map-cta:is(:hover, :focus-visible)::before,
+  #sitewise-landing .sw-map-cta:is(:hover, :focus-visible) .sw-map-cta-trace { animation: none; }
+}

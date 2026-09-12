@@ -82,7 +82,7 @@ export function ChatRail({
             ? // Keep the workbench left gutter; sit closer to the repository.
               collapsed
               ? "flex w-full min-w-0 shrink-0 flex-col px-4 pb-3 pt-2 lg:px-6"
-              : "flex w-full min-w-0 min-h-0 flex-1 flex-col px-4 py-3 lg:px-6"
+              : "flex w-full min-w-0 min-h-0 flex-1 flex-col px-4 pb-3 lg:px-6"
             : collapsed
               ? "flex shrink-0 flex-col px-3 py-2"
               : "flex min-h-0 flex-1 flex-col px-3 py-3",
@@ -90,7 +90,7 @@ export function ChatRail({
       >
         {chatError ? (
           <div
-            className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+            className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-4 py-3 text-sm text-destructive"
             role="alert"
           >
             <p className="font-medium">Chat unavailable</p>

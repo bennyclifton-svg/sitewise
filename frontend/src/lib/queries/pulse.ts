@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import type { PulseFeed } from "@/lib/types/pulse";
 
 export const pulseKeys = {
+  root: (projectId: string) => ["project", projectId, "pulse"] as const,
   feed: (projectId: string, since?: string) =>
     ["project", projectId, "pulse", since ?? "7d"] as const,
 };
@@ -11,7 +12,7 @@ export const pulseKeys = {
 const PULSE_POLL_MS = 15_000;
 
 export function invalidatePulse(queryClient: QueryClient, projectId: string) {
-  void queryClient.invalidateQueries({ queryKey: ["project", projectId, "pulse"] });
+  void queryClient.invalidateQueries({ queryKey: pulseKeys.root(projectId) });
 }
 
 export function usePulseFeed(

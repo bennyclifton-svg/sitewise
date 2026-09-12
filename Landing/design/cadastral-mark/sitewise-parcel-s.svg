@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
+  <title id="title">Sitewise parcel S — concept study</title>
+  <desc id="desc">Two identical angular parcel forms, rotated 180 degrees, make an S around a continuous central gap.</desc>
+  <defs>
+    <path id="parcel" d="M32 8H112V32H56L48 40V48L56 64L48 72L8 40V32Z"/>
+  </defs>
+  <g fill="currentColor">
+    <use href="#parcel"/>
+    <use href="#parcel" transform="rotate(180 60 60)"/>
+  </g>
+</svg>

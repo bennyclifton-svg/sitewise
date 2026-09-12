@@ -1005,6 +1005,15 @@ export const api = {
       120_000,
     ),
 
+  downloadProjectProfileExport: async (
+    projectId: string,
+    format: "pdf" | "docx" | "md",
+  ): Promise<Blob> =>
+    apiBlobRequest(
+      `/projects/${projectId}/profile/export?format=${format}`,
+      120_000,
+    ),
+
   downloadTenderReportPdf: async (
     comparisonId: string,
     revision?: number,

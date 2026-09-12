@@ -9,8 +9,9 @@ from typing import Any, Mapping
 PROFILE_MUTATION_SCOPE = "profile_mutation"
 PROCUREMENT_STRATEGY_MUTATION_SCOPE = "procurement_strategy_mutation"
 PROFILE_ENRICHMENT_REASON = "profile_enrichment_authority"
+PROFILE_SETUP_REASON = "profile_setup_from_brief"
 
-_DIRECT_IMPERATIVE = re.compile(r"\b(?:set|change|make)\b", re.IGNORECASE)
+_DIRECT_IMPERATIVE = re.compile(r"\b(?:set(?!\s+up)|change|make)\b", re.IGNORECASE)
 _SAVE_IMPERATIVE = re.compile(r"\b(?:update|save)\b", re.IGNORECASE)
 _PROFILE_CONTEXT = re.compile(
     r"\b(?:profile|classification|project setup|project (?:to|as)|scale)\b",
@@ -149,10 +150,44 @@ _SITE_AREA_RE = re.compile(
     re.IGNORECASE,
 )
 _BEDROOMS_RE = re.compile(r"\b(\d+)\s*(?:bedrooms?|beds?)\b", re.IGNORECASE)
+_GARAGE_COUNT_WORDS = {
+    "single": 1,
+    "double": 2,
+    "triple": 3,
+    "two": 2,
+    "three": 3,
+}
 _GARAGE_RE = re.compile(
     r"\b(\d+)\s*(?:garage(?:/car)?\s*spaces?|garage\s*spaces?|car\s*spaces?|garages?)\b"
-    r"|\b(?:no|zero)\s+garage\b",
+    r"|\b(?:no|zero)\s+garage\b"
+    r"|\b(single|double|triple|two|three)[\s-]+garage\b",
     re.IGNORECASE,
+)
+_COMPLEXITY_PATTERNS: tuple[tuple[str, str, re.Pattern[str]], ...] = (
+    ("planning", "da", re.compile(r"\b(?:planning\s+by\s+)?\bda\b|\bdevelopment\s+application\b", re.I)),
+    ("planning", "cdc", re.compile(r"\bcdc\b|\bcomplying\s+development\b", re.I)),
+    (
+        "procurement_route",
+        "design_construct",
+        re.compile(
+            r"\bdesign\s+(?:and|&)\s+construct\b|\bd\s*&\s*c\b|\bdesign\s+and\s+construct\b",
+            re.I,
+        ),
+    ),
+    ("contamination_level", "nil", re.compile(r"\bno\s+contamination\b|\bclean\s+site\b", re.I)),
+    (
+        "environmental_sensitivity",
+        "standard",
+        re.compile(r"\bno\s+environmental\s+constraints?\b", re.I),
+    ),
+    ("flood_exposure", "not_flood_prone", re.compile(r"\bno\s+flood(?:\s+exposure)?\b", re.I)),
+    ("heritage_status", "none", re.compile(r"\bno\s+heritage\b", re.I)),
+    (
+        "bushfire_exposure",
+        "not_bushfire_prone",
+        re.compile(r"\bno\s+bush\s*-?\s*fires?\b", re.I),
+    ),
+    ("access_constraints", "unrestricted", re.compile(r"\bno\s+access\s+constraints?\b", re.I)),
 )
 _SITE_ADDRESS_RE = re.compile(
     r"\b(?:set|change|update|save)\b.{0,80}?\b(?:project\s+|site\s+)?address\b"
@@ -209,6 +244,12 @@ def materialize_profile_patch(
     )
 
 
+def is_profile_setup_text(user_text: str) -> bool:
+    """True when the user asks to establish the Project Profile from a brief."""
+    normalized = " ".join(user_text.lower().split())
+    return bool(_PROFILE_SETUP_REQUEST.search(normalized))
+
+
 def is_profile_enrichment_text(user_text: str) -> bool:
     """True when the user asks for a best-effort profile fill without exact values."""
     normalized = " ".join(user_text.lower().split())
@@ -231,13 +272,21 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
     evidence_assertion = bool(_EVIDENCE_ASSERTION.search(user_text))
     quoted_instruction = _is_quoted_instruction(user_text)
     hedged = bool(_HEDGE.search(user_text))
-    explicit = (
-        imperative
-        and bool(targets)
-        and not evidence_assertion
-        and not quoted_instruction
-        and not hedged
+    clean_spoken = (
+        not evidence_assertion and not quoted_instruction and not hedged
     )
+    if is_profile_setup_text(user_text) and clean_spoken and targets:
+        scopes = [PROFILE_MUTATION_SCOPE]
+        if procurement_scope:
+            scopes.append(PROCUREMENT_STRATEGY_MUTATION_SCOPE)
+        return MutationIntent(
+            user_message_hash=message_hash,
+            scopes=tuple(scopes),
+            profile_patch=MappingProxyType(targets),
+            requires_confirmation=False,
+            reason=PROFILE_SETUP_REASON,
+        )
+    explicit = imperative and bool(targets) and clean_spoken
     if explicit:
         scopes = [PROFILE_MUTATION_SCOPE]
         if procurement_scope:
@@ -249,12 +298,7 @@ def classify_mutation_intent(user_text: str) -> MutationIntent:
             requires_confirmation=False,
             reason="explicit_profile_imperative",
         )
-    if (
-        is_profile_enrichment_text(user_text)
-        and not evidence_assertion
-        and not quoted_instruction
-        and not hedged
-    ):
+    if is_profile_enrichment_text(user_text) and clean_spoken:
         scopes = [PROFILE_MUTATION_SCOPE]
         if procurement_scope:
             scopes.append(PROCUREMENT_STRATEGY_MUTATION_SCOPE)
@@ -325,6 +369,9 @@ def _profile_targets(text: str) -> dict[str, Any]:
     scale = _match_scale(lowered)
     if scale:
         targets["scale"] = scale
+    complexity = _match_complexity(working)
+    if complexity:
+        targets["complexity"] = complexity
     if address is not None:
         targets["site_address"] = address
     if client is not None:
@@ -365,7 +412,11 @@ def _match_subclass(text: str) -> str | None:
         return "townhouses"
     if "apartment" in text:
         return "apartments"
-    if re.search(r"\bhouse\b", text) or re.search(r"\bclass\s*1a\b", text):
+    if (
+        re.search(r"\bhouse\b", text)
+        or re.search(r"\bclass\s*1a\b", text)
+        or re.search(r"\bhome\b(?!\s+(?:office|studio|based))", text)
+    ):
         return "house"
     for alias in sorted(_SUBCLASSES, key=len, reverse=True):
         if re.search(rf"(?<![\w-]){re.escape(alias)}(?![\w-])", text):
@@ -391,11 +442,23 @@ def _match_scale(text: str) -> dict[str, int]:
         scale["bedrooms"] = int(bedrooms.group(1))
     garage = _GARAGE_RE.search(text)
     if garage:
-        if garage.group(1) is None:
-            scale["garage_spaces"] = 0
-        else:
+        if garage.group(1) is not None:
             scale["garage_spaces"] = int(garage.group(1))
+        elif garage.group(2) is not None:
+            scale["garage_spaces"] = _GARAGE_COUNT_WORDS[garage.group(2).lower()]
+        else:
+            scale["garage_spaces"] = 0
     return scale
+
+
+def _match_complexity(text: str) -> dict[str, str]:
+    complexity: dict[str, str] = {}
+    for key, value, pattern in _COMPLEXITY_PATTERNS:
+        if key in complexity:
+            continue
+        if pattern.search(text):
+            complexity[key] = value
+    return complexity
 
 
 def _is_quoted_instruction(text: str) -> bool:

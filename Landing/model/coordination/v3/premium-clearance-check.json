@@ -1,0 +1,81 @@
+{
+  "screens": [
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.035",
+      "blades": 9,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.055",
+      "blades": 9,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.050",
+      "blades": 9,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.041",
+      "blades": 9,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.037",
+      "blades": 9,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.006",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.011",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.016",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.046",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.051",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    },
+    {
+      "window": "WD - 006_Glass - Clear Fast_0.054",
+      "blades": 5,
+      "minimum_glass_hits_per_blade": 4,
+      "samples_per_blade": 4
+    }
+  ],
+  "opening_clearance_rays": 270,
+  "new_planter_parts_checked": 35,
+  "minimum_balcony_clear_depth_m": 1.291,
+  "export_bytes": 8074548,
+  "export_batches": 71
+}

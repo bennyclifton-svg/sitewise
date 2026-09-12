@@ -18,6 +18,7 @@ from app.config import settings
 from app.agent.mutation_intent import (
     PROFILE_ENRICHMENT_REASON,
     PROFILE_MUTATION_SCOPE,
+    PROFILE_SETUP_REASON,
     PROCUREMENT_STRATEGY_MUTATION_SCOPE,
     MutationIntent,
     is_profile_enrichment_text,
@@ -421,6 +422,29 @@ names, addresses, clause references, equipment, or other inline phrases in
 the reply. Reserve emphasis for true warnings only, and then sparingly.
 </persona>"""
 
+_PROFILE_SETUP_GUIDANCE = """<profile-setup-from-brief>
+The user asked to set up the Project Profile and described the project in this
+message. That spoken brief is authorized source — write the stated facts now.
+Do not wait for uploaded documents, and do not stop after announcing the work.
+
+Call get_project_profile and get_project_profile_options (only the section you
+need). Then call the direct tool update_project_profile with expected_revision
+from the live profile. Write every user-stated field that still needs saving:
+scale leftovers, complexity (planning, procurement_route, contamination,
+flood, heritage, bushfire, access, environment), scope_narrative, work_scope,
+and subclasses. Lodge named rooms and outdoor spaces with
+upsert_shared_project_knowledge kind=accommodation_space. Number repeated rooms
+(Bedroom 1, Bedroom 2). Do not invent a count the user did not give.
+
+After the writes succeed, ask short clarification questions for still-empty
+profile fields using the exact option values from get_project_profile_options.
+Typical gaps on a new house: site_sqm, gfa_sqm, bathroom count, occupation,
+stakeholder, budget, site address, and client. One question per missing field,
+using those exact values. Never claim setup was recorded unless a write tool
+returned success in this turn.
+</profile-setup-from-brief>"""
+
+
 _PROFILE_ENRICHMENT_GUIDANCE = """<profile-enrichment-request>
 The user has asked for a best-effort Project Profile update without supplying
 specific values. This turn has server-bound profile_mutation authority for that
@@ -518,6 +542,7 @@ def build_agent_prompt(
     mutation_intent: MutationIntent | None = None,
     snapshot: ProjectSnapshot | None = None,
     confirmed_profile_values: dict[str, Any] | None = None,
+    applied_setup_values: dict[str, Any] | None = None,
     selected_documents: list[SelectedTurnDocument] | None = None,
 ) -> str:
     """Wrap the user's message with the agent role, project overlays, and history.
@@ -559,8 +584,23 @@ def build_agent_prompt(
         and PROFILE_MUTATION_SCOPE not in mutation_intent.scopes
     ):
         blocks.append(_inferred_profile_block(mutation_intent))
-    if _is_profile_enrichment_request(user_text, mutation_intent):
+    if (
+        mutation_intent is not None
+        and mutation_intent.reason == PROFILE_SETUP_REASON
+    ):
+        blocks.append(_PROFILE_SETUP_GUIDANCE)
+    elif _is_profile_enrichment_request(user_text, mutation_intent):
         blocks.append(_PROFILE_ENRICHMENT_GUIDANCE)
+    if applied_setup_values:
+        values_json = json.dumps(applied_setup_values, sort_keys=True)
+        blocks.append(
+            "<profile-setup-applied>\n"
+            "SiteWise has already recorded these values from the user's brief. "
+            f"{values_json}. "
+            "Do not rewrite them. Write any remaining stated fields, lodge named "
+            "rooms, then ask clarifying questions for still-empty profile fields.\n"
+            "</profile-setup-applied>"
+        )
     if confirmed_profile_values:
         values_json = json.dumps(confirmed_profile_values, sort_keys=True)
         blocks.append(
@@ -855,7 +895,19 @@ def _inferred_profile_block(intent: MutationIntent) -> str:
 
 def _mutation_policy_block(intent: MutationIntent) -> str:
     has_profile_scope = PROFILE_MUTATION_SCOPE in intent.scopes
-    if has_profile_scope and intent.reason == PROFILE_ENRICHMENT_REASON:
+    if has_profile_scope and intent.reason == PROFILE_SETUP_REASON:
+        patch_json = json.dumps(dict(intent.profile_patch), sort_keys=True)
+        instruction = (
+            "This turn has unbound profile_mutation authority for a spoken "
+            "project brief. Write the user-stated profile fields with "
+            "update_project_profile; do not use the mcp gateway proxy. "
+            "Already-mapped values from this message (write any that are not "
+            f"already saved, then continue with the rest): {patch_json}. "
+            "You may add other stated fields such as scope_narrative and rooms. "
+            "Then ask clarifying questions for remaining empty fields using "
+            "get_project_profile_options."
+        )
+    elif has_profile_scope and intent.reason == PROFILE_ENRICHMENT_REASON:
         instruction = (
             "This turn has unbound profile_mutation authority for evidence-backed "
             "enrichment. Call the direct tool update_project_profile with the live "

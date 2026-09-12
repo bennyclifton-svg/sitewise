@@ -1,0 +1,467 @@
+{
+  "stage": "02 lighting and restrained furnishings",
+  "base_scene": "sitewise-kitchen-checkpoint.blend",
+  "fixtures": [
+    {
+      "id": "G01",
+      "object": "G01 | Ground entry | recessed trim",
+      "room": "Ground entry",
+      "local_uvz": [
+        -4.65,
+        -1.9,
+        2.92
+      ],
+      "world_xyz": [
+        -6.137047290802002,
+        -12.211660385131836,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G02",
+      "object": "G02 | Ground multipurpose room | recessed trim",
+      "room": "Ground multipurpose room",
+      "local_uvz": [
+        -3.35,
+        0.2,
+        2.92
+      ],
+      "world_xyz": [
+        -4.516793727874756,
+        -10.34758472442627,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G03",
+      "object": "G03 | Ground multipurpose room | recessed trim",
+      "room": "Ground multipurpose room",
+      "local_uvz": [
+        -1.6,
+        0.2,
+        2.92
+      ],
+      "world_xyz": [
+        -2.789489507675171,
+        -10.628512382507324,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G04",
+      "object": "G04 | Ground stair approach | recessed trim",
+      "room": "Ground stair approach",
+      "local_uvz": [
+        -0.15,
+        -1.05,
+        2.92
+      ],
+      "world_xyz": [
+        -1.5589570999145508,
+        -12.095069885253906,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G05",
+      "object": "G05 | Laundry | recessed trim",
+      "room": "Laundry",
+      "local_uvz": [
+        0.47,
+        1.1,
+        2.92
+      ],
+      "world_xyz": [
+        -0.6018580794334412,
+        -10.072481155395508,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G06",
+      "object": "G06 | Ground bedroom | recessed trim",
+      "room": "Ground bedroom",
+      "local_uvz": [
+        1.85,
+        -0.8,
+        2.92
+      ],
+      "world_xyz": [
+        0.4552374482154846,
+        -12.16937255859375,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G07",
+      "object": "G07 | Ground bedroom | recessed trim",
+      "room": "Ground bedroom",
+      "local_uvz": [
+        3.3,
+        -0.8,
+        2.92
+      ],
+      "world_xyz": [
+        1.88643217086792,
+        -12.402141571044922,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G08",
+      "object": "G08 | Ground bathroom | recessed trim",
+      "room": "Ground bathroom",
+      "local_uvz": [
+        1.55,
+        1.35,
+        2.92
+      ],
+      "world_xyz": [
+        0.5042678117752075,
+        -9.999095916748047,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "G09",
+      "object": "G09 | Ground bathroom | recessed trim",
+      "room": "Ground bathroom",
+      "local_uvz": [
+        3.12,
+        1.35,
+        2.92
+      ],
+      "world_xyz": [
+        2.0539064407348633,
+        -10.251129150390625,
+        2.9200000762939453
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "L01",
+      "object": "L01 | Kitchen preparation | recessed trim",
+      "room": "Kitchen preparation",
+      "local_uvz": [
+        2.65,
+        -0.8,
+        5.64
+      ],
+      "world_xyz": [
+        1.2448623180389404,
+        -12.297796249389648,
+        5.639999866485596
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "L02",
+      "object": "L02 | Kitchen preparation | recessed trim",
+      "room": "Kitchen preparation",
+      "local_uvz": [
+        2.65,
+        1.25,
+        5.64
+      ],
+      "world_xyz": [
+        1.5739492177963257,
+        -10.274382591247559,
+        5.639999866485596
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "L03",
+      "object": "L03 | Living room | recessed trim",
+      "room": "Living room",
+      "local_uvz": [
+        -2.65,
+        0.8,
+        5.64
+      ],
+      "world_xyz": [
+        -3.7295539379119873,
+        -9.86773681640625,
+        5.639999866485596
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "L04",
+      "object": "L04 | Living room | recessed trim",
+      "room": "Living room",
+      "local_uvz": [
+        -2.65,
+        -0.85,
+        5.64
+      ],
+      "world_xyz": [
+        -3.9944286346435547,
+        -11.496337890625,
+        5.639999866485596
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "L05",
+      "object": "L05 | Living powder room | recessed trim",
+      "room": "Living powder room",
+      "local_uvz": [
+        3.5,
+        -2.08,
+        5.64
+      ],
+      "world_xyz": [
+        1.8783599138259888,
+        -13.697646141052246,
+        5.639999866485596
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U01",
+      "object": "U01 | West bedroom | recessed trim",
+      "room": "West bedroom",
+      "local_uvz": [
+        -3.7,
+        0.2,
+        8.39
+      ],
+      "world_xyz": [
+        -4.862254619598389,
+        -10.291399002075195,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U02",
+      "object": "U02 | West bedroom | recessed trim",
+      "room": "West bedroom",
+      "local_uvz": [
+        -2.5,
+        -1.9,
+        8.39
+      ],
+      "world_xyz": [
+        -4.014930725097656,
+        -12.55679988861084,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U03",
+      "object": "U03 | East bedroom | recessed trim",
+      "room": "East bedroom",
+      "local_uvz": [
+        2.0,
+        -0.8,
+        8.39
+      ],
+      "world_xyz": [
+        0.6032920479774475,
+        -12.193451881408691,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U04",
+      "object": "U04 | East bedroom | recessed trim",
+      "room": "East bedroom",
+      "local_uvz": [
+        3.75,
+        -0.8,
+        8.39
+      ],
+      "world_xyz": [
+        2.3305962085723877,
+        -12.474379539489746,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U05",
+      "object": "U05 | West ensuite | recessed trim",
+      "room": "West ensuite",
+      "local_uvz": [
+        -1.5,
+        0.55,
+        8.39
+      ],
+      "world_xyz": [
+        -2.6346006393432617,
+        -10.299104690551758,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U06",
+      "object": "U06 | West ensuite | recessed trim",
+      "room": "West ensuite",
+      "local_uvz": [
+        -0.55,
+        1.35,
+        8.39
+      ],
+      "world_xyz": [
+        -1.5684971809387207,
+        -9.661983489990234,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U07",
+      "object": "U07 | East ensuite | recessed trim",
+      "room": "East ensuite",
+      "local_uvz": [
+        1.7,
+        1.35,
+        8.39
+      ],
+      "world_xyz": [
+        0.6523226499557495,
+        -10.023176193237305,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U08",
+      "object": "U08 | East ensuite | recessed trim",
+      "room": "East ensuite",
+      "local_uvz": [
+        3.45,
+        1.35,
+        8.39
+      ],
+      "world_xyz": [
+        2.379626989364624,
+        -10.30410385131836,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U09",
+      "object": "U09 | Upper landing | recessed trim",
+      "room": "Upper landing",
+      "local_uvz": [
+        0.55,
+        0.2,
+        8.39
+      ],
+      "world_xyz": [
+        -0.6673727035522461,
+        -10.973651885986328,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "U10",
+      "object": "U10 | Upper stair | recessed trim",
+      "room": "Upper stair",
+      "local_uvz": [
+        0.55,
+        -1.75,
+        8.39
+      ],
+      "world_xyz": [
+        -0.9804065227508545,
+        -12.898362159729004,
+        8.390000343322754
+      ],
+      "source": "Authored repeatable illustrative downlight",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "D01",
+      "object": "SW Asset Pendant 1 | 01 DiningTable.001_Chrome_0",
+      "room": "Dining pendants",
+      "local_uvz": [
+        0.3,
+        0.73,
+        5.64
+      ],
+      "world_xyz": [
+        -0.8290494680404663,
+        -10.410392761230469,
+        5.639999866485596
+      ],
+      "source": "interior-design.glb / DiningTable.001 pendant extract / Visth\u00e9tique / CC-BY-4.0; drop adjusted",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    },
+    {
+      "id": "D02",
+      "object": "SW Asset Pendant 2 | 01 DiningTable.001_Chrome_0",
+      "room": "Dining pendants",
+      "local_uvz": [
+        1.18,
+        0.73,
+        5.64
+      ],
+      "world_xyz": [
+        0.03953766077756882,
+        -10.55165958404541,
+        5.639999866485596
+      ],
+      "source": "interior-design.glb / DiningTable.001 pendant extract / Visth\u00e9tique / CC-BY-4.0; drop adjusted",
+      "status": "Illustrative luminaire placement; circuit unassigned"
+    }
+  ],
+  "curtain_objects": [
+    "SW Curtain | rail",
+    "SW Curtain | left panel",
+    "SW Curtain | right panel"
+  ],
+  "curtain_target_opening": "WD - 006_Paint - Glossy White_0.035",
+  "source_transforms_unchanged": 3057,
+  "floor_levels": [
+    0.5,
+    3.22,
+    5.94
+  ],
+  "ceiling_levels": [
+    2.92,
+    5.64,
+    8.39
+  ],
+  "retained_furnishings": "Original duplex beds, sofa and dining; no full apartment import",
+  "status": "Placement study; electrical routes, switching and photometric design unassigned"
+}

@@ -1029,7 +1029,7 @@ function baseComponents(): Components {
         : staticParagraph;
     },
     a: ({ children, href }) => (
-      <a className="font-medium text-primary underline underline-offset-2" href={href}>
+      <a className="font-medium text-[var(--sw-link)] underline underline-offset-2" href={href}>
         {children}
       </a>
     ),
@@ -1869,7 +1869,7 @@ function sectionAnchor(heading: string): string {
 
 function citationBadgeClassName(conflicted: boolean): string {
   return conflicted
-    ? "evidence-status-chip border-[color-mix(in_oklch,var(--sw-critical)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-critical)_14%,transparent)] text-[var(--sw-critical)]"
+    ? "evidence-status-chip border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] text-[var(--sw-error-text)]"
     : "evidence-status-chip border-transparent bg-[var(--decision-evidenced-bg)] text-[var(--decision-evidenced-text)]";
 }
 
@@ -2361,9 +2361,9 @@ function evidenceBadgeClassName(status: (typeof EVIDENCE_STATUSES)[number]): str
     case "Confirm":
     case "Gap":
     case "Not evidenced":
-      return "evidence-status-chip border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)]";
+      return "evidence-status-chip border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] text-[var(--sw-warning-text)]";
     case "Conflict":
-      return "evidence-status-chip border-[color-mix(in_oklch,var(--sw-critical)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-critical)_14%,transparent)] text-[var(--sw-critical)]";
+      return "evidence-status-chip border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] text-[var(--sw-error-text)]";
     default:
       return "evidence-status-chip";
   }

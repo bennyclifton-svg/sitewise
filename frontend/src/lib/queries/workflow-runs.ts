@@ -39,14 +39,22 @@ export async function waitForWorkflowRun(
   projectId: string,
   initial: WorkflowRun,
 ): Promise<WorkflowRun> {
-  let run = initial;
-  queryClient.setQueryData(workflowRunKeys.run(projectId, run.id), run);
+  const queryKey = workflowRunKeys.run(projectId, initial.id);
+  let run = queryClient.getQueryData<WorkflowRun>(queryKey) ?? initial;
+  if (!queryClient.getQueryData(queryKey)) queryClient.setQueryData(queryKey, run);
   while (!isTerminalWorkflowRun(run)) {
     await new Promise((resolve) =>
       window.setTimeout(resolve, run.state === "queued" ? 250 : 1_000),
     );
     try {
-      run = await api.getWorkflowRun(projectId, run.id);
+      const cached = queryClient.getQueryData<WorkflowRun>(queryKey);
+      if (cached && isTerminalWorkflowRun(cached)) return cached;
+      run = await queryClient.fetchQuery({
+        queryKey,
+        queryFn: () => api.getWorkflowRun(projectId, initial.id),
+        staleTime: run.state === "queued" ? 250 : 1_000,
+        retry: false,
+      });
     } catch (error) {
       // A workflow run is durable: a transient status-request timeout must not
       // make its caller report the run itself as failed.
@@ -54,7 +62,6 @@ export async function waitForWorkflowRun(
       await new Promise((resolve) => window.setTimeout(resolve, STATUS_RETRY_DELAY_MS));
       continue;
     }
-    queryClient.setQueryData(workflowRunKeys.run(projectId, run.id), run);
   }
   return run;
 }

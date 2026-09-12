@@ -78,3 +78,6 @@ logs/
 
 # Ad-hoc debugging scratch dropped in the backend during investigations
 /backend/_tmp_*
+
+# GitHub rejects files over 100MB; keep this source model local
+/Landing/model/interior-design.glb

@@ -1,0 +1,4934 @@
+{
+  "system": "electrical",
+  "scope": "One dwelling detailed; five individual site feeds",
+  "coordinate_contract": "Original interior rotated once by +atan2(.16053,.98703)",
+  "source_rotation_radians": 0.16122774779952984,
+  "focus_origin_world": [
+    0.5528839826583862,
+    -11.138467788696289,
+    0.0
+  ],
+  "endpoints": [
+    {
+      "id": "G01",
+      "kind": "luminaire",
+      "room": "Ground entry",
+      "world_xyz": [
+        -4.097115993499756,
+        -13.038467407226562,
+        2.9200000762939453
+      ],
+      "source_object": "G01 | Ground entry | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-entry",
+      "connected": true
+    },
+    {
+      "id": "G02",
+      "kind": "luminaire",
+      "room": "Ground multipurpose room",
+      "world_xyz": [
+        -2.7971158027648926,
+        -10.938467979431152,
+        2.9200000762939453
+      ],
+      "source_object": "G02 | Ground multipurpose room | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-multipurpose",
+      "connected": true
+    },
+    {
+      "id": "G03",
+      "kind": "luminaire",
+      "room": "Ground multipurpose room",
+      "world_xyz": [
+        -1.0471160411834717,
+        -10.938467979431152,
+        2.9200000762939453
+      ],
+      "source_object": "G03 | Ground multipurpose room | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-multipurpose",
+      "connected": true
+    },
+    {
+      "id": "G04",
+      "kind": "luminaire",
+      "room": "Ground stair approach",
+      "world_xyz": [
+        0.40288397669792175,
+        -12.188467979431152,
+        2.9200000762939453
+      ],
+      "source_object": "G04 | Ground stair approach | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-entry",
+      "connected": true
+    },
+    {
+      "id": "G05",
+      "kind": "luminaire",
+      "room": "Laundry",
+      "world_xyz": [
+        1.0228840112686157,
+        -10.038467407226562,
+        2.9200000762939453
+      ],
+      "source_object": "G05 | Laundry | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-laundry",
+      "connected": true
+    },
+    {
+      "id": "G06",
+      "kind": "luminaire",
+      "room": "Ground bedroom",
+      "world_xyz": [
+        2.402884006500244,
+        -11.938467979431152,
+        2.9200000762939453
+      ],
+      "source_object": "G06 | Ground bedroom | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-bedroom",
+      "connected": true
+    },
+    {
+      "id": "G07",
+      "kind": "luminaire",
+      "room": "Ground bedroom",
+      "world_xyz": [
+        3.852883815765381,
+        -11.938467979431152,
+        2.9200000762939453
+      ],
+      "source_object": "G07 | Ground bedroom | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-bedroom",
+      "connected": true
+    },
+    {
+      "id": "G08",
+      "kind": "luminaire",
+      "room": "Ground bathroom",
+      "world_xyz": [
+        2.102883815765381,
+        -9.788467407226562,
+        2.9200000762939453
+      ],
+      "source_object": "G08 | Ground bathroom | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-bathroom",
+      "connected": true
+    },
+    {
+      "id": "G09",
+      "kind": "luminaire",
+      "room": "Ground bathroom",
+      "world_xyz": [
+        3.672883987426758,
+        -9.788467407226562,
+        2.9200000762939453
+      ],
+      "source_object": "G09 | Ground bathroom | recessed trim",
+      "circuit": "DB-01-G-LIGHT",
+      "switch_group": "G-bathroom",
+      "connected": true
+    },
+    {
+      "id": "L01",
+      "kind": "luminaire",
+      "room": "Kitchen preparation",
+      "world_xyz": [
+        3.2028841972351074,
+        -11.938467979431152,
+        5.639999866485596
+      ],
+      "source_object": "L01 | Kitchen preparation | recessed trim",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-kitchen",
+      "connected": true
+    },
+    {
+      "id": "L02",
+      "kind": "luminaire",
+      "room": "Kitchen preparation",
+      "world_xyz": [
+        3.2028841972351074,
+        -9.888467788696289,
+        5.639999866485596
+      ],
+      "source_object": "L02 | Kitchen preparation | recessed trim",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-kitchen",
+      "connected": true
+    },
+    {
+      "id": "L03",
+      "kind": "luminaire",
+      "room": "Living room",
+      "world_xyz": [
+        -2.097115993499756,
+        -10.338467597961426,
+        5.639999866485596
+      ],
+      "source_object": "L03 | Living room | recessed trim",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-living",
+      "connected": true
+    },
+    {
+      "id": "L04",
+      "kind": "luminaire",
+      "room": "Living room",
+      "world_xyz": [
+        -2.097115993499756,
+        -11.988468170166016,
+        5.639999866485596
+      ],
+      "source_object": "L04 | Living room | recessed trim",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-living",
+      "connected": true
+    },
+    {
+      "id": "L05",
+      "kind": "luminaire",
+      "room": "Living powder room",
+      "world_xyz": [
+        4.052884101867676,
+        -13.218467712402344,
+        5.639999866485596
+      ],
+      "source_object": "L05 | Living powder room | recessed trim",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-powder",
+      "connected": true
+    },
+    {
+      "id": "U01",
+      "kind": "luminaire",
+      "room": "West bedroom",
+      "world_xyz": [
+        -3.147116184234619,
+        -10.938467979431152,
+        8.390000343322754
+      ],
+      "source_object": "U01 | West bedroom | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-west-bedroom",
+      "connected": true
+    },
+    {
+      "id": "U02",
+      "kind": "luminaire",
+      "room": "West bedroom",
+      "world_xyz": [
+        -1.9471160173416138,
+        -13.038467407226562,
+        8.390000343322754
+      ],
+      "source_object": "U02 | West bedroom | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-west-bedroom",
+      "connected": true
+    },
+    {
+      "id": "U03",
+      "kind": "luminaire",
+      "room": "East bedroom",
+      "world_xyz": [
+        2.552884101867676,
+        -11.938467979431152,
+        8.390000343322754
+      ],
+      "source_object": "U03 | East bedroom | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-east-bedroom",
+      "connected": true
+    },
+    {
+      "id": "U04",
+      "kind": "luminaire",
+      "room": "East bedroom",
+      "world_xyz": [
+        4.302884101867676,
+        -11.938467979431152,
+        8.390000343322754
+      ],
+      "source_object": "U04 | East bedroom | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-east-bedroom",
+      "connected": true
+    },
+    {
+      "id": "U05",
+      "kind": "luminaire",
+      "room": "West ensuite",
+      "world_xyz": [
+        -0.9471160173416138,
+        -10.588467597961426,
+        8.390000343322754
+      ],
+      "source_object": "U05 | West ensuite | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-west-ensuite",
+      "connected": true
+    },
+    {
+      "id": "U06",
+      "kind": "luminaire",
+      "room": "West ensuite",
+      "world_xyz": [
+        0.0028839707374572754,
+        -9.788467407226562,
+        8.390000343322754
+      ],
+      "source_object": "U06 | West ensuite | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-west-ensuite",
+      "connected": true
+    },
+    {
+      "id": "U07",
+      "kind": "luminaire",
+      "room": "East ensuite",
+      "world_xyz": [
+        2.2528839111328125,
+        -9.788467407226562,
+        8.390000343322754
+      ],
+      "source_object": "U07 | East ensuite | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-east-ensuite",
+      "connected": true
+    },
+    {
+      "id": "U08",
+      "kind": "luminaire",
+      "room": "East ensuite",
+      "world_xyz": [
+        4.0028839111328125,
+        -9.788467407226562,
+        8.390000343322754
+      ],
+      "source_object": "U08 | East ensuite | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-east-ensuite",
+      "connected": true
+    },
+    {
+      "id": "U09",
+      "kind": "luminaire",
+      "room": "Upper landing",
+      "world_xyz": [
+        1.10288405418396,
+        -10.938467979431152,
+        8.390000343322754
+      ],
+      "source_object": "U09 | Upper landing | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-landing",
+      "connected": true
+    },
+    {
+      "id": "U10",
+      "kind": "luminaire",
+      "room": "Upper stair",
+      "world_xyz": [
+        1.10288405418396,
+        -12.888467788696289,
+        8.390000343322754
+      ],
+      "source_object": "U10 | Upper stair | recessed trim",
+      "circuit": "DB-01-U-LIGHT",
+      "switch_group": "U-landing",
+      "connected": true
+    },
+    {
+      "id": "D01",
+      "kind": "luminaire",
+      "room": "Dining pendants",
+      "world_xyz": [
+        0.8528839945793152,
+        -10.408468246459961,
+        5.639999866485596
+      ],
+      "source_object": "SW Asset Pendant 1 | 01 DiningTable.001_Chrome_0",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-dining",
+      "connected": true
+    },
+    {
+      "id": "D02",
+      "kind": "luminaire",
+      "room": "Dining pendants",
+      "world_xyz": [
+        1.7328839302062988,
+        -10.408468246459961,
+        5.639999866485596
+      ],
+      "source_object": "SW Asset Pendant 2 | 01 DiningTable.001_Chrome_0",
+      "circuit": "DB-01-L-LIGHT",
+      "switch_group": "L-dining",
+      "connected": true
+    },
+    {
+      "id": "GPO-G01",
+      "kind": "GPO",
+      "room": "Ground entry",
+      "world_xyz": [
+        -3.6971144676208496,
+        -13.673646926879883,
+        0.8999999761581421
+      ],
+      "source_object": "GPO-G01 | Ground entry",
+      "host_wall_source": "SW - 572_Wall white plaster_0.008",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G02",
+      "kind": "GPO",
+      "room": "Ground multipurpose",
+      "world_xyz": [
+        -3.697114944458008,
+        -9.283346176147461,
+        0.8999999761581421
+      ],
+      "source_object": "GPO-G02 | Ground multipurpose",
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G03",
+      "kind": "GPO",
+      "room": "Ground multipurpose",
+      "world_xyz": [
+        -0.6971158981323242,
+        -9.283346176147461,
+        0.8999999761581421
+      ],
+      "source_object": "GPO-G03 | Ground multipurpose",
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G04",
+      "kind": "GPO",
+      "room": "Ground multipurpose",
+      "world_xyz": [
+        -1.747118592262268,
+        -12.583648681640625,
+        1.0999999046325684
+      ],
+      "source_object": "GPO-G04 | Ground multipurpose",
+      "host_wall_source": "SW - 573_Wall white plaster_0.007",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G05",
+      "kind": "GPO",
+      "room": "Laundry",
+      "world_xyz": [
+        1.3821289539337158,
+        -10.418464660644531,
+        1.649999976158142
+      ],
+      "source_object": "GPO-G05 | Laundry",
+      "host_wall_source": "SW - 571_Wall white plaster_0.007",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G06",
+      "kind": "GPO",
+      "room": "Ground bedroom",
+      "world_xyz": [
+        2.0028834342956543,
+        -13.673646926879883,
+        0.8999999761581421
+      ],
+      "source_object": "GPO-G06 | Ground bedroom",
+      "host_wall_source": "SW - 572_Wall white plaster_0.006",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G07",
+      "kind": "GPO",
+      "room": "Ground bedroom",
+      "world_xyz": [
+        4.2528839111328125,
+        -13.673650741577148,
+        0.8999999761581421
+      ],
+      "source_object": "GPO-G07 | Ground bedroom",
+      "host_wall_source": "SW - 572_Wall white plaster_0.006",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-G08",
+      "kind": "GPO",
+      "room": "Ground bathroom",
+      "world_xyz": [
+        4.202883720397949,
+        -10.283552169799805,
+        1.619999885559082
+      ],
+      "source_object": "GPO-G08 | Ground bathroom",
+      "host_wall_source": "SW - 576_Wall white plaster_0.019",
+      "circuit": "DB-01-G-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L01",
+      "kind": "GPO",
+      "room": "Living",
+      "world_xyz": [
+        -3.167116641998291,
+        -9.283346176147461,
+        3.6399998664855957
+      ],
+      "source_object": "GPO-L01 | Living",
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L02",
+      "kind": "GPO",
+      "room": "Living",
+      "world_xyz": [
+        -0.6971160173416138,
+        -12.583650588989258,
+        3.6399996280670166
+      ],
+      "source_object": "GPO-L02 | Living",
+      "host_wall_source": "SW - 574_Wall white plaster_0.008",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L03",
+      "kind": "GPO",
+      "room": "Living",
+      "world_xyz": [
+        -0.02711588144302368,
+        -9.28334903717041,
+        3.6399998664855957
+      ],
+      "source_object": "GPO-L03 | Living",
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L04",
+      "kind": "GPO",
+      "room": "Dining",
+      "world_xyz": [
+        2.002885341644287,
+        -9.283350944519043,
+        3.6600000858306885
+      ],
+      "source_object": "GPO-L04 | Dining",
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L05",
+      "kind": "GPO",
+      "room": "Kitchen worktop",
+      "world_xyz": [
+        5.037178039550781,
+        -10.488468170166016,
+        4.429999351501465
+      ],
+      "source_object": "GPO-L05 | Kitchen worktop",
+      "host_wall_source": "SW - 575_Wall white plaster_0.008",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L06",
+      "kind": "GPO",
+      "room": "Kitchen worktop",
+      "world_xyz": [
+        5.037179946899414,
+        -9.408467292785645,
+        4.429999828338623
+      ],
+      "source_object": "GPO-L06 | Kitchen worktop",
+      "host_wall_source": "SW - 575_Wall white plaster_0.008",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-L07",
+      "kind": "GPO",
+      "room": "Living powder room",
+      "world_xyz": [
+        3.002885341644287,
+        -13.673652648925781,
+        4.37999963760376
+      ],
+      "source_object": "GPO-L07 | Living powder room",
+      "host_wall_source": "SW - 576_Wall white plaster_0.009",
+      "circuit": "DB-01-L-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U01",
+      "kind": "GPO",
+      "room": "West bedroom",
+      "world_xyz": [
+        -4.2171149253845215,
+        -9.28334903717041,
+        6.400000095367432
+      ],
+      "source_object": "GPO-U01 | West bedroom",
+      "host_wall_source": "SW - 620_Wall white plaster_0.002",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U02",
+      "kind": "GPO",
+      "room": "West bedroom",
+      "world_xyz": [
+        -2.0071158409118652,
+        -9.283349990844727,
+        6.400000095367432
+      ],
+      "source_object": "GPO-U02 | West bedroom",
+      "host_wall_source": "SW - 620_Wall white plaster_0.002",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U03",
+      "kind": "GPO",
+      "room": "West bedroom",
+      "world_xyz": [
+        -2.247117519378662,
+        -12.583651542663574,
+        6.419999122619629
+      ],
+      "source_object": "GPO-U03 | West bedroom",
+      "host_wall_source": "SW - 624_Wall white plaster_0.002",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U04",
+      "kind": "GPO",
+      "room": "East bedroom",
+      "world_xyz": [
+        2.392885208129883,
+        -13.673652648925781,
+        6.400000095367432
+      ],
+      "source_object": "GPO-U04 | East bedroom",
+      "host_wall_source": "SW - 622_Wall white plaster_0.014",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U05",
+      "kind": "GPO",
+      "room": "East bedroom",
+      "world_xyz": [
+        4.642883777618408,
+        -13.67365550994873,
+        6.400000095367432
+      ],
+      "source_object": "GPO-U05 | East bedroom",
+      "host_wall_source": "SW - 622_Wall white plaster_0.014",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U06",
+      "kind": "GPO",
+      "room": "East bedroom",
+      "world_xyz": [
+        4.5728840827941895,
+        -10.372303009033203,
+        6.399999618530273
+      ],
+      "source_object": "GPO-U06 | East bedroom",
+      "host_wall_source": "SW - 622_Wall white plaster_0.020",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U07",
+      "kind": "GPO",
+      "room": "West ensuite",
+      "world_xyz": [
+        -1.4234709739685059,
+        -11.018465995788574,
+        7.139999866485596
+      ],
+      "source_object": "GPO-U07 | West ensuite",
+      "host_wall_source": "SW - 623_Wall white plaster_0.006",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U08",
+      "kind": "GPO",
+      "room": "East ensuite",
+      "world_xyz": [
+        4.392884254455566,
+        -10.282304763793945,
+        7.159999847412109
+      ],
+      "source_object": "GPO-U08 | East ensuite",
+      "host_wall_source": "SW - 622_Wall white plaster_0.020",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "GPO-U09",
+      "kind": "GPO",
+      "room": "Upper landing",
+      "world_xyz": [
+        0.564079999923706,
+        -10.638465881347656,
+        6.37999963760376
+      ],
+      "source_object": "GPO-U09 | Upper landing",
+      "host_wall_source": "SW - 622_Wall white plaster_0.016",
+      "circuit": "DB-01-U-GPO",
+      "connected": true
+    },
+    {
+      "id": "AP-INDUCTION",
+      "kind": "appliance",
+      "room": "Kitchen",
+      "label": "Induction cooktop",
+      "world_xyz": [
+        4.967176914215088,
+        -10.398354530334473,
+        4.150000095367432
+      ],
+      "source_object": "Induction cooktop | glass surface",
+      "circuit": "DB-01-AP-INDUCTION",
+      "connected": true
+    },
+    {
+      "id": "AP-OVEN",
+      "kind": "appliance",
+      "room": "Kitchen",
+      "label": "Oven",
+      "world_xyz": [
+        3.477177143096924,
+        -9.34835433959961,
+        4.0
+      ],
+      "source_object": "SW Asset Oven | 01 Oven.001_Chrome_0",
+      "circuit": "DB-01-AP-OVEN",
+      "connected": true
+    },
+    {
+      "id": "AP-MICROWAVE",
+      "kind": "appliance",
+      "room": "Kitchen",
+      "label": "Microwave",
+      "world_xyz": [
+        3.477177143096924,
+        -9.34835433959961,
+        4.869999885559082
+      ],
+      "source_object": "Microwave | housing",
+      "circuit": "DB-01-AP-MICROWAVE",
+      "connected": true
+    },
+    {
+      "id": "AP-FRIDGE",
+      "kind": "appliance",
+      "room": "Kitchen",
+      "label": "Refrigerator",
+      "world_xyz": [
+        2.8571770191192627,
+        -9.34835433959961,
+        3.7200000286102295
+      ],
+      "source_object": "SW Asset Fridge | 01 Refrigator.001_Aluminum.001_0",
+      "circuit": "DB-01-AP-FRIDGE",
+      "connected": true
+    },
+    {
+      "id": "AP-HOOD",
+      "kind": "appliance",
+      "room": "Kitchen",
+      "label": "Range hood",
+      "world_xyz": [
+        4.967176914215088,
+        -10.398354530334473,
+        4.889999866485596
+      ],
+      "source_object": "Kitchen source | Object_8",
+      "circuit": "DB-01-AP-HOOD",
+      "connected": true
+    }
+  ],
+  "switches": [
+    {
+      "id": "SW-G-entry",
+      "room": "Ground entry and stair",
+      "fixture_ids": [
+        "G01",
+        "G04"
+      ],
+      "circuit": "DB-01-G-LIGHT",
+      "world_xyz": [
+        -3.8571128845214844,
+        -13.66564655303955,
+        1.6999998092651367
+      ],
+      "host_wall_source": "SW - 572_Wall white plaster_0.008",
+      "host_surface_world": [
+        -3.8571128845214844,
+        -13.673646926879883,
+        1.6999998092651367
+      ],
+      "normal_world": [
+        -2.193450825416221e-07,
+        1.0,
+        2.9178926297390717e-07
+      ]
+    },
+    {
+      "id": "SW-G-multipurpose",
+      "room": "Ground multipurpose",
+      "fixture_ids": [
+        "G02",
+        "G03"
+      ],
+      "circuit": "DB-01-G-LIGHT",
+      "world_xyz": [
+        -3.537114381790161,
+        -9.29134750366211,
+        1.6999999284744263
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "host_surface_world": [
+        -3.537114381790161,
+        -9.283347129821777,
+        1.6999999284744263
+      ],
+      "normal_world": [
+        -7.152556804612686e-07,
+        -0.9999999403953552,
+        -2.917891777087789e-07
+      ]
+    },
+    {
+      "id": "SW-G-laundry",
+      "room": "Laundry",
+      "fixture_ids": [
+        "G05"
+      ],
+      "circuit": "DB-01-G-LIGHT",
+      "world_xyz": [
+        1.374129295349121,
+        -10.258462905883789,
+        1.6999999284744263
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.007",
+      "host_surface_world": [
+        1.3821293115615845,
+        -10.258462905883789,
+        1.6999999284744263
+      ],
+      "normal_world": [
+        -1.0,
+        7.24792471373803e-07,
+        5.865921437475663e-08
+      ]
+    },
+    {
+      "id": "SW-G-bedroom",
+      "room": "Ground bedroom",
+      "fixture_ids": [
+        "G06",
+        "G07"
+      ],
+      "circuit": "DB-01-G-LIGHT",
+      "world_xyz": [
+        1.8428841829299927,
+        -13.665651321411133,
+        1.6999999284744263
+      ],
+      "host_wall_source": "SW - 572_Wall white plaster_0.006",
+      "host_surface_world": [
+        1.8428841829299927,
+        -13.673651695251465,
+        1.6999999284744263
+      ],
+      "normal_world": [
+        1.4400483223653282e-06,
+        1.0,
+        2.917891777087789e-07
+      ]
+    },
+    {
+      "id": "SW-G-bathroom",
+      "room": "Ground bathroom",
+      "fixture_ids": [
+        "G08",
+        "G09"
+      ],
+      "circuit": "DB-01-G-LIGHT",
+      "world_xyz": [
+        4.042882919311523,
+        -10.275550842285156,
+        1.6999998092651367
+      ],
+      "host_wall_source": "SW - 576_Wall white plaster_0.019",
+      "host_surface_world": [
+        4.042882919311523,
+        -10.283551216125488,
+        1.6999998092651367
+      ],
+      "normal_world": [
+        1.5926359537843382e-06,
+        0.9999999403953552,
+        2.9178912086536e-07
+      ]
+    },
+    {
+      "id": "SW-L-kitchen",
+      "room": "Kitchen preparation",
+      "fixture_ids": [
+        "L01",
+        "L02"
+      ],
+      "circuit": "DB-01-L-LIGHT",
+      "world_xyz": [
+        5.029178619384766,
+        -10.648466110229492,
+        4.420000076293945
+      ],
+      "host_wall_source": "SW - 575_Wall white plaster_0.008",
+      "host_surface_world": [
+        5.0371785163879395,
+        -10.648466110229492,
+        4.420000076293945
+      ],
+      "normal_world": [
+        -1.0,
+        1.1444091114753974e-06,
+        5.865933871973539e-08
+      ]
+    },
+    {
+      "id": "SW-L-living",
+      "room": "Living room",
+      "fixture_ids": [
+        "L03",
+        "L04"
+      ],
+      "circuit": "DB-01-L-LIGHT",
+      "world_xyz": [
+        -3.0071160793304443,
+        -9.291349411010742,
+        4.419999599456787
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "host_surface_world": [
+        -3.0071160793304443,
+        -9.28334903717041,
+        4.419999599456787
+      ],
+      "normal_world": [
+        -8.487701848025608e-07,
+        -1.0,
+        -2.917891777087789e-07
+      ]
+    },
+    {
+      "id": "SW-L-dining",
+      "room": "Dining pendants",
+      "fixture_ids": [
+        "D01",
+        "D02"
+      ],
+      "circuit": "DB-01-L-LIGHT",
+      "world_xyz": [
+        2.162886619567871,
+        -9.291351318359375,
+        4.420000076293945
+      ],
+      "host_wall_source": "SW - 574_Wall white plaster_0.006",
+      "host_surface_world": [
+        2.162886619567871,
+        -9.283350944519043,
+        4.420000076293945
+      ],
+      "normal_world": [
+        -8.487701848025608e-07,
+        -1.0,
+        -2.917891777087789e-07
+      ]
+    },
+    {
+      "id": "SW-L-powder",
+      "room": "Living powder room",
+      "fixture_ids": [
+        "L05"
+      ],
+      "circuit": "DB-01-L-LIGHT",
+      "world_xyz": [
+        2.842886209487915,
+        -13.66565227508545,
+        4.420000076293945
+      ],
+      "host_wall_source": "SW - 576_Wall white plaster_0.009",
+      "host_surface_world": [
+        2.842886209487915,
+        -13.673652648925781,
+        4.420000076293945
+      ],
+      "normal_world": [
+        5.054473604104714e-07,
+        1.0,
+        2.917892061304883e-07
+      ]
+    },
+    {
+      "id": "SW-U-west-bedroom",
+      "room": "West bedroom",
+      "fixture_ids": [
+        "U01",
+        "U02"
+      ],
+      "circuit": "DB-01-U-LIGHT",
+      "world_xyz": [
+        -4.05711555480957,
+        -9.291350364685059,
+        7.140000343322754
+      ],
+      "host_wall_source": "SW - 620_Wall white plaster_0.002",
+      "host_surface_world": [
+        -4.05711555480957,
+        -9.283349990844727,
+        7.140000343322754
+      ],
+      "normal_world": [
+        -1.1348723774062819e-06,
+        -1.0,
+        -9.329911563327187e-07
+      ]
+    },
+    {
+      "id": "SW-U-east-bedroom",
+      "room": "East bedroom",
+      "fixture_ids": [
+        "U03",
+        "U04"
+      ],
+      "circuit": "DB-01-U-LIGHT",
+      "world_xyz": [
+        1.9728846549987793,
+        -13.665651321411133,
+        7.1399993896484375
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.014",
+      "host_surface_world": [
+        1.9728846549987793,
+        -13.673651695251465,
+        7.1399993896484375
+      ],
+      "normal_world": [
+        -3.185272134942352e-06,
+        1.0,
+        2.917894050824543e-07
+      ]
+    },
+    {
+      "id": "SW-U-west-ensuite",
+      "room": "West ensuite",
+      "fixture_ids": [
+        "U05",
+        "U06"
+      ],
+      "circuit": "DB-01-U-LIGHT",
+      "world_xyz": [
+        -1.415472388267517,
+        -10.858465194702148,
+        7.139999866485596
+      ],
+      "host_wall_source": "SW - 623_Wall white plaster_0.006",
+      "host_surface_world": [
+        -1.4234724044799805,
+        -10.858465194702148,
+        7.139999866485596
+      ],
+      "normal_world": [
+        0.9999999403953552,
+        -3.814696825088504e-08,
+        -5.865901187007694e-08
+      ]
+    },
+    {
+      "id": "SW-U-east-ensuite",
+      "room": "East ensuite",
+      "fixture_ids": [
+        "U07",
+        "U08"
+      ],
+      "circuit": "DB-01-U-LIGHT",
+      "world_xyz": [
+        4.232884407043457,
+        -10.274303436279297,
+        7.139999866485596
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.020",
+      "host_surface_world": [
+        4.232884407043457,
+        -10.282303810119629,
+        7.139999866485596
+      ],
+      "normal_world": [
+        2.4509429294994334e-06,
+        1.0,
+        2.9178906402194116e-07
+      ]
+    },
+    {
+      "id": "SW-U-landing",
+      "room": "Upper landing and stair",
+      "fixture_ids": [
+        "U09",
+        "U10"
+      ],
+      "circuit": "DB-01-U-LIGHT",
+      "world_xyz": [
+        0.57207852602005,
+        -10.47846794128418,
+        7.139999866485596
+      ],
+      "host_wall_source": "SW - 622_Wall white plaster_0.016",
+      "host_surface_world": [
+        0.5640785098075867,
+        -10.47846794128418,
+        7.139999866485596
+      ],
+      "normal_world": [
+        0.9999999403953552,
+        -3.814696825088504e-08,
+        -5.865901187007694e-08
+      ]
+    }
+  ],
+  "circuits": [
+    {
+      "id": "DB-01-G-LIGHT",
+      "board": "DB-01",
+      "family": "lighting",
+      "level": "G",
+      "endpoint_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G05",
+        "G06",
+        "G07",
+        "G08",
+        "G09"
+      ]
+    },
+    {
+      "id": "DB-01-G-GPO",
+      "board": "DB-01",
+      "family": "power",
+      "level": "G",
+      "endpoint_ids": [
+        "GPO-G01",
+        "GPO-G02",
+        "GPO-G03",
+        "GPO-G04",
+        "GPO-G05",
+        "GPO-G06",
+        "GPO-G07",
+        "GPO-G08"
+      ]
+    },
+    {
+      "id": "DB-01-L-LIGHT",
+      "board": "DB-01",
+      "family": "lighting",
+      "level": "L",
+      "endpoint_ids": [
+        "L01",
+        "L02",
+        "L03",
+        "L04",
+        "L05",
+        "D01",
+        "D02"
+      ]
+    },
+    {
+      "id": "DB-01-L-GPO",
+      "board": "DB-01",
+      "family": "power",
+      "level": "L",
+      "endpoint_ids": [
+        "GPO-L01",
+        "GPO-L02",
+        "GPO-L03",
+        "GPO-L04",
+        "GPO-L05",
+        "GPO-L06",
+        "GPO-L07"
+      ]
+    },
+    {
+      "id": "DB-01-U-LIGHT",
+      "board": "DB-01",
+      "family": "lighting",
+      "level": "U",
+      "endpoint_ids": [
+        "U01",
+        "U02",
+        "U03",
+        "U04",
+        "U05",
+        "U06",
+        "U07",
+        "U08",
+        "U09",
+        "U10"
+      ]
+    },
+    {
+      "id": "DB-01-U-GPO",
+      "board": "DB-01",
+      "family": "power",
+      "level": "U",
+      "endpoint_ids": [
+        "GPO-U01",
+        "GPO-U02",
+        "GPO-U03",
+        "GPO-U04",
+        "GPO-U05",
+        "GPO-U06",
+        "GPO-U07",
+        "GPO-U08",
+        "GPO-U09"
+      ]
+    },
+    {
+      "id": "DB-01-AP-INDUCTION",
+      "board": "DB-01",
+      "family": "dedicated-appliance",
+      "level": "L",
+      "endpoint_ids": [
+        "AP-INDUCTION"
+      ]
+    },
+    {
+      "id": "DB-01-AP-OVEN",
+      "board": "DB-01",
+      "family": "dedicated-appliance",
+      "level": "L",
+      "endpoint_ids": [
+        "AP-OVEN"
+      ]
+    },
+    {
+      "id": "DB-01-AP-MICROWAVE",
+      "board": "DB-01",
+      "family": "dedicated-appliance",
+      "level": "L",
+      "endpoint_ids": [
+        "AP-MICROWAVE"
+      ]
+    },
+    {
+      "id": "DB-01-AP-FRIDGE",
+      "board": "DB-01",
+      "family": "dedicated-appliance",
+      "level": "L",
+      "endpoint_ids": [
+        "AP-FRIDGE"
+      ]
+    },
+    {
+      "id": "DB-01-AP-HOOD",
+      "board": "DB-01",
+      "family": "dedicated-appliance",
+      "level": "L",
+      "endpoint_ids": [
+        "AP-HOOD"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "object": "V3 | Electrical | Street pole 1",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "street-pole",
+      "points_world": [
+        [
+          -18.0,
+          -25.0,
+          -0.05000000074505806
+        ],
+        [
+          -18.0,
+          -25.0,
+          7.449999809265137
+        ]
+      ],
+      "radius_m": 0.13,
+      "length_m": 7.5
+    },
+    {
+      "object": "V3 | Electrical | Pole 1 insulator 1",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          -18.0,
+          -25.450000762939453,
+          7.380000114440918
+        ],
+        [
+          -18.0,
+          -25.450000762939453,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 1 insulator 2",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          -18.0,
+          -25.149999618530273,
+          7.380000114440918
+        ],
+        [
+          -18.0,
+          -25.149999618530273,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 1 insulator 3",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          -18.0,
+          -24.850000381469727,
+          7.380000114440918
+        ],
+        [
+          -18.0,
+          -24.850000381469727,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 1 insulator 4",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          -18.0,
+          -24.549999237060547,
+          7.380000114440918
+        ],
+        [
+          -18.0,
+          -24.549999237060547,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Street pole 2",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "street-pole",
+      "points_world": [
+        [
+          18.0,
+          -25.0,
+          -0.05000000074505806
+        ],
+        [
+          18.0,
+          -25.0,
+          7.449999809265137
+        ]
+      ],
+      "radius_m": 0.13,
+      "length_m": 7.5
+    },
+    {
+      "object": "V3 | Electrical | Pole 2 insulator 1",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          18.0,
+          -25.450000762939453,
+          7.380000114440918
+        ],
+        [
+          18.0,
+          -25.450000762939453,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 2 insulator 2",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          18.0,
+          -25.149999618530273,
+          7.380000114440918
+        ],
+        [
+          18.0,
+          -25.149999618530273,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 2 insulator 3",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          18.0,
+          -24.850000381469727,
+          7.380000114440918
+        ],
+        [
+          18.0,
+          -24.850000381469727,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Pole 2 insulator 4",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "network-insulator",
+      "points_world": [
+        [
+          18.0,
+          -24.549999237060547,
+          7.380000114440918
+        ],
+        [
+          18.0,
+          -24.549999237060547,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.055,
+      "length_m": 0.2799997355681261
+    },
+    {
+      "object": "V3 | Electrical | Street conductor 1",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "overhead",
+      "points_world": [
+        [
+          -18.0,
+          -25.450000762939453,
+          7.659999847412109
+        ],
+        [
+          -16.5,
+          -25.450000762939453,
+          7.560972213745117
+        ],
+        [
+          -15.0,
+          -25.450000762939453,
+          7.470555782318115
+        ],
+        [
+          -13.5,
+          -25.450000762939453,
+          7.388750076293945
+        ],
+        [
+          -12.0,
+          -25.450000762939453,
+          7.315555572509766
+        ],
+        [
+          -10.5,
+          -25.450000762939453,
+          7.250972270965576
+        ],
+        [
+          -9.0,
+          -25.450000762939453,
+          7.195000171661377
+        ],
+        [
+          -7.5,
+          -25.450000762939453,
+          7.14763879776001
+        ],
+        [
+          -6.0,
+          -25.450000762939453,
+          7.108889102935791
+        ],
+        [
+          -4.5,
+          -25.450000762939453,
+          7.078750133514404
+        ],
+        [
+          -3.0,
+          -25.450000762939453,
+          7.057222366333008
+        ],
+        [
+          -1.5,
+          -25.450000762939453,
+          7.044305324554443
+        ],
+        [
+          0.0,
+          -25.450000762939453,
+          7.039999961853027
+        ],
+        [
+          1.5,
+          -25.450000762939453,
+          7.044305324554443
+        ],
+        [
+          3.0,
+          -25.450000762939453,
+          7.057222366333008
+        ],
+        [
+          4.5,
+          -25.450000762939453,
+          7.078750133514404
+        ],
+        [
+          6.0,
+          -25.450000762939453,
+          7.108889102935791
+        ],
+        [
+          7.5,
+          -25.450000762939453,
+          7.14763879776001
+        ],
+        [
+          9.0,
+          -25.450000762939453,
+          7.195000171661377
+        ],
+        [
+          10.5,
+          -25.450000762939453,
+          7.250972270965576
+        ],
+        [
+          12.0,
+          -25.450000762939453,
+          7.315555572509766
+        ],
+        [
+          13.5,
+          -25.450000762939453,
+          7.388750076293945
+        ],
+        [
+          15.0,
+          -25.450000762939453,
+          7.470555782318115
+        ],
+        [
+          16.5,
+          -25.450000762939453,
+          7.560972213745117
+        ],
+        [
+          18.0,
+          -25.450000762939453,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.027,
+      "length_m": 36.02840449326581
+    },
+    {
+      "object": "V3 | Electrical | Street conductor 2",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "overhead",
+      "points_world": [
+        [
+          -18.0,
+          -25.149999618530273,
+          7.659999847412109
+        ],
+        [
+          -16.5,
+          -25.149999618530273,
+          7.560972213745117
+        ],
+        [
+          -15.0,
+          -25.149999618530273,
+          7.470555782318115
+        ],
+        [
+          -13.5,
+          -25.149999618530273,
+          7.388750076293945
+        ],
+        [
+          -12.0,
+          -25.149999618530273,
+          7.315555572509766
+        ],
+        [
+          -10.5,
+          -25.149999618530273,
+          7.250972270965576
+        ],
+        [
+          -9.0,
+          -25.149999618530273,
+          7.195000171661377
+        ],
+        [
+          -7.5,
+          -25.149999618530273,
+          7.14763879776001
+        ],
+        [
+          -6.0,
+          -25.149999618530273,
+          7.108889102935791
+        ],
+        [
+          -4.5,
+          -25.149999618530273,
+          7.078750133514404
+        ],
+        [
+          -3.0,
+          -25.149999618530273,
+          7.057222366333008
+        ],
+        [
+          -1.5,
+          -25.149999618530273,
+          7.044305324554443
+        ],
+        [
+          0.0,
+          -25.149999618530273,
+          7.039999961853027
+        ],
+        [
+          1.5,
+          -25.149999618530273,
+          7.044305324554443
+        ],
+        [
+          3.0,
+          -25.149999618530273,
+          7.057222366333008
+        ],
+        [
+          4.5,
+          -25.149999618530273,
+          7.078750133514404
+        ],
+        [
+          6.0,
+          -25.149999618530273,
+          7.108889102935791
+        ],
+        [
+          7.5,
+          -25.149999618530273,
+          7.14763879776001
+        ],
+        [
+          9.0,
+          -25.149999618530273,
+          7.195000171661377
+        ],
+        [
+          10.5,
+          -25.149999618530273,
+          7.250972270965576
+        ],
+        [
+          12.0,
+          -25.149999618530273,
+          7.315555572509766
+        ],
+        [
+          13.5,
+          -25.149999618530273,
+          7.388750076293945
+        ],
+        [
+          15.0,
+          -25.149999618530273,
+          7.470555782318115
+        ],
+        [
+          16.5,
+          -25.149999618530273,
+          7.560972213745117
+        ],
+        [
+          18.0,
+          -25.149999618530273,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.027,
+      "length_m": 36.02840449326581
+    },
+    {
+      "object": "V3 | Electrical | Street conductor 3",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "overhead",
+      "points_world": [
+        [
+          -18.0,
+          -24.850000381469727,
+          7.659999847412109
+        ],
+        [
+          -16.5,
+          -24.850000381469727,
+          7.560972213745117
+        ],
+        [
+          -15.0,
+          -24.850000381469727,
+          7.470555782318115
+        ],
+        [
+          -13.5,
+          -24.850000381469727,
+          7.388750076293945
+        ],
+        [
+          -12.0,
+          -24.850000381469727,
+          7.315555572509766
+        ],
+        [
+          -10.5,
+          -24.850000381469727,
+          7.250972270965576
+        ],
+        [
+          -9.0,
+          -24.850000381469727,
+          7.195000171661377
+        ],
+        [
+          -7.5,
+          -24.850000381469727,
+          7.14763879776001
+        ],
+        [
+          -6.0,
+          -24.850000381469727,
+          7.108889102935791
+        ],
+        [
+          -4.5,
+          -24.850000381469727,
+          7.078750133514404
+        ],
+        [
+          -3.0,
+          -24.850000381469727,
+          7.057222366333008
+        ],
+        [
+          -1.5,
+          -24.850000381469727,
+          7.044305324554443
+        ],
+        [
+          0.0,
+          -24.850000381469727,
+          7.039999961853027
+        ],
+        [
+          1.5,
+          -24.850000381469727,
+          7.044305324554443
+        ],
+        [
+          3.0,
+          -24.850000381469727,
+          7.057222366333008
+        ],
+        [
+          4.5,
+          -24.850000381469727,
+          7.078750133514404
+        ],
+        [
+          6.0,
+          -24.850000381469727,
+          7.108889102935791
+        ],
+        [
+          7.5,
+          -24.850000381469727,
+          7.14763879776001
+        ],
+        [
+          9.0,
+          -24.850000381469727,
+          7.195000171661377
+        ],
+        [
+          10.5,
+          -24.850000381469727,
+          7.250972270965576
+        ],
+        [
+          12.0,
+          -24.850000381469727,
+          7.315555572509766
+        ],
+        [
+          13.5,
+          -24.850000381469727,
+          7.388750076293945
+        ],
+        [
+          15.0,
+          -24.850000381469727,
+          7.470555782318115
+        ],
+        [
+          16.5,
+          -24.850000381469727,
+          7.560972213745117
+        ],
+        [
+          18.0,
+          -24.850000381469727,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.027,
+      "length_m": 36.02840449326581
+    },
+    {
+      "object": "V3 | Electrical | Street conductor 4",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "overhead",
+      "points_world": [
+        [
+          -18.0,
+          -24.549999237060547,
+          7.659999847412109
+        ],
+        [
+          -16.5,
+          -24.549999237060547,
+          7.560972213745117
+        ],
+        [
+          -15.0,
+          -24.549999237060547,
+          7.470555782318115
+        ],
+        [
+          -13.5,
+          -24.549999237060547,
+          7.388750076293945
+        ],
+        [
+          -12.0,
+          -24.549999237060547,
+          7.315555572509766
+        ],
+        [
+          -10.5,
+          -24.549999237060547,
+          7.250972270965576
+        ],
+        [
+          -9.0,
+          -24.549999237060547,
+          7.195000171661377
+        ],
+        [
+          -7.5,
+          -24.549999237060547,
+          7.14763879776001
+        ],
+        [
+          -6.0,
+          -24.549999237060547,
+          7.108889102935791
+        ],
+        [
+          -4.5,
+          -24.549999237060547,
+          7.078750133514404
+        ],
+        [
+          -3.0,
+          -24.549999237060547,
+          7.057222366333008
+        ],
+        [
+          -1.5,
+          -24.549999237060547,
+          7.044305324554443
+        ],
+        [
+          0.0,
+          -24.549999237060547,
+          7.039999961853027
+        ],
+        [
+          1.5,
+          -24.549999237060547,
+          7.044305324554443
+        ],
+        [
+          3.0,
+          -24.549999237060547,
+          7.057222366333008
+        ],
+        [
+          4.5,
+          -24.549999237060547,
+          7.078750133514404
+        ],
+        [
+          6.0,
+          -24.549999237060547,
+          7.108889102935791
+        ],
+        [
+          7.5,
+          -24.549999237060547,
+          7.14763879776001
+        ],
+        [
+          9.0,
+          -24.549999237060547,
+          7.195000171661377
+        ],
+        [
+          10.5,
+          -24.549999237060547,
+          7.250972270965576
+        ],
+        [
+          12.0,
+          -24.549999237060547,
+          7.315555572509766
+        ],
+        [
+          13.5,
+          -24.549999237060547,
+          7.388750076293945
+        ],
+        [
+          15.0,
+          -24.549999237060547,
+          7.470555782318115
+        ],
+        [
+          16.5,
+          -24.549999237060547,
+          7.560972213745117
+        ],
+        [
+          18.0,
+          -24.549999237060547,
+          7.659999847412109
+        ]
+      ],
+      "radius_m": 0.027,
+      "length_m": 36.02840449326581
+    },
+    {
+      "object": "V3 | Electrical | Pole service cable to protected riser",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "pole-riser",
+      "points_world": [
+        [
+          -18.0,
+          -25.149999618530273,
+          7.659999847412109
+        ],
+        [
+          -18.0,
+          -25.149999618530273,
+          6.900000095367432
+        ],
+        [
+          -17.829999923706055,
+          -25.0,
+          6.900000095367432
+        ],
+        [
+          -17.829999923706055,
+          -25.0,
+          0.10000000149011612
+        ]
+      ],
+      "radius_m": 0.04,
+      "length_m": 7.786715373943434
+    },
+    {
+      "object": "V3 | Electrical | Protected pole riser",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "pole-riser",
+      "points_world": [
+        [
+          -17.829999923706055,
+          -25.0,
+          -0.8199999928474426
+        ],
+        [
+          -17.829999923706055,
+          -25.0,
+          2.799999952316284
+        ]
+      ],
+      "radius_m": 0.065,
+      "length_m": 3.619999824228862
+    },
+    {
+      "object": "V3 | Electrical | Underground street service to site pillar",
+      "circuit": "",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -17.829999923706055,
+          -25.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.0,
+          -25.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ]
+      ],
+      "radius_m": 0.054,
+      "length_m": 17.7500000892989
+    },
+    {
+      "object": "V3 | Electrical | DB-01 individual underground feed",
+      "circuit": "DB-01",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -9.219346046447754,
+          -0.8199999928474426
+        ],
+        [
+          -4.0999979972839355,
+          -9.219346046447754,
+          -0.8199999928474426
+        ],
+        [
+          -4.0999979972839355,
+          -9.219346046447754,
+          1.4499999284744263
+        ],
+        [
+          -4.0999979972839355,
+          -9.349346160888672,
+          1.4499999284744263
+        ]
+      ],
+      "radius_m": 0.036,
+      "length_m": 16.40065588817545
+    },
+    {
+      "object": "V3 | Electrical | DB-02 individual underground feed",
+      "circuit": "DB-02",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -2.449047327041626,
+          -0.8199999928474426
+        ],
+        [
+          -4.099998950958252,
+          -2.449047327041626,
+          -0.8199999928474426
+        ],
+        [
+          -4.099998950958252,
+          -2.449047327041626,
+          1.4500000476837158
+        ],
+        [
+          -4.099998950958252,
+          -2.579047203063965,
+          1.4500000476837158
+        ]
+      ],
+      "radius_m": 0.036,
+      "length_m": 23.170953275630215
+    },
+    {
+      "object": "V3 | Electrical | DB-03 individual underground feed",
+      "circuit": "DB-03",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -2.2825968265533447,
+          -0.8199999928474426
+        ],
+        [
+          -4.099998474121094,
+          -2.2825968265533447,
+          -0.8199999928474426
+        ],
+        [
+          -4.099998474121094,
+          -2.2825968265533447,
+          1.4500001668930054
+        ],
+        [
+          -4.099998474121094,
+          -2.152596950531006,
+          1.4500001668930054
+        ]
+      ],
+      "radius_m": 0.036,
+      "length_m": 23.33740458118669
+    },
+    {
+      "object": "V3 | Electrical | DB-04 individual underground feed",
+      "circuit": "DB-04",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          9.006003379821777,
+          -0.8199999928474426
+        ],
+        [
+          -4.0999979972839355,
+          9.006003379821777,
+          -0.8199999928474426
+        ],
+        [
+          -4.0999979972839355,
+          9.006003379821777,
+          1.149999976158142
+        ],
+        [
+          -4.0999979972839355,
+          8.87600326538086,
+          1.149999976158142
+        ]
+      ],
+      "radius_m": 0.036,
+      "length_m": 34.32600601884501
+    },
+    {
+      "object": "V3 | Electrical | DB-05 individual underground feed",
+      "circuit": "DB-05",
+      "endpoint_id": "",
+      "category": "underground",
+      "points_world": [
+        [
+          -5.0,
+          -21.0,
+          0.10000000149011612
+        ],
+        [
+          -5.0,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          -21.0,
+          -0.8199999928474426
+        ],
+        [
+          -5.199999809265137,
+          9.172452926635742,
+          -0.8199999928474426
+        ],
+        [
+          -4.099997520446777,
+          9.172452926635742,
+          -0.8199999928474426
+        ],
+        [
+          -4.099997520446777,
+          9.172452926635742,
+          1.149999976158142
+        ],
+        [
+          -4.099997520446777,
+          9.30245304107666,
+          1.149999976158142
+        ]
+      ],
+      "radius_m": 0.036,
+      "length_m": 34.49245480211746
+    },
+    {
+      "object": "V3 | Electrical | DB-01 main vertical service riser",
+      "circuit": "DB-01",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -4.0999979972839355,
+          -9.349346160888672,
+          1.4499999284744263
+        ],
+        [
+          -4.0999979972839355,
+          -9.349346160888672,
+          2.9700000286102295
+        ],
+        [
+          -4.0999979972839355,
+          -9.479999542236328,
+          2.9700000286102295
+        ],
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          2.9700000286102295
+        ],
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          8.449999809265137
+        ]
+      ],
+      "radius_m": 0.042,
+      "length_m": 8.330650942481471
+    },
+    {
+      "object": "V3 | Electrical | DB-01-G-LIGHT west ceiling distribution",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          2.9700000286102295
+        ],
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          2.9600000381469727
+        ],
+        [
+          -2.9000000953674316,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -4.652770042419434,
+          -9.42335319519043,
+          2.9600000381469727
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 1.819416271897024
+    },
+    {
+      "object": "V3 | Electrical | DB-01-G-LIGHT east ceiling distribution",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          4.527175426483154,
+          -9.42335319519043,
+          2.9600000381469727
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 7.42717558458844
+    },
+    {
+      "object": "V3 | Electrical | DB-01-G-GPO west ceiling distribution",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          2.9800000190734863
+        ],
+        [
+          -2.9000000953674316,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          -4.652770042419434,
+          -9.493352890014648,
+          2.9800000190734863
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 1.766123282367288
+    },
+    {
+      "object": "V3 | Electrical | DB-01-G-GPO east ceiling distribution",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          4.527175426483154,
+          -9.493352890014648,
+          2.9800000190734863
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 7.42717558458844
+    },
+    {
+      "object": "V3 | Electrical | DB-01-L-LIGHT west ceiling distribution",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.679999828338623
+        ],
+        [
+          -2.9000000953674316,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          -3.3032565116882324,
+          -9.423354148864746,
+          5.679999828338623
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 0.45990180211998827
+    },
+    {
+      "object": "V3 | Electrical | DB-01-L-LIGHT east ceiling distribution",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          4.977177143096924,
+          -9.423354148864746,
+          5.679999828338623
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 7.877177346176436
+    },
+    {
+      "object": "V3 | Electrical | DB-01-L-GPO west ceiling distribution",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.699999809265137
+        ],
+        [
+          -2.9000000953674316,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          -3.3032565116882324,
+          -9.493353843688965,
+          5.699999809265137
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 0.4166107106401096
+    },
+    {
+      "object": "V3 | Electrical | DB-01-L-GPO east ceiling distribution",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          4.977177143096924,
+          -9.493353843688965,
+          5.699999809265137
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 7.877177346176436
+    },
+    {
+      "object": "V3 | Electrical | DB-01-U-LIGHT west ceiling distribution",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          8.430000305175781
+        ],
+        [
+          -2.9000000953674316,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -4.603020191192627,
+          -9.423355102539062,
+          8.430000305175781
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 1.7596645146633307
+    },
+    {
+      "object": "V3 | Electrical | DB-01-U-LIGHT east ceiling distribution",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          4.977176189422607,
+          -9.423355102539062,
+          8.430000305175781
+        ]
+      ],
+      "radius_m": 0.019,
+      "length_m": 7.877176377632163
+    },
+    {
+      "object": "V3 | Electrical | DB-01-U-GPO west ceiling distribution",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          8.449999809265137
+        ],
+        [
+          -2.9000000953674316,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          -4.603020191192627,
+          -9.493354797363281,
+          8.449999809265137
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 1.716375330221468
+    },
+    {
+      "object": "V3 | Electrical | DB-01-U-GPO east ceiling distribution",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          4.977176189422607,
+          -9.493354797363281,
+          8.449999809265137
+        ]
+      ],
+      "radius_m": 0.024,
+      "length_m": 7.877176377632163
+    },
+    {
+      "object": "V3 | Electrical | G01 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G01",
+      "category": "concealed",
+      "points_world": [
+        [
+          -4.097115993499756,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -4.097115993499756,
+          -13.038467407226562,
+          2.9600000381469727
+        ],
+        [
+          -4.097115993499756,
+          -13.038467407226562,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.6551141768512236
+    },
+    {
+      "object": "V3 | Electrical | G02 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G02",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.7971158027648926,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -2.7971158027648926,
+          -10.938467979431152,
+          2.9600000381469727
+        ],
+        [
+          -2.7971158027648926,
+          -10.938467979431152,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.5551147288377931
+    },
+    {
+      "object": "V3 | Electrical | G03 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G03",
+      "category": "concealed",
+      "points_world": [
+        [
+          -1.0471160411834717,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -1.0471160411834717,
+          -10.938467979431152,
+          2.9600000381469727
+        ],
+        [
+          -1.0471160411834717,
+          -10.938467979431152,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.5551147288377931
+    },
+    {
+      "object": "V3 | Electrical | G04 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G04",
+      "category": "concealed",
+      "points_world": [
+        [
+          0.40288397669792175,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          0.40288397669792175,
+          -12.188467979431152,
+          2.9600000381469727
+        ],
+        [
+          0.40288397669792175,
+          -12.188467979431152,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.8051147365511664
+    },
+    {
+      "object": "V3 | Electrical | G05 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G05",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.0228840112686157,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          1.0228840112686157,
+          -10.038467407226562,
+          2.9600000381469727
+        ],
+        [
+          1.0228840112686157,
+          -10.038467407226562,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.6551141680151934
+    },
+    {
+      "object": "V3 | Electrical | G06 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G06",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.402884006500244,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          2.402884006500244,
+          -11.938467979431152,
+          2.9600000381469727
+        ],
+        [
+          2.402884006500244,
+          -11.938467979431152,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.5551147356218533
+    },
+    {
+      "object": "V3 | Electrical | G07 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G07",
+      "category": "concealed",
+      "points_world": [
+        [
+          3.852883815765381,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          3.852883815765381,
+          -11.938467979431152,
+          2.9600000381469727
+        ],
+        [
+          3.852883815765381,
+          -11.938467979431152,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.5551147356218533
+    },
+    {
+      "object": "V3 | Electrical | G08 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G08",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.102883815765381,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          2.102883815765381,
+          -9.788467407226562,
+          2.9600000381469727
+        ],
+        [
+          2.102883815765381,
+          -9.788467407226562,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.40511416412552076
+    },
+    {
+      "object": "V3 | Electrical | G09 luminaire connection",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "G09",
+      "category": "concealed",
+      "points_world": [
+        [
+          3.672883987426758,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          3.672883987426758,
+          -9.788467407226562,
+          2.9600000381469727
+        ],
+        [
+          3.672883987426758,
+          -9.788467407226562,
+          2.9200000762939453
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.40511416412552076
+    },
+    {
+      "object": "V3 | Electrical | L01 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "L01",
+      "category": "concealed",
+      "points_world": [
+        [
+          3.2028841972351074,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          3.2028841972351074,
+          -11.938467979431152,
+          5.679999828338623
+        ],
+        [
+          3.2028841972351074,
+          -11.938467979431152,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.5551137876785366
+    },
+    {
+      "object": "V3 | Electrical | L02 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "L02",
+      "category": "concealed",
+      "points_world": [
+        [
+          3.2028841972351074,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          3.2028841972351074,
+          -9.888467788696289,
+          5.679999828338623
+        ],
+        [
+          3.2028841972351074,
+          -9.888467788696289,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.5051135952720742
+    },
+    {
+      "object": "V3 | Electrical | L03 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "L03",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.097115993499756,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          -2.097115993499756,
+          -10.338467597961426,
+          5.679999828338623
+        ],
+        [
+          -2.097115993499756,
+          -10.338467597961426,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.9551134097685423
+    },
+    {
+      "object": "V3 | Electrical | L04 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "L04",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.097115993499756,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          -2.097115993499756,
+          -11.988468170166016,
+          5.679999828338623
+        ],
+        [
+          -2.097115993499756,
+          -11.988468170166016,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.6051140219925726
+    },
+    {
+      "object": "V3 | Electrical | L05 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "L05",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.052884101867676,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          4.052884101867676,
+          -13.218467712402344,
+          5.679999828338623
+        ],
+        [
+          4.052884101867676,
+          -13.218467712402344,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.8351135758168313
+    },
+    {
+      "object": "V3 | Electrical | U01 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U01",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.147116184234619,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -3.147116184234619,
+          -10.938467979431152,
+          8.430000305175781
+        ],
+        [
+          -3.147116184234619,
+          -10.938467979431152,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.5551128405156713
+    },
+    {
+      "object": "V3 | Electrical | U02 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U02",
+      "category": "concealed",
+      "points_world": [
+        [
+          -1.9471160173416138,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -1.9471160173416138,
+          -13.038467407226562,
+          8.430000305175781
+        ],
+        [
+          -1.9471160173416138,
+          -13.038467407226562,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.655112330236837
+    },
+    {
+      "object": "V3 | Electrical | U03 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U03",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.552884101867676,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          2.552884101867676,
+          -11.938467979431152,
+          8.430000305175781
+        ],
+        [
+          2.552884101867676,
+          -11.938467979431152,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.555112839734863
+    },
+    {
+      "object": "V3 | Electrical | U04 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U04",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.302884101867676,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          4.302884101867676,
+          -11.938467979431152,
+          8.430000305175781
+        ],
+        [
+          4.302884101867676,
+          -11.938467979431152,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.555112839734863
+    },
+    {
+      "object": "V3 | Electrical | U05 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U05",
+      "category": "concealed",
+      "points_world": [
+        [
+          -0.9471160173416138,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -0.9471160173416138,
+          -10.588467597961426,
+          8.430000305175781
+        ],
+        [
+          -0.9471160173416138,
+          -10.588467597961426,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.2051124379818459
+    },
+    {
+      "object": "V3 | Electrical | U06 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U06",
+      "category": "concealed",
+      "points_world": [
+        [
+          0.0028839707374572754,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          0.0028839707374572754,
+          -9.788467407226562,
+          8.430000305175781
+        ],
+        [
+          0.0028839707374572754,
+          -9.788467407226562,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.40511226634725955
+    },
+    {
+      "object": "V3 | Electrical | U07 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U07",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.2528839111328125,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          2.2528839111328125,
+          -9.788467407226562,
+          8.430000305175781
+        ],
+        [
+          2.2528839111328125,
+          -9.788467407226562,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.40511226634725955
+    },
+    {
+      "object": "V3 | Electrical | U08 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U08",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.0028839111328125,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          4.0028839111328125,
+          -9.788467407226562,
+          8.430000305175781
+        ],
+        [
+          4.0028839111328125,
+          -9.788467407226562,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 0.40511226634725955
+    },
+    {
+      "object": "V3 | Electrical | U09 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U09",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.10288405418396,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          1.10288405418396,
+          -10.938467979431152,
+          8.430000305175781
+        ],
+        [
+          1.10288405418396,
+          -10.938467979431152,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.5551128405156713
+    },
+    {
+      "object": "V3 | Electrical | U10 luminaire connection",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "U10",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.10288405418396,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          1.10288405418396,
+          -12.888467788696289,
+          8.430000305175781
+        ],
+        [
+          1.10288405418396,
+          -12.888467788696289,
+          8.390000343322754
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.505112613728711
+    },
+    {
+      "object": "V3 | Electrical | D01 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "D01",
+      "category": "concealed",
+      "points_world": [
+        [
+          0.8528839945793152,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          0.8528839945793152,
+          -10.408468246459961,
+          5.679999828338623
+        ],
+        [
+          0.8528839945793152,
+          -10.408468246459961,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.0251140693953582
+    },
+    {
+      "object": "V3 | Electrical | D02 luminaire connection",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "D02",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.7328839302062988,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          1.7328839302062988,
+          -10.408468246459961,
+          5.679999828338623
+        ],
+        [
+          1.7328839302062988,
+          -10.408468246459961,
+          5.639999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.0251140693953582
+    },
+    {
+      "object": "V3 | Electrical | GPO-G01 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G01",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.6971144676208496,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          -3.6971144676208496,
+          -13.628646850585938,
+          2.9800000190734863
+        ],
+        [
+          -3.6971144676208496,
+          -13.628646850585938,
+          0.8999999761581421
+        ],
+        [
+          -3.6971144676208496,
+          -13.673646926879883,
+          0.8999999761581421
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 6.260294033484577
+    },
+    {
+      "object": "V3 | Electrical | GPO-G02 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G02",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.697114944458008,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          -3.697114944458008,
+          -9.328346252441406,
+          2.9800000190734863
+        ],
+        [
+          -3.697114944458008,
+          -9.328346252441406,
+          0.8999999761581421
+        ],
+        [
+          -3.697114944458008,
+          -9.283346176147461,
+          0.8999999761581421
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.290006668321389
+    },
+    {
+      "object": "V3 | Electrical | GPO-G03 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G03",
+      "category": "concealed",
+      "points_world": [
+        [
+          -0.6971158981323242,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          -0.6971158981323242,
+          -9.328346252441406,
+          2.9800000190734863
+        ],
+        [
+          -0.6971158981323242,
+          -9.328346252441406,
+          0.8999999761581421
+        ],
+        [
+          -0.6971158981323242,
+          -9.283346176147461,
+          0.8999999761581421
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.290006668321389
+    },
+    {
+      "object": "V3 | Electrical | GPO-G04 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G04",
+      "category": "concealed",
+      "points_world": [
+        [
+          -1.747118592262268,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          -1.747118592262268,
+          -12.53864860534668,
+          2.9800000190734863
+        ],
+        [
+          -1.747118592262268,
+          -12.53864860534668,
+          1.0999999046325684
+        ],
+        [
+          -1.747118592262268,
+          -12.583648681640625,
+          1.0999999046325684
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 4.970295856906297
+    },
+    {
+      "object": "V3 | Electrical | GPO-G05 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G05",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.3371288776397705,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          1.3371288776397705,
+          -10.418464660644531,
+          2.9800000190734863
+        ],
+        [
+          1.3371288776397705,
+          -10.418464660644531,
+          1.649999976158142
+        ],
+        [
+          1.3821289539337158,
+          -10.418464660644531,
+          1.649999976158142
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.3001119123137563
+    },
+    {
+      "object": "V3 | Electrical | GPO-G06 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G06",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.0028834342956543,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          2.0028834342956543,
+          -13.628646850585938,
+          2.9800000190734863
+        ],
+        [
+          2.0028834342956543,
+          -13.628646850585938,
+          0.8999999761581421
+        ],
+        [
+          2.0028834342956543,
+          -13.673646926879883,
+          0.8999999761581421
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 6.260294033484577
+    },
+    {
+      "object": "V3 | Electrical | GPO-G07 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G07",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.2528839111328125,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          4.2528839111328125,
+          -13.628650665283203,
+          2.9800000190734863
+        ],
+        [
+          4.2528839111328125,
+          -13.628650665283203,
+          0.8999999761581421
+        ],
+        [
+          4.2528839111328125,
+          -13.673650741577148,
+          0.8999999761581421
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 6.260297723375123
+    },
+    {
+      "object": "V3 | Electrical | GPO-G08 concealed wall drop",
+      "circuit": "DB-01-G-GPO",
+      "endpoint_id": "GPO-G08",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.202883720397949,
+          -9.493352890014648,
+          2.9800000190734863
+        ],
+        [
+          4.202883720397949,
+          -10.23855209350586,
+          2.9800000190734863
+        ],
+        [
+          4.202883720397949,
+          -10.23855209350586,
+          1.619999885559082
+        ],
+        [
+          4.202883720397949,
+          -10.283552169799805,
+          1.619999885559082
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.150199407924739
+    },
+    {
+      "object": "V3 | Electrical | GPO-L01 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L01",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.167116641998291,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          -3.167116641998291,
+          -9.32834529876709,
+          5.699999809265137
+        ],
+        [
+          -3.167116641998291,
+          -9.32834529876709,
+          3.6399998664855957
+        ],
+        [
+          -3.167116641998291,
+          -9.283346176147461,
+          3.6399998664855957
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.270007639384015
+    },
+    {
+      "object": "V3 | Electrical | GPO-L02 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L02",
+      "category": "concealed",
+      "points_world": [
+        [
+          -0.6971160173416138,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          -0.6971160173416138,
+          -12.538650512695312,
+          5.699999809265137
+        ],
+        [
+          -0.6971160173416138,
+          -12.538650512695312,
+          3.6399996280670166
+        ],
+        [
+          -0.6971160173416138,
+          -12.583650588989258,
+          3.6399996280670166
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 5.150296878408372
+    },
+    {
+      "object": "V3 | Electrical | GPO-L03 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L03",
+      "category": "concealed",
+      "points_world": [
+        [
+          -0.02711588144302368,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          -0.02711588144302368,
+          -9.328349113464355,
+          5.699999809265137
+        ],
+        [
+          -0.02711588144302368,
+          -9.328349113464355,
+          3.6399998664855957
+        ],
+        [
+          -0.02711588144302368,
+          -9.28334903717041,
+          3.6399998664855957
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.270004781608382
+    },
+    {
+      "object": "V3 | Electrical | GPO-L04 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L04",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.002885341644287,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          2.002885341644287,
+          -9.328351020812988,
+          5.699999809265137
+        ],
+        [
+          2.002885341644287,
+          -9.328351020812988,
+          3.6600000858306885
+        ],
+        [
+          2.002885341644287,
+          -9.283350944519043,
+          3.6600000858306885
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.2500025772070433
+    },
+    {
+      "object": "V3 | Electrical | GPO-L05 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L05",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.977177143096924,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          4.992177963256836,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          4.992177963256836,
+          -10.488468170166016,
+          5.699999809265137
+        ],
+        [
+          4.992177963256836,
+          -10.488468170166016,
+          4.429999351501465
+        ],
+        [
+          5.037178039550781,
+          -10.488468170166016,
+          4.429999351501465
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.325115684819872
+    },
+    {
+      "object": "V3 | Electrical | GPO-L06 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L06",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.977177143096924,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          4.992179870605469,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          4.992179870605469,
+          -9.408467292785645,
+          5.699999809265137
+        ],
+        [
+          4.992179870605469,
+          -9.408467292785645,
+          4.429999828338623
+        ],
+        [
+          5.037179946899414,
+          -9.408467292785645,
+          4.429999828338623
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 1.4148893148800012
+    },
+    {
+      "object": "V3 | Electrical | GPO-L07 concealed wall drop",
+      "circuit": "DB-01-L-GPO",
+      "endpoint_id": "GPO-L07",
+      "category": "concealed",
+      "points_world": [
+        [
+          3.002885341644287,
+          -9.493353843688965,
+          5.699999809265137
+        ],
+        [
+          3.002885341644287,
+          -13.628652572631836,
+          5.699999809265137
+        ],
+        [
+          3.002885341644287,
+          -13.628652572631836,
+          4.37999963760376
+        ],
+        [
+          3.002885341644287,
+          -13.673652648925781,
+          4.37999963760376
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 5.500298847630495
+    },
+    {
+      "object": "V3 | Electrical | GPO-U01 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U01",
+      "category": "concealed",
+      "points_world": [
+        [
+          -4.2171149253845215,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          -4.2171149253845215,
+          -9.328349113464355,
+          8.449999809265137
+        ],
+        [
+          -4.2171149253845215,
+          -9.328349113464355,
+          6.400000095367432
+        ],
+        [
+          -4.2171149253845215,
+          -9.28334903717041,
+          6.400000095367432
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.260005496605847
+    },
+    {
+      "object": "V3 | Electrical | GPO-U02 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U02",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.0071158409118652,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          -2.0071158409118652,
+          -9.328350067138672,
+          8.449999809265137
+        ],
+        [
+          -2.0071158409118652,
+          -9.328350067138672,
+          6.400000095367432
+        ],
+        [
+          -2.0071158409118652,
+          -9.283349990844727,
+          6.400000095367432
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.2600045427358704
+    },
+    {
+      "object": "V3 | Electrical | GPO-U03 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U03",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.247117519378662,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          -2.247117519378662,
+          -12.538651466369629,
+          8.449999809265137
+        ],
+        [
+          -2.247117519378662,
+          -12.538651466369629,
+          6.419999122619629
+        ],
+        [
+          -2.247117519378662,
+          -12.583651542663574,
+          6.419999122619629
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 5.120297415873895
+    },
+    {
+      "object": "V3 | Electrical | GPO-U04 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U04",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.392885208129883,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          2.392885208129883,
+          -13.628652572631836,
+          8.449999809265137
+        ],
+        [
+          2.392885208129883,
+          -13.628652572631836,
+          6.400000095367432
+        ],
+        [
+          2.392885208129883,
+          -13.673652648925781,
+          6.400000095367432
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 6.230297505524043
+    },
+    {
+      "object": "V3 | Electrical | GPO-U05 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U05",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.642883777618408,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          4.642883777618408,
+          -13.628655433654785,
+          8.449999809265137
+        ],
+        [
+          4.642883777618408,
+          -13.628655433654785,
+          6.400000095367432
+        ],
+        [
+          4.642883777618408,
+          -13.67365550994873,
+          6.400000095367432
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 6.230300503557688
+    },
+    {
+      "object": "V3 | Electrical | GPO-U06 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U06",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.5728840827941895,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          4.5728840827941895,
+          -10.417303085327148,
+          8.449999809265137
+        ],
+        [
+          4.5728840827941895,
+          -10.417303085327148,
+          6.399999618530273
+        ],
+        [
+          4.5728840827941895,
+          -10.372303009033203,
+          6.399999618530273
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.018948559827735
+    },
+    {
+      "object": "V3 | Electrical | GPO-U07 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U07",
+      "category": "concealed",
+      "points_world": [
+        [
+          -1.37847101688385,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          -1.37847101688385,
+          -11.018465995788574,
+          8.449999809265137
+        ],
+        [
+          -1.37847101688385,
+          -11.018465995788574,
+          7.139999866485596
+        ],
+        [
+          -1.4234709739685059,
+          -11.018465995788574,
+          7.139999866485596
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.8801111156453065
+    },
+    {
+      "object": "V3 | Electrical | GPO-U08 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U08",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.392884254455566,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          4.392884254455566,
+          -10.2373046875,
+          8.449999809265137
+        ],
+        [
+          4.392884254455566,
+          -10.2373046875,
+          7.159999847412109
+        ],
+        [
+          4.392884254455566,
+          -10.282304763793945,
+          7.159999847412109
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 2.078949934856543
+    },
+    {
+      "object": "V3 | Electrical | GPO-U09 concealed wall drop",
+      "circuit": "DB-01-U-GPO",
+      "endpoint_id": "GPO-U09",
+      "category": "concealed",
+      "points_world": [
+        [
+          0.6090800166130066,
+          -9.493354797363281,
+          8.449999809265137
+        ],
+        [
+          0.6090800166130066,
+          -10.638465881347656,
+          8.449999809265137
+        ],
+        [
+          0.6090800166130066,
+          -10.638465881347656,
+          6.37999963760376
+        ],
+        [
+          0.564079999923706,
+          -10.638465881347656,
+          6.37999963760376
+        ]
+      ],
+      "radius_m": 0.018,
+      "length_m": 3.260111270139451
+    },
+    {
+      "object": "V3 | Electrical | SW-G-entry switch leg",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "SW-G-entry",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.8571128845214844,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -3.8571128845214844,
+          -13.615646362304688,
+          2.9600000381469727
+        ],
+        [
+          -3.8571128845214844,
+          -13.615646362304688,
+          1.6999998092651367
+        ],
+        [
+          -3.8571128845214844,
+          -13.66564655303955,
+          1.6999998092651367
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 5.502293495531581
+    },
+    {
+      "object": "V3 | Electrical | SW-G-multipurpose switch leg",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "SW-G-multipurpose",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.537114143371582,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          -3.537114143371582,
+          -9.341347694396973,
+          2.9600000381469727
+        ],
+        [
+          -3.537114143371582,
+          -9.341347694396973,
+          1.6999999284744263
+        ],
+        [
+          -3.537114143371582,
+          -9.29134750366211,
+          1.6999999284744263
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 1.3920057816864762
+    },
+    {
+      "object": "V3 | Electrical | SW-G-laundry switch leg",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "SW-G-laundry",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.324129343032837,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          1.324129343032837,
+          -10.258462905883789,
+          2.9600000381469727
+        ],
+        [
+          1.324129343032837,
+          -10.258462905883789,
+          1.6999999284744263
+        ],
+        [
+          1.374129295349121,
+          -10.258462905883789,
+          1.6999999284744263
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.145109737590129
+    },
+    {
+      "object": "V3 | Electrical | SW-G-bedroom switch leg",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "SW-G-bedroom",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.8428843021392822,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          1.8428843021392822,
+          -13.61565113067627,
+          2.9600000381469727
+        ],
+        [
+          1.8428843021392822,
+          -13.61565113067627,
+          1.6999999284744263
+        ],
+        [
+          1.8428841829299927,
+          -13.665651321411133,
+          1.6999999284744263
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 5.502298130750747
+    },
+    {
+      "object": "V3 | Electrical | SW-G-bathroom switch leg",
+      "circuit": "DB-01-G-LIGHT",
+      "endpoint_id": "SW-G-bathroom",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.042882919311523,
+          -9.42335319519043,
+          2.9600000381469727
+        ],
+        [
+          4.042882919311523,
+          -10.225550651550293,
+          2.9600000381469727
+        ],
+        [
+          4.042882919311523,
+          -10.225550651550293,
+          1.6999998092651367
+        ],
+        [
+          4.042882919311523,
+          -10.275550842285156,
+          1.6999998092651367
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.11219788876577
+    },
+    {
+      "object": "V3 | Electrical | SW-L-kitchen switch leg",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "SW-L-kitchen",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.977177143096924,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          4.979178428649902,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          4.979178428649902,
+          -10.648466110229492,
+          5.679999828338623
+        ],
+        [
+          4.979178428649902,
+          -10.648466110229492,
+          4.420000076293945
+        ],
+        [
+          5.029178619384766,
+          -10.648466110229492,
+          4.420000076293945
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.53711319659653
+    },
+    {
+      "object": "V3 | Electrical | SW-L-living switch leg",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "SW-L-living",
+      "category": "concealed",
+      "points_world": [
+        [
+          -3.0071158409118652,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          -3.0071158409118652,
+          -9.341349601745605,
+          5.679999828338623
+        ],
+        [
+          -3.0071158409118652,
+          -9.341349601745605,
+          4.419999599456787
+        ],
+        [
+          -3.0071158409118652,
+          -9.291349411010742,
+          4.419999599456787
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 1.3920049724621923
+    },
+    {
+      "object": "V3 | Electrical | SW-L-dining switch leg",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "SW-L-dining",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.162886619567871,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          2.162886619567871,
+          -9.341351509094238,
+          5.679999828338623
+        ],
+        [
+          2.162886619567871,
+          -9.341351509094238,
+          4.420000076293945
+        ],
+        [
+          2.162886619567871,
+          -9.291351318359375,
+          4.420000076293945
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 1.3920025914175727
+    },
+    {
+      "object": "V3 | Electrical | SW-L-powder switch leg",
+      "circuit": "DB-01-L-LIGHT",
+      "endpoint_id": "SW-L-powder",
+      "category": "concealed",
+      "points_world": [
+        [
+          2.842886447906494,
+          -9.423354148864746,
+          5.679999828338623
+        ],
+        [
+          2.842886447906494,
+          -13.615652084350586,
+          5.679999828338623
+        ],
+        [
+          2.842886447906494,
+          -13.615652084350586,
+          4.420000076293945
+        ],
+        [
+          2.842886447906494,
+          -13.66565227508545,
+          4.420000076293945
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 5.50229779961367
+    },
+    {
+      "object": "V3 | Electrical | SW-U-west-bedroom switch leg",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "SW-U-west-bedroom",
+      "category": "concealed",
+      "points_world": [
+        [
+          -4.05711555480957,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -4.05711555480957,
+          -9.341350555419922,
+          8.430000305175781
+        ],
+        [
+          -4.05711555480957,
+          -9.341350555419922,
+          7.140000343322754
+        ],
+        [
+          -4.05711555480957,
+          -9.291350364685059,
+          7.140000343322754
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 1.4220047123456958
+    },
+    {
+      "object": "V3 | Electrical | SW-U-east-bedroom switch leg",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "SW-U-east-bedroom",
+      "category": "concealed",
+      "points_world": [
+        [
+          1.9728845357894897,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          1.9728845357894897,
+          -13.61565113067627,
+          8.430000305175781
+        ],
+        [
+          1.9728845357894897,
+          -13.61565113067627,
+          7.1399993896484375
+        ],
+        [
+          1.9728846549987793,
+          -13.665651321411133,
+          7.1399993896484375
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 5.532297116792517
+    },
+    {
+      "object": "V3 | Electrical | SW-U-west-ensuite switch leg",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "SW-U-west-ensuite",
+      "category": "concealed",
+      "points_world": [
+        [
+          -1.365472435951233,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          -1.365472435951233,
+          -10.858465194702148,
+          8.430000305175781
+        ],
+        [
+          -1.365472435951233,
+          -10.858465194702148,
+          7.139999866485596
+        ],
+        [
+          -1.415472388267517,
+          -10.858465194702148,
+          7.139999866485596
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.7751104842419547
+    },
+    {
+      "object": "V3 | Electrical | SW-U-east-ensuite switch leg",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "SW-U-east-ensuite",
+      "category": "concealed",
+      "points_world": [
+        [
+          4.232884407043457,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          4.232884407043457,
+          -10.224303245544434,
+          8.430000305175781
+        ],
+        [
+          4.232884407043457,
+          -10.224303245544434,
+          7.139999866485596
+        ],
+        [
+          4.232884407043457,
+          -10.274303436279297,
+          7.139999866485596
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.1409487748202816
+    },
+    {
+      "object": "V3 | Electrical | SW-U-landing switch leg",
+      "circuit": "DB-01-U-LIGHT",
+      "endpoint_id": "SW-U-landing",
+      "category": "concealed",
+      "points_world": [
+        [
+          0.622078537940979,
+          -9.423355102539062,
+          8.430000305175781
+        ],
+        [
+          0.622078537940979,
+          -10.47846794128418,
+          8.430000305175781
+        ],
+        [
+          0.622078537940979,
+          -10.47846794128418,
+          7.139999866485596
+        ],
+        [
+          0.57207852602005,
+          -10.47846794128418,
+          7.139999866485596
+        ]
+      ],
+      "radius_m": 0.015,
+      "length_m": 2.395113298541059
+    },
+    {
+      "object": "V3 | Electrical | INDUCTION dedicated appliance circuit",
+      "circuit": "DB-01-AP-INDUCTION",
+      "endpoint_id": "AP-INDUCTION",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.695000171661377
+        ],
+        [
+          -2.9000000953674316,
+          -9.583353996276855,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -9.583353996276855,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.150000095367432
+        ]
+      ],
+      "radius_m": 0.021,
+      "length_m": 10.330532105224009
+    },
+    {
+      "object": "V3 | Electrical | INDUCTION connection enclosure",
+      "circuit": "DB-01-AP-INDUCTION",
+      "endpoint_id": "AP-INDUCTION",
+      "category": "appliance-connection",
+      "points_world": [
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.128000259399414
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.171999931335449
+        ]
+      ],
+      "radius_m": 0.037,
+      "length_m": 0.04399967142960819
+    },
+    {
+      "object": "V3 | Electrical | OVEN dedicated appliance circuit",
+      "circuit": "DB-01-AP-OVEN",
+      "endpoint_id": "AP-OVEN",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.695000171661377
+        ],
+        [
+          -2.9000000953674316,
+          -9.643353462219238,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.643353462219238,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          4.0
+        ]
+      ],
+      "radius_m": 0.021,
+      "length_m": 8.530530381968726
+    },
+    {
+      "object": "V3 | Electrical | OVEN connection enclosure",
+      "circuit": "DB-01-AP-OVEN",
+      "endpoint_id": "AP-OVEN",
+      "category": "appliance-connection",
+      "points_world": [
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          3.9779999256134033
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          4.021999835968018
+        ]
+      ],
+      "radius_m": 0.037,
+      "length_m": 0.043999910875895304
+    },
+    {
+      "object": "V3 | Electrical | MICROWAVE dedicated appliance circuit",
+      "circuit": "DB-01-AP-MICROWAVE",
+      "endpoint_id": "AP-MICROWAVE",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.695000171661377
+        ],
+        [
+          -2.9000000953674316,
+          -9.703353881835938,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.703353881835938,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          5.695000171661377
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          4.869999885559082
+        ]
+      ],
+      "radius_m": 0.021,
+      "length_m": 7.780531337292773
+    },
+    {
+      "object": "V3 | Electrical | MICROWAVE connection enclosure",
+      "circuit": "DB-01-AP-MICROWAVE",
+      "endpoint_id": "AP-MICROWAVE",
+      "category": "appliance-connection",
+      "points_world": [
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          4.8480000495910645
+        ],
+        [
+          3.477177143096924,
+          -9.34835433959961,
+          4.8919997215271
+        ]
+      ],
+      "radius_m": 0.037,
+      "length_m": 0.04399967142960819
+    },
+    {
+      "object": "V3 | Electrical | FRIDGE dedicated appliance circuit",
+      "circuit": "DB-01-AP-FRIDGE",
+      "endpoint_id": "AP-FRIDGE",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.695000171661377
+        ],
+        [
+          -2.9000000953674316,
+          -9.76335334777832,
+          5.695000171661377
+        ],
+        [
+          2.857177257537842,
+          -9.76335334777832,
+          5.695000171661377
+        ],
+        [
+          2.857177257537842,
+          -9.34835433959961,
+          5.695000171661377
+        ],
+        [
+          2.857177257537842,
+          -9.34835433959961,
+          3.7200000286102295
+        ]
+      ],
+      "radius_m": 0.021,
+      "length_m": 8.430530368299381
+    },
+    {
+      "object": "V3 | Electrical | FRIDGE connection enclosure",
+      "circuit": "DB-01-AP-FRIDGE",
+      "endpoint_id": "AP-FRIDGE",
+      "category": "appliance-connection",
+      "points_world": [
+        [
+          2.8571770191192627,
+          -9.34835433959961,
+          3.697999954223633
+        ],
+        [
+          2.8571770191192627,
+          -9.34835433959961,
+          3.742000102996826
+        ]
+      ],
+      "radius_m": 0.037,
+      "length_m": 0.044000148997982484
+    },
+    {
+      "object": "V3 | Electrical | HOOD dedicated appliance circuit",
+      "circuit": "DB-01-AP-HOOD",
+      "endpoint_id": "AP-HOOD",
+      "category": "concealed",
+      "points_world": [
+        [
+          -2.9000000953674316,
+          -9.479999542236328,
+          5.695000171661377
+        ],
+        [
+          -2.9000000953674316,
+          -9.82335376739502,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -9.82335376739502,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          5.695000171661377
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.889999866485596
+        ]
+      ],
+      "radius_m": 0.021,
+      "length_m": 9.590532393647186
+    },
+    {
+      "object": "V3 | Electrical | HOOD connection enclosure",
+      "circuit": "DB-01-AP-HOOD",
+      "endpoint_id": "AP-HOOD",
+      "category": "appliance-connection",
+      "points_world": [
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.868000030517578
+        ],
+        [
+          4.967176914215088,
+          -10.398354530334473,
+          4.911999702453613
+        ]
+      ],
+      "radius_m": 0.037,
+      "length_m": 0.04399967142960819
+    }
+  ],
+  "boards": [
+    {
+      "id": "DB-01",
+      "object": "V3 | Electrical | DB-01 dwelling distribution board",
+      "world_xyz": [
+        -4.0999979972839355,
+        -9.349346160888672,
+        1.4499999284744263
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.008",
+      "host_surface_world": [
+        -4.0999979972839355,
+        -9.283346176147461,
+        1.4499999284744263
+      ],
+      "normal_world": [
+        -7.152556804612686e-07,
+        -0.9999999403953552,
+        -2.917891777087789e-07
+      ],
+      "detail": "all room endpoints"
+    },
+    {
+      "id": "DB-02",
+      "object": "V3 | Electrical | DB-02 dwelling distribution board",
+      "world_xyz": [
+        -4.099998950958252,
+        -2.579047203063965,
+        1.4500000476837158
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.005",
+      "host_surface_world": [
+        -4.099998950958252,
+        -2.513047218322754,
+        1.4500000476837158
+      ],
+      "normal_world": [
+        -6.866454214105033e-07,
+        -0.9999999403953552,
+        -2.917891777087789e-07
+      ],
+      "detail": "site feed only"
+    },
+    {
+      "id": "DB-03",
+      "object": "V3 | Electrical | DB-03 dwelling distribution board",
+      "world_xyz": [
+        -4.099998474121094,
+        -2.152596950531006,
+        1.4500001668930054
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.002",
+      "host_surface_world": [
+        -4.099998474121094,
+        -2.218596935272217,
+        1.4500001668930054
+      ],
+      "normal_world": [
+        6.866454214105033e-07,
+        0.9999999403953552,
+        2.917891777087789e-07
+      ],
+      "detail": "site feed only"
+    },
+    {
+      "id": "DB-04",
+      "object": "V3 | Electrical | DB-04 dwelling distribution board",
+      "world_xyz": [
+        -4.0999979972839355,
+        8.87600326538086,
+        1.149999976158142
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.011",
+      "host_surface_world": [
+        -4.0999979972839355,
+        8.94200325012207,
+        1.149999976158142
+      ],
+      "normal_world": [
+        -7.438658826686151e-07,
+        -0.9999999403953552,
+        -2.917891777087789e-07
+      ],
+      "detail": "site feed only"
+    },
+    {
+      "id": "DB-05",
+      "object": "V3 | Electrical | DB-05 dwelling distribution board",
+      "world_xyz": [
+        -4.099997520446777,
+        9.30245304107666,
+        1.149999976158142
+      ],
+      "host_wall_source": "SW - 571_Wall white plaster_0.014",
+      "host_surface_world": [
+        -4.099997520446777,
+        9.23645305633545,
+        1.149999976158142
+      ],
+      "normal_world": [
+        7.343291485994996e-07,
+        0.9999999403953552,
+        2.917891777087789e-07
+      ],
+      "detail": "site feed only"
+    }
+  ],
+  "network": {
+    "pole_count": 2,
+    "overhead_conductor_count": 4,
+    "pole_centres": [
+      [
+        -18,
+        -25,
+        0
+      ],
+      [
+        18,
+        -25,
+        0
+      ]
+    ],
+    "pillar_world": [
+      -5.0,
+      -21.0,
+      0.6499999761581421
+    ],
+    "underground_depth_m": 0.82,
+    "source": "Illustrative provision, not network survey"
+  },
+  "notes": [
+    "No cable sizes, protective ratings, load diversity or compliance are asserted.",
+    "Ceiling traces represent reserved concealed electrical routes. Exact slab conduits, penetrations and wall cavities require coordinated design.",
+    "Street overhead provision and underground service position are illustrative, not verified utility records."
+  ],
+  "audit": {
+    "luminaire_count": 26,
+    "gpo_count": 24,
+    "dedicated_appliance_count": 5,
+    "switch_count": 14,
+    "board_count": 5,
+    "circuit_count": 11,
+    "route_count": 109,
+    "duplicate_endpoint_ids": [],
+    "unconnected_endpoints": [],
+    "unswitched_lights": [],
+    "created_object_count": 176,
+    "missing_source_objects": [],
+    "disconnected_circuit_routes": [],
+    "maximum_endpoint_connection_error_m": 2.384185791015625e-07,
+    "source_transforms_unchanged": true,
+    "wall_mount_corner_checks_passed": 19,
+    "floor_envelopes": {
+      "G": {
+        "inner": [
+          -4.712769985198975,
+          4.587175369262695,
+          -13.6736478805542,
+          -9.283352851867676
+        ],
+        "outer": [
+          -4.802772521972656,
+          4.677180290222168,
+          -13.763649940490723,
+          -9.193345069885254
+        ],
+        "source_walls": [
+          "SW - 571_Wall white plaster_0.006",
+          "SW - 573_Wall white plaster_0.008",
+          "SW - 572_Wall white plaster_0.008",
+          "SW - 571_Wall white plaster_0.008"
+        ]
+      },
+      "L": {
+        "inner": [
+          -3.3632564544677734,
+          5.037177085876465,
+          -13.6736478805542,
+          -9.283353805541992
+        ],
+        "outer": [
+          -3.4532620906829834,
+          5.127179145812988,
+          -13.763655662536621,
+          -9.19334602355957
+        ],
+        "source_walls": [
+          "SW - 577_Wall white plaster_0.002",
+          "SW - 575_Wall white plaster_0.008",
+          "SW - 576_Wall white plaster_0.009",
+          "SW - 574_Wall white plaster_0.006"
+        ]
+      },
+      "U": {
+        "inner": [
+          -4.663020133972168,
+          5.037176132202148,
+          -13.6736478805542,
+          -9.283354759216309
+        ],
+        "outer": [
+          -4.753024101257324,
+          5.127180576324463,
+          -13.763653755187988,
+          -9.193347930908203
+        ],
+        "source_walls": [
+          "SW - 623_Wall white plaster_0.008",
+          "SW - 621_Wall white plaster_0.002",
+          "SW - 622_Wall white plaster_0.018",
+          "SW - 620_Wall white plaster_0.002"
+        ]
+      }
+    },
+    "radius_checked_internal_route_count": 87,
+    "radius_aware_envelope_violations": [],
+    "ceiling_service_void_overruns": [],
+    "continuity_method": "Each circuit route must touch its own connected distribution paths and the DB main riser; all 55 endpoint ends compared with their registered anchors."
+  }
+}

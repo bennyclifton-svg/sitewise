@@ -13,11 +13,15 @@ import type {
 
 vi.mock("@/lib/api", () => ({
   api: {
+    get: vi.fn().mockResolvedValue({ version: 0, prompts: null }),
+    put: vi.fn(),
     analyzePdf: vi.fn(),
     commitStagedPdf: vi.fn(),
     uploadInboxFiles: vi.fn(),
   },
 }));
+
+vi.mock("@/components/project/ActivityFeed", () => ({ ActivityFeed: () => null }));
 
 const deleteDraftMutateAsync = vi.fn();
 const batchClassificationMutateAsync = vi.fn();
@@ -104,6 +108,27 @@ function dropFile(container: HTMLElement, file: File) {
   if (!input) throw new Error("file input not found");
   fireEvent.change(input, { target: { files: [file] } });
 }
+
+describe("DocumentRepositoryPanel navigation", () => {
+  it("uses one button to switch document views", () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to tree view" }));
+    expect(screen.getByRole("button", { name: "Switch to document list" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to document list" }));
+    expect(screen.getByRole("button", { name: "Switch to tree view" })).toBeVisible();
+  });
+
+  it("keeps an unsaved prompt edit when visiting documents", async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Prompts" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Cost plan" }));
+    fireEvent.change(screen.getByLabelText("Prompt"), { target: { value: "Keep my unsaved edit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Show documents" }));
+    expect(screen.queryByRole("region", { name: "Personal prompt library" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Prompts" }));
+    expect(screen.getByLabelText("Prompt")).toHaveValue("Keep my unsaved edit");
+  });
+});
 
 describe("DocumentRepositoryPanel pending uploads", () => {
   beforeEach(() => {
@@ -472,6 +497,91 @@ describe("DocumentRepositoryPanel generated artefacts", () => {
         latest_draft: null,
       });
     });
+  });
+
+  it("lists one project management plan when create and update both appear as v1", () => {
+    const created = artefactDraft({
+      id: "pmp-create",
+      title: "Project Management Plan",
+      workflow_type: "create_pmp",
+      version: 1,
+    });
+    const updated = artefactDraft({
+      id: "pmp-update",
+      title: "Project Management Plan",
+      workflow_type: "update_pmp",
+      version: 1,
+      updated_at: "2026-08-02T08:24:52.000Z",
+    });
+
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[]}
+        selectedEvidenceId={null}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        artefactDrafts={[created, updated]}
+        onOpenDraft={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByText("Project Management Plan")).toHaveLength(1);
+    expect(screen.getAllByText("v1")).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Delete Project Management Plan" }),
+    ).toHaveLength(1);
+  });
+
+  it("treats a missing draft as already deleted", async () => {
+    const { ApiError } = await import("@/lib/http");
+    const onArtefactDeleted = vi.fn();
+    const pmp = artefactDraft({
+      title: "Project Management Plan",
+      workflow_type: "create_pmp",
+      version: 1,
+    });
+    deleteDraftMutateAsync.mockRejectedValue(
+      new ApiError("Draft not found", { kind: "http", status: 404 }),
+    );
+
+    render(
+      <DocumentRepositoryPanel
+        projectId="project-1"
+        evidence={[]}
+        selectedEvidenceId={null}
+        workspaceTree={[]}
+        selectedWorkspacePath={null}
+        onSelectEvidence={vi.fn()}
+        onSelectWorkspacePath={vi.fn()}
+        onOpenWorkflow={vi.fn()}
+        onViewWorkbench={vi.fn()}
+        onViewFolder={vi.fn()}
+        onUploadComplete={vi.fn().mockResolvedValue(undefined)}
+        artefactDrafts={[pmp]}
+        onOpenDraft={vi.fn()}
+        onArtefactDeleted={onArtefactDeleted}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Project Management Plan" }),
+    );
+
+    await waitFor(() => {
+      expect(onArtefactDeleted).toHaveBeenCalledWith({
+        deleted_id: pmp.id,
+        workflow_type: "create_pmp",
+        latest_draft: null,
+      });
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 

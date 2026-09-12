@@ -1,0 +1,408 @@
+{
+  "light": {
+    "mode": "light",
+    "series": [
+      {
+        "name": "Petrol",
+        "oklch": [
+          0.65,
+          0.0946,
+          215
+        ],
+        "hex": "#3C9EB3",
+        "css": "oklch(0.6500 0.094600 215)",
+        "requestedChroma": 0.0946,
+        "gamutReduced": false,
+        "contrast": 3.0415344723928386
+      },
+      {
+        "name": "Ochre",
+        "oklch": [
+          0.515,
+          0.108536,
+          75
+        ],
+        "hex": "#8B5D00",
+        "css": "oklch(0.5150 0.108536 75)",
+        "requestedChroma": 0.113,
+        "gamutReduced": true,
+        "contrast": 5.590535642675941
+      },
+      {
+        "name": "Denim",
+        "oklch": [
+          0.38,
+          0.125009,
+          255
+        ],
+        "hex": "#004182",
+        "css": "oklch(0.3800 0.125009 255)",
+        "requestedChroma": 0.1265,
+        "gamutReduced": true,
+        "contrast": 9.853986904949489
+      },
+      {
+        "name": "Terracotta",
+        "oklch": [
+          0.375,
+          0.131418,
+          35
+        ],
+        "hex": "#771A00",
+        "css": "oklch(0.3750 0.131418 35)",
+        "requestedChroma": 0.1353,
+        "gamutReduced": true,
+        "contrast": 10.600193755862811
+      },
+      {
+        "name": "Evergreen",
+        "oklch": [
+          0.57,
+          0.07225,
+          155
+        ],
+        "hex": "#548465",
+        "css": "oklch(0.5700 0.072250 155)",
+        "requestedChroma": 0.07225,
+        "gamutReduced": false,
+        "contrast": 4.209556059920608
+      },
+      {
+        "name": "Mulberry",
+        "oklch": [
+          0.35,
+          0.0867,
+          335
+        ],
+        "hex": "#55274C",
+        "css": "oklch(0.3500 0.086700 335)",
+        "requestedChroma": 0.0867,
+        "gamutReduced": false,
+        "contrast": 11.500900975457116
+      },
+      {
+        "name": "Olive",
+        "oklch": [
+          0.655,
+          0.1067,
+          110
+        ],
+        "hex": "#959643",
+        "css": "oklch(0.6550 0.106700 110)",
+        "requestedChroma": 0.1067,
+        "gamutReduced": false,
+        "contrast": 3.047104872467701
+      },
+      {
+        "name": "Graphite",
+        "oklch": [
+          0.455,
+          0.016,
+          70
+        ],
+        "hex": "#5D554D",
+        "css": "oklch(0.4550 0.016000 70)",
+        "requestedChroma": 0.016,
+        "gamutReduced": false,
+        "contrast": 7.131319265583071
+      }
+    ],
+    "reviews": {
+      "normal": [
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.11021497133584085
+        },
+        {
+          "names": [
+            "Evergreen",
+            "Olive"
+          ],
+          "deltaEOK": 0.11385183819688433
+        },
+        {
+          "names": [
+            "Petrol",
+            "Evergreen"
+          ],
+          "deltaEOK": 0.11712057779983101
+        }
+      ],
+      "protan": [
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.09380119819580718
+        },
+        {
+          "names": [
+            "Evergreen",
+            "Olive"
+          ],
+          "deltaEOK": 0.09402341023403496
+        },
+        {
+          "names": [
+            "Denim",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.10264564659247649
+        }
+      ],
+      "deutan": [
+        {
+          "names": [
+            "Ochre",
+            "Evergreen"
+          ],
+          "deltaEOK": 0.09418566843348451
+        },
+        {
+          "names": [
+            "Terracotta",
+            "Graphite"
+          ],
+          "deltaEOK": 0.09497229011190951
+        },
+        {
+          "names": [
+            "Denim",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.10041096387905779
+        }
+      ],
+      "tritan": [
+        {
+          "names": [
+            "Terracotta",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.09835286409815831
+        },
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.10152515701703033
+        },
+        {
+          "names": [
+            "Petrol",
+            "Evergreen"
+          ],
+          "deltaEOK": 0.10184417213848701
+        }
+      ]
+    }
+  },
+  "dark": {
+    "mode": "dark",
+    "series": [
+      {
+        "name": "Petrol",
+        "oklch": [
+          0.91,
+          0.06205,
+          215
+        ],
+        "hex": "#B2EDFB",
+        "css": "oklch(0.9100 0.062050 215)",
+        "requestedChroma": 0.06205,
+        "gamutReduced": false,
+        "contrast": 11.899409273229283
+      },
+      {
+        "name": "Ochre",
+        "oklch": [
+          0.74,
+          0.1221,
+          75
+        ],
+        "hex": "#D89F49",
+        "css": "oklch(0.7400 0.122100 75)",
+        "requestedChroma": 0.1221,
+        "gamutReduced": false,
+        "contrast": 6.512332890357418
+      },
+      {
+        "name": "Denim",
+        "oklch": [
+          0.685,
+          0.107,
+          255
+        ],
+        "hex": "#6B9CDB",
+        "css": "oklch(0.6850 0.107000 255)",
+        "requestedChroma": 0.107,
+        "gamutReduced": false,
+        "contrast": 5.3718483514312405
+      },
+      {
+        "name": "Terracotta",
+        "oklch": [
+          0.58,
+          0.1254,
+          35
+        ],
+        "hex": "#B85B45",
+        "css": "oklch(0.5800 0.125400 35)",
+        "requestedChroma": 0.1254,
+        "gamutReduced": false,
+        "contrast": 3.3525343457248304
+      },
+      {
+        "name": "Evergreen",
+        "oklch": [
+          0.8,
+          0.08245,
+          155
+        ],
+        "hex": "#93CEA7",
+        "css": "oklch(0.8000 0.082450 155)",
+        "requestedChroma": 0.08245,
+        "gamutReduced": false,
+        "contrast": 8.436510293625595
+      },
+      {
+        "name": "Mulberry",
+        "oklch": [
+          0.59,
+          0.07225,
+          335
+        ],
+        "hex": "#986D8E",
+        "css": "oklch(0.5900 0.072250 335)",
+        "requestedChroma": 0.07225,
+        "gamutReduced": false,
+        "contrast": 3.564911538069155
+      },
+      {
+        "name": "Olive",
+        "oklch": [
+          0.91,
+          0.1034,
+          110
+        ],
+        "hex": "#E5E896",
+        "css": "oklch(0.9100 0.103400 110)",
+        "requestedChroma": 0.1034,
+        "gamutReduced": false,
+        "contrast": 11.837714221827271
+      },
+      {
+        "name": "Graphite",
+        "oklch": [
+          0.69,
+          0.017,
+          70
+        ],
+        "hex": "#A29A90",
+        "css": "oklch(0.6900 0.017000 70)",
+        "requestedChroma": 0.017,
+        "gamutReduced": false,
+        "contrast": 5.486345319844241
+      }
+    ],
+    "reviews": {
+      "normal": [
+        {
+          "names": [
+            "Terracotta",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.1088798153050576
+        },
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.11682874146315075
+        },
+        {
+          "names": [
+            "Denim",
+            "Graphite"
+          ],
+          "deltaEOK": 0.12494275767655393
+        }
+      ],
+      "protan": [
+        {
+          "names": [
+            "Evergreen",
+            "Olive"
+          ],
+          "deltaEOK": 0.10462097639451938
+        },
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.10550597125034192
+        },
+        {
+          "names": [
+            "Terracotta",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.10774108204281739
+        }
+      ],
+      "deutan": [
+        {
+          "names": [
+            "Ochre",
+            "Evergreen"
+          ],
+          "deltaEOK": 0.10490565087887183
+        },
+        {
+          "names": [
+            "Terracotta",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.10516890001665259
+        },
+        {
+          "names": [
+            "Evergreen",
+            "Graphite"
+          ],
+          "deltaEOK": 0.10962293112148247
+        }
+      ],
+      "tritan": [
+        {
+          "names": [
+            "Terracotta",
+            "Mulberry"
+          ],
+          "deltaEOK": 0.10420604783691499
+        },
+        {
+          "names": [
+            "Petrol",
+            "Olive"
+          ],
+          "deltaEOK": 0.10516066387095493
+        },
+        {
+          "names": [
+            "Ochre",
+            "Graphite"
+          ],
+          "deltaEOK": 0.10869689790231285
+        }
+      ]
+    }
+  }
+}

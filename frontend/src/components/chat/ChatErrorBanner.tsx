@@ -11,7 +11,7 @@ type ChatErrorBannerProps = {
 export function ChatErrorBanner({ message, kind }: ChatErrorBannerProps) {
   return (
     <div
-      className="rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+      className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-4 py-3 text-sm text-destructive"
       role="alert"
     >
       <p className="font-medium">{headingForKind(kind)}</p>

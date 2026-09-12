@@ -201,7 +201,7 @@ export function TaxonomyPicker({
               className={cn(
                 "rounded-md border px-3 py-1.5 text-left text-sm transition-colors hover:bg-muted/50",
                 value.building_class === buildingClass.value &&
-                  "border-primary bg-primary/5 text-primary",
+                  "border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] text-[var(--sw-link)]",
               )}
               onClick={() => selectBuildingClass(buildingClass)}
             >
@@ -226,7 +226,7 @@ export function TaxonomyPicker({
                     className={cn(
                       "rounded-md border px-3 py-1.5 text-sm transition-colors hover:bg-muted/50",
                       value.work_type === workType.value &&
-                        "border-primary bg-primary/5 text-primary",
+                        "border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] text-[var(--sw-link)]",
                     )}
                     onClick={() => selectWorkType(workType.value)}
                   >

@@ -15,6 +15,7 @@ import {
   ShieldAlert,
   Square,
   Table2,
+  Trash,
   type LucideIcon,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
@@ -49,6 +50,7 @@ import {
   type WorkflowTile,
 } from "@/components/project/workflow/workflowTiles";
 import type {
+  DeleteDraftResponse,
   DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
@@ -63,6 +65,10 @@ import type {
   WorkflowTraceEvent,
 } from "@/lib/types/project";
 import { api } from "@/lib/api";
+import {
+  isDraftNotFoundError,
+  missingDraftDeleteResult,
+} from "@/lib/artefact-drafts";
 import { stripArtifactBlockMarkers } from "@/lib/artifact-markdown";
 import { ApiError } from "@/lib/http";
 import { runOptimisticMutation } from "@/lib/optimistic-mutation";
@@ -150,6 +156,7 @@ export function ProjectControlBoard({
   onProfileProposalsResolved,
   onDraftSelected,
   onDraftUpdated,
+  onPmpDeleted,
   repositoryEvidence = [],
   selectedEvidenceIds,
   onSelectEvidenceIds,
@@ -210,6 +217,7 @@ export function ProjectControlBoard({
   onProfileProposalsResolved?: () => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  onPmpDeleted?: (result: DeleteDraftResponse) => void;
   repositoryEvidence?: EvidencePreview[];
   selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
@@ -295,6 +303,7 @@ export function ProjectControlBoard({
     onProjectUpdated,
     onDraftSelected,
     onDraftUpdated,
+    onPmpDeleted,
     repositoryEvidence,
     selectedEvidenceIds,
     onSelectEvidenceIds,
@@ -387,6 +396,8 @@ function ProjectProfilePanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [exportAction, setExportAction] = useState<"docx" | "pdf" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const form = draft ?? serverForm;
   const formOverlayIssues = overlayIssuesFromProfile({
     buildingClass: form.profile.building_class,
@@ -597,11 +608,31 @@ function ProjectProfilePanel({
     }
   }
 
+  async function downloadProfileExport(format: "docx" | "pdf") {
+    setExportAction(format);
+    setExportError(null);
+    try {
+      const blob = await api.downloadProjectProfileExport(project.id, format);
+      downloadBlob(
+        blob,
+        `Project_Profile_v${String(serverRevision).padStart(2, "0")}.${format}`,
+      );
+    } catch (downloadError) {
+      setExportError(
+        downloadError instanceof ApiError
+          ? downloadError.message
+          : `Could not export ${format.toUpperCase()}.`,
+      );
+    } finally {
+      setExportAction(null);
+    }
+  }
+
   return (
-    <div className="grid gap-3">
+    <div className="space-y-4">
       {conflictRevision !== null ? (
         <div
-          className="border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-sm text-[var(--sw-caution)]"
+          className="border border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] p-3 text-sm text-[var(--sw-caution)]"
           role="alert"
         >
           <p className="font-medium">Project profile changed elsewhere.</p>
@@ -619,7 +650,7 @@ function ProjectProfilePanel({
         </div>
       ) : null}
       {overlayIssues.length || overlayPendingSave ? (
-        <div className="border border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] p-3 text-sm text-[var(--sw-caution)]">
+        <div className="border border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] p-3 text-sm text-[var(--sw-caution)]">
           <p className="font-medium">
             {overlayPendingSave
               ? "Save profile to apply these overlays."
@@ -646,118 +677,188 @@ function ProjectProfilePanel({
           {error}
         </p>
       ) : null}
-      {onProjectUpdated ? (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            onClick={() => void saveProfile()}
-            disabled={
-              saving ||
-              !draft ||
-              !draft.title.trim() ||
-              !taxonomyQuery.data ||
-              conflictRevision !== null
-            }
-            title={
-              conflictRevision !== null
-                ? "Resolve the profile conflict before saving"
-                : !draft
-                  ? "No unsaved changes"
-                  : !draft.title.trim()
-                    ? "Project name is required"
-                    : undefined
-            }
-          >
-            {saving ? (
-              <LoaderCircle className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Save className="size-4" aria-hidden />
-            )}
-            {saving ? "Saving" : "Save profile"}
-          </Button>
-          {saved ? <Badge variant="secondary">Saved</Badge> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {onProjectUpdated ? (
+            <>
+              <Button
+                type="button"
+                onClick={() => void saveProfile()}
+                disabled={
+                  saving ||
+                  !draft ||
+                  !draft.title.trim() ||
+                  !taxonomyQuery.data ||
+                  conflictRevision !== null
+                }
+                title={
+                  conflictRevision !== null
+                    ? "Resolve the profile conflict before saving"
+                    : !draft
+                      ? "No unsaved changes"
+                      : !draft.title.trim()
+                        ? "Project name is required"
+                        : undefined
+                }
+              >
+                {saving ? (
+                  <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                ) : (
+                  <Save className="size-4" aria-hidden />
+                )}
+                {saving ? "Saving" : "Save profile"}
+              </Button>
+              {saved ? <Badge variant="secondary">Saved</Badge> : null}
+            </>
+          ) : null}
         </div>
-      ) : null}
-      <div className="grid gap-1">
-        <Label
-          htmlFor={`project-title-${project.id}`}
-          className="text-xs font-normal text-muted-foreground"
-        >
-          Project name
-        </Label>
-        <Input
-          id={`project-title-${project.id}`}
-          value={form.title}
-          onChange={(event) =>
-            updateDraft({ ...form, title: event.target.value })
+        <div className="flex flex-wrap items-center gap-1.5">
+          {exportError ? (
+            <span className="self-center text-xs text-destructive" role="alert">
+              {exportError}
+            </span>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 text-muted-foreground hover:text-foreground"
+                disabled={exportAction !== null}
+                aria-label="Download project profile"
+                title="Download"
+              >
+                <Download
+                  className={cn(
+                    "size-5",
+                    exportAction !== null && "animate-pulse",
+                  )}
+                  aria-hidden
+                />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[11rem]">
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={exportAction !== null}
+                onSelect={() => {
+                  void downloadProfileExport("docx");
+                }}
+              >
+                <WordFileIcon className="size-6" />
+                <span>Word</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2.5 py-2"
+                disabled={exportAction !== null}
+                onSelect={() => {
+                  void downloadProfileExport("pdf");
+                }}
+              >
+                <PdfFileIcon className="size-6" />
+                <span>PDF</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Suspense fallback={null}>
+            <CopyContentButton
+              loadContent={async () => {
+                const blob = await api.downloadProjectProfileExport(
+                  project.id,
+                  "md",
+                );
+                return blob.text();
+              }}
+              label="Copy project profile"
+              size="icon"
+              className="size-10"
+            />
+          </Suspense>
+        </div>
+      </div>
+      <div className="grid gap-3 rounded-[var(--cockpit-card-radius)] border border-[var(--cockpit-card-border)] bg-[var(--cockpit-card-surface)] p-5 lg:p-6">
+        <div className="grid gap-1">
+          <Label
+            htmlFor={`project-title-${project.id}`}
+            className="text-xs font-normal text-muted-foreground"
+          >
+            Project name
+          </Label>
+          <Input
+            id={`project-title-${project.id}`}
+            value={form.title}
+            onChange={(event) =>
+              updateDraft({ ...form, title: event.target.value })
+            }
+            placeholder="Project name"
+            disabled={saving || !onProjectUpdated}
+          />
+        </div>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7.5rem,9rem)]">
+          <div className="grid gap-1">
+            <Label
+              htmlFor={`project-site-address-${project.id}`}
+              className="text-xs font-normal text-muted-foreground"
+            >
+              Site address
+            </Label>
+            <Input
+              id={`project-site-address-${project.id}`}
+              value={form.siteAddress}
+              onChange={(event) =>
+                updateDraft({ ...form, siteAddress: event.target.value })
+              }
+              placeholder="Street, suburb STATE postcode"
+              disabled={saving || !onProjectUpdated}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label
+              htmlFor={`project-client-${project.id}`}
+              className="text-xs font-normal text-muted-foreground"
+            >
+              Client / owners
+            </Label>
+            <Input
+              id={`project-client-${project.id}`}
+              value={form.client}
+              onChange={(event) =>
+                updateDraft({ ...form, client: event.target.value })
+              }
+              placeholder="Client or owner name"
+              disabled={saving || !onProjectUpdated}
+            />
+          </div>
+          <OverlaySelectField
+            id={`project-state-${project.id}`}
+            label="State"
+            value={form.state}
+            onChange={(state) => updateDraft({ ...form, state })}
+            options={projectStateOptions.map((item) => ({ value: item, label: item }))}
+            placeholder="Select state"
+            disabled={saving || !onProjectUpdated}
+          />
+        </div>
+        <TaxonomyPicker
+          catalog={taxonomyQuery.data}
+          value={form.profile}
+          onChange={(profile) => updateDraft({ ...form, profile })}
+          disabled={saving || !onProjectUpdated}
+          idPrefix={`project-profile-${project.id}`}
+          budget={form.budget}
+          onBudgetChange={(next) => updateDraft({ ...form, budget: next })}
+          scopeNarrative={form.scopeNarrative}
+          onScopeNarrativeChange={(next) =>
+            updateDraft({ ...form, scopeNarrative: next })
           }
-          placeholder="Project name"
-          disabled={saving || !onProjectUpdated}
         />
+        {taxonomyQuery.error ? (
+          <p className="text-sm text-destructive" role="alert">
+            Project profile options could not load.
+          </p>
+        ) : null}
       </div>
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(7.5rem,9rem)]">
-        <div className="grid gap-1">
-          <Label
-            htmlFor={`project-site-address-${project.id}`}
-            className="text-xs font-normal text-muted-foreground"
-          >
-            Site address
-          </Label>
-          <Input
-            id={`project-site-address-${project.id}`}
-            value={form.siteAddress}
-            onChange={(event) =>
-              updateDraft({ ...form, siteAddress: event.target.value })
-            }
-            placeholder="Street, suburb STATE postcode"
-            disabled={saving || !onProjectUpdated}
-          />
-        </div>
-        <div className="grid gap-1">
-          <Label
-            htmlFor={`project-client-${project.id}`}
-            className="text-xs font-normal text-muted-foreground"
-          >
-            Client / owners
-          </Label>
-          <Input
-            id={`project-client-${project.id}`}
-            value={form.client}
-            onChange={(event) =>
-              updateDraft({ ...form, client: event.target.value })
-            }
-            placeholder="Client or owner name"
-            disabled={saving || !onProjectUpdated}
-          />
-        </div>
-        <OverlaySelectField
-          id={`project-state-${project.id}`}
-          label="State"
-          value={form.state}
-          onChange={(state) => updateDraft({ ...form, state })}
-          options={projectStateOptions.map((item) => ({ value: item, label: item }))}
-          placeholder="Select state"
-          disabled={saving || !onProjectUpdated}
-        />
-      </div>
-      <TaxonomyPicker
-        catalog={taxonomyQuery.data}
-        value={form.profile}
-        onChange={(profile) => updateDraft({ ...form, profile })}
-        disabled={saving || !onProjectUpdated}
-        idPrefix={`project-profile-${project.id}`}
-        budget={form.budget}
-        onBudgetChange={(next) => updateDraft({ ...form, budget: next })}
-        scopeNarrative={form.scopeNarrative}
-        onScopeNarrativeChange={(next) =>
-          updateDraft({ ...form, scopeNarrative: next })
-        }
-      />
-      {taxonomyQuery.error ? (
-        <p className="text-sm text-destructive" role="alert">
-          Project profile options could not load.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -981,6 +1082,7 @@ function WorkflowDetail({
   onProjectUpdated,
   onDraftSelected,
   onDraftUpdated,
+  onPmpDeleted,
   repositoryEvidence = [],
   selectedEvidenceIds,
   onSelectEvidenceIds,
@@ -1035,6 +1137,7 @@ function WorkflowDetail({
   onProjectUpdated?: (project: ProjectDetail) => void;
   onDraftSelected?: (draft: DraftArtifactSummary) => void;
   onDraftUpdated?: (draft: DraftArtifact) => void;
+  onPmpDeleted?: (result: DeleteDraftResponse) => void;
   repositoryEvidence?: EvidencePreview[];
   selectedEvidenceIds?: Set<string>;
   onSelectEvidenceIds?: (evidenceIds: Set<string>) => void;
@@ -1065,6 +1168,7 @@ function WorkflowDetail({
     "docx" | "pdf" | "xlsx" | null
   >(null);
   const [draftExportError, setDraftExportError] = useState<string | null>(null);
+  const [deletingPmp, setDeletingPmp] = useState(false);
 
   async function downloadDraftExport(format: "docx" | "pdf") {
     if (!latestDraft) return;
@@ -1084,6 +1188,32 @@ function WorkflowDetail({
       );
     } finally {
       setDraftExportAction(null);
+    }
+  }
+
+  async function deletePmp() {
+    if (!latestDraft) return;
+    const confirmed = window.confirm(
+      `Delete "${latestDraft.title}"? This removes the project management plan and cannot be undone.`,
+    );
+    if (!confirmed) return;
+    setDeletingPmp(true);
+    setDraftExportError(null);
+    try {
+      const result = await api.deleteProjectDraft(project.id, latestDraft.id);
+      onPmpDeleted?.(result);
+    } catch (error) {
+      if (isDraftNotFoundError(error)) {
+        onPmpDeleted?.(missingDraftDeleteResult(latestDraft));
+        return;
+      }
+      setDraftExportError(
+        error instanceof ApiError
+          ? error.message
+          : "Could not delete the project management plan.",
+      );
+    } finally {
+      setDeletingPmp(false);
     }
   }
 
@@ -1138,13 +1268,7 @@ function WorkflowDetail({
   }
 
   return (
-    <div
-      className={cn(
-        "min-w-0",
-        isProjectProfile &&
-          "rounded-[var(--cockpit-card-radius)] border border-[var(--cockpit-card-border)] bg-[var(--cockpit-card-surface)] p-5 lg:p-6",
-      )}
-    >
+    <div className="min-w-0">
       <div className="space-y-4">
         {isProjectProfile ? (
           <ProjectProfilePanel
@@ -1155,7 +1279,7 @@ function WorkflowDetail({
         ) : isCreatePmp ? (
           <>
             {workflowError ? (
-              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
                 {workflowError}
               </p>
             ) : null}
@@ -1270,6 +1394,22 @@ function WorkflowDetail({
                     className="size-10"
                   />
                 </Suspense>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-10 text-muted-foreground hover:bg-[var(--sw-error-bg)] hover:text-[var(--sw-error-text)]"
+                  disabled={!latestDraft || draftExportAction !== null || deletingPmp}
+                  aria-label="Delete project management plan"
+                  title="Delete"
+                  onClick={() => void deletePmp()}
+                >
+                  {deletingPmp ? (
+                    <LoaderCircle className="size-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash className="size-5" aria-hidden />
+                  )}
+                </Button>
               </div>
             </div>
 
@@ -1297,7 +1437,7 @@ function WorkflowDetail({
         ) : isCostPlan ? (
           <>
             {activeError ? (
-              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
                 {activeError}
               </p>
             ) : null}
@@ -1544,7 +1684,7 @@ function WorkflowDetail({
             </div>
 
             {sortFilesError ? (
-              <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
                 {sortFilesError}
               </p>
             ) : null}
@@ -1664,7 +1804,7 @@ function OverlayGateNotice({
   onOpenProfile?: () => void;
 }) {
   return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+    <div className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-3 text-sm text-destructive">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="font-medium">{workflow} is blocked by missing overlays.</p>
@@ -1681,7 +1821,7 @@ function OverlayGateNotice({
             type="button"
             variant="outline"
             size="sm"
-            className="w-fit border-destructive/30 bg-background text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="w-fit border-[var(--sw-error-border)] bg-background text-destructive hover:bg-[var(--sw-error-bg)] hover:text-destructive"
             onClick={onOpenProfile}
           >
             <Settings2 className="size-4" aria-hidden />
@@ -1702,7 +1842,7 @@ function CapabilityGateNotice({
 }) {
   const reasons = capability?.reasons ?? [];
   return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+    <div className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-3 text-sm text-destructive">
       <p className="font-medium">{workflow} is not supported for this project yet.</p>
       {reasons.length ? (
         <ul className="mt-2 space-y-1 text-xs">

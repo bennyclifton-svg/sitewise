@@ -2,6 +2,7 @@ param(
     [int]$ApiPort = 8000,
     [int]$OdlPort = 5002,
     [string]$HostName = "127.0.0.1",
+    [switch]$Reload,
     [ValidateSet("debug", "info", "warning", "error")]
     [string]$OdlLogLevel = "info",
     [switch]$ForceOcr,
@@ -104,7 +105,12 @@ $env:TENDER_ODL_HYBRID_FALLBACK = "true"
 try {
     Write-Host "Starting Clerk backend at http://$HostName`:$ApiPort ..."
     Set-Location $backendDir
-    uv run uvicorn app.main:app --reload --host $HostName --port $ApiPort
+    $apiArgs = @("run", "uvicorn", "app.main:app", "--host", $HostName, "--port", "$ApiPort")
+    if ($Reload) {
+        Write-Warning "Auto-reload can interrupt active Pi turns when backend files change."
+        $apiArgs += "--reload"
+    }
+    & uv @apiArgs
 }
 finally {
     if ($null -ne $startedOdlJob) {

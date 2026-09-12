@@ -202,6 +202,29 @@ def test_pi_mcp_config_only_allows_web_tools_when_enabled(
     assert {"search_web", "read_web_source", "attach_official_instrument"} <= enabled
 
 
+@pytest.mark.parametrize("web_enabled", [False, True])
+def test_pi_env_waits_for_the_configured_direct_tools_before_first_prompt(
+    monkeypatch, tmp_path: Path, web_enabled: bool
+) -> None:
+    monkeypatch.setattr(
+        "app.agent.pi_process.settings.agent_web_research_enabled", web_enabled
+    )
+    monkeypatch.setenv("MCP_DIRECT_TOOLS", "__none__")
+
+    env = _build_env(mcp_url="http://test/mcp", turn_token="test-turn", cwd=tmp_path)
+    config = json.loads((tmp_path / ".pi" / "mcp.json").read_text(encoding="utf-8"))
+    names = config["mcpServers"]["clerk"]["directTools"]
+
+    assert env["MCP_DIRECT_TOOLS"].split(",") == [f"clerk/{name}" for name in names]
+    assert {
+        "get_project_profile",
+        "update_project_profile",
+        "search_documents",
+        "get_document",
+        "ensure_programme",
+    } <= set(names)
+
+
 def test_pi_builtin_tools_flag_uses_the_legacy_flag_when_needed(monkeypatch) -> None:
     monkeypatch.setattr(
         "app.agent.pi_process.subprocess.run",

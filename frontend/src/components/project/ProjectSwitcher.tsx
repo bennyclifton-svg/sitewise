@@ -104,31 +104,43 @@ export function ProjectSwitcher({
               <ChevronDown className="size-5 shrink-0 text-muted-foreground" aria-hidden />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[16rem] max-w-[20rem]">
+          <DropdownMenuContent
+            align="start"
+            className="flex max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[16rem] max-w-[20rem] flex-col overflow-hidden"
+          >
+            <DropdownMenuItem asChild>
+              <Link to="/" className="gap-2">
+                <FolderPlus className="size-3.5 shrink-0" aria-hidden />
+                Create project
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/">All projects</Link>
             </DropdownMenuItem>
-            {loading ? (
-              <p className="px-2 py-1.5 text-xs text-muted-foreground">Loading projects...</p>
-            ) : (
-              projects.map((project) => {
-                const isActive = project.id === activeProject.id;
-                return (
-                  <DropdownMenuItem
-                    key={project.id}
-                    className={cn(isActive && "bg-muted font-medium text-foreground")}
-                    onSelect={() => navigate(`/projects/${project.id}`)}
-                  >
-                    <span className="min-w-0 flex-1 whitespace-normal">{project.title}</span>
-                    {isActive ? (
-                      <Check className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    ) : (
-                      <span className="size-3.5 shrink-0" aria-hidden />
-                    )}
-                  </DropdownMenuItem>
-                );
-              })
-            )}
+            <DropdownMenuSeparator />
+            <div className="min-h-0 overflow-y-auto">
+              {loading ? (
+                <p className="px-2 py-1.5 text-xs text-muted-foreground">Loading projects...</p>
+              ) : (
+                projects.map((project) => {
+                  const isActive = project.id === activeProject.id;
+                  return (
+                    <DropdownMenuItem
+                      key={project.id}
+                      className={cn(isActive && "bg-muted font-medium text-foreground")}
+                      onSelect={() => navigate(`/projects/${project.id}`)}
+                    >
+                      <span className="min-w-0 flex-1 whitespace-normal">{project.title}</span>
+                      {isActive ? (
+                        <Check className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      ) : (
+                        <span className="size-3.5 shrink-0" aria-hidden />
+                      )}
+                    </DropdownMenuItem>
+                  );
+                })
+              )}
+            </div>
             {onRename ? (
               <>
                 <DropdownMenuSeparator />
@@ -144,13 +156,6 @@ export function ProjectSwitcher({
                 </DropdownMenuItem>
               </>
             ) : null}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link to="/" className="gap-2">
-                <FolderPlus className="size-3.5 shrink-0" aria-hidden />
-                Create project
-              </Link>
-            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       )}

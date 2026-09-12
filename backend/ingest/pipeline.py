@@ -183,6 +183,15 @@ def ingest_plan(
         **extracted.extraction_metadata,
     )
 
+    # Filename routing chooses an extractor; extracted content supplies the final
+    # semantic classification. Explicit user corrections must survive this pass.
+    classification = classify_entry(
+        plan.entry,
+        extracted_text=extracted.normalized_content,
+        override=plan.classification if plan.classification.basis == "user" else None,
+    )
+    plan = build_ingest_plan(plan.entry, plan.context, classification)
+
     if should_persist_chunks(plan, extracted_text=extracted.normalized_content):
         chunks = chunk_document(extracted, plan)
         if not chunks:

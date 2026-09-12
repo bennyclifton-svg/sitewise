@@ -126,7 +126,7 @@ export function HomePage() {
 
       <main className="mx-auto w-full max-w-7xl space-y-4 px-4 py-5">
         {backendUnavailable ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+          <div className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] p-4 text-sm text-destructive">
             <div className="flex items-start gap-2">
               <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
               <div>

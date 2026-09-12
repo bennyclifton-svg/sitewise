@@ -15,7 +15,9 @@ async def lock_project(
     result = await session.execute(
         select(Project)
         .where(Project.id == project_id)
-        .with_for_update()
+        # Child inserts may already hold FK key-share locks. Serialise writers
+        # without upgrading those references into a mutual FOR UPDATE deadlock.
+        .with_for_update(key_share=True)
         .execution_options(autoflush=False, populate_existing=True)
     )
     return result.scalar_one_or_none()

@@ -24,6 +24,12 @@ import { projectChatLayoutState } from "@/components/project/projectChatLayout";
 import { ProjectShell } from "@/components/project/ProjectShell";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import {
+  applyArtefactDeleted,
+  artefactMapKey,
+  isPmpWorkflowType,
+  repositoryArtefactDrafts,
+} from "@/lib/artefact-drafts";
 import { applyDocumentSelectionEvent } from "@/lib/chat-events";
 import { ApiError } from "@/lib/http";
 import { projectSiteAddress } from "@/lib/project-taxonomy";
@@ -40,13 +46,14 @@ import {
 import { prefetchWorkbench } from "@/lib/queries/workbench";
 import { projectActivityKeys } from "@/lib/queries/project-activity";
 import { useProjectEmails, invalidateProjectEmails } from "@/lib/queries/emails";
-import { EMPTY_PULSE_FEED, pulseSinceIso, type PulseAction, type PulseItem } from "@/lib/types/pulse";
+import { EMPTY_PULSE_FEED, type PulseAction, type PulseItem } from "@/lib/types/pulse";
 import type { ProjectEmailDraft, ProjectEmailMessage, ProjectEmailRegisterRow } from "@/lib/types/email";
 import { useDismissPulse, usePulseFeed } from "@/lib/queries/pulse";
 import { waitForWorkflowRun } from "@/lib/queries/workflow-runs";
 import type { Citation } from "@/lib/types/citation";
 import type { ChatMessage, ChatThread } from "@/lib/types/chat";
 import type {
+  DeleteDraftResponse,
   DraftArtifact,
   DraftArtifactSummary,
   EvidencePreview,
@@ -194,12 +201,12 @@ function ProjectCockpitContents() {
     projectId ?? "",
     { enabled: bootstrapLoaded && !!projectId },
   );
-  const pulseSince = pulseSinceIso("7d");
+  // The server advances the rolling seven-day window on each poll. Keep its
+  // cache identity stable across renders and workflow navigation.
   const pulseQuery = usePulseFeed(projectId ?? "", {
     enabled: bootstrapLoaded && !!projectId,
-    since: pulseSince,
   });
-  const dismissPulse = useDismissPulse(projectId ?? "", pulseSince);
+  const dismissPulse = useDismissPulse(projectId ?? "");
   const emailsQuery = useProjectEmails(projectId ?? "", {
     enabled: bootstrapLoaded && !!projectId,
   });
@@ -261,27 +268,29 @@ function ProjectCockpitContents() {
       const workflowType = event.payload.workflow_type;
       if (typeof workflowType !== "string") return;
       const tracked =
-        workflowType === "create_pmp" ||
+        isPmpWorkflowType(workflowType) ||
         workflowType === "create_cost_plan" ||
         workflowType.startsWith("consultant_procurement") ||
         workflowType.startsWith("contractor_eoi") ||
         workflowType.startsWith("trade_rft") ||
         workflowType.startsWith("trade_rfq");
       if (!tracked) return;
-      void api.getLatestDraft(projectId, workflowType).then((draft) => {
+      const fetchType = isPmpWorkflowType(workflowType) ? "create_pmp" : workflowType;
+      void api.getLatestDraft(projectId, fetchType).then((draft) => {
         if (!draft) return;
+        const mapKey = artefactMapKey(workflowType);
         setLatestDraftsMap((current) => {
-          const existing = current[workflowType];
+          const existing = current[mapKey];
           const next = preferFreshDraft(existing ?? null, draft);
           if (next === existing) return current;
           return {
             ...current,
-            [workflowType]: next,
+            [mapKey]: next,
           };
         });
         if (workflowType === "create_cost_plan") {
           setLatestCostPlanDraft((current) => preferFreshDraft(current, draft));
-        } else if (workflowType === "create_pmp") {
+        } else if (isPmpWorkflowType(workflowType)) {
           setLatestDraft((current) => preferFreshDraft(current, draft));
         } else {
           setProcurementRefreshToken((current) => current + 1);
@@ -433,7 +442,7 @@ function ProjectCockpitContents() {
         return;
       }
       setReviewDraft(draft);
-      setLatestDraftsMap((current) => ({ ...current, [draft.workflow_type]: draft }));
+      setLatestDraftsMap((current) => ({ ...current, [artefactMapKey(draft.workflow_type)]: draft }));
       setSelectedWorkspacePath(draft.workspace_path);
       const workflowId =
         draft.workflow_type === "create_cost_plan"
@@ -447,7 +456,7 @@ function ProjectCockpitContents() {
       // artefacts keep the dedicated draft review view.
       if (
         draft.workflow_type === "create_cost_plan" ||
-        draft.workflow_type === "create_pmp" ||
+        isPmpWorkflowType(draft.workflow_type) ||
         isProcurementDraftWorkflow(draft.workflow_type)
       ) {
         setActiveView("workbench");
@@ -574,7 +583,7 @@ function ProjectCockpitContents() {
     setReviewDraft(draft);
     setLatestDraftsMap((current) => ({
       ...current,
-      [draft.workflow_type]: draft,
+      [artefactMapKey(draft.workflow_type)]: draft,
     }));
     setSelectedWorkspacePath(draft.workspace_path);
     setChatPanelCollapsed(true);
@@ -584,7 +593,7 @@ function ProjectCockpitContents() {
       showWorkbench("cost-plan");
       return;
     }
-    if (draft.workflow_type === "create_pmp") {
+    if (isPmpWorkflowType(draft.workflow_type)) {
       setLatestDraft(draft);
       // PMP drafts render inline on the Project Plan workbench.
       showWorkbench("create-pmp");
@@ -598,11 +607,34 @@ function ProjectCockpitContents() {
     setActiveView("draft");
   }
 
+  function handleArtefactDeleted(result: DeleteDraftResponse) {
+    const isPmp = isPmpWorkflowType(result.workflow_type);
+    setLatestDraftsMap((current) => applyArtefactDeleted(current, result));
+    if (isPmp) {
+      setLatestDraft(result.latest_draft);
+    }
+    if (result.workflow_type === "create_cost_plan") {
+      setLatestCostPlanDraft(result.latest_draft);
+    }
+    setReviewDraft((current) => {
+      if (!current) return current;
+      if (current.id === result.deleted_id) return result.latest_draft;
+      if (isPmp && isPmpWorkflowType(current.workflow_type)) {
+        return result.latest_draft;
+      }
+      return current;
+    });
+    if (isProcurementDraftWorkflow(result.workflow_type)) {
+      setProcurementRefreshToken((current) => current + 1);
+    }
+    void refreshWorkspaceTree();
+  }
+
   async function handleDraftUpdated(draft: DraftArtifact) {
     setReviewDraft(draft);
     setLatestDraftsMap((current) => ({
       ...current,
-      [draft.workflow_type]: draft,
+      [artefactMapKey(draft.workflow_type)]: draft,
     }));
     if (draft.workflow_type === "create_cost_plan") {
       setLatestCostPlanDraft(draft);
@@ -1173,29 +1205,9 @@ function ProjectCockpitContents() {
           platformStatus={platformStatus}
           selectedPlatformKnowledgePath={selectedPlatformKnowledge?.relative_path ?? null}
           onSelectPlatformKnowledge={selectPlatformKnowledge}
-          artefactDrafts={Object.values(latestDraftsMap).filter(
-            (draft): draft is DraftArtifactSummary => draft !== null,
-          )}
+          artefactDrafts={repositoryArtefactDrafts(Object.values(latestDraftsMap))}
           onOpenDraft={openDraftReview}
-          onArtefactDeleted={(result) => {
-            setLatestDraftsMap((current) => ({
-              ...current,
-              [result.workflow_type]: result.latest_draft,
-            }));
-            if (result.workflow_type === "create_pmp") {
-              setLatestDraft(result.latest_draft);
-            }
-            if (result.workflow_type === "create_cost_plan") {
-              setLatestCostPlanDraft(result.latest_draft);
-            }
-            setReviewDraft((current) =>
-              current?.id === result.deleted_id ? result.latest_draft : current,
-            );
-            if (isProcurementDraftWorkflow(result.workflow_type)) {
-              setProcurementRefreshToken((current) => current + 1);
-            }
-            void refreshWorkspaceTree();
-          }}
+          onArtefactDeleted={handleArtefactDeleted}
           usageHighlightArtefactId={usageHighlightArtefactId}
         />
       }
@@ -1251,13 +1263,14 @@ function ProjectCockpitContents() {
             setReviewDraft((current) => (current?.id === draft.id ? current : draft));
             setLatestDraftsMap((current) => ({
               ...current,
-              [draft.workflow_type]: draft,
+              [artefactMapKey(draft.workflow_type)]: draft,
             }));
             setSelectedWorkspacePath(draft.workspace_path);
           }}
           onDraftUpdated={(draft) => {
             void handleDraftUpdated(draft);
           }}
+          onPmpDeleted={handleArtefactDeleted}
           repositoryEvidence={evidence}
           selectedEvidenceIds={selectedRepositoryEvidenceIds}
           onSelectEvidenceIds={setSelectedRepositoryEvidenceIds}

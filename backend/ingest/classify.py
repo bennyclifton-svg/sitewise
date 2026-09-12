@@ -516,6 +516,16 @@ def classify_entry(
     if subject == "none" and subject_override:
         subject = canonical_category(subject_override)
     discipline = _discipline_slug(filename, extracted_text or "")
+    proposal_heading = re.search(
+        r"^\s*#\s*fee\s+proposal\s*[—–-]\s*(.+)$", extracted_text or "", re.I | re.M
+    )
+    if proposal_heading:
+        # The offered discipline outranks other consultants mentioned in scope.
+        offered = proposal_heading.group(1).strip()
+        subject = canonical_category(offered)
+        discipline = _discipline_slug(offered)
+        if offered.casefold() == "building services engineering":
+            discipline = "services"
     if discipline:
         metadata.setdefault("discipline", discipline)
         subject = _subject_from_discipline(subject, discipline)
@@ -606,7 +616,8 @@ def classify_entry(
             basis="content",
             confidence=confidence,
             metadata=metadata,
-            subject=content_subject,
+            subject=subject if content_subject == "none" else content_subject,
+            extracted_text=extracted_text,
         )
 
     return _classification(

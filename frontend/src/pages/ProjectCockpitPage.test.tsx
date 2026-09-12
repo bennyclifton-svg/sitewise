@@ -348,6 +348,22 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     );
   });
 
+  it("reuses one rolling Pulse query while navigating and updating the cockpit", async () => {
+    const user = userEvent.setup();
+    const client = renderProjectCockpit({ staleTime: 30_000 });
+    await screen.findByRole("button", { name: "Create cost plan" });
+    await waitFor(() => expect(mocks.api.getProjectPulse).toHaveBeenCalled());
+
+    for (const name of ["Open Cost Plan panel", "Open Procurement panel", "Open Project Plan panel"]) {
+      await user.click(screen.getByRole("button", { name }));
+    }
+    await user.click(screen.getByRole("button", { name: "Create cost plan" }));
+    await screen.findByTestId("pending-chat-instruction");
+    expect(mocks.api.getProjectPulse).toHaveBeenCalledTimes(1);
+    expect(mocks.api.getProjectPulse).toHaveBeenCalledWith("project-1", undefined);
+    expect(client.getQueryCache().findAll({ queryKey: ["project", "project-1", "pulse"] })).toHaveLength(1);
+  });
+
   it("sends Create cost plan as a chat instruction instead of starting a durable run", async () => {
     const user = userEvent.setup();
     renderProjectCockpit();

@@ -107,7 +107,7 @@ export function TenderReportPanel({
       </header>
 
       {error || queryError ? (
-        <p className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p className="mx-4 mt-4 flex items-center gap-2 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
           <AlertCircle className="size-4" aria-hidden />
           {error || queryError}
         </p>

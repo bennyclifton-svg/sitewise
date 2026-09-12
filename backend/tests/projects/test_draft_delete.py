@@ -109,3 +109,93 @@ def test_delete_project_draft_missing_raises_404(mock_session: AsyncMock) -> Non
         assert exc.value.status_code == 404
 
     run_async(_run())
+
+
+def test_delete_create_pmp_removes_all_plan_versions(mock_session: AsyncMock) -> None:
+    current = SimpleNamespace(
+        id=DRAFT_ID,
+        project_id=PROJECT_ID,
+        workflow_type="create_pmp",
+        workspace_path="04-projects/demo/00-brief-pmp/PMP.md",
+    )
+    previous = SimpleNamespace(
+        id=uuid.UUID("44444444-4444-4444-4444-444444444444"),
+        project_id=PROJECT_ID,
+        workflow_type="create_pmp",
+        workspace_path="04-projects/demo/00-brief-pmp/PMP_v01.md",
+    )
+    workspace_file = SimpleNamespace(
+        id=uuid.uuid4(),
+        workspace_path=current.workspace_path,
+        storage_key="demo/PMP.md",
+    )
+
+    mock_session.get = AsyncMock(return_value=current)
+    mock_session.scalars = AsyncMock(
+        side_effect=[
+            _scalars([current, previous]),
+            _scalars([]),
+            _scalars([workspace_file]),
+            _scalars([]),
+        ]
+    )
+    mock_session.execute = AsyncMock(return_value=MagicMock())
+
+    async def _run() -> None:
+        with patch(
+            "app.projects.draft_delete.get_latest_draft_artifact",
+            new=AsyncMock(return_value=None),
+        ):
+            storage_keys, latest = await delete_project_draft(
+                mock_session, project=_project(), draft_id=DRAFT_ID
+            )
+
+        assert storage_keys == ["demo/PMP.md"]
+        assert latest is None
+        mock_session.delete.assert_any_await(current)
+        mock_session.delete.assert_any_await(previous)
+        mock_session.commit.assert_awaited_once()
+
+    run_async(_run())
+
+
+def test_delete_project_draft_clears_workspace_file_locks(
+    mock_session: AsyncMock,
+) -> None:
+    draft = SimpleNamespace(
+        id=DRAFT_ID,
+        project_id=PROJECT_ID,
+        workflow_type="create_pmp",
+        workspace_path="04-projects/demo/00-brief-pmp/PMP.md",
+    )
+    workspace_file = SimpleNamespace(
+        id=uuid.uuid4(),
+        workspace_path=draft.workspace_path,
+        storage_key="demo/PMP.md",
+    )
+
+    mock_session.get = AsyncMock(return_value=draft)
+    mock_session.scalars = AsyncMock(
+        side_effect=[
+            _scalars([draft]),
+            _scalars([]),
+            _scalars([workspace_file]),
+            _scalars([]),
+        ]
+    )
+    mock_session.execute = AsyncMock(return_value=MagicMock())
+
+    async def _run() -> None:
+        with patch(
+            "app.projects.draft_delete.get_latest_draft_artifact",
+            new=AsyncMock(return_value=None),
+        ):
+            await delete_project_draft(
+                mock_session, project=_project(), draft_id=DRAFT_ID
+            )
+
+        executed = [str(call.args[0]) for call in mock_session.execute.await_args_list]
+        assert any("project_document_selection_items" in sql for sql in executed)
+        assert any("workflow_input_retention_locks" in sql for sql in executed)
+
+    run_async(_run())

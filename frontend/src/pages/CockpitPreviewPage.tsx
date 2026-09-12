@@ -405,7 +405,7 @@ export function CockpitPreviewPage() {
         />
       }
     >
-      <div className="border-b border-[color-mix(in_oklch,var(--sw-caution)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_12%,transparent)] px-4 py-2 text-sm text-[var(--sw-caution)]">
+      <div className="border-b border-[var(--sw-warning-border)] bg-[var(--sw-warning-bg)] px-4 py-2 text-sm text-[var(--sw-caution)]">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
           <span>
             Cockpit preview: this surface uses sample data so the shell is visible while

@@ -44,6 +44,7 @@ from app.database.chats import (
     title_from_message,
 )
 from app.database.draft_artifacts import (
+    get_draft_artifact_summaries_by_id,
     get_draft_artifact,
     get_latest_draft_artifact_by_workspace_path,
     get_latest_prefixed_draft_artifact_summaries,
@@ -156,7 +157,9 @@ from app.projects.profile import (
     ProfileRevisionConflict,
     ProfileValidationError,
     apply_profile_patch,
+    read_profile,
 )
+from app.projects.profile_exports import profile_export_markdown
 from app.projects.profile_proposals import (
     ProfileProposalNotFound,
     ProfileProposalRevisionConflict,
@@ -575,6 +578,12 @@ async def _cost_plan_workbook_bytes(
         workspace_path=workspace_path,
     )
     if record is None:
+        await sync_cost_plan_revision_artifacts(session, project=project, draft=draft)
+        record = await get_workspace_file_by_path(
+            session, project_id=project.id,
+            workspace_path=cost_plan_workbook_workspace_path(project, draft.version),
+        )
+    if record is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Cost workbook is not available for download.",
@@ -606,11 +615,23 @@ async def _resolve_workspace_file_for_read(
                 path = cost_plan_workbook_workspace_path(project, state.version)
             except LookupError:
                 path = workspace_path
-    return await get_workspace_file_by_path(
+    record = await get_workspace_file_by_path(
         session,
         project_id=project.id,
         workspace_path=path,
     )
+    if record is None and _is_cost_plan_workbook_path(path):
+        draft = await get_latest_draft_artifact(
+            session, project_id=project.id, workflow_type="create_cost_plan"
+        )
+        # Recover after a restart or failed deferred build, without substituting
+        # the latest revision for an explicitly requested historical file.
+        if draft is not None and path == cost_plan_workbook_workspace_path(project, draft.version):
+            await sync_cost_plan_revision_artifacts(session, project=project, draft=draft)
+            record = await get_workspace_file_by_path(
+                session, project_id=project.id, workspace_path=path
+            )
+    return record
 
 
 def _download_headers(filename: str) -> dict[str, str]:
@@ -802,27 +823,14 @@ async def _ensure_cost_plan_workspace_file(
     if cost_plan_summary is None:
         return workspace_files
 
-    if await flush_cost_plan_workbook_rebuild(project.id):
-        workspace_files = await list_workspace_files_for_project(
-            session, project_id=project.id
-        )
-
     canonical_path = cost_plan_workbook_workspace_path(
         project, cost_plan_summary.version
     )
-    if any(record.workspace_path == canonical_path for record in workspace_files):
-        return workspace_files
-
-    draft = await get_latest_draft_artifact(
-        session,
-        project_id=project.id,
-        workflow_type="create_cost_plan",
-    )
-    if draft is None:
-        return workspace_files
-
-    await sync_cost_plan_revision_artifacts(session, project=project, draft=draft)
-    return await list_workspace_files_for_project(session, project_id=project.id)
+    if not any(record.workspace_path == canonical_path for record in workspace_files):
+        # Navigation only advertises the canonical path. Preview/download flushes
+        # the deferred export when its bytes are actually needed.
+        schedule_cost_plan_workbook_rebuild(project.id, cost_plan_summary.version)
+    return workspace_files
 
 
 async def _ensure_procurement_workspace_files(
@@ -883,6 +891,10 @@ async def _procurement_request_view(
     draft = None
     if request.current_draft_artifact_id is not None:
         draft = await get_draft_artifact(session, request.current_draft_artifact_id)
+    return _procurement_request_response(request, draft)
+
+
+def _procurement_request_response(request, draft) -> ProcurementRequestView:
     return ProcurementRequestView.model_validate(
         {
             "id": request.id,
@@ -1622,6 +1634,55 @@ async def get_project_detail(
     )
 
 
+@router.get("/{project_id}/profile/export")
+async def export_project_profile(
+    project_id: uuid.UUID,
+    format: Literal["pdf", "docx", "md"] = Query(...),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    """Render the saved project profile as Word, PDF, or markdown."""
+    project = _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    profile = read_profile(project)
+    filename = f"Project_Profile_v{profile.profile_revision:02d}.{format}"
+    markdown = profile_export_markdown(profile)
+    if format == "md":
+        return Response(
+            content=markdown.encode("utf-8"),
+            media_type="text/markdown; charset=utf-8",
+            headers=_download_headers(filename),
+        )
+    try:
+        content = await asyncio.to_thread(
+            render_artifact_export,
+            markdown,
+            export_format=format,
+            project_title=project.title,
+            artifact_title="Project Profile",
+            version=profile.profile_revision,
+        )
+    except (ImportError, OSError, RuntimeError, OfficeConversionError) as exc:
+        log.exception(
+            "project_profile_export_failed",
+            extra={"project_id": str(project.id), "export_type": format},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"{format.upper()} export is temporarily unavailable. Please try again.",
+        ) from exc
+    media_type = (
+        "application/pdf"
+        if format == "pdf"
+        else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers=_download_headers(filename),
+    )
+
+
 @router.get("/{project_id}/cockpit-bootstrap")
 async def get_project_cockpit_bootstrap(
     project_id: uuid.UUID,
@@ -1717,6 +1778,9 @@ async def get_project_cockpit_bootstrap(
     capabilities = workflow_capabilities(snapshot)
     timings_ms["workflow_capabilities"] = _elapsed_ms(step_start)
     timings_ms["total"] = _elapsed_ms(total_start)
+    response.headers["Server-Timing"] = ", ".join(
+        f"{stage};dur={duration}" for stage, duration in timings_ms.items()
+    )
     response.headers["ETag"] = (
         f'W/"{project.profile_revision}:{project.decision_set_revision}:'
         f'{capabilities.snapshot_content_fingerprint}"'
@@ -3741,16 +3805,52 @@ async def post_project_procurement_strategy_operations(
 @router.get("/{project_id}/procurement-requests")
 async def get_project_procurement_requests(
     project_id: uuid.UUID,
+    response: Response,
     user: CurrentUser = Depends(get_current_user),
     session: AsyncSession = Depends(get_db),
 ) -> ProcurementRequestListResponse:
+    started = time.perf_counter()
     _require_project_owner(await get_project(session, project_id), user.id)
+    owner_ms = _elapsed_ms(started)
+    step_started = time.perf_counter()
     requests = await list_procurement_requests(session, project_id=project_id)
-    return ProcurementRequestListResponse(
+    requests_ms = _elapsed_ms(step_started)
+    step_started = time.perf_counter()
+    drafts = await get_draft_artifact_summaries_by_id(
+        session,
+        project_id=project_id,
+        draft_ids=[
+            request.current_draft_artifact_id
+            for request in requests
+            if request.current_draft_artifact_id is not None
+        ],
+    )
+    drafts_ms = _elapsed_ms(step_started)
+    result = ProcurementRequestListResponse(
         requests=[
-            await _procurement_request_view(session, request) for request in requests
+            _procurement_request_response(
+                request, drafts.get(request.current_draft_artifact_id)
+            )
+            for request in requests
         ]
     )
+    timings_ms = {
+        "owner": owner_ms,
+        "requests": requests_ms,
+        "draft_summaries": drafts_ms,
+        "total": _elapsed_ms(started),
+    }
+    response.headers["Server-Timing"] = ", ".join(
+        f"{stage};dur={duration}" for stage, duration in timings_ms.items()
+    )
+    log.info(
+        "project_procurement_requests_complete",
+        project_id=str(project_id),
+        request_count=len(requests),
+        draft_count=len(drafts),
+        timings_ms=timings_ms,
+    )
+    return result
 
 
 @router.post(

@@ -201,25 +201,25 @@ export function sourceTypeStyle(sourceType: SourceType): SourceTypeStyle {
       return {
         label: "Project evidence",
         chipClassName:
-          "border-[color-mix(in_oklch,var(--sw-beam)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-beam)_22%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)] text-[var(--sw-info-text)] hover:bg-[var(--sw-selection-bg)]",
         panelClassName:
-          "border-[color-mix(in_oklch,var(--sw-beam)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-beam)_10%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)]",
       };
     case "doctrine":
       return {
         label: "Doctrine",
         chipClassName:
-          "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-facet-blue)_28%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)] text-[var(--sw-info-text)] hover:bg-[var(--sw-selection-bg)]",
         panelClassName:
-          "border-[color-mix(in_oklch,var(--sw-facet-blue)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_12%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)]",
       };
     case "reference":
       return {
         label: "Reference",
         chipClassName:
-          "border-[color-mix(in_oklch,var(--sw-caution)_40%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_14%,transparent)] text-[var(--sw-caution)] hover:bg-[color-mix(in_oklch,var(--sw-caution)_22%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)] text-[var(--sw-info-text)] hover:bg-[var(--sw-selection-bg)]",
         panelClassName:
-          "border-[color-mix(in_oklch,var(--sw-caution)_32%,transparent)] bg-[color-mix(in_oklch,var(--sw-caution)_10%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)]",
       };
     case "web_legislation":
     case "web_planning":
@@ -232,9 +232,9 @@ export function sourceTypeStyle(sourceType: SourceType): SourceTypeStyle {
               ? "Official planning source"
               : "Official web reference",
         chipClassName:
-          "border-[color-mix(in_oklch,var(--sw-facet-blue)_45%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_18%,transparent)] text-[var(--sw-beam)] hover:bg-[color-mix(in_oklch,var(--sw-facet-blue)_28%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)] text-[var(--sw-info-text)] hover:bg-[var(--sw-selection-bg)]",
         panelClassName:
-          "border-[color-mix(in_oklch,var(--sw-facet-blue)_36%,transparent)] bg-[color-mix(in_oklch,var(--sw-facet-blue)_12%,transparent)]",
+          "border-[var(--sw-info-border)] bg-[var(--sw-info-bg)]",
       };
     default:
       return {

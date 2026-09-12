@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "@/lib/api";
 import { prefetchWorkbench, workbenchKeys } from "@/lib/queries/workbench";
 
+const panel = vi.hoisted(() => ({ loaded: vi.fn() }));
+vi.mock("@/components/project/ProcurementRequestPanel", () => {
+  panel.loaded();
+  return { ProcurementRequestPanel: () => null };
+});
+
 vi.mock("@/lib/api", () => ({
   api: {
     getProjectDraft: vi.fn(),
@@ -54,6 +60,8 @@ describe("prefetchWorkbench", () => {
     expect(api.getInvoiceLedger).not.toHaveBeenCalled();
     expect(api.ensureProgramme).toHaveBeenCalledWith("project-1");
     expect(api.listProcurementRequests).toHaveBeenCalledWith("project-1");
+    // The next panel's code must already be requested before the user clicks it.
+    await vi.waitFor(() => expect(panel.loaded).toHaveBeenCalledTimes(1));
   });
 
   it("prefetches PMP markdown, decisions, and Cost Plan state when drafts exist", async () => {

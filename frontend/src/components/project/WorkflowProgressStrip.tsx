@@ -43,7 +43,7 @@ export function WorkflowProgressStrip({
 
   return (
     <div
-      className="rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
+      className="rounded-md border border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] px-3 py-2 text-xs text-muted-foreground"
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -52,7 +52,7 @@ export function WorkflowProgressStrip({
     >
       <div className="flex items-start gap-2">
         <Loader2
-          className="mt-0.5 size-3 shrink-0 animate-spin text-primary/70 motion-reduce:animate-none"
+          className="mt-0.5 size-3 shrink-0 animate-spin text-[var(--sw-link)] motion-reduce:animate-none"
           aria-hidden
         />
         <div className="min-w-0 flex-1">
@@ -77,11 +77,11 @@ export function WorkflowProgressStrip({
           {sections.sections.map((section) => (
             <li key={section.id} className="flex min-w-0 items-center gap-1">
               {section.status === "complete" ? (
-                <Check className="size-3 shrink-0 text-primary" aria-hidden />
+                <Check className="size-3 shrink-0 text-[var(--sw-link)]" aria-hidden />
               ) : section.status === "failed" ? (
                 <TriangleAlert className="size-3 shrink-0 text-destructive" aria-hidden />
               ) : section.status === "generating" ? (
-                <Loader2 className="size-3 shrink-0 animate-spin text-primary" aria-hidden />
+                <Loader2 className="size-3 shrink-0 animate-spin text-[var(--sw-link)]" aria-hidden />
               ) : (
                 <Circle className="size-2.5 shrink-0 text-muted-foreground/50" aria-hidden />
               )}
@@ -93,7 +93,7 @@ export function WorkflowProgressStrip({
 
       <div className="mt-2 flex items-center gap-2">
         <div
-          className="h-0.5 min-w-0 flex-1 overflow-hidden rounded-full bg-primary/15"
+          className="h-0.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--sw-selection-bg)]"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -103,8 +103,8 @@ export function WorkflowProgressStrip({
           <div
             className={
               percent === null
-                ? "h-full w-1/3 animate-pulse rounded-full bg-primary/70 motion-reduce:animate-none"
-                : "h-full rounded-full bg-primary/70 transition-[width] duration-300 ease-out"
+                ? "h-full w-1/3 animate-pulse rounded-full bg-[var(--sw-selection-bg)] motion-reduce:animate-none"
+                : "h-full rounded-full bg-[var(--sw-selection-bg)] transition-[width] duration-300 ease-out"
             }
             style={percent === null ? undefined : { width: `${percent}%` }}
           />

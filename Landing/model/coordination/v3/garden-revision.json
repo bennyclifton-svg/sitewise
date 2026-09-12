@@ -1,0 +1,88 @@
+{
+  "source": "sitewise-facade-v7.blend",
+  "checkpoint": "sitewise-gardens-v8.blend",
+  "gardens": [
+    {
+      "dwelling": 1,
+      "patio_elevation": 0.36,
+      "awning_width": 3.65,
+      "projection": 2.123,
+      "posts": 2,
+      "slats": 18,
+      "table": 1,
+      "chairs": 2,
+      "tree_shape": "spreading",
+      "tree_height": 3.6,
+      "garden_y": [
+        -14.139999389648438,
+        -8.153348922729492
+      ]
+    },
+    {
+      "dwelling": 2,
+      "patio_elevation": 0.36,
+      "awning_width": 3.65,
+      "projection": 2.17,
+      "posts": 2,
+      "slats": 18,
+      "table": 1,
+      "chairs": 2,
+      "tree_shape": "upright",
+      "tree_height": 4.15,
+      "garden_y": [
+        -8.033348083496094,
+        -2.4258248805999756
+      ]
+    },
+    {
+      "dwelling": 3,
+      "patio_elevation": 0.36,
+      "awning_width": 3.65,
+      "projection": 2.188,
+      "posts": 2,
+      "slats": 18,
+      "table": 1,
+      "chairs": 2,
+      "tree_shape": "multi-stem",
+      "tree_height": 3.25,
+      "garden_y": [
+        -2.3058249950408936,
+        3.3017008304595947
+      ]
+    },
+    {
+      "dwelling": 4,
+      "patio_elevation": 0.06,
+      "awning_width": 3.65,
+      "projection": 1.737,
+      "posts": 2,
+      "slats": 18,
+      "table": 1,
+      "chairs": 2,
+      "tree_shape": "layered",
+      "tree_height": 3.85,
+      "garden_y": [
+        3.421700954437256,
+        9.029226303100586
+      ]
+    },
+    {
+      "dwelling": 5,
+      "patio_elevation": 0.06,
+      "awning_width": 3.65,
+      "projection": 1.719,
+      "posts": 2,
+      "slats": 18,
+      "table": 1,
+      "chairs": 2,
+      "tree_shape": "open-vase",
+      "tree_height": 4.0,
+      "garden_y": [
+        9.149225234985352,
+        14.84000015258789
+      ]
+    }
+  ],
+  "removed_ball_shrubs": 21,
+  "added_objects": 435
+}

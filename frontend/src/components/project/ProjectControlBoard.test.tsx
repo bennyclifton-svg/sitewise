@@ -39,8 +39,10 @@ vi.mock("@/lib/api", () => ({
     getProgrammeFigureSvg: vi.fn(),
     getProjectDraft: vi.fn(),
     listDecisions: vi.fn(),
+    deleteProjectDraft: vi.fn(),
     downloadWorkspaceFile: vi.fn(),
     downloadDraftExport: vi.fn(),
+    downloadProjectProfileExport: vi.fn(),
   },
 }));
 
@@ -707,6 +709,50 @@ describe("ProjectControlBoard project profile", () => {
     );
   });
 
+  it("downloads Word and PDF from the profile toolbar beside copy", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.downloadProjectProfileExport).mockResolvedValue(new Blob(["export"]));
+    Object.defineProperty(URL, "createObjectURL", {
+      configurable: true,
+      value: vi.fn(() => "blob:test"),
+    });
+    Object.defineProperty(URL, "revokeObjectURL", {
+      configurable: true,
+      value: vi.fn(),
+    });
+
+    render(profileBoard(project));
+
+    await user.click(screen.getByRole("button", { name: "Download project profile" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Word" }));
+    await waitFor(() => {
+      expect(api.downloadProjectProfileExport).toHaveBeenCalledWith("project-1", "docx");
+    });
+
+    await user.click(screen.getByRole("button", { name: "Download project profile" }));
+    await user.click(await screen.findByRole("menuitem", { name: "PDF" }));
+    await waitFor(() => {
+      expect(api.downloadProjectProfileExport).toHaveBeenCalledWith("project-1", "pdf");
+    });
+    expect(screen.getByRole("button", { name: "Copy project profile" })).toBeInTheDocument();
+  });
+
+  it("copies the project profile markdown from the toolbar", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.downloadProjectProfileExport).mockResolvedValue(
+      new Blob(["# Project Profile\n\n| Field | Value |\n| Demo Project | NSW |"]),
+    );
+
+    render(profileBoard(project));
+
+    await user.click(screen.getByRole("button", { name: "Copy project profile" }));
+
+    await waitFor(async () => {
+      expect(await navigator.clipboard.readText()).toContain("# Project Profile");
+    });
+    expect(api.downloadProjectProfileExport).toHaveBeenCalledWith("project-1", "md");
+  });
+
   it("blocks Create Cost Plan until project profile overlays are set", async () => {
     const user = userEvent.setup();
     const onRunCreateCostPlan = vi.fn();
@@ -866,8 +912,10 @@ describe("ProjectControlBoard project profile", () => {
       <ProjectControlBoard {...view} selectedWorkflowId="create-pmp" />,
     );
 
-    await waitFor(() =>
-      expect(api.getProjectDraft).toHaveBeenCalledWith(project.id, draftSummary.id),
+    await waitFor(
+      () =>
+        expect(api.getProjectDraft).toHaveBeenCalledWith(project.id, draftSummary.id),
+      { timeout: 5000 },
     );
     await waitFor(() => expect(api.getCostPlanState).toHaveBeenCalledWith(project.id));
     await waitFor(() => expect(api.ensureProgramme).toHaveBeenCalledWith(project.id));
@@ -1076,6 +1124,109 @@ describe("ProjectControlBoard project profile", () => {
     expect(
       screen.getByRole("button", { name: "Copy project management plan" }),
     ).toBeInTheDocument();
+  });
+
+  it("deletes the project management plan from the workbench actions", async () => {
+    const user = userEvent.setup();
+    const onPmpDeleted = vi.fn();
+    vi.mocked(api.deleteProjectDraft).mockResolvedValue({
+      deleted_id: draftSummary.id,
+      workflow_type: "create_pmp",
+      latest_draft: null,
+    });
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(
+      <ProjectControlBoard
+        project={project}
+        latestDraft={draftSummary}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan={false}
+        selectedWorkflowId="create-pmp"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        onPmpDeleted={onPmpDeleted}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete project management plan" }),
+    );
+
+    await waitFor(() => {
+      expect(api.deleteProjectDraft).toHaveBeenCalledWith(
+        project.id,
+        draftSummary.id,
+      );
+      expect(onPmpDeleted).toHaveBeenCalledWith({
+        deleted_id: draftSummary.id,
+        workflow_type: "create_pmp",
+        latest_draft: null,
+      });
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("treats a missing project management plan as already deleted", async () => {
+    const user = userEvent.setup();
+    const onPmpDeleted = vi.fn();
+    vi.mocked(api.deleteProjectDraft).mockRejectedValue(
+      new ApiError("Draft not found", { kind: "http", status: 404 }),
+    );
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    render(
+      <ProjectControlBoard
+        project={project}
+        latestDraft={draftSummary}
+        latestCostPlanDraft={null}
+        trace={[]}
+        costPlanTrace={[]}
+        workflowError={null}
+        costPlanWorkflowError={null}
+        isRunningWorkflow={false}
+        isRunningCostPlan={false}
+        selectedWorkflowId="create-pmp"
+        onRunCreatePmp={vi.fn()}
+        onRunUpdatePmp={vi.fn()}
+        onRunCreateCostPlan={vi.fn()}
+        onRunSortFiles={vi.fn()}
+        onOpenTenderComparison={vi.fn()}
+        onPmpDeleted={onPmpDeleted}
+        inboxCount={0}
+        sortFilesResult={null}
+        sortFilesDraft={null}
+        sortFilesError={null}
+        isRunningSortFiles={false}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Delete project management plan" }),
+    );
+
+    await waitFor(() => {
+      expect(onPmpDeleted).toHaveBeenCalledWith({
+        deleted_id: draftSummary.id,
+        workflow_type: "create_pmp",
+        latest_draft: null,
+      });
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   it("keeps Cost Plan actions available without a top-of-panel progress strip", () => {

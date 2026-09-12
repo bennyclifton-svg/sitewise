@@ -59,11 +59,8 @@ export function SelectionInstructionCard({
 
   const { top, left } = cardPosition(anchor.rect);
 
-  // bg-popover, not bg-background: the dark cockpit panels set
-  // `--background: transparent` so nested in-flow sections show the panel's own
-  // charcoal gradient through. A floating element painted with it has no
-  // background at all, so overlays use the opaque popover token — the same
-  // reason ChatHistoryPopover and ChatThreadActionsMenu do.
+  // Floating overlays need the opaque popover surface because nested cockpit
+  // sections may set their background to transparent.
   return createPortal(
     <div
       data-instruction-ui

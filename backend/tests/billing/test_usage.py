@@ -241,6 +241,39 @@ def test_complete_agent_turn_persists_task_route_latency_and_usage(monkeypatch) 
     }
 
 
+def test_setup_from_brief_allows_superset_of_extracted_values(monkeypatch) -> None:
+    turn = _active_turn()
+    turn.mutation_intent = {
+        "profile_patch": {"scale": {"storeys": 2, "bedrooms": 4}},
+        "reason": "profile_setup_from_brief",
+    }
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.get = AsyncMock(return_value=turn)
+
+    allowed = run_async(
+        usage.require_active_mutation_turn(
+            session,
+            turn_id=turn.id,
+            project_id=turn.project_id,
+            user_id=turn.user_id,
+            required_scope="profile_mutation",
+            requested_profile_patch={
+                "scale": {"storeys": 2, "bedrooms": 4, "garage_spaces": 2},
+                "complexity": {"planning": "da", "procurement_route": "design_construct"},
+                "scope_narrative": [
+                    "Two-storey 4 bedroom home",
+                    "Double garage",
+                    "DA planning pathway",
+                    "Design and construct",
+                ],
+            },
+        )
+    )
+
+    assert allowed is turn
+
+
 def test_enrichment_authority_allows_evidence_backed_profile_patch(monkeypatch) -> None:
     turn = _active_turn()
     turn.mutation_intent = {

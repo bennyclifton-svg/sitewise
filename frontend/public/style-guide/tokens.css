@@ -1,97 +1,29 @@
-/* Sitewise design tokens — v1.0
-   Single source of truth. tokens.json mirrors this file exactly.
-   Import once at the app root, before any component styles. */
+@import "./sitewise-colours.css";
 
-@property --sw-void {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: oklch(12% 0.006 265);
-}
-@property --sw-panel {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: oklch(18% 0.008 265);
-}
-@property --sw-edge {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: oklch(26% 0.010 265);
-}
-@property --sw-void-hex {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #060608;
-}
-@property --sw-panel-hex {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #131418;
-}
-@property --sw-edge-hex {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #24262b;
-}
-@property --sw-text-primary {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #e8e8e4;
-}
-@property --sw-text-secondary {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #b6b9bf;
-}
-@property --sw-text-tertiary {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #8f939b;
-}
-@property --sw-text-quiet {
-  syntax: "<color>";
-  inherits: true;
-  initial-value: #5c5f66;
-}
-
+/* Non-colour foundations and legacy aliases. Colour masters are generated from
+   Landing/design/colour-system; tokens.json is the published canonical export. */
 :root {
-  /* ---------------------------------------------------------------
-     PALETTE
-     Authored in OKLCH so lightness steps stay perceptually even under
-     any tint. Hex fallbacks are the sRGB equivalents. Blue is the only
-     accent; everything else is a lighting state, not a colour choice.
-     --------------------------------------------------------------- */
-  --sw-void:        oklch(12% 0.006 265);   /* #060608  ground plane */
-  --sw-panel:       oklch(18% 0.008 265);   /* #131418  lit surface  */
-  --sw-edge:        oklch(26% 0.010 265);   /* #24262B  rules        */
-  --sw-facet-blue:  oklch(52% 0.130 258);   /* #2F72C4  primary action */
-  --sw-beam:        oklch(72% 0.090 254);   /* #7FB0E4  links, highlights */
-  --sw-bone:        oklch(92% 0.004  90);   /* #E8E8E4  type, inverse panels */
-
-  --sw-void-hex:       #060608;
-  --sw-panel-hex:      #131418;
-  --sw-edge-hex:       #24262B;
-  --sw-facet-blue-hex: #2F72C4;
-  --sw-beam-hex:       #7FB0E4;
-  --sw-bone-hex:       #E8E8E4;
-
-  /* Physical materials — used by the 3D mark and by any surface that
-     claims to be the same material as the mark. */
-  --sw-mat-graphite: #2C3037;   /* roof   */
-  --sw-mat-carbon:   #191C21;   /* wall   */
-  --sw-mat-bone:     #D6D6D0;   /* floor  */
-  --sw-mat-glazing:  #2F72C4;   /* glass  */
-
-  /* Text */
-  --sw-text-primary:   #E8E8E4;
-  --sw-text-secondary: #B6B9BF;
-  --sw-text-tertiary:  #8F939B;
-  --sw-text-quiet:     #5C5F66;
-
-  /* Status. Derived from the accent's lightness so they sit in the
-     same tonal family; do not introduce further hues. */
-  --sw-positive: oklch(62% 0.130 155);
-  --sw-caution:  oklch(72% 0.140  75);
-  --sw-critical: oklch(58% 0.170  27);
+  --sw-void: var(--sw-canvas);
+  --sw-panel: var(--sw-surface);
+  --sw-edge: var(--sw-border-default);
+  --sw-void-hex: var(--sw-canvas);
+  --sw-panel-hex: var(--sw-surface);
+  --sw-edge-hex: var(--sw-border-default);
+  /* Legacy blue consumers describe information; primary actions use action tokens. */
+  --sw-facet-blue: var(--sw-link);
+  --sw-facet-blue-hex: var(--sw-link);
+  --sw-beam: var(--sw-link);
+  --sw-beam-hex: var(--sw-link);
+  --sw-bone: var(--sw-p-neutral-100);
+  --sw-bone-hex: var(--sw-p-neutral-100);
+  --sw-text-quiet: var(--sw-text-tertiary);
+  --sw-positive: var(--sw-success-text);
+  --sw-caution: var(--sw-warning-text);
+  --sw-critical: var(--sw-error-text);
+  --sw-mat-graphite: var(--sw-p-neutral-700);
+  --sw-mat-carbon: var(--sw-p-neutral-900);
+  --sw-mat-bone: var(--sw-p-neutral-100);
+  --sw-mat-glazing: var(--sw-p-cyan-700);
 
   /* ---------------------------------------------------------------
      TYPOGRAPHY
@@ -174,14 +106,14 @@
   --sw-key-x: 42vw;           /* live key position; JS overwrites in px */
   --sw-key-y: 30vh;
   --sw-key-radius: 680px;
-  --sw-key-tint: rgba(126, 168, 220, 0.13);
+  --sw-key-tint: transparent;
   --sw-key-blur-min: 30px;    /* below this, falloff bands — never go under */
 
   /* Specular edges. Only the edge facing the key catches highlight. */
-  --sw-edge-lit:     rgba(255, 255, 255, 0.13);
-  --sw-edge-lit-raised: rgba(255, 255, 255, 0.26);
-  --sw-edge-side:    rgba(255, 255, 255, 0.06);
-  --sw-edge-shade:   rgba(0, 0, 0, 0.60);
+  --sw-edge-lit:     var(--sw-border-default);
+  --sw-edge-lit-raised: var(--sw-border-strong);
+  --sw-edge-side:    var(--sw-border-default);
+  --sw-edge-shade:   var(--sw-border-default);
 
   /* Contact occlusion — tight and opaque, not a soft offset glow. */
   --sw-contact: 0 40px 60px -50px rgba(0, 0, 0, 1);
@@ -189,14 +121,13 @@
 
   --sw-bounce-max: 0.08;      /* saturated surfaces bleed at most 8% */
 
-  --sw-surface-raised: linear-gradient(168deg, #131418, #0B0C0F);
-  --sw-grain-opacity: 0.05;   /* film grain, kills gradient banding */
+  --sw-surface-raised: var(--sw-surface-elevated);
+  --sw-grain-opacity: 0;   /* film grain, kills gradient banding */
 }
 
-/* Base application. Adopt or ignore — the tokens above are the contract. */
 body {
   margin: 0;
-  background: var(--sw-void);
+  background: var(--sw-canvas);
   color: var(--sw-text-primary);
   font-family: var(--sw-font-sans);
   font-weight: var(--sw-weight-body);
@@ -205,68 +136,6 @@ body {
   text-wrap: pretty;
 }
 
-a { color: var(--sw-beam); text-decoration: none; }
-a:hover { color: color-mix(in oklch, var(--sw-beam), white 25%); }
-::selection { background: var(--sw-facet-blue); color: #fff; }
-
-html {
-  transition:
-    --sw-void var(--sw-dur-state) var(--sw-ease-state),
-    --sw-panel var(--sw-dur-state) var(--sw-ease-state),
-    --sw-edge var(--sw-dur-state) var(--sw-ease-state),
-    --sw-void-hex var(--sw-dur-state) var(--sw-ease-state),
-    --sw-panel-hex var(--sw-dur-state) var(--sw-ease-state),
-    --sw-edge-hex var(--sw-dur-state) var(--sw-ease-state),
-    --sw-text-primary var(--sw-dur-state) var(--sw-ease-state),
-    --sw-text-secondary var(--sw-dur-state) var(--sw-ease-state),
-    --sw-text-tertiary var(--sw-dur-state) var(--sw-ease-state),
-    --sw-text-quiet var(--sw-dur-state) var(--sw-ease-state),
-    background-color var(--sw-dur-state) var(--sw-ease-state),
-    color var(--sw-dur-state) var(--sw-ease-state),
-    border-color var(--sw-dur-state) var(--sw-ease-state);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html {
-    transition: none;
-  }
-}
-
-/* Light invert — same lighting roles, flipped luminance.
-   Sky blue (#7FB0E4) stays a wash only. Text on paper uses action blue
-   or carbon so body copy clears WCAG AA 4.5:1. */
-html[data-theme="light"] {
-  color-scheme: light;
-  --sw-void:        #f7f7f4;               /* page                   */
-  --sw-panel:       #ffffff;               /* paper / artefacts      */
-  --sw-edge:        #b8b8b0;               /* rules                 */
-  --sw-void-hex:    #f7f7f4;
-  --sw-panel-hex:   #ffffff;
-  --sw-edge-hex:    #b8b8b0;
-  --sw-text-primary:   #121418;
-  --sw-text-secondary: #1c2026;
-  --sw-text-tertiary:  #2c3037;
-  --sw-text-quiet:     #3d424a;
-  --sw-beam:        #2f72c4;               /* same as action on paper */
-  --sw-beam-hex:    #2f72c4;
-  --sw-positive: oklch(42% 0.130 155);
-  --sw-caution:  oklch(50% 0.140  75);
-  --sw-critical: oklch(46% 0.170  27);
-  --sw-edge-lit:     rgba(255, 255, 255, 0.78);
-  --sw-edge-lit-raised: rgba(255, 255, 255, 0.94);
-  --sw-edge-side:    rgba(0, 0, 0, 0.10);
-  --sw-edge-shade:   rgba(0, 0, 0, 0.14);
-  --sw-surface-raised: linear-gradient(168deg, #ffffff, #f7f7f4);
-  --sw-key-tint: rgba(47, 114, 196, 0.06);
-  --sw-grain-opacity: 0.03;
-  --sw-contact: 0 40px 60px -50px rgba(0, 0, 0, 0.22);
-  --sw-contact-deep: 0 60px 90px -60px rgba(0, 0, 0, 0.2);
-}
-
-html[data-theme="light"] a {
-  color: var(--sw-facet-blue);
-}
-
-html[data-theme="light"] a:hover {
-  color: color-mix(in oklch, var(--sw-facet-blue), black 16%);
-}
+a { color: var(--sw-link); text-decoration: none; }
+a:hover { color: var(--sw-link-hover); }
+::selection { background: var(--sw-selection-bg); color: var(--sw-selection-text); }

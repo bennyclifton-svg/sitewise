@@ -128,6 +128,42 @@ def test_broad_profile_update_runs_document_enrichment_before_replying() -> None
     assert "profile_mutation authority" in prompt
 
 
+def test_spoken_setup_brief_writes_stated_fields_and_asks_remaining_gaps() -> None:
+    from app.agent.mutation_intent import PROFILE_SETUP_REASON
+
+    user_text = (
+        "Please set up project. Or a two Storey 4 bedroom. Bathroom. Double garage home. "
+        "It will be. Planning by DA, there's no contamination. No environmental constraints, "
+        "no flood exposure, no heritage, no Bush fire. There's no access constraints. "
+        "The procurement route will be. Design and construct. Please set up a project profile "
+        "to begin with."
+    )
+    intent = classify_mutation_intent(user_text)
+    prompt = build_agent_prompt(
+        user_text,
+        project_id=PROJECT_ID,
+        title="Spec Home",
+        archetype=None,
+        state="NSW",
+        phase="brief-planning",
+        building_class="residential",
+        work_type="new",
+        history=[],
+        mutation_intent=intent,
+        applied_setup_values={
+            "scale": {"storeys": 2, "bedrooms": 4, "garage_spaces": 2},
+        },
+    )
+
+    assert intent.reason == PROFILE_SETUP_REASON
+    assert "<profile-setup-from-brief>" in prompt
+    assert "update_project_profile" in prompt
+    assert "clarif" in prompt.lower()
+    assert "accommodation_space" in prompt
+    assert "already recorded" in prompt.lower()
+    assert "do not add other profile fields" not in prompt.lower()
+
+
 def test_set_up_profile_uses_direct_enrichment_write_and_bounded_options() -> None:
     user_text = "set up the project profile"
     intent = classify_mutation_intent(user_text)

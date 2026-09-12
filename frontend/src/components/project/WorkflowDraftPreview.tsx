@@ -29,11 +29,11 @@ export function WorkflowDraftPreview({
       data-testid="workflow-draft-preview"
       aria-busy="true"
       aria-label={`${title} in progress`}
-      className="rounded-md border border-dashed border-primary/25 bg-primary/[0.03]"
+      className="rounded-md border border-dashed border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)]"
     >
-      <header className="flex items-center gap-2 border-b border-dashed border-primary/20 px-3 py-2 text-xs text-muted-foreground">
+      <header className="flex items-center gap-2 border-b border-dashed border-[var(--sw-selection-border)] px-3 py-2 text-xs text-muted-foreground">
         <Loader2
-          className="size-3 shrink-0 animate-spin text-primary/70 motion-reduce:animate-none"
+          className="size-3 shrink-0 animate-spin text-[var(--sw-link)] motion-reduce:animate-none"
           aria-hidden
         />
         <span className="truncate">

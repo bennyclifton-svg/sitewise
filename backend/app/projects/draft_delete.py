@@ -12,9 +12,15 @@ from app.database.draft_artifact import DraftArtifact
 from app.database.draft_artifacts import get_latest_draft_artifact
 from app.database.procurement_request import ProcurementRequest
 from app.database.project import Project
+from app.database.project_document_selection import (
+    ProjectDocumentSelectionItem,
+    WorkflowInputRetentionLock,
+)
 from app.database.workspace_file import WorkspaceFile
 
 logger = structlog.get_logger(__name__)
+
+_PMP_WORKFLOW_TYPES = frozenset({"create_pmp", "update_pmp"})
 
 
 async def delete_project_draft(
@@ -25,8 +31,13 @@ async def delete_project_draft(
 ) -> tuple[list[str], DraftArtifact | None]:
     """Remove a generated draft artefact and its published workspace exports.
 
-    Clears procurement-request pointers first (FK is RESTRICT), deletes any
-    draft-status register rows that pointed at this revision, removes matching
+    Project Management Plan drafts are one plan with many versions. Deleting
+    any PMP revision removes the whole lineage so the project returns to
+    "no plan" instead of silently resurfacing the previous version.
+
+    Clears procurement-request pointers first (FK is RESTRICT), drops
+    document-selection items and retention locks that point at the published
+    workspace files (those FKs are also RESTRICT), removes matching
     workspace_files rows, then deletes the draft (cascading artefact_exports).
 
     Returns storage keys for deferred object-storage cleanup and the new latest
@@ -40,15 +51,18 @@ async def delete_project_draft(
         )
 
     workflow_type = draft.workflow_type
+    drafts = await _drafts_to_delete(session, project=project, draft=draft)
+    draft_ids = [item.id for item in drafts]
+
     export_rows = list(
         (
             await session.scalars(
-                select(ArtefactExport).where(ArtefactExport.draft_id == draft.id)
+                select(ArtefactExport).where(ArtefactExport.draft_id.in_(draft_ids))
             )
         ).all()
     )
     workspace_paths = {
-        draft.workspace_path,
+        *(item.workspace_path for item in drafts if item.workspace_path),
         *(row.workspace_path for row in export_rows if row.workspace_path),
     }
     storage_keys = [row.storage_key for row in export_rows if row.storage_key]
@@ -66,12 +80,24 @@ async def delete_project_draft(
     storage_keys.extend(
         record.storage_key for record in workspace_files if record.storage_key
     )
+    file_ids = [record.id for record in workspace_files]
+    if file_ids:
+        await session.execute(
+            delete(ProjectDocumentSelectionItem).where(
+                ProjectDocumentSelectionItem.workspace_file_id.in_(file_ids)
+            )
+        )
+        await session.execute(
+            delete(WorkflowInputRetentionLock).where(
+                WorkflowInputRetentionLock.workspace_file_id.in_(file_ids)
+            )
+        )
 
     linked_requests = list(
         (
             await session.scalars(
                 select(ProcurementRequest).where(
-                    ProcurementRequest.current_draft_artifact_id == draft.id
+                    ProcurementRequest.current_draft_artifact_id.in_(draft_ids)
                 )
             )
         ).all()
@@ -88,7 +114,8 @@ async def delete_project_draft(
             )
         )
 
-    await session.delete(draft)
+    for item in drafts:
+        await session.delete(item)
     await session.flush()
 
     latest = await get_latest_draft_artifact(
@@ -103,7 +130,28 @@ async def delete_project_draft(
         project=project.slug,
         draft_id=str(draft_id),
         workflow_type=workflow_type,
+        drafts=len(drafts),
         workspace_files=len(workspace_files),
         storage_keys=len(storage_keys),
     )
     return list(dict.fromkeys(storage_keys)), latest
+
+
+async def _drafts_to_delete(
+    session: AsyncSession,
+    *,
+    project: Project,
+    draft: DraftArtifact,
+) -> list[DraftArtifact]:
+    if draft.workflow_type not in _PMP_WORKFLOW_TYPES:
+        return [draft]
+    return list(
+        (
+            await session.scalars(
+                select(DraftArtifact).where(
+                    DraftArtifact.project_id == project.id,
+                    DraftArtifact.workflow_type.in_(_PMP_WORKFLOW_TYPES),
+                )
+            )
+        ).all()
+    )

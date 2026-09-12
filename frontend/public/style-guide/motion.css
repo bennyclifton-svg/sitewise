@@ -33,7 +33,7 @@
   height: 2px;
   width: 100%;
   z-index: 50;
-  background: linear-gradient(90deg, var(--sw-facet-blue), var(--sw-beam));
+  background: var(--sw-info-icon);
   animation: sw-wipe linear both;
   animation-timeline: scroll(root block);
 }

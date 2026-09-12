@@ -1,0 +1,139 @@
+/* A graphite enclosure with a narrow machined chamfer and an open glass centre. */
+#sitewise-landing .sw-surround {
+  --sw-frame-width: 7px;
+  --sw-console-radius: 26px;
+  --sw-console-yaw: -3deg;
+  border-radius: var(--sw-console-radius);
+  background: transparent;
+  transform: perspective(2800px) rotateY(var(--sw-console-yaw));
+  transform-origin: 50% 50%;
+  box-shadow:
+    0 1px 1px color-mix(in srgb,var(--sw-p-charcoal-950) 42%,transparent),
+    4px 12px 18px -12px color-mix(in srgb,var(--sw-p-charcoal-950) 45%,transparent),
+    14px 30px 42px -27px color-mix(in srgb,var(--sw-p-charcoal-950) 28%,transparent),
+    22px 48px 68px -45px color-mix(in srgb,var(--sw-p-charcoal-950) 20%,transparent);
+  animation: sw-console-float 24s ease-in-out infinite paused;
+}
+
+/* The metal is a masked ring, so no opaque plate sits behind the glass. */
+#sitewise-landing .sw-surround::before,
+#sitewise-landing[data-instant] .sw-surround::before {
+  inset: 0;
+  z-index: 1;
+  padding: calc(var(--sw-frame-width) - 1px);
+  border: 1px solid var(--sw-p-charcoal-500);
+  border-top-color: var(--sw-p-neutral-300);
+  border-right-color: var(--sw-p-charcoal-700);
+  border-bottom-color: var(--sw-p-charcoal-700);
+  border-radius: inherit;
+  opacity: 1;
+  background:
+    linear-gradient(155deg, color-mix(in srgb,var(--sw-p-neutral-0) 48%,transparent), transparent 16%, color-mix(in srgb,var(--sw-p-charcoal-950) 18%,transparent) 42%, color-mix(in srgb,var(--sw-p-neutral-0) 16%,transparent) 75%, color-mix(in srgb,var(--sw-p-charcoal-950) 22%,transparent)),
+    linear-gradient(180deg, var(--sw-p-charcoal-500) 0%, var(--sw-p-charcoal-800) 2%, var(--sw-p-charcoal-900) 38%, var(--sw-p-charcoal-600) 76%, var(--sw-p-charcoal-900) 99%, var(--sw-p-charcoal-400) 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: none;
+}
+
+#sitewise-landing .sw-surround::after {
+  inset: 0;
+  z-index: -1;
+  padding: var(--sw-frame-width);
+  border: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, color-mix(in srgb,var(--sw-p-neutral-0) 19%,transparent), transparent 18%, color-mix(in srgb,var(--sw-p-charcoal-950) 24%,transparent) 82%),
+    linear-gradient(90deg, var(--sw-p-charcoal-950), var(--sw-p-charcoal-800) 70%, var(--sw-p-charcoal-500) 97%, var(--sw-p-charcoal-400) 99%, var(--sw-p-charcoal-700));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  transform: translate(5px, 1px);
+  box-shadow: none;
+}
+
+#sitewise-landing .sw-workspace {
+  position: relative;
+  border-radius: calc(var(--sw-console-radius) - var(--sw-frame-width));
+  background: var(--sw-sheet);
+  -webkit-backdrop-filter: blur(1px);
+  backdrop-filter: blur(1px);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb,var(--sw-p-charcoal-950) 88%,transparent),
+    inset 0 1px 1px color-mix(in srgb,var(--sw-p-neutral-0) 15%,transparent),
+    inset 0 -1px 1px color-mix(in srgb,var(--sw-p-charcoal-950) 42%,transparent);
+}
+
+#sitewise-landing .sw-nav,
+#sitewise-landing .sw-repository,
+#sitewise-landing .sw-console {
+  background: var(--sw-side);
+  border-color: var(--sw-line);
+  box-shadow: 0 5px 18px -12px color-mix(in srgb,var(--sw-p-charcoal-600) 22%,transparent);
+}
+
+#sitewise-landing .sw-modes {
+  background: var(--sw-sheet);
+}
+
+@media (min-width: 900px) {
+  #sitewise-landing .sw-surround .sw-project-context { padding: 24px 0 8px; }
+}
+
+#sitewise-landing .sw-cost-document {
+  background: transparent;
+}
+
+#sitewise-landing .sw-cost-grid,
+#sitewise-landing .sw-programme-chart {
+  background: var(--sw-sheet);
+}
+
+html[data-landscape-paused="false"] #sitewise-landing .sw-surround {
+  animation-play-state: running;
+}
+
+html[data-landscape-paused="true"] #sitewise-landing .sw-surround {
+  animation-play-state: paused;
+}
+
+@keyframes sw-console-float {
+  0%, 100% {
+    transform: perspective(2800px) translateY(0) rotateY(var(--sw-console-yaw));
+  }
+  50% {
+    transform: perspective(2800px) translateY(-2px) rotateY(calc(var(--sw-console-yaw) + .25deg));
+  }
+}
+
+@container (max-width: 880px) {
+  #sitewise-landing .sw-surround {
+    --sw-console-yaw: -1.5deg;
+    animation: none;
+  }
+}
+
+@container (max-width: 640px) {
+  #sitewise-landing .sw-surround {
+    --sw-frame-width: 5px;
+    --sw-console-radius: 20px;
+    transform: none;
+    box-shadow:
+      0 2px 2px color-mix(in srgb,var(--sw-p-charcoal-950) 25%,transparent),
+      0 12px 24px -18px color-mix(in srgb,var(--sw-p-charcoal-950) 26%,transparent);
+  }
+
+  #sitewise-landing .sw-surround::after { transform: translate(2px, 1px); }
+
+  #sitewise-landing .sw-workspace {
+    background: var(--sw-sheet);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #sitewise-landing .sw-surround {
+    animation: none;
+  }
+}

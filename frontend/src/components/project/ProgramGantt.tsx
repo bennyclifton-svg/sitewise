@@ -1037,7 +1037,7 @@ function GanttAxis({
               type="button"
               aria-label={`Delete ${selectedCount} selected activities`}
               title={`Delete ${selectedCount} selected`}
-              className="absolute bottom-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+              className="absolute bottom-1 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 hover:bg-[var(--sw-error-bg)] hover:text-destructive"
               style={{
                 left: NAME_WIDTH + DATE_WIDTH + DURATION_WIDTH + PLUS_WIDTH,
               }}
@@ -1851,7 +1851,7 @@ function DependencyEditor({
           variant="ghost"
           aria-label="Remove dependency"
           title="Remove dependency"
-          className="rounded-sm text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive"
+          className="rounded-sm text-muted-foreground/70 hover:bg-[var(--sw-error-bg)] hover:text-destructive"
           onClick={() => onRemove(dependency)}
         >
           <Trash className="size-3.5" aria-hidden />
@@ -2050,7 +2050,7 @@ function RowFields({
           type="button"
           aria-label={`Delete ${activity.name}`}
           title="Delete"
-          className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive group-hover/row:opacity-100 group-focus-within/row:opacity-100"
+          className="absolute top-0.5 inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground/70 opacity-0 transition-opacity hover:bg-[var(--sw-error-bg)] hover:text-destructive group-hover/row:opacity-100 group-focus-within/row:opacity-100"
           style={{ left: actionsLeft + PLUS_WIDTH }}
           onClick={(event) => {
             event.stopPropagation();

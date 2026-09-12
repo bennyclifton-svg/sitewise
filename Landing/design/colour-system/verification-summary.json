@@ -1,0 +1,127 @@
+{
+  "brand": {
+    "primary": {
+      "oklch": [
+        0.267,
+        0.016,
+        58
+      ],
+      "hex": "#2C241E",
+      "css": "oklch(0.2670 0.016000 58)",
+      "requestedChroma": 0.016,
+      "gamutReduced": false
+    },
+    "support": {
+      "oklch": [
+        0.816,
+        0.064,
+        215
+      ],
+      "hex": "#93CEDD",
+      "css": "oklch(0.8160 0.064000 215)",
+      "requestedChroma": 0.064,
+      "gamutReduced": false
+    },
+    "functional-support": {
+      "oklch": [
+        0.45,
+        0.073,
+        213
+      ],
+      "hex": "#12606D",
+      "css": "oklch(0.4500 0.073000 213)",
+      "requestedChroma": 0.073,
+      "gamutReduced": false
+    },
+    "accent": {
+      "oklch": [
+        0.883,
+        0.109,
+        109
+      ],
+      "hex": "#DEDF88",
+      "css": "oklch(0.8830 0.109000 109)",
+      "requestedChroma": 0.109,
+      "gamutReduced": false
+    },
+    "atmosphere": {
+      "oklch": [
+        0.976,
+        0.006,
+        85
+      ],
+      "hex": "#F9F7F3",
+      "css": "oklch(0.9760 0.006000 85)",
+      "requestedChroma": 0.006,
+      "gamutReduced": false
+    }
+  },
+  "checks": 116,
+  "failures": [],
+  "gamutReduced": [
+    "warning-light-bg",
+    "error-light-bg"
+  ],
+  "closestDataPairs": {
+    "light": {
+      "normal": {
+        "series": [
+          2,
+          8
+        ],
+        "deltaEOK": 0.11021497133584085
+      },
+      "protan": {
+        "series": [
+          2,
+          8
+        ],
+        "deltaEOK": 0.09380119819580718
+      },
+      "deutan": {
+        "series": [
+          2,
+          5
+        ],
+        "deltaEOK": 0.09418566843348451
+      },
+      "tritan": {
+        "series": [
+          4,
+          6
+        ],
+        "deltaEOK": 0.09835286409815831
+      }
+    },
+    "dark": {
+      "normal": {
+        "series": [
+          4,
+          6
+        ],
+        "deltaEOK": 0.1088798153050576
+      },
+      "protan": {
+        "series": [
+          5,
+          7
+        ],
+        "deltaEOK": 0.10462097639451938
+      },
+      "deutan": {
+        "series": [
+          2,
+          5
+        ],
+        "deltaEOK": 0.10490565087887183
+      },
+      "tritan": {
+        "series": [
+          4,
+          6
+        ],
+        "deltaEOK": 0.10420604783691499
+      }
+    }
+  }
+}

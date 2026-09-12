@@ -198,3 +198,33 @@ async def get_draft_artifact(
     draft_id: uuid.UUID,
 ) -> DraftArtifact | None:
     return await session.get(DraftArtifact, draft_id)
+
+
+async def get_draft_artifact_summaries_by_id(
+    session: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    draft_ids: list[uuid.UUID],
+) -> dict[uuid.UUID, dict]:
+    if not draft_ids:
+        return {}
+    result = await session.execute(
+        select(
+            DraftArtifact.id,
+            DraftArtifact.project_id,
+            DraftArtifact.workflow_type,
+            DraftArtifact.version,
+            DraftArtifact.status,
+            DraftArtifact.title,
+            DraftArtifact.workspace_path,
+            DraftArtifact.author_user_id,
+            DraftArtifact.model,
+            DraftArtifact.runtime,
+            DraftArtifact.created_at,
+            DraftArtifact.updated_at,
+        ).where(
+            DraftArtifact.project_id == project_id,
+            DraftArtifact.id.in_(set(draft_ids)),
+        )
+    )
+    return {row["id"]: dict(row) for row in result.mappings().all()}

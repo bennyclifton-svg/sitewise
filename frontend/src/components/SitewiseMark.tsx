@@ -18,7 +18,7 @@ type SitewiseMarkProps = {
   title?: string;
 };
 
-/** Electric-blue Sitewise S. */
+/** Current solid S silhouette in the semantic information colour. */
 export function SitewiseMark({
   size = 48,
   padded = true,
@@ -33,13 +33,10 @@ export function SitewiseMark({
       style={clear ? { padding: clear } : undefined}
       title={title}
     >
-      <img
-        src="/brand/sitewise-mark.png"
-        alt=""
-        width={size}
-        height={size}
-        draggable={false}
-        className="block select-none"
+      <span
+        aria-hidden="true"
+        className="block select-none bg-[var(--sw-link)]"
+        style={{ width: size, height: size, mask: 'url("/brand/sitewise-mark.png") center / contain no-repeat' }}
       />
     </span>
   );
@@ -50,7 +47,7 @@ type SitewiseLockupProps = {
   className?: string;
 };
 
-/** Theme-aware lockup: blue S + Sitewise wordmark. */
+/** Preserve the current lockup silhouette while applying the theme's text colour. */
 export function SitewiseLockup({
   height = 32,
   className,
@@ -62,21 +59,10 @@ export function SitewiseLockup({
       className={cn("relative inline-flex shrink-0 items-center", className)}
       style={{ height, width }}
     >
-      <img
-        src="/brand/sitewise-lockup-dark.png"
-        alt=""
-        width={width}
-        height={height}
-        draggable={false}
-        className="sw-lockup sw-lockup--on-dark select-none"
-      />
-      <img
-        src="/brand/sitewise-lockup-light.png"
-        alt=""
-        width={width}
-        height={height}
-        draggable={false}
-        className="sw-lockup sw-lockup--on-light select-none"
+      <span
+        aria-hidden="true"
+        className="block size-full select-none bg-[var(--sw-text-primary)]"
+        style={{ mask: 'url("/brand/sitewise-lockup-dark.png") center / contain no-repeat' }}
       />
     </span>
   );

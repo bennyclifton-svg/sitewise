@@ -6,6 +6,7 @@ from app.schemas.workflow_capabilities import (
     WorkflowCapabilityMatrix,
 )
 from app.sitewise.cost_plan_coverage import (
+    coverage_spec,
     resolve_cost_plan_coverage,
     unsupported_coverage_reason,
 )
@@ -170,11 +171,6 @@ def _cost_plan_capability(
         ],
     }[action]
 
-    if profile.state != "NSW":
-        return WorkflowCapability(
-            status="unsupported",
-            reasons=["Cost Plan reference-data coverage is currently NSW only."],
-        )
     if profile.work_type == "remediation" and not profile.work_scope:
         return WorkflowCapability(
             status="needs_input",
@@ -201,6 +197,7 @@ def _cost_plan_capability(
                 )
             ],
         )
+    coverage = coverage_spec(coverage.family, state=profile.state)
     coverage_kind = (
         "structure-only scaffold" if coverage.structure_only else "reference set"
     )

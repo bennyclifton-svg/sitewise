@@ -27,6 +27,7 @@ export const projectKeys = {
   root: (projectId: string) => ["project", projectId] as const,
   detail: (projectId: string) => ["project", projectId, "detail"] as const,
   evidence: (projectId: string) => ["project", projectId, "evidence"] as const,
+  evidenceDocuments: (projectId: string) => ["project", projectId, "evidence-document"] as const,
   workspaceTree: (projectId: string) =>
     ["project", projectId, "workspace-tree"] as const,
 };
@@ -237,9 +238,7 @@ function invalidateAfterEvidenceChange(
   queryClient: QueryClient,
   projectId: string,
 ) {
-  for (const queryKey of invalidationKeys(projectId, "project_evidence")) {
-    void queryClient.invalidateQueries({ queryKey, exact: true });
-  }
+  applyProjectResourceSignal(queryClient, { projectId, resourceType: "project_evidence" });
 }
 
 /** Fetch the latest workspace tree and write it into the query cache. */
@@ -286,7 +285,8 @@ export function applyProjectResourceSignal(
 ) {
   const keys = invalidationKeys(signal.projectId, signal.resourceType);
   for (const queryKey of keys) {
-    void queryClient.invalidateQueries({ queryKey, exact: true });
+    // Invalidate every cached window or document revision in these collections.
+    void queryClient.invalidateQueries({ queryKey, exact: !["pulse", "evidence-document"].includes(queryKey[2]) });
   }
 }
 
@@ -409,8 +409,9 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [
         projectKeys.detail(projectId),
         projectKeys.evidence(projectId),
+        projectKeys.evidenceDocuments(projectId),
         projectKeys.workspaceTree(projectId),
-        pulseKeys.feed(projectId),
+        pulseKeys.root(projectId),
       ];
     case "workspace_file":
     case "draft_artifact":
@@ -422,11 +423,12 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [
         projectKeys.detail(projectId),
         projectKeys.evidence(projectId),
+        projectKeys.evidenceDocuments(projectId),
         projectActivityKeys.root(projectId),
-        pulseKeys.feed(projectId),
+        pulseKeys.root(projectId),
       ];
     case "email":
-      return [emailKeys.register(projectId), pulseKeys.feed(projectId)];
+      return [emailKeys.register(projectId), pulseKeys.root(projectId)];
     case "tender_job":
       return [projectActivityKeys.root(projectId)];
     case "procurement_strategy":

@@ -833,7 +833,7 @@ function InsertRow({
   onAdd: () => void;
 }) {
   return (
-    <tr className="border-b border-border bg-primary/5">
+    <tr className="border-b border-border bg-[var(--sw-selection-bg)]">
       <td className="border-r border-border bg-[var(--sw-panel)] px-2 py-2">
         <MenuSelect
           value={value}

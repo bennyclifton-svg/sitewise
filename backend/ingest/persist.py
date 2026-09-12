@@ -13,7 +13,7 @@ from ingest.extractors.base import ExtractedDocument
 from ingest.hashing import file_content_hash
 from ingest.ids import chunk_id, document_id
 from ingest.consultant_firm import extract_issuing_firm_from_text
-from ingest.document_metadata import parse_document_metadata
+from ingest.document_metadata import DISCIPLINE_FOLDER_LABELS, parse_document_metadata
 from ingest.frontmatter import parse_frontmatter
 from ingest.platform import sitewise_platform_metadata
 from ingest.router import has_useful_text
@@ -72,7 +72,9 @@ def _register_metadata(plan: IngestPlan, extracted: ExtractedDocument) -> dict[s
         "document_number": parsed.document_number,
         "title": parsed.title,
         "revision": parsed.revision,
-        "discipline": parsed.discipline,
+        "discipline": DISCIPLINE_FOLDER_LABELS.get(
+            plan.classification.document_metadata.get("discipline", ""), parsed.discipline
+        ),
         "canonical_file_name": parsed.canonical_file_name,
         "metadata_confidence": parsed.confidence,
     }

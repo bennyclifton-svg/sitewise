@@ -1,0 +1,799 @@
+{
+  "module": "site_structure",
+  "coordinate_contract": "Registered site XY; root applies source rotation once",
+  "focus_registered": [
+    0.5528839826583862,
+    -11.138467788696289,
+    0.0
+  ],
+  "collections": {
+    "civil": "V3 | Civil",
+    "landscape": "V3 | Landscape",
+    "structure": "V3 | Structure"
+  },
+  "object_counts": {
+    "civil": 51,
+    "landscape": 43,
+    "structure": 69
+  },
+  "suppress_source_names": [
+    "Post-Box 01 24 - FU - 151_Metal - Aluminium_0",
+    "Post-Box 01 24 - FU - 151_Metal - Aluminium_0.001",
+    "Post-Box 01 24 - FU - 151_Metal - Aluminium_0.002",
+    "Post-Box 01 24 - FU - 151_Metal - Aluminium_0.003",
+    "Post-Box 01 24 - FU - 151_Metal - Chrome 01_0",
+    "Post-Box 01 24 - FU - 151_Metal - Nickel_0",
+    "Post-Box 01 24 - FU - 151_Metal - Zinc_0",
+    "Post-Box 01 24 - FU - 151_Paint - Sand Beige_0",
+    "Rubish Bin Red - FU - 152_GDLM33_default-material_0",
+    "Rubish Bin Red - FU - 152_GDLM33_default-material_0.001",
+    "Rubish Bin Red - FU - 152_GDLM33_default-material_0.002",
+    "Rubish Bin Red - FU - 152_GDLM33_default-material_0.003",
+    "Rubish Bin Red - FU - 152_GDLM33_default-material_0.004",
+    "Rubish BinYellow - FU - 152_GDLM27_default-material_0",
+    "Rubish BinYellow - FU - 152_GDLM27_default-material_0.001",
+    "Rubish BinYellow - FU - 152_GDLM27_default-material_0.002",
+    "Rubish BinYellow - FU - 152_GDLM27_default-material_0.003",
+    "Rubish BinYellow - FU - 152_GDLM27_default-material_0.004",
+    "SLA - 007_Concrete - Foundation_0.029",
+    "SLA - 008_Floorboards light_0.002",
+    "SLA - 008_Wall white plaster_0.002",
+    "SLA - 009_Floorboards - 03_0.002",
+    "SLA - 009_Floorboards light_0.002",
+    "SLA - 009_Wall white plaster_0.002",
+    "SLA - 010_Render: Carpet - grey_0.077",
+    "SLA - 010_Wall white plaster_0.024",
+    "SLA - 010_Wall white plaster_0.026"
+  ],
+  "garage_entries": [
+    {
+      "source": "DOO - 018_Paint - Titanium White_0.001",
+      "x": -4.810271978378296,
+      "y": -10.933345794677734,
+      "ymin": -12.33334732055664,
+      "ymax": -9.533344268798828,
+      "threshold": 0.49999698996543884
+    },
+    {
+      "source": "DOO - 018_Paint - Titanium White_0.002",
+      "x": -4.810267210006714,
+      "y": -4.013048052787781,
+      "ymin": -5.413049221038818,
+      "ymax": -2.613046884536743,
+      "threshold": 0.49999791383743286
+    },
+    {
+      "source": "DOO - 018_Paint - Titanium White_0",
+      "x": -4.81026291847229,
+      "y": -0.7185954451560974,
+      "ymin": -2.1185967922210693,
+      "ymax": 0.6814059019088745,
+      "threshold": 0.49999821186065674
+    },
+    {
+      "source": "DOO - 018_Paint - Titanium White_0.003",
+      "x": -4.810260057449341,
+      "y": 7.442004919052124,
+      "ymin": 6.042004108428955,
+      "ymax": 8.842005729675293,
+      "threshold": 0.19999940693378448
+    },
+    {
+      "source": "DOO - 018_Paint - Titanium White_0.004",
+      "x": -4.810254812240601,
+      "y": 10.736454010009766,
+      "ymin": 9.336453437805176,
+      "ymax": 12.136454582214355,
+      "threshold": 0.19999967515468597
+    }
+  ],
+  "driveway": {
+    "x": [
+      -11.6,
+      -7.7
+    ],
+    "y": [
+      -22,
+      17.5
+    ],
+    "status": "Illustrative; swept path and grades not certified"
+  },
+  "pedestrian_path": {
+    "x": [
+      -7.4,
+      -6.1
+    ],
+    "y": [
+      -22,
+      16.5
+    ],
+    "position": "Between driveway and buildings"
+  },
+  "street": {
+    "road_y": [
+      -34,
+      -23.5
+    ],
+    "sidewalk_y": [
+      -23.5,
+      -22
+    ],
+    "carriageway_rendered": false
+  },
+  "fence": {
+    "type": "Lap and cap timber",
+    "height": 1.65,
+    "centreline_error": 0.0,
+    "runs": [
+      [
+        [
+          -12,
+          -22
+        ],
+        [
+          -12,
+          22
+        ]
+      ],
+      [
+        [
+          12,
+          -22
+        ],
+        [
+          12,
+          22
+        ]
+      ],
+      [
+        [
+          -12,
+          22
+        ],
+        [
+          12,
+          22
+        ]
+      ],
+      [
+        [
+          -12,
+          -22
+        ],
+        [
+          -11.6,
+          -22
+        ]
+      ],
+      [
+        [
+          -7.7,
+          -22
+        ],
+        [
+          -7.4,
+          -22
+        ]
+      ],
+      [
+        [
+          -6.1,
+          -22
+        ],
+        [
+          12,
+          -22
+        ]
+      ]
+    ],
+    "access_openings": {
+      "vehicle_x": [
+        -11.6,
+        -7.7
+      ],
+      "pedestrian_x": [
+        -7.4,
+        -6.1
+      ]
+    }
+  },
+  "gardens": {
+    "x": [
+      7.2,
+      11.9
+    ],
+    "division_y": [
+      -14.2,
+      -8.093348503112793,
+      -2.365825057029724,
+      3.3617007732391357,
+      9.089225769042969,
+      14.9
+    ],
+    "status": "Divisions use measured slab/building midlines",
+    "dwelling_bounds": [
+      {
+        "source": "SLA - 007_Concrete - Foundation_0.029",
+        "min": [
+          -4.802772521972656,
+          -13.763653755187988,
+          0.19999228417873383
+        ],
+        "max": [
+          4.677180290222168,
+          -9.193345069885254,
+          0.4999941289424896
+        ]
+      },
+      {
+        "source": "SLA - 007_Concrete - Foundation_0.001",
+        "min": [
+          -4.802768230438232,
+          -6.993351936340332,
+          0.1999942660331726
+        ],
+        "max": [
+          4.677186965942383,
+          -2.423046588897705,
+          0.4999961256980896
+        ]
+      },
+      {
+        "source": "SLA - 007_Concrete - Foundation_0",
+        "min": [
+          -4.802765846252441,
+          -2.308603525161743,
+          0.19999563694000244
+        ],
+        "max": [
+          4.677188873291016,
+          2.2617039680480957,
+          0.49999746680259705
+        ]
+      },
+      {
+        "source": "SLA - 007_Concrete - Foundation_0.022",
+        "min": [
+          -4.802757740020752,
+          4.461697578430176,
+          -0.10000236332416534
+        ],
+        "max": [
+          4.677191734313965,
+          9.032004356384277,
+          0.19999945163726807
+        ]
+      },
+      {
+        "source": "SLA - 007_Concrete - Foundation_0.023",
+        "min": [
+          -4.802755355834961,
+          9.14644718170166,
+          -0.10000099241733551
+        ],
+        "max": [
+          4.6771979331970215,
+          13.716753959655762,
+          0.2000008225440979
+        ]
+      }
+    ],
+    "fence_runs": [
+      {
+        "y": -8.093348503112793,
+        "start_x": -5.5,
+        "end_x": 12,
+        "gap": 2.199993133544922,
+        "status": "Crosses outdoor inter-building gap"
+      },
+      {
+        "y": -2.365825057029724,
+        "start_x": 4.73,
+        "end_x": 12,
+        "gap": 0.11444306373596191,
+        "status": "Stops at east building face; tight paired seam"
+      },
+      {
+        "y": 3.3617007732391357,
+        "start_x": -5.5,
+        "end_x": 12,
+        "gap": 2.19999361038208,
+        "status": "Crosses outdoor inter-building gap"
+      },
+      {
+        "y": 9.089225769042969,
+        "start_x": 4.73,
+        "end_x": 12,
+        "gap": 0.11444282531738281,
+        "status": "Stops at east building face; tight paired seam"
+      }
+    ],
+    "continuous_strips": [
+      {
+        "name": "Front",
+        "x": [
+          -5.6,
+          11.8
+        ],
+        "y": [
+          -17.4,
+          -14.2
+        ],
+        "service_gap_x": [
+          6.0,
+          6.8
+        ]
+      },
+      {
+        "name": "Rear",
+        "x": [
+          -5.6,
+          11.8
+        ],
+        "y": [
+          15.1,
+          21.7
+        ],
+        "service_gap_x": [
+          6.0,
+          6.8
+        ]
+      },
+      {
+        "name": "Between buildings 1",
+        "x": [
+          -5.5,
+          11.8
+        ],
+        "y": [
+          -8.943348503112793,
+          -7.243348503112793
+        ],
+        "service_gap_x": [
+          6.0,
+          6.8
+        ]
+      },
+      {
+        "name": "Between buildings 3",
+        "x": [
+          -5.5,
+          11.8
+        ],
+        "y": [
+          2.5117007732391357,
+          4.211700773239135
+        ],
+        "service_gap_x": [
+          6.0,
+          6.8
+        ]
+      }
+    ]
+  },
+  "service_reservations": {
+    "east_corridor_x": [
+      6.0,
+      6.8
+    ],
+    "tank_xy": [
+      8,
+      -18
+    ]
+  },
+  "bins_relocated": 10,
+  "slab_topology_checks": [
+    {
+      "level": "ground",
+      "source_footprint": "SLA - 007_Concrete - Foundation_0.029",
+      "top": 0.5,
+      "bottom": 0.3,
+      "thickness": 0.2,
+      "closed_prism": true,
+      "upstands": false,
+      "source_xy_footprint_preserved": true,
+      "bounds": [
+        [
+          -4.802815914154053,
+          -13.763668060302734,
+          0.30000001192092896
+        ],
+        [
+          4.677184104919434,
+          -9.193367958068848,
+          0.5
+        ]
+      ],
+      "top_triangles": 2,
+      "boundary_edges": 4
+    },
+    {
+      "level": "living",
+      "source_footprint": "living-complete",
+      "top": 3.22,
+      "bottom": 3.02,
+      "thickness": 0.2,
+      "closed_prism": true,
+      "upstands": false,
+      "source_xy_footprint_preserved": true,
+      "bounds": [
+        [
+          -5.3870158195495605,
+          -13.763668060302734,
+          3.0199999809265137
+        ],
+        [
+          5.12718391418457,
+          -9.193367958068848,
+          3.2200000286102295
+        ]
+      ],
+      "top_triangles": 10,
+      "boundary_edges": 10
+    },
+    {
+      "level": "upper",
+      "source_footprint": "SLA - 010_Render: Carpet - grey_0.077",
+      "top": 5.94,
+      "bottom": 5.74,
+      "thickness": 0.2,
+      "closed_prism": true,
+      "upstands": false,
+      "source_xy_footprint_preserved": true,
+      "bounds": [
+        [
+          -4.753015995025635,
+          -13.763668060302734,
+          5.739999771118164
+        ],
+        [
+          5.4002838134765625,
+          -9.193367958068848,
+          5.940000057220459
+        ]
+      ],
+      "top_triangles": 12,
+      "boundary_edges": 12
+    }
+  ],
+  "column_stacks": [
+    {
+      "id": "C1",
+      "uv": [
+        -5.18,
+        -2.525
+      ],
+      "xy": [
+        -4.6271160173416135,
+        -13.66346778869629
+      ],
+      "width": 0.2,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C2",
+      "uv": [
+        -5.18,
+        1.845
+      ],
+      "xy": [
+        -4.6271160173416135,
+        -9.293467788696288
+      ],
+      "width": 0.18,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C3",
+      "uv": [
+        4.024,
+        -2.525
+      ],
+      "xy": [
+        4.576883982658386,
+        -13.66346778869629
+      ],
+      "width": 0.2,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C4",
+      "uv": [
+        4.024,
+        1.845
+      ],
+      "xy": [
+        4.576883982658386,
+        -9.293467788696288
+      ],
+      "width": 0.18,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C5",
+      "uv": [
+        -2.5,
+        1.825
+      ],
+      "xy": [
+        -1.9471160173416138,
+        -9.31346778869629
+      ],
+      "width": 0.2,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C6",
+      "uv": [
+        1.06,
+        1.825
+      ],
+      "xy": [
+        1.6128839826583863,
+        -9.31346778869629
+      ],
+      "width": 0.2,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    },
+    {
+      "id": "C7",
+      "uv": [
+        1.3,
+        -2.4
+      ],
+      "xy": [
+        1.8528839826583863,
+        -13.53846778869629
+      ],
+      "width": 0.2,
+      "levels": [
+        [
+          0.5,
+          3.02
+        ],
+        [
+          3.22,
+          5.74
+        ],
+        [
+          5.94,
+          8.39
+        ]
+      ]
+    }
+  ],
+  "column_floor_footprint_checks": [
+    {
+      "uv": [
+        -5.18,
+        -2.525
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        -5.18,
+        1.845
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        4.024,
+        -2.525
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        4.024,
+        1.845
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        -2.5,
+        1.825
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        1.06,
+        1.825
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    },
+    {
+      "uv": [
+        1.3,
+        -2.4
+      ],
+      "source_floor_checks": {
+        "SLA - 007_Concrete - Foundation_0.029": true,
+        "living-complete": true,
+        "SLA - 010_Render: Carpet - grey_0.077": true
+      }
+    }
+  ],
+  "stair_void_checks": {
+    "living": true,
+    "upper": true
+  },
+  "roof_framing": {
+    "truss_count": 5,
+    "member_count": 31,
+    "pitch_degrees": 15,
+    "minimum_z": 8.411999702453613,
+    "ceiling_z": 8.39,
+    "minimum_roof_clearance": 0.02480887581110025,
+    "material": "Neutral mineral metal; structural specification unassigned",
+    "source_roof_ids": [
+      "RT - 024_Wall white plaster_0",
+      "RT - 024_Wall white plaster_0.001"
+    ],
+    "heel_status": "Shortened tapered rafter ends respect measured roof/ceiling void; final bearing design unresolved"
+  },
+  "unresolved_interfaces": [
+    {
+      "id": "rc-west-transfer",
+      "anchor": [
+        -3.4471160173416138,
+        -13.11846778869629,
+        3.07
+      ],
+      "question": "Verify column/slab reinforcement and load transfer around the stair opening and balcony return.",
+      "source_ids": [
+        "SLA - 007_Concrete - Foundation_0.029",
+        "SLA - 008_Wall white plaster_0.002",
+        "SLA - 010_Wall white plaster_0.024",
+        "SLA - 010_Wall white plaster_0.026",
+        "SLA - 009_Floorboards light_0.002",
+        "SLA - 009_Wall white plaster_0.002"
+      ],
+      "disciplines": [
+        "Architecture",
+        "Structural engineering"
+      ]
+    },
+    {
+      "id": "rc-roof-bearing",
+      "anchor": [
+        -3.2471160173416136,
+        -9.43846778869629,
+        8.39
+      ],
+      "question": "Agree the RC column-to-pitched-roof bearing and ceiling interface.",
+      "disciplines": [
+        "Structural engineering",
+        "Architecture",
+        "Mechanical"
+      ]
+    },
+    {
+      "id": "access-levels",
+      "anchor": [
+        -6.1,
+        -10.933345794677734,
+        0.27
+      ],
+      "question": "Resolve garage threshold grades, accessible pedestrian crossings and vehicle turning.",
+      "disciplines": [
+        "Civil",
+        "Architecture",
+        "Traffic"
+      ]
+    }
+  ],
+  "limits": [
+    "Imported model units are not verified metres.",
+    "Concrete column sizes, reinforcement, loads and soil bearing are unverified.",
+    "Slabs are closed uniform 200 mm extrusions of source floor-top footprints; structure is conceptual, not engineered.",
+    "Roof rafters/trusses fit the measured roof void; heel/bearing connections and member sizes remain unverified.",
+    "Garden divisions, fence, crossover and bin store are illustrative coordination proposals.",
+    "Root must suppress old ground fences and superseded site paving separately."
+  ]
+}

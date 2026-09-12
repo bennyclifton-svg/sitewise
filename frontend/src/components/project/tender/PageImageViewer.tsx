@@ -70,7 +70,7 @@ export function PageImageViewer({ evidence }: { evidence: TenderPageEvidence }) 
             />
             {overlayStyle ? (
               <div
-                className="pointer-events-none absolute rounded-[3px] border-2 border-primary bg-primary/20 shadow-[0_0_0_9999px_rgb(0_0_0/0.10)]"
+                className="pointer-events-none absolute rounded-[3px] border-2 border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] shadow-[0_0_0_9999px_rgb(0_0_0/0.10)]"
                 style={overlayStyle}
               />
             ) : null}

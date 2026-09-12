@@ -478,7 +478,7 @@ export function ProcurementRequestPanel({
   return (
     <div className="space-y-4">
       {error || loadError || strategyError || strategyLoadError ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
           {error ?? loadError ?? strategyError ?? strategyLoadError}
         </p>
       ) : null}
@@ -486,7 +486,7 @@ export function ProcurementRequestPanel({
       {activeView === "request" ? renderGate(activeKind) : null}
 
       {activeView === "request" && !supported ? (
-        <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+        <p className="rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
           {updateCapability?.reasons.join(" ") || "This request is not supported yet."}
         </p>
       ) : null}

@@ -131,10 +131,9 @@ async def upsert_workspace_file(
             "source_document_id": source_document_id,
             "updated_at": func.now(),
         },
-    ).returning(WorkspaceFile.id)
+    ).returning(WorkspaceFile).execution_options(populate_existing=True)
     result = await session.execute(statement)
-    record_id = result.scalar_one()
-    record = await session.get(WorkspaceFile, record_id)
+    record = result.scalar_one_or_none()
     if record is None:
         raise RuntimeError("workspace file upsert did not return a row")
     return record

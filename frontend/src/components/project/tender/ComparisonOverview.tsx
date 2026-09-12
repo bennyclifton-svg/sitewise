@@ -195,7 +195,7 @@ export function ComparisonOverview({
           <ProgressGates milestones={milestones} percent={progress?.percent ?? 0} />
 
           {visibleError ? (
-            <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            <p className="mt-4 rounded-md border border-[var(--sw-error-border)] bg-[var(--sw-error-bg)] px-3 py-2 text-sm text-destructive">
               {visibleError}
             </p>
           ) : null}

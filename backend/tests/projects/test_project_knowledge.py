@@ -96,6 +96,7 @@ def test_persisted_shared_object_locks_project_and_advances_context_once() -> No
 
     assert result.revision == 1
     assert session.locked is True
+    assert session.lock_options == {"key_share": True}
     assert project.project_context_version == 6
     assert project.event_sequence == 3
     assert len(session.added) == 1
@@ -166,6 +167,7 @@ class _Session:
         assert model is Project
         assert ident == self._project.id
         self.locked = bool(kwargs.get("with_for_update"))
+        self.lock_options = kwargs.get("with_for_update")
         return self._project
 
     async def refresh(self, _project, **kwargs) -> None:

@@ -4,7 +4,11 @@ import path from "node:path";
 
 const INITIAL_LIMIT = 250 * 1024;
 const WORKFLOW_LIMIT = 150 * 1024;
-const dist = path.resolve("dist");
+const distArg = process.argv.indexOf("--dist");
+if (distArg >= 0 && (!process.argv[distArg + 1] || process.argv[distArg + 1].startsWith("--"))) {
+  throw new Error("--dist requires a build directory");
+}
+const dist = path.resolve(distArg >= 0 ? process.argv[distArg + 1] : "dist");
 const manifest = JSON.parse(
   await readFile(path.join(dist, ".vite", "manifest.json"), "utf8"),
 );
@@ -15,11 +19,12 @@ function entry(source) {
   return match;
 }
 
-function staticFiles(root) {
+function staticFiles(root, includeCss = false) {
   const files = new Set();
   const visit = (item) => {
     if (files.has(item.file)) return;
     files.add(item.file);
+    if (includeCss) for (const css of item.css ?? []) files.add(css);
     for (const key of item.imports ?? []) visit(manifest[key]);
   };
   visit(root);
@@ -47,7 +52,6 @@ for (const file of staticFiles(entry("src/pages/ProjectCockpitPage.tsx"))) {
 }
 const tenderEntry = entry("src/pages/TenderCockpitPage.tsx");
 const tenderFiles = new Set([tenderEntry.file]);
-const styleFiles = staticFiles(entry("src/pages/StyleGenomeDemoPage.tsx"));
 const styleRootFile = entry("src/pages/StyleGenomeDemoPage.tsx").file;
 const threeFiles = [styleRootFile];
 const leakedThree = [...shellFiles, ...tenderFiles].filter(
@@ -56,6 +60,7 @@ const leakedThree = [...shellFiles, ...tenderFiles].filter(
 
 const report = {
   measuredAt: new Date().toISOString(),
+  buildDirectory: dist,
   mode: process.argv.includes("--enforce") ? "enforced" : "report-only",
   budgets: {
     initialCockpitGzipBytes: INITIAL_LIMIT,
@@ -66,6 +71,21 @@ const report = {
   styleDemoThreeFiles: threeFiles,
   threeFilesOutsideStyleDemo: [...new Set(leakedThree)],
 };
+
+// Keep the existing JS-only budgets comparable. Report the complete static
+// JS/CSS dependency delta as well, including code fetched after bootstrap.
+const cockpitAssets = staticFiles(entry("index.html"), true);
+for (const file of staticFiles(entry("src/pages/ProjectCockpitPage.tsx"), true)) cockpitAssets.add(file);
+report.cockpitJsAndCss = await measurement(cockpitAssets);
+report.workflowDeltas = {};
+for (const [name, source] of Object.entries({
+  projectPlan: "src/components/project/DraftReviewPanel.tsx",
+  procurement: "src/components/project/ProcurementRequestPanel.tsx",
+  tender: "src/pages/TenderCockpitPage.tsx",
+})) {
+  const additional = new Set([...staticFiles(entry(source), true)].filter((file) => !cockpitAssets.has(file)));
+  report.workflowDeltas[name] = await measurement(additional);
+}
 
 console.log(JSON.stringify(report, null, 2));
 

@@ -254,7 +254,7 @@ export function SuggestionField({
                       className={cn(
                         "h-px w-3 shrink-0",
                         group.tone === "brand"
-                          ? "bg-primary"
+                          ? "bg-[var(--sw-info-icon)]"
                           : "bg-muted-foreground/60",
                       )}
                       aria-hidden

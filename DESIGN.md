@@ -285,3 +285,17 @@ The landing's one straight-on Seven Hills workspace tablet and diagonal graphite
 - **Don't** turn the landing into a feature-card grid, chapter scroller or sticky presentation.
 - **Don't** distribute the machine's grounded shadow to copy or generic marketing cards.
 - **Don't** invent testimonials, partner proof, or metric theatre without real evidence (product constraint).
+
+
+### Current landing direction — 9 September 2026
+
+For the standalone landing page, this supersedes the historical Offset Project
+Monolith description above. User selected Funnel Display (SIL OFL 1.1) and ink blue. The wordmark uses
+Funnel Display Medium with an original offset-plan corner symbol. The
+headline overlays the cadastral map; the desktop composition is 45% live model /
+55% map, with map-first stacking on mobile. Real NSW parcel geometry remains
+undistorted. Fine illustrative contours and timed boundary pulses sit behind
+the type. Palette: #071c39 ink, #f3f5fc foreground, #8ebeff signal. Body and
+dense UI text retain Hanken Grotesk while the new display family is refined.
+The existing product cockpit system is unchanged. See
+`Landing/design/coordination-hero/EXPERIENCE.md` for behaviour and verification.

@@ -1,0 +1,23 @@
+{
+  "truss_count": 8,
+  "truss_centres_y": [
+    -13.598467826843262,
+    -12.987039566040039,
+    -12.3756103515625,
+    -11.764182090759277,
+    -11.152753829956055,
+    -10.541325569152832,
+    -9.929896354675293,
+    -9.31846809387207
+  ],
+  "spacing": 0.6114282608032227,
+  "strip_segments": 4,
+  "slab_exterior_followed": true,
+  "bearing_beams": 2,
+  "bearing_beam_section": [
+    0.10000038146972656,
+    0.12000083923339844
+  ],
+  "section_matches_ridge": true,
+  "scope": "Illustrative geometry; member sizes and load capacity are not engineered."
+}

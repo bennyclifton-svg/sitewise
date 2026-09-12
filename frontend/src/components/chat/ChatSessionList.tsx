@@ -1,11 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, MessageSquarePlus, MoreHorizontal, Pencil, Trash2, X } from "lucide-react";
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { useChatActivity } from "@/components/chat/chat-activity";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { api } from "@/lib/api";
 import type { ChatThread } from "@/lib/types/chat";
@@ -85,11 +84,21 @@ export function ChatSessionList({
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
   const [menuThreadId, setMenuThreadId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const isPopover = variant === "popover";
   const isNav = variant === "nav";
   const isCompactList = isPopover || isNav;
   const isEmbedded = Boolean(onSelectThread);
   const { busyThreadIds } = useChatActivity();
+
+  useEffect(() => {
+    if (!editingId) return;
+    const input = renameInputRef.current;
+    if (!input) return;
+    input.focus();
+    const end = input.value.length;
+    input.setSelectionRange(end, end);
+  }, [editingId]);
 
   const threadsQuery = useQuery({
     queryKey: chatThreadQueryKey,
@@ -204,17 +213,32 @@ export function ChatSessionList({
                   : "font-normal text-[var(--text-body)] hover:bg-muted/30 hover:text-foreground",
               )
             : "grid gap-2 rounded-md border p-2",
-          !isNav && thread.id === activeThreadId && "border-primary/50 bg-[var(--brand-subtle)]",
+          !isNav && thread.id === activeThreadId && "border-[var(--sw-selection-border)] bg-[var(--brand-subtle)]",
           isPopover && "border-transparent p-1.5",
         )}
       >
         {isEditing ? (
-          <div className={cn("flex gap-1", isNav && "w-full")}>
-            <Input
+          <div className={cn("flex min-w-0 items-center gap-1", isNav && "w-full")}>
+            <input
+              ref={renameInputRef}
               aria-label="Thread title"
               value={draftTitle}
+              disabled={renameSessionMutation.isPending}
               onChange={(event) => setDraftTitle(event.target.value)}
-              className={isNav ? "h-6 text-xs" : undefined}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveTitle(thread.id);
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditingId(null);
+                }
+              }}
+              className={cn(
+                "chat-thread-rename min-w-0 flex-1 appearance-none border-0 bg-transparent p-0 text-inherit shadow-none outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none",
+                isNav ? "h-6 text-base leading-6" : "text-sm",
+              )}
             />
             <Button
               type="button"

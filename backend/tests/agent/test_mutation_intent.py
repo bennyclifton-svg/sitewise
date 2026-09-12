@@ -120,6 +120,50 @@ def test_set_up_project_profile_grants_enrichment_mutation_scope() -> None:
     assert intent.reason == PROFILE_ENRICHMENT_REASON
 
 
+SPEC_HOME_BRIEF = (
+    "Please set up project. Or a two Storey 4 bedroom. Bathroom. Double garage home. "
+    "It will be. Planning by DA, there's no contamination. No environmental constraints, "
+    "no flood exposure, no heritage, no Bush fire. There's no access constraints. "
+    "The procurement route will be. Design and construct. Please set up a project profile "
+    "to begin with."
+)
+
+
+def test_spoken_setup_brief_is_unbound_setup_not_narrow_scale_bind() -> None:
+    from app.agent.mutation_intent import PROFILE_SETUP_REASON
+
+    intent = classify_mutation_intent(SPEC_HOME_BRIEF)
+
+    assert intent.scopes == (PROFILE_MUTATION_SCOPE,)
+    assert intent.reason == PROFILE_SETUP_REASON
+    assert intent.requires_confirmation is False
+    assert dict(intent.profile_patch) == {
+        "subclasses": ["house"],
+        "scale": {"storeys": 2, "bedrooms": 4, "garage_spaces": 2},
+        "complexity": {
+            "planning": "da",
+            "procurement_route": "design_construct",
+            "contamination_level": "nil",
+            "access_constraints": "unrestricted",
+            "environmental_sensitivity": "standard",
+            "bushfire_exposure": "not_bushfire_prone",
+            "flood_exposure": "not_flood_prone",
+            "heritage_status": "none",
+        },
+    }
+
+
+def test_set_up_is_not_treated_as_a_set_imperative() -> None:
+    from app.agent.mutation_intent import PROFILE_SETUP_REASON
+
+    intent = classify_mutation_intent(
+        "Please set up a project profile for a two-storey 4 bedroom house."
+    )
+
+    assert intent.reason == PROFILE_SETUP_REASON
+    assert dict(intent.profile_patch)["scale"] == {"storeys": 2, "bedrooms": 4}
+
+
 def test_profile_proposal_confirmation_is_recognized_without_a_direct_patch() -> None:
     assert is_profile_proposal_confirmation(
         "Confirm and set that site address and client on the profile."

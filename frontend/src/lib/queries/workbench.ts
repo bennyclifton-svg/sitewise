@@ -84,5 +84,9 @@ export function prefetchWorkbench(
       }),
     );
   }
-  return Promise.all(tasks).then(() => undefined);
+  return Promise.all(tasks).then(() => {
+    // Start the next workflow's code after the opening data requests settle.
+    // A failed speculative load must not fail bootstrap; navigation can retry.
+    void import("@/components/project/ProcurementRequestPanel").catch(() => undefined);
+  });
 }

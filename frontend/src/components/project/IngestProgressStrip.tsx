@@ -59,7 +59,7 @@ export function IngestProgressStrip({
 
   return (
     <div
-      className="mx-3 mt-3 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-xs text-muted-foreground"
+      className="mx-3 mt-3 rounded-md border border-[var(--sw-selection-border)] bg-[var(--sw-selection-bg)] px-3 py-2 text-xs text-muted-foreground"
       role="status"
       aria-live="polite"
       aria-atomic="true"
@@ -67,7 +67,7 @@ export function IngestProgressStrip({
       <div className="flex items-center gap-2">
         {isActive ? (
           <Loader2
-            className="size-3 shrink-0 animate-spin text-primary/70 motion-reduce:animate-none"
+            className="size-3 shrink-0 animate-spin text-[var(--sw-link)] motion-reduce:animate-none"
             aria-hidden
           />
         ) : null}
@@ -81,7 +81,7 @@ export function IngestProgressStrip({
       </div>
       {getSnapshot || !isActive ? (
         <div
-          className="mt-2 h-0.5 overflow-hidden rounded-full bg-primary/15"
+          className="mt-2 h-0.5 overflow-hidden rounded-full bg-[var(--sw-selection-bg)]"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}
@@ -89,7 +89,7 @@ export function IngestProgressStrip({
           aria-label="Batch ingest progress"
         >
           <div
-            className="h-full rounded-full bg-primary/70 transition-[width] duration-500 ease-out"
+            className="h-full rounded-full bg-[var(--sw-selection-bg)] transition-[width] duration-500 ease-out"
             style={{ width: `${percent}%` }}
           />
         </div>

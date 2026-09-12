@@ -1,7 +1,32 @@
 from __future__ import annotations
 
+import pytest
+
 from app.sitewise.cost_plan_lines import cost_plan_lines
 from tests.sitewise.factories import commercial_fitout_project, fitout_evidence_pack
+
+
+@pytest.mark.parametrize("state", ["VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"])
+def test_interstate_residential_scaffold_uses_local_placeholders(state):
+    project = commercial_fitout_project()
+    project.state = state
+    project.building_class = "residential"
+    project.work_type = "new"
+    project.project_metadata = {"taxonomy": {"subclasses": ["house"]}}
+    pack = fitout_evidence_pack()
+    pack.construction_budget_ceiling = "$1,000,000"
+
+    lines = cost_plan_lines(project, pack).lines
+
+    labels = {line.cost_item for line in lines}
+    assert "Planning and building approval fees" in labels
+    assert "Water authority / infrastructure" in labels
+    assert not any("BASIX" in label or "Sydney Water" in label for label in labels)
+    construction = [line for line in lines if line.category == "Construction"]
+    assert construction
+    assert all(line.budget is None for line in construction)
+    fee = next(line for line in lines if line.cost_code == "1")
+    assert fee.budget is not None
 
 
 def test_fitout_keeps_every_unpriced_row() -> None:
