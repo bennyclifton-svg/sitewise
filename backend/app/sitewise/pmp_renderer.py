@@ -1260,7 +1260,7 @@ def _taxonomy_project_description(project: Project) -> str:
         # The user's own wording leads. A reader recognises "concrete cancer in
         # the basement carpark"; they do not recognise "Facade/Cladding
         # Rectification", which is a routing key that happens to be printable.
-        scope = "; ".join(narrative)
+        scope = "; ".join(narrative or [item.label for item in scope_items])
         work_type = work_type_label(context.work_type) or "Project"
         asset = _compact_taxonomy_scale_summary(project)
         lead = f"{work_type} works for {asset}" if asset else f"{work_type} works"
@@ -1387,7 +1387,7 @@ def _render_taxonomy_scope(project: Project) -> str:
     brief_is_emphasis = _top_weighted_section_id(project) == "scope-client-requirements"
 
     if is_class_1a(context.building_class, context.subclasses):
-        residential_note = "Confirm finishes, allowances, owner-supplied items and utility connections before procurement."
+        residential_note = "Confirm finishes, fixtures, allowances, owner selections, owner-supplied items and utility connections before procurement."
     elif context.building_class == "residential" and context.work_type == "new":
         residential_note = (
             "For residential new work, confirm finishes, fixtures, wet-area scope, kitchen/bathroom "

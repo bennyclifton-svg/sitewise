@@ -339,6 +339,10 @@ def test_inbox_upload_emits_document_received() -> None:
     async def _run() -> None:
         with (
             patch(
+                "app.inbox.service.find_ingested_workspace_file",
+                new=AsyncMock(return_value=None),
+            ),
+            patch(
                 "app.inbox.service.get_workspace_file_by_path",
                 new=AsyncMock(return_value=None),
             ),

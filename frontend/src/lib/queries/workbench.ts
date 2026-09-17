@@ -38,7 +38,7 @@ export function prefetchWorkbench(
     costPlanDraftId?: string | null;
   },
 ): Promise<void> {
-  void import("@/components/project/DraftReviewPanel");
+  void import("@/components/project/DraftReviewPanel").catch(() => undefined);
   const tasks: Promise<unknown>[] = [];
   tasks.push(
     queryClient.prefetchQuery({
