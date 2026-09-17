@@ -22,6 +22,11 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import time
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"ok")
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
@@ -43,6 +48,9 @@ HTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
                 with urllib.request.urlopen(base, timeout=2) as response:
                     html = response.read().decode()
                     assert response.headers["Cache-Control"] == "no-cache"
+                # Static HTML can be ready before the fake upstream is listening.
+                with urllib.request.urlopen(base + "/api/health", timeout=2) as response:
+                    assert response.read() == b"ok"
                 break
             except (OSError, urllib.error.URLError):
                 if attempt == 29:
@@ -69,6 +77,10 @@ HTTPServer(("0.0.0.0", 8000), Handler).serve_forever()
             assert time.monotonic() - started < 2, "SSE first event was buffered"
             assert b"data: last" in response.read()
         print("PASS: HTML revalidation, compressed immutable JS, missing asset 404, unbuffered SSE")
+    except Exception:
+        for container in (api_name, web_name):
+            subprocess.run(["docker", "logs", container], check=False)
+        raise
     finally:
         subprocess.run(["docker", "rm", "-f", web_name, api_name], check=False)
         docker("network", "rm", name)

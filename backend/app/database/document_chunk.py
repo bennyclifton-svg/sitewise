@@ -13,7 +13,6 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
@@ -54,10 +53,13 @@ class DocumentChunk(Base):
     citations: Mapped[list["MessageCitation"]] = relationship(back_populates="chunk")
 
     __table_args__ = (
-        UniqueConstraint(
+        Index(
+            "uq_document_chunks_document_id_chunk_index",
             "document_id",
             "chunk_index",
-            name="uq_document_chunks_document_id_chunk_index",
+            unique=True,
         ),
-        Index("ix_document_chunks_document_id", "document_id"),
+        Index("ix_document_chunks_embedding_hnsw", "embedding",
+              postgresql_using="hnsw", postgresql_ops={"embedding": "vector_cosine_ops"}),
+        Index("ix_document_chunks_search_vector_gin", "search_vector", postgresql_using="gin"),
     )

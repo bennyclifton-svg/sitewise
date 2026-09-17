@@ -25,6 +25,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -295,6 +296,7 @@ class TenderDocument(Base):
             "quote_id", "content_hash", name="uq_tender_documents_quote_id_content_hash"
         ),
         Index("ix_tender_documents_quote_id", "quote_id"),
+        Index("ix_tender_documents_workspace_file_id", "workspace_file_id"),
     )
 
 
@@ -486,6 +488,11 @@ class TaxonomySynonym(Base):
 
     __table_args__ = (
         _values_check("source", SYNONYM_SOURCES, "taxonomy_synonyms"),
+        Index("ix_taxonomy_synonyms_phrase_norm_trgm", "phrase_norm",
+              postgresql_using="gin", postgresql_ops={"phrase_norm": "gin_trgm_ops"}),
+        Index("ix_taxonomy_synonyms_embedding", "embedding",
+              postgresql_using="ivfflat", postgresql_ops={"embedding": "vector_cosine_ops"},
+              postgresql_where=text("embedding IS NOT NULL")),
         UniqueConstraint(
             "cell_code", "phrase_norm", name="uq_taxonomy_synonyms_cell_code_phrase_norm"
         ),
@@ -698,8 +705,12 @@ class TenderCellStatus(Base):
             "cell_code IS NOT NULL OR project_trade_id IS NOT NULL",
             name="ck_tender_cell_status_cell_or_trade",
         ),
-        # Partial uniques live in migration 036; ORM cannot express them.
-        Index("ix_tender_cell_status_comparison_id", "comparison_id"),
+        Index("uq_tender_cell_status_comparison_quote_cell",
+              "comparison_id", "quote_id", "cell_code", unique=True,
+              postgresql_where=text("cell_code IS NOT NULL")),
+        Index("uq_tender_cell_status_comparison_quote_trade",
+              "comparison_id", "quote_id", "project_trade_id", unique=True,
+              postgresql_where=text("project_trade_id IS NOT NULL")),
     )
 
 

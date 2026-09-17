@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from app.config import settings
 from tender.llm.client import LLMAdjudicationResponse
 from tender.models import TenderDocument, TenderJob, TenderQuote
 from tender.schemas import ProjectContext
@@ -158,7 +159,10 @@ def test_classify_writes_doc_type_and_confidence() -> None:
     assert float(document.classification_confidence) == pytest.approx(0.95)
     assert quote.stage == "extract_line_items"
     assert session.jobs[0].kind == "extract_line_items"
-    assert session.jobs[0].payload == {"document_id": str(document.id)}
+    assert session.jobs[0].payload == {
+        "document_id": str(document.id),
+        "queue_scope": settings.workflow_queue_scope,
+    }
     call = llm.calls[0]
     assert call["evidence"]["filename"] == "builder-quote.pdf"
     assert call["evidence"]["first_pages_text"] == ["page 1 body", "page 2 body"]

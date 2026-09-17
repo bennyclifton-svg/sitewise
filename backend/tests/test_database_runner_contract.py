@@ -28,8 +28,10 @@ def test_database_compose_is_private_ephemeral_and_digest_pinned() -> None:
     assert database["tmpfs"] == [
         "/var/lib/postgresql/data:rw,noexec,nosuid,size=1g"
     ]
-    assert database["healthcheck"]["test"][0:2] == ["CMD-SHELL", "pg_isready"]
-    assert compose["networks"]["database_test"]["internal"] is True
+    assert database["healthcheck"]["test"] == [
+        "CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"
+    ]
+    assert compose["networks"]["database_test"] == {"driver": "bridge"}
     assert "volumes" not in compose
 
 
@@ -42,6 +44,8 @@ def test_database_runner_has_fail_closed_lifecycle_and_shared_commands() -> None
     assert "docker compose" in source
     assert "up --detach --wait" in source
     assert "CREATE TABLE IF NOT EXISTS clerk_test_environment" in source
+    assert "CREATE SCHEMA IF NOT EXISTS auth" in source
+    assert "CREATE FUNCTION auth.uid()" in source
     assert "uv run --frozen alembic upgrade head" in source
     assert "uv run --frozen alembic check" in source
     assert 'uv run --frozen pytest -m database_integration' in source

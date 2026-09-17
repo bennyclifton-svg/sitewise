@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
 import { prefetchWorkbench, workbenchKeys } from "@/lib/queries/workbench";
@@ -22,6 +22,10 @@ vi.mock("@/lib/api", () => ({
 }));
 
 describe("prefetchWorkbench", () => {
+  afterEach(async () => {
+    await vi.dynamicImportSettled();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.getProjectDraft).mockResolvedValue({ id: "pmp-1" } as never);

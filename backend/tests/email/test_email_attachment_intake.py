@@ -336,6 +336,10 @@ def _snapshot(project: Project):
 def _inbox_runtime_patches(project: Project):
     with (
         patch(
+            "app.inbox.service.find_ingested_workspace_file",
+            new=AsyncMock(return_value=None),
+        ),
+        patch(
             "app.inbox.service.get_workspace_file_by_path",
             new=AsyncMock(return_value=None),
         ),

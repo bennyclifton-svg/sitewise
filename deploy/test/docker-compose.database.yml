@@ -10,7 +10,8 @@ services:
     tmpfs:
       - /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      # The bootstrap server only accepts sockets; wait for the final TCP server.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 2s
       timeout: 5s
       retries: 30
@@ -19,4 +20,6 @@ services:
 
 networks:
   database_test:
-    internal: true
+    # Tests run on the host: internal networks suppress published-port access.
+    # The explicit 127.0.0.1 binding above keeps PostgreSQL host-only.
+    driver: bridge

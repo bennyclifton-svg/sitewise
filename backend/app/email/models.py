@@ -10,6 +10,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -131,6 +132,7 @@ class ProjectEmailInterpretation(Base):
     email: Mapped[ProjectEmail] = relationship(back_populates="interpretation")
 
     __table_args__ = (
+        Index("ix_email_interpretations_project", "project_id"),
         CheckConstraint(
             "match_basis IS NULL OR match_basis IN "
             "('contact','domain','thread','alias','subject','user','default')",
@@ -195,6 +197,7 @@ class ProjectEmailDraft(Base):
     references: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     __table_args__ = (
+        Index("ix_email_drafts_project_status", "project_id", "status"),
         CheckConstraint(
             "status IN ('" + "','".join(DRAFT_STATUSES) + "')",
             name="ck_email_drafts_status",
