@@ -94,6 +94,10 @@ VALUES (1, 'test')
 ON CONFLICT (id) DO UPDATE SET environment = EXCLUDED.environment;
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Supabase supplies this function; plain pgvector images do not.
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
+    'SELECT NULLIF(current_setting(''request.jwt.claim.sub'', true), '''')::uuid';
 "@
     docker compose --file $composeFile --project-name $projectName exec --no-TTY database psql --username $postgresUser --dbname $databaseName --set ON_ERROR_STOP=1 --command $bootstrapSql
     Assert-CommandSucceeded "Disposable database bootstrap failed."

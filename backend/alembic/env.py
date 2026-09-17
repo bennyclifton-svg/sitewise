@@ -32,7 +32,11 @@ def get_database_url() -> str:
 
 def include_object(object_, name, type_, reflected, compare_to) -> bool:
     del object_, reflected, compare_to
-    return not (type_ == "table" and name == "clerk_test_environment")
+    # Migration 016 replaced Polar with Stripe but deliberately retained its data.
+    # These legacy tables have no live ORM model and must not be auto-dropped.
+    return not (type_ == "table" and name in {
+        "clerk_test_environment", "polar_customers", "polar_subscriptions",
+    })
 
 
 def run_migrations_offline() -> None:

@@ -44,6 +44,8 @@ def test_database_runner_has_fail_closed_lifecycle_and_shared_commands() -> None
     assert "docker compose" in source
     assert "up --detach --wait" in source
     assert "CREATE TABLE IF NOT EXISTS clerk_test_environment" in source
+    assert "CREATE SCHEMA IF NOT EXISTS auth" in source
+    assert "CREATE FUNCTION auth.uid()" in source
     assert "uv run --frozen alembic upgrade head" in source
     assert "uv run --frozen alembic check" in source
     assert 'uv run --frozen pytest -m database_integration' in source

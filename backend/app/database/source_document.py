@@ -48,6 +48,11 @@ class SourceDocument(Base):
 
     __table_args__ = (
         Index(
+            "ix_source_documents_platform_knowledge_kind",
+            text("(document_metadata ->> 'knowledge_scope')"),
+            text("(document_metadata ->> 'sitewise_knowledge_kind')"),
+        ),
+        Index(
             "ix_source_documents_project_source_type_relative_path",
             "project_id",
             "source_type",

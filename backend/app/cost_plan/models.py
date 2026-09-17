@@ -173,6 +173,7 @@ class CostPlanItem(Base):
             "cost_plan_version_id", "cost_code", name="uq_cost_plan_items_version_code"
         ),
         Index("ix_cost_plan_items_version", "cost_plan_version_id"),
+        Index("ix_cost_plan_items_version_order", "cost_plan_version_id", "display_order"),
     )
 
 
