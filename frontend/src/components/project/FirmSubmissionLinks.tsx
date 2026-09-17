@@ -83,7 +83,7 @@ export function FirmSubmissionLinks({ candidate, projectId, slot, cellLabel, row
       <DropdownMenuTrigger asChild>
         <Button size="xs" variant="ghost" className="h-8 min-w-8 gap-1 rounded-none px-1 text-xs text-muted-foreground hover:text-foreground" title={links.length ? links.map((file) => file.filename).join("\n") : `Link documents for ${cellLabel}`} disabled={disabled || saving} aria-label={candidate ? `Quote files for ${candidate.company_name}` : `Link documents for ${cellLabel}`}>
           {saving ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> : <Paperclip className="size-3.5" aria-hidden />}
-          {saving ? <span className="sr-only" role="status">{identifying ? "Identifying firm…" : "Saving…"}</span> : links.length > 0 ? <span>{links.length}</span> : null}
+          {saving ? <span className="sr-only" role="status">{identifying ? "Identifying firmâ€¦" : "Savingâ€¦"}</span> : links.length > 0 ? <span>{links.length}</span> : null}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 w-80 overflow-y-auto">
