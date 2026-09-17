@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -127,6 +127,7 @@ class Settings(BaseSettings):
     agent_platform_api_key: str | None = None
     agent_mcp_url: str = "http://127.0.0.1:8000/mcp"
     agent_max_concurrent_turns: int = 4
+    agent_queue_timeout_seconds: float = Field(default=30, gt=0, le=300)
     agent_turn_timeout_seconds: int = 360
     agent_workspace_root: Path = Path.home() / ".clerk" / "agent-workspaces"
     agent_web_research_enabled: bool = False
@@ -157,6 +158,16 @@ class Settings(BaseSettings):
     gmail_client_id: str | None = None
     gmail_client_secret: str | None = None
     gmail_refresh_token: str | None = None
+
+    @property
+    def agent_process_environment(self) -> dict[str, str]:
+        # Pi needs OS/runtime paths, not database, billing or service-role secrets.
+        allowed = {
+            "PATH", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP",
+            "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA", "LANG", "LC_ALL", "TZ",
+            "SSL_CERT_FILE", "SSL_CERT_DIR",
+        }
+        return {key: value for key, value in os.environ.items() if key.upper() in allowed}
 
     @field_validator("database_url")
     @classmethod
@@ -249,12 +260,19 @@ class Settings(BaseSettings):
     @field_validator("email_provider")
     @classmethod
     def validate_email_provider(cls, value: str) -> str:
-        if value not in {"fake", "microsoft_graph", "gmail"}:
-            raise ValueError("EMAIL_PROVIDER must be fake, microsoft_graph, or gmail")
+        if value not in {"fake", "microsoft_graph", "gmail", "mailgun"}:
+            raise ValueError("EMAIL_PROVIDER must be fake, microsoft_graph, gmail, or mailgun")
         return value
 
     @model_validator(mode="after")
     def require_email_provider_secrets(self) -> "Settings":
+        if self.environment.strip().lower() == "production" and self.email_provider == "fake":
+            raise ValueError("EMAIL_PROVIDER=fake is not permitted in production")
+        if self.email_provider == "mailgun":
+            if not (self.mailgun_api_key or "").strip():
+                raise ValueError("EMAIL_PROVIDER=mailgun requires MAILGUN_API_KEY")
+            if not self.mailgun_sending_domain.strip():
+                raise ValueError("EMAIL_PROVIDER=mailgun requires MAILGUN_SENDING_DOMAIN")
         if self.email_provider == "microsoft_graph":
             missing = [
                 name

@@ -1,0 +1,24 @@
+#sitewise-landing .sw-system-diagram {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: clamp(320px, 48vw, 560px);
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  background: transparent;
+}
+
+#sitewise-landing .sw-system-linework {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--sw-text-primary);
+  opacity: .16;
+  -webkit-mask: url("./system-linework.svg") center / 100% 100% no-repeat;
+  mask: url("./system-linework.svg") center / 100% 100% no-repeat;
+}
+
+@media (forced-colors: active) {
+  #sitewise-landing .sw-system-linework { display: none; }
+}

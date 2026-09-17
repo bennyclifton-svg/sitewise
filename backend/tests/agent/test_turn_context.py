@@ -28,6 +28,17 @@ PROJECT_ID = "22222222-2222-2222-2222-222222222222"
 ARTEFACT_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 
 
+def test_awarded_contractor_cost_plan_request_uses_reconciled_write():
+    text = "Update the cost plan from the Kaposi tender submission; they have been awarded the contract."
+    prompt = build_agent_prompt(text, project_id=PROJECT_ID, title="Caves Beach",
+                               archetype=None, state=None, phase=None,
+                               building_class=None, work_type=None, history=[])
+    assert "<awarded-tender-cost-plan>" in prompt
+    assert "apply_awarded_tender_to_cost_plan" in prompt
+    assert "Resolve unclear GST, margin" in prompt
+    assert turn_needs_mutation_tools(text, classify_mutation_intent(text))
+
+
 def test_prompt_carries_overlays_and_history_before_user_text() -> None:
     prompt = build_agent_prompt(
         "Compare the tenders",

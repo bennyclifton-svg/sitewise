@@ -13,15 +13,15 @@
 
 #sitewise-landing .sw-coordination h1 {
   font-family: 'Instrument Sans', Arial, sans-serif;
-  font-weight: 400;
-  font-size: clamp(44px, 8.2vw, 140px);
+  font-weight: 600;
+  font-size: clamp(28px, 3.4vw, 56px);
 }
 #sitewise-landing .sw-workspace-intro h2,
 #sitewise-landing .sw-workflow h2,
 #sitewise-landing .sw-closing h2 { font-size: clamp(28px, 3.2vw, 48px); }
 
 @media (max-width: 799px) {
-  #sitewise-landing .sw-coordination h1 { font-size: clamp(36px, 10vw, 56px); }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(26px, 6.4vw, 40px); }
 }
 
 #sitewise-landing .sw-coordination-copy {
@@ -35,7 +35,7 @@
   padding-right: 0;
 }
 #sitewise-landing .sw-coordination-intro {
-  margin-top: 28px;
+  margin-top: 36px;
   max-width: 28ch;
   font-size: clamp(17px, 1.35vw, 22px);
   line-height: 1.5;
@@ -47,19 +47,97 @@
 .sw-source-credits{padding:12px 28px;background:#071c39;color:#96a7bd;font:10px/1.6 'Instrument Sans',sans-serif}
 .sw-source-credits a{color:inherit}
 
-#sitewise-landing .sw-coordination h1 .sw-headline-line {
+#sitewise-landing .sw-coordination h1 {
+  position: relative;
+  width: max-content;
+  max-width: min(17.4em, 58vw);
+  word-spacing: 0.06em;
+  line-height: 1.12;
+  overflow: visible;
+  padding: 0.08em 0.55em 0.32em 0.04em;
+}
+#sitewise-landing .sw-headline-sizer {
+  display: block;
+  visibility: hidden;
+}
+#sitewise-landing .sw-headline-live {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+#sitewise-landing .sw-headline-static,
+#sitewise-landing .sw-headline-suffix {
   display: block;
   overflow: visible;
-  padding-bottom: 0.05em;
-  color: var(--sw-text-primary);
+  padding-bottom: 0.12em;
   white-space: nowrap;
 }
-#sitewise-landing .sw-coordination h1 .sw-headline-ink { display: inline-block; position: relative; }
-#sitewise-landing .is-headline-washed .sw-headline-type {
-  background-image: linear-gradient(92deg, #1F1915 0%, #1F1915 72%, #2C241E 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+#sitewise-landing .sw-headline-suffix {
+  line-height: 1.34;
+  /* Preserve the headline's footprint so the first line stays anchored. */
+  transform: translateY(-0.18em);
+}
+#sitewise-landing .sw-headline-typed { white-space: nowrap; }
+#sitewise-landing .sw-headline-word { white-space: nowrap; }
+#sitewise-landing .sw-headline-char {
+  display: inline-block;
+  white-space: pre;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+}
+#sitewise-landing .sw-headline-char.is-space {
+  width: 0.32em;
+}
+#sitewise-landing .sw-headline-cursor {
+  display: inline-block;
+  width: 0.28em;
+  height: 0.28em;
+  margin: 0 0 0 -0.14em;
+  border-radius: 50%;
+  background: #087ac9;
+  vertical-align: baseline;
+  position: relative;
+  top: 0;
+  transition: background-color 140ms ease;
+}
+#sitewise-landing .sw-headline-cursor[data-mode=delete] { background: #e23b2c; }
+#sitewise-landing .sw-headline-cursor[data-mode=ready] { background: #1aa05a; }
+#sitewise-landing .sw-headline-cursor[hidden] { display: none; }
+#sitewise-landing .sw-headline-hand-slot {
+  display: inline-block;
+  position: relative;
+  vertical-align: baseline;
+  height: 1em;
+  margin-left: 0.02em;
+  overflow: visible;
+}
+#sitewise-landing .sw-headline-hand-slot[hidden] { display: none; }
+#sitewise-landing .sw-headline-hand {
+  display: inline-block;
+  height: 0;
+  font-family: Allison, cursive !important;
+  font-weight: 400;
+  font-size: 1.68em;
+  line-height: 0;
+  color: #087ac9;
+  -webkit-text-stroke: 0.032em #087ac9;
+  text-stroke: 0.032em #087ac9;
+  paint-order: stroke fill;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  padding: 0 0.22em 0 0;
+  margin: 0;
+  overflow: visible;
+  transform: translateY(-0.12em) rotate(-6deg);
+  transform-origin: 6% 80%;
+}
+#sitewise-landing .sw-headline-hand-comma,
+#sitewise-landing .sw-headline-hand-words {
+  display: inline;
+}
+#sitewise-landing .sw-coordination-copy,
+#sitewise-landing .sw-coordination-reading {
+  overflow: visible;
 }
 #sitewise-landing .sw-coordination-copy .sw-cta { margin-top: 8px; }
 #sitewise-landing .sw-coordination-copy .sw-cta:hover,
@@ -67,25 +145,10 @@
   background: #8eb4f2;
   color: #102647;
 }
-#sitewise-landing .sw-coordination { position: relative; }
-@media (prefers-reduced-motion: no-preference) {
-  #sitewise-landing .sw-coordination:not(.is-headline-ready) .sw-headline-line {
-    -webkit-mask-image: linear-gradient(to top, #000 38%, transparent 92%);
-    mask-image: linear-gradient(to top, #000 38%, transparent 92%);
-    -webkit-mask-size: 100% 380%;
-    mask-size: 100% 380%;
-    -webkit-mask-position: 0% 0%;
-    mask-position: 0% 0%;
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-  }
-  #sitewise-landing .sw-coordination:not(.is-headline-ready) .sw-headline-ink {
-    transform: translateY(0.55em);
-  }
-}
+#sitewise-landing .sw-coordination { position: relative; overflow: visible; }
 @media (min-width: 800px) and (max-height: 850px) {
   #sitewise-landing .sw-coordination-copy { padding-top: 140px; }
-  #sitewise-landing .sw-coordination h1 { font-size: clamp(40px, 6.6vw, 96px); }
+  #sitewise-landing .sw-coordination h1 { font-size: clamp(28px, 3.2vw, 48px); }
 }
 @media(max-width:799px){
   #sitewise-landing .sw-coordination-copy{
@@ -98,7 +161,7 @@
 /* Masthead lockup uses the same light-mode ink as the app lockup. */
 #sitewise-landing .sw-masthead a.sw-wordmark,
 #sitewise-landing .sw-footer .sw-wordmark { display:inline-flex; align-items:center; width:auto; }
-#sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { display:block; width:190px; height:auto; filter:none; }
+#sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { display:block; width:148px; height:auto; filter:none; }
 #sitewise-landing .sw-footer .sw-original-logo { display:block; width:160px; height:auto; }
 @supports (mask-image: url("../brand/sitewise-lockup-dark.png")) {
   #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { opacity: 0; }
@@ -112,5 +175,5 @@
   }
 }
 @media(max-width:799px) {
-  #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { width:158px; }
+  #sitewise-landing .sw-masthead .sw-brand > img.sw-original-logo { width:128px; }
 }

@@ -1,0 +1,47 @@
+#sitewise-landing .sw-lot-ripple {
+  position: relative;
+  left: 50%;
+  width: 100vw;
+  max-width: none;
+  margin: 0 0 0 -50vw;
+  padding: 0;
+  overflow: hidden;
+  background: var(--sw-canvas, #f9f7f3);
+}
+#sitewise-landing .sw-lot-ripple-map {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: var(--sw-map-ratio, 1343 / 1653);
+  cursor: pointer;
+}
+#sitewise-landing .sw-lot-ripple-map:focus-visible {
+  outline: 2px solid #c5c2ba;
+  outline-offset: -6px;
+}
+#sitewise-landing .sw-lot {
+  fill: #8a8680;
+  fill-opacity: 0;
+  stroke: #c5c2ba;
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+  cursor: pointer;
+}
+#sitewise-landing .sw-lot:hover {
+  fill-opacity: 0.05;
+}
+#sitewise-landing .sw-lot.is-origin {
+  stroke: #b4b1aa;
+}
+#sitewise-landing .sw-lot.is-rippling {
+  animation: lot-ripple var(--duration, 200ms) ease-out var(--delay, 0ms) 1;
+  animation-fill-mode: none;
+}
+@keyframes lot-ripple {
+  0% { fill-opacity: 0; }
+  40% { fill-opacity: 0.1; }
+  100% { fill-opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sitewise-landing .sw-lot.is-rippling { animation: none; }
+}

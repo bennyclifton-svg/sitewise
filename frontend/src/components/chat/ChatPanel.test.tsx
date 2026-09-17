@@ -43,6 +43,8 @@ vi.mock("@/components/chat/ActivityStream", () => ({
 
 vi.mock("@/lib/api", () => ({
   api: {
+    getAgentTurnStatus: vi.fn().mockResolvedValue({ status: "idle", active: false, turn_id: null }),
+    getThreadMessages: vi.fn().mockResolvedValue([]),
     cancelAgentTurn: vi.fn(),
     getAgentModels: vi.fn().mockResolvedValue({
       agent_runtime_enabled: true,
@@ -140,6 +142,16 @@ describe("ChatPanel live activity", () => {
     vi.clearAllMocks();
   });
 
+  it("shows a server-side request after returning to an idle chat", async () => {
+    vi.mocked(api.getAgentTurnStatus).mockResolvedValueOnce({
+      turn_id: "running-turn", active: true, status: "running",
+    });
+    renderPanel();
+    expect(await screen.findByText("Previous request is still active")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Stop previous request" }));
+    await waitFor(() => expect(api.cancelAgentTurn).toHaveBeenCalledWith("thread-1"));
+  });
+
   it("publishes the thread as live while the agent is thinking", () => {
     mockUseChat({ status: "streaming" });
     render(
@@ -212,6 +224,17 @@ describe("ChatPanel stop control", () => {
     await waitFor(() =>
       expect(api.cancelAgentTurn).toHaveBeenCalledWith("thread-1"),
     );
+  });
+
+  it("does not confirm cancellation when the server request fails", async () => {
+    vi.mocked(api.cancelAgentTurn).mockRejectedValueOnce(new Error("offline"));
+    renderPanel("streaming");
+    await userEvent.click(screen.getByRole("button", { name: /stop/i }));
+    expect(await screen.findByText("Could not confirm cancellation. The task may still be running.")).toBeInTheDocument();
+    expect(screen.queryByText("Cancellation requested")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry cancellation" }));
+    await waitFor(() => expect(screen.queryByText("Could not confirm cancellation. The task may still be running.")).not.toBeInTheDocument());
+    expect(api.cancelAgentTurn).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -431,7 +454,7 @@ describe("ChatPanel agent model selection", () => {
     });
   });
 
-  it("remaps a stored Sol Thorough selection to Grok", () => {
+  it("preserves the configured Sol ID rather than substituting a different provider", () => {
     window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-sol");
     renderPanel("ready");
 
@@ -451,8 +474,20 @@ describe("ChatPanel agent model selection", () => {
 
     expect(request.body).toMatchObject({
       thread_id: "thread-1",
-      agent_model: "xai:grok-4.6",
+      agent_model: "openai:gpt-5.6-sol",
     });
+  });
+
+  it("reads model changes at send time even when the SDK retains its original transport", () => {
+    window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-sol");
+    renderPanel("ready");
+    const config = transportMock.mock.calls[0][0] as {
+      prepareSendMessagesRequest: (input: { id: string; messages: unknown[]; body: Record<string, unknown> }) => { body: Record<string, unknown> };
+    };
+    window.localStorage.setItem("clerk.agentModel.v2", "openai:gpt-5.6-luna");
+    expect(config.prepareSendMessagesRequest({ id: "thread-1", messages: [], body: {} }).body.agent_model).toBe("openai:gpt-5.6-luna");
+    window.localStorage.removeItem("clerk.agentModel.v2");
+    expect(config.prepareSendMessagesRequest({ id: "thread-1", messages: [], body: {} }).body).not.toHaveProperty("agent_model");
   });
 
 });

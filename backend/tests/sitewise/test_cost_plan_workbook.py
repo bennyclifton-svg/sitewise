@@ -242,3 +242,24 @@ def _greenbank_cost_items() -> list[tuple[str, str]]:
         ("PC allowances", "Floor coverings PC"),
         ("PC allowances", "Lighting fittings PC"),
     ]
+
+
+def test_unpriced_budget_preserves_unknown_in_formulas_and_preview() -> None:
+    workbook = build_cost_plan_workbook(
+        project_title="Synthetic acceptance", markdown=_valid_cost_plan_markdown(), version=1,
+    )
+    loaded = load_workbook(BytesIO(workbook.content), data_only=False)
+    summary = loaded["Summary"]
+    summary["D5"] = None
+    buffer = BytesIO()
+    loaded.save(buffer)
+    preview = workbook_preview_from_bytes(buffer.getvalue())
+    rows = next(sheet for sheet in preview.sheets if sheet.name == "Summary").rows
+    item_row = next(row for row in rows if len(row) > 2 and row[2] == summary["C5"].value)
+    assert item_row[3] == "TBC"
+    assert item_row[8] == "TBC"
+    assert item_row[11] == "TBC"
+    total_row = next(row for row in rows if len(row) > 1 and row[1] == "Grand total")
+    assert total_row[3] == "TBC"
+    assert 'ISNUMBER(D5)' in summary["I5"].value
+    assert '"TBC"' in summary["L5"].value

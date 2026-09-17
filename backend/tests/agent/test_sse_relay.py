@@ -118,21 +118,12 @@ async def _failing_chunks() -> AsyncIterator[str]:
     raise RuntimeError("Pi stopped with Bearer ch03-sse-chunk-provider-token")
 
 
-def test_relay_agent_turn_emits_error_and_done_on_failure() -> None:
-    events = run_async(_collect(_failing_chunks()))
-    payloads = [_payload(event) for event in events]
+def test_relay_leaves_failure_persistence_and_terminal_events_to_caller() -> None:
+    from app.agent.pi_process import PiTurnError
 
-    assert [payload["type"] if isinstance(payload, dict) else payload for payload in payloads] == [
-        "start",
-        "text-start",
-        "data-clerk-status",
-        "text-delta",
-        "error",
-        "[DONE]",
-    ]
-    assert payloads[-1] == "[DONE]"
-    assert payloads[-2]["errorText"] == "Agent turn failed"
-    assert "ch03-sse-chunk-provider-token" not in str(payloads)
+    with pytest.raises(PiTurnError, match="Agent output stream failed") as error:
+        run_async(_collect(_failing_chunks()))
+    assert "ch03-sse-chunk-provider-token" not in str(error.value)
 
 
 async def _failing_status() -> AsyncIterator[dict[str, Any] | str]:
@@ -141,12 +132,86 @@ async def _failing_status() -> AsyncIterator[dict[str, Any] | str]:
 
 
 def test_relay_agent_turn_masks_status_stream_failure() -> None:
-    events = run_async(_collect(_slow_text_chunk(), status=_failing_status()))
-    payloads = [_payload(event) for event in events]
+    from app.agent.pi_process import PiTurnError
 
-    assert [
-        payload["type"] if isinstance(payload, dict) else payload
-        for payload in payloads
-    ] == ["start", "text-start", "data-clerk-status", "error", "[DONE]"]
-    assert payloads[-2]["errorText"] == "Agent status stream failed"
-    assert "ch03-sse-status-provider-token" not in str(payloads)
+    with pytest.raises(PiTurnError, match="Agent status stream failed") as error:
+        run_async(_collect(_slow_text_chunk(), status=_failing_status()))
+    assert "ch03-sse-status-provider-token" not in str(error.value)
+
+
+def test_quiet_turn_keeps_connection_alive_without_cancelling_work(monkeypatch):
+    import app.agent.sse_relay as relay
+
+    monkeypatch.setattr(relay, "HEARTBEAT_SECONDS", 0.01, raising=False)
+
+    async def run():
+        release = asyncio.Event()
+        cancelled = False
+
+        async def chunks():
+            nonlocal cancelled
+            yield "Researching"
+            try:
+                await release.wait()
+            except asyncio.CancelledError:
+                cancelled = True
+                raise
+            yield "Done"
+
+        stream = relay_agent_turn(chunks())
+        try:
+            while True:
+                event = await asyncio.wait_for(anext(stream), timeout=0.2)
+                if event.startswith(":"):
+                    break
+            assert not cancelled
+            release.set()
+            rest = [event async for event in stream]
+            assert any('"Done"' in event for event in rest)
+            assert "[DONE]" in rest[-1]
+        finally:
+            release.set()
+            await stream.aclose()
+
+    run_async(run())
+
+
+def test_completion_failure_never_emits_success():
+    from app.agent.pi_process import PiTurnError
+
+    async def run():
+        events = []
+
+        async def fail_save():
+            raise RuntimeError("private database detail")
+
+        with pytest.raises(PiTurnError, match="completion persistence failed") as error:
+            async for event in relay_agent_turn(_text_chunks(), on_complete=fail_save):
+                events.append(event)
+        assert "private database detail" not in str(error.value)
+        assert not any('"finish"' in event or "[DONE]" in event for event in events)
+
+    run_async(run())
+
+
+def test_closing_stream_at_finish_leaves_no_status_reader():
+    async def run():
+        closed = asyncio.Event()
+
+        async def statuses():
+            try:
+                yield "Working"
+                await asyncio.Event().wait()
+            finally:
+                closed.set()
+
+        stream = relay_agent_turn(_slow_text_chunk(), status=statuses())
+        try:
+            async for event in stream:
+                if '"finish"' in event:
+                    assert closed.is_set()
+                    break
+        finally:
+            await stream.aclose()
+
+    run_async(run())

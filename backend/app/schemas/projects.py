@@ -477,6 +477,7 @@ class DocumentUsageMark(BaseModel):
 class EvidencePreview(BaseModel):
     id: uuid.UUID
     workspace_file_id: uuid.UUID | None = None
+    ingest_status: str | None = None
     title: str
     filename: str
     relative_path: str
@@ -746,6 +747,7 @@ class ProcurementStrategyRowView(BaseModel):
     comparison_id: uuid.UUID | None = None
     recommendation_draft_id: uuid.UUID | None = None
     recommendation_stale: bool = False
+    awarded_candidate_id: uuid.UUID | None = None
 
 
 class ProcurementStrategyView(BaseModel):
@@ -768,9 +770,12 @@ ProcurementStrategyOperationType = Literal[
     "UNLOCK_ROW",
     "UPSERT_CANDIDATE",
     "CLEAR_CANDIDATE",
+    "AWARD_CANDIDATE",
+    "CLEAR_AWARD",
     "SET_TENDERER_COLUMN_COUNT",
     "LINK_CANDIDATE_FILES",
     "UNLINK_CANDIDATE_FILES",
+    "CREATE_CANDIDATE_FROM_FILES",
 ]
 
 

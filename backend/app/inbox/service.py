@@ -8,7 +8,9 @@ from fastapi import HTTPException, status
 from app.config import settings
 from app.database.activity_events import record_activity_events
 from app.database.project import Project
-from app.database.workspace_files import get_workspace_file_by_path, upsert_workspace_file
+from app.database.workspace_files import (
+    find_ingested_workspace_file, get_workspace_file_by_path, upsert_workspace_file,
+)
 from app.inbox.paths import InboxPathError, build_inbox_workspace_path, build_storage_key, sanitize_filename
 from app.projects.event_spine import record_project_verb, verb_dedup_key
 from app.projects.locks import lock_project
@@ -16,7 +18,7 @@ from app.schemas.projects import WorkflowTraceEvent
 from app.schemas.project_snapshot import ProjectSnapshot
 from app.schemas.workflow_runs import WorkflowRunStartRequest
 from app.storage.project_files import upload_project_file
-from app.workflows.runs import start_workflow_run
+from app.workflows.runs import latest_document_ingest_run, start_workflow_run
 from ingest.hashing import bytes_content_hash
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -167,6 +169,9 @@ async def store_and_queue_inbox_file(
     Does not commit; the HTTP batch still commits once after the loop.
     """
     run_id = uuid.uuid4()
+    project = await lock_project(session, project_id=project.id)
+    if project is None:
+        raise RuntimeError("Project was deleted before the file upload")
     filename = sanitize_filename(item.filename)
     content_hash = bytes_content_hash(item.content)
     workspace_path = build_inbox_workspace_path(
@@ -182,6 +187,10 @@ async def store_and_queue_inbox_file(
         project_id=project.id,
         workspace_path=workspace_path,
     )
+    if existing is None and not item.relative_path:
+        existing = await find_ingested_workspace_file(
+            session, project_id=project.id, filename=filename, content_hash=content_hash
+        )
     if existing is not None and existing.content_hash == content_hash:
         if existing.ingest_status in {"ingested", "skipped"}:
             await _record_file_activity(
@@ -195,7 +204,7 @@ async def store_and_queue_inbox_file(
                         "skipped",
                         "Identical content already exists in the project workspace.",
                         filename=filename,
-                        workspace_path=workspace_path,
+                        workspace_path=existing.workspace_path,
                         ingest_status=existing.ingest_status,
                     )
                 ],
@@ -203,11 +212,25 @@ async def store_and_queue_inbox_file(
             return InboxUploadOutcome(
                 id=existing.id,
                 filename=filename,
-                workspace_path=workspace_path,
+                workspace_path=existing.workspace_path,
                 content_hash=content_hash,
                 size_bytes=existing.size_bytes,
                 ingest_status=existing.ingest_status,
                 message="Identical content already uploaded",
+            )
+
+    previous_run = None
+    if existing is not None and existing.content_hash == content_hash:
+        previous_run = await latest_document_ingest_run(
+            session, project_id=project.id, workspace_file_id=existing.id
+        )
+        if previous_run is not None and previous_run.state in {"queued", "running"}:
+            return InboxUploadOutcome(
+                id=existing.id, filename=filename, workspace_path=existing.workspace_path,
+                content_hash=content_hash, size_bytes=existing.size_bytes,
+                ingest_status="ingesting" if previous_run.state == "running" else "queued",
+                message="Identical upload is already being processed",
+                workflow_run_id=previous_run.id,
             )
 
     try:
@@ -244,10 +267,6 @@ async def store_and_queue_inbox_file(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not store the file in project storage. Please try again.",
         ) from exc
-
-    project = await lock_project(session, project_id=project.id)
-    if project is None:
-        raise RuntimeError("Project was deleted while the file upload was in progress")
 
     record = await upsert_workspace_file(
         session,
@@ -294,8 +313,9 @@ async def store_and_queue_inbox_file(
         ],
     )
 
+    retry_suffix = f":retry:{previous_run.id}" if previous_run is not None else ""
     request = WorkflowRunStartRequest(
-        idempotency_key=f"document-ingest:{record.id}:{content_hash}",
+        idempotency_key=f"document-ingest:{record.id}:{content_hash}{retry_suffix}",
         expected_snapshot_fingerprint=snapshot.content_fingerprint,
         expected_profile_revision=snapshot.profile.profile_revision,
         expected_decision_set_revision=snapshot.decisions.set_revision,

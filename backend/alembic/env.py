@@ -61,6 +61,10 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         if _DATABASE_INTEGRATION:
             require_test_environment_marker(connection)
+            # The read starts SQLAlchemy's implicit transaction. Close it before
+            # Alembic takes ownership, otherwise closing the connection rolls
+            # back an apparently successful migration run.
+            connection.commit()
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

@@ -374,7 +374,13 @@ def _has_procurement_strategy_mutation(user_text: str) -> bool:
         and _PROCUREMENT_CANDIDATE_PARTICIPANT.search(user_text)
         and _PROCUREMENT_STRATEGY_WRITE.search(user_text)
     )
-    return table_write or researched_candidate_write
+    explicit_award = not _HEDGE.search(user_text) and bool(re.match(
+        r"^(?:ok(?:ay)?[,\s]+)?(?:please\s+)?(?:i\s+(?:want|would like)\s+to\s+)?"
+        r"(?:award\s+(?:the\s+)?(?:works|contract|tender|package)\s+to\s+\S+|"
+        r"(?:clear|remove)\s+(?:the\s+)?award\s+for\s+\S+)",
+        user_text.strip(), re.I,
+    ))
+    return table_write or researched_candidate_write or explicit_award
 
 
 def is_profile_proposal_confirmation(user_text: str) -> bool:

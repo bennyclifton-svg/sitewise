@@ -2,12 +2,17 @@ import * as THREE from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 /** Gate OrbitControls before its bubbling wheel listener can consume the event. */
-export function mountModelWheelZoom(canvas: HTMLCanvasElement, camera: THREE.Camera, controls: OrbitControls, meshes: THREE.Mesh[]) {
+export function mountModelWheelZoom(canvas: HTMLCanvasElement, camera: THREE.Camera, controls: OrbitControls, meshes: THREE.Mesh[], viewfinder?: HTMLElement | null) {
   const raycaster = new THREE.Raycaster()
   const pointer = new THREE.Vector2()
   const gate = (event: WheelEvent) => {
     const rect = canvas.getBoundingClientRect()
     controls.enableZoom = false
+    if (viewfinder) {
+      const bounds = viewfinder.getBoundingClientRect()
+      controls.enableZoom = bounds.width > 0 && bounds.height > 0 && event.clientX >= bounds.left && event.clientX <= bounds.right && event.clientY >= bounds.top && event.clientY <= bounds.bottom
+      return
+    }
     if (!rect.width || !rect.height) return
     pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2)
     camera.updateMatrixWorld()

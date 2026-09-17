@@ -5,8 +5,9 @@ x-sitewise-api-environment: &sitewise-api-environment
   SUPABASE_STORAGE_BUCKET: ${SUPABASE_STORAGE_BUCKET:-project-files}
   DATABASE_URL: ${DATABASE_URL}
   OPENAI_API_KEY: ${OPENAI_API_KEY}
-  OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-4o-mini}
-  OPENAI_CHAT_MODELS: ${OPENAI_CHAT_MODELS:-gpt-4.1-nano,gpt-4o-mini,gpt-4.1-mini,gpt-4.1,gpt-4o,o4-mini,o3-mini}
+  XAI_API_KEY: ${XAI_API_KEY:-}
+  OPENAI_CHAT_MODEL: ${OPENAI_CHAT_MODEL:-gpt-5.6-luna}
+  OPENAI_CHAT_MODELS: ${OPENAI_CHAT_MODELS:-gpt-5.6-sol,gpt-5.6-terra,gpt-5.6-luna}
   OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
   OPENAI_EMBEDDING_DIMENSIONS: ${OPENAI_EMBEDDING_DIMENSIONS:-1536}
   PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://sitewise.au}
@@ -22,12 +23,13 @@ x-sitewise-api-environment: &sitewise-api-environment
   PI_BINARY_PATH: ${PI_BINARY_PATH:-pi}
   PI_MCP_ADAPTER_PATH: ${PI_MCP_ADAPTER_PATH:-/usr/local/lib/node_modules/pi-mcp-adapter/index.ts}
   PI_MODEL_PROVIDER: ${PI_MODEL_PROVIDER:-openai}
-  PI_MODEL: ${PI_MODEL:-gpt-5.6-terra}
-  PI_MODEL_OPTIONS: ${PI_MODEL_OPTIONS:-openai:gpt-5.6-luna:Fast,openai:gpt-5.6-terra:Balanced,openai:gpt-5.6-sol:Complex}
+  PI_MODEL: ${PI_MODEL:-gpt-5.6-luna}
+  PI_MODEL_OPTIONS: ${PI_MODEL_OPTIONS:-openai:gpt-5.6-luna:Fast,xai:grok-4.6:Thorough}
   AGENT_PLATFORM_API_KEY: ${AGENT_PLATFORM_API_KEY}
   AGENT_MCP_URL: ${AGENT_MCP_URL:-http://127.0.0.1:8000/mcp}
   AGENT_WORKSPACE_ROOT: ${AGENT_WORKSPACE_ROOT:-/app/agent-workspaces}
   AGENT_MAX_CONCURRENT_TURNS: ${AGENT_MAX_CONCURRENT_TURNS:-4}
+  AGENT_QUEUE_TIMEOUT_SECONDS: ${AGENT_QUEUE_TIMEOUT_SECONDS:-30}
   AGENT_TURN_TIMEOUT_SECONDS: ${AGENT_TURN_TIMEOUT_SECONDS:-360}
   AGENT_TURN_TOKEN_SECRET: ${AGENT_TURN_TOKEN_SECRET}
   AGENT_MONTHLY_TURN_QUOTA: ${AGENT_MONTHLY_TURN_QUOTA:-500}
@@ -55,11 +57,8 @@ x-sitewise-api-environment: &sitewise-api-environment
   # Stamped onto every generated artefact so a document is attributable to a
   # build. Passed as a build arg too, since the runtime image has no .git.
   BUILD_SHA: ${BUILD_SHA:-}
-  # Left at development until Mailgun sending is configured. Setting this to
-  # production makes EMAIL_PROVIDER=fake refuse, so flip it together with
-  # MAILGUN_API_KEY and EMAIL_PROVIDER=mailgun, never on its own.
-  ENVIRONMENT: ${ENVIRONMENT:-development}
-  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-fake}
+  ENVIRONMENT: ${ENVIRONMENT:-production}
+  EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mailgun}
   EMAIL_INBOUND_DOMAIN: ${EMAIL_INBOUND_DOMAIN:-sitewise.au}
   EMAIL_INBOUND_WEBHOOK_SECRET: ${EMAIL_INBOUND_WEBHOOK_SECRET:-}
   MAILGUN_INBOUND_SIGNING_KEY: ${MAILGUN_INBOUND_SIGNING_KEY:-}
@@ -77,7 +76,7 @@ x-sitewise-api-environment: &sitewise-api-environment
 
 services:
   sitewise-api:
-    image: sitewise-production-api:latest
+    image: sitewise-production-api:${BUILD_SHA:?BUILD_SHA must identify the selected commit}
     build:
       context: ..
       dockerfile: deploy/docker/backend.Dockerfile
@@ -109,7 +108,7 @@ services:
       start_period: 20s
 
   sitewise-worker:
-    image: sitewise-production-api:latest
+    image: sitewise-production-api:${BUILD_SHA:?BUILD_SHA must identify the selected commit}
     pull_policy: never
     command: ["python", "-m", "tender.worker"]
     depends_on:
@@ -125,7 +124,7 @@ services:
           - sitewise-worker
 
   sitewise-core-workflow-worker:
-    image: sitewise-production-api:latest
+    image: sitewise-production-api:${BUILD_SHA:?BUILD_SHA must identify the selected commit}
     pull_policy: never
     command:
       [
@@ -161,12 +160,13 @@ services:
           - sitewise-core-workflow-worker
 
   sitewise-web:
-    image: sitewise-production-web:latest
+    image: sitewise-production-web:${BUILD_SHA:?BUILD_SHA must identify the selected commit}
     build:
       context: ..
       dockerfile: deploy/docker/frontend.Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        PREVIOUS_WEB_IMAGE: ${PREVIOUS_WEB_IMAGE:-nginx:1.27-alpine}
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
     pull_policy: never

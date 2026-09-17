@@ -455,8 +455,21 @@ async def apply_procurement_strategy_operations(
                 if operation["status"] not in STRATEGY_STATUSES:
                     raise ProcurementStrategyValidationError("invalid strategy status")
                 row.status = operation["status"]
+                if row.status != "awarded":
+                    row.awarded_candidate_id = None
             if operation.get("notes") is not None:
                 row.notes = str(operation["notes"])
+        elif kind == "AWARD_CANDIDATE":
+            candidate_id = operation.get("candidate_id")
+            candidate = next((item for item in row.candidates if item.id is not None and str(item.id) == str(candidate_id)), None)
+            if candidate is None:
+                raise ProcurementStrategyValidationError("Firm not found in this procurement row")
+            row.awarded_candidate_id = candidate.id
+            row.status = "awarded"
+        elif kind == "CLEAR_AWARD":
+            row.awarded_candidate_id = None
+            if row.status == "awarded":
+                row.status = "evaluating" if row.comparison_id else "not_started"
         elif kind == "MOVE_ROW":
             rows.remove(row)
             before = operation.get("before_row_id")
@@ -483,6 +496,8 @@ async def apply_procurement_strategy_operations(
                     slot=slot, company_name=company
                 )
                 row.candidates.append(candidate)
+            if row.awarded_candidate_id is not None and row.awarded_candidate_id == candidate.id and _label_key(candidate.company_name) != _label_key(company):
+                raise ProcurementStrategyConflict("Clear the award before replacing the awarded firm")
             candidate.company_name = company
             candidate.website_url = operation.get("website_url")
             candidate.location_text = operation.get("location_text")
@@ -490,16 +505,29 @@ async def apply_procurement_strategy_operations(
             candidate.source_title = operation.get("source_title")
             if candidate.source_url:
                 candidate.researched_at = datetime.now(UTC)
-        elif kind in {"LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES"}:
+        elif kind in {"LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES", "CREATE_CANDIDATE_FROM_FILES"}:
             from app.procurement.candidate_submissions import resolve_submission_files
 
+            creating = kind == "CREATE_CANDIDATE_FROM_FILES"
             candidate = next((item for item in row.candidates if str(item.id) == str(operation.get("candidate_id"))), None)
+            if creating:
+                slot = operation.get("slot")
+                company = " ".join(str(operation.get("company_name") or "").split())
+                if not isinstance(slot, int) or not 1 <= slot <= strategy.tenderer_column_count:
+                    raise ProcurementStrategyValidationError("candidate slot is not visible")
+                if not company or len(company) > 512:
+                    raise ProcurementStrategyValidationError("Enter a firm name to link documents")
+                if any(item.slot == slot for item in row.candidates):
+                    raise ProcurementStrategyConflict("This cell already has a firm. Link documents to that firm instead.")
+                candidate = ProcurementStrategyCandidate(slot=slot, company_name=company, submission_files=[])
             if candidate is None:
                 raise ProcurementStrategyValidationError("Firm not found in this procurement row")
             ids = [uuid.UUID(str(value)) for value in operation.get("workspace_file_ids", [])]
-            if kind == "LINK_CANDIDATE_FILES":
+            if creating and not ids:
+                raise ProcurementStrategyValidationError("Select a document to add a firm")
+            if kind != "UNLINK_CANDIDATE_FILES":
                 files = await resolve_submission_files(session, project_id=project_id, file_ids=ids)
-                other_ids = {link.workspace_file_id for other in row.candidates if other.id != candidate.id for link in other.submission_files}
+                other_ids = {link.workspace_file_id for other in row.candidates if other is not candidate for link in other.submission_files}
                 if other_ids.intersection(ids):
                     raise ProcurementStrategyValidationError("A selected file is already linked to another firm in this row")
                 existing_ids = {link.workspace_file_id for link in candidate.submission_files}
@@ -510,6 +538,8 @@ async def apply_procurement_strategy_operations(
                         candidate.submission_files.append(ProcurementCandidateFile(
                             workspace_file_id=file.id, position=len(candidate.submission_files), file=file,
                         ))
+                if creating:
+                    row.candidates.append(candidate)
                 if row.status not in {"awarded", "cancelled"}:
                     row.status = "responses_received"
             else:
@@ -518,12 +548,14 @@ async def apply_procurement_strategy_operations(
             slot = operation.get("slot")
             candidate = next((item for item in row.candidates if item.slot == slot), None)
             if candidate is not None:
+                if row.awarded_candidate_id is not None and row.awarded_candidate_id == candidate.id:
+                    raise ProcurementStrategyConflict("Clear the award before removing the awarded firm")
                 row.candidates.remove(candidate)
                 await session.delete(candidate)
         else:
             raise ProcurementStrategyValidationError(f"unsupported operation: {kind}")
 
-        if kind in {"UPSERT_CANDIDATE", "CLEAR_CANDIDATE", "LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES"}:
+        if kind in {"UPSERT_CANDIDATE", "CLEAR_CANDIDATE", "LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES", "CREATE_CANDIDATE_FROM_FILES"}:
             row.submission_revision = (row.submission_revision or 1) + 1
             row.recommendation_stale = row.recommendation_draft_id is not None
 
@@ -593,6 +625,7 @@ async def strategy_snapshot(
                 "comparison_id": row.comparison_id,
                 "recommendation_draft_id": row.recommendation_draft_id,
                 "recommendation_stale": bool(row.recommendation_stale),
+                "awarded_candidate_id": row.awarded_candidate_id,
                 "candidates": [
                     {
                         "id": candidate.id,

@@ -471,6 +471,7 @@ async def run_update_pmp_workflow(
     generation_context: ProjectGenerationContext | None = None,
     on_preview: PreviewPublisher | None = None,
     affected_section_ids: tuple[str, ...] | list[str] | None = None,
+    expected_base_version: int | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
@@ -590,6 +591,12 @@ async def run_update_pmp_workflow(
         project_id=project.id,
         workflow_type=WORKFLOW_TYPE,
     )
+    if expected_base_version is not None and (
+        baseline is None or baseline.version != expected_base_version
+    ):
+        from app.projects.artefact_revisions import ArtefactRevisionConflict
+
+        raise ArtefactRevisionConflict("The PMP changed after this refresh was requested")
     if baseline is None:
         message = "Update PMP requires an existing PMP revision. Run Create PMP first."
         trace.append(_trace("baseline", "failed", message))
@@ -1215,7 +1222,7 @@ async def run_update_pmp_workflow(
         content_markdown=output.markdown,
         model=resolved_model,
         runtime=UPDATE_RUNTIME_NAME,
-        expected_base_version=next_version - 1,
+        expected_base_version=baseline.version,
         actor_source="project_plan_workflow",
         provenance_metadata={
             "workflow": "update_pmp",
@@ -1363,7 +1370,7 @@ async def _save_stamp_only_update(
         content_markdown=markdown,
         model=resolved_model,
         runtime=UPDATE_RUNTIME_NAME,
-        expected_base_version=next_version - 1,
+        expected_base_version=baseline.version,
         actor_source="project_plan_workflow",
         provenance_metadata={
             "workflow": "update_pmp",

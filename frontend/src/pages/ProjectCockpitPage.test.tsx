@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -16,6 +16,7 @@ import type {
 const mocks = vi.hoisted(() => ({
   api: {
     createProjectThread: vi.fn(),
+    createThread: vi.fn(),
     getLatestDraft: vi.fn(),
     getProject: vi.fn(),
     getProjectChatBootstrap: vi.fn(),
@@ -101,14 +102,19 @@ vi.mock("@/components/project/WorkspaceFolderPanel", () => ({
 vi.mock("@/components/chat/ChatRail", () => ({
   ChatRail: ({
     chatError,
+    thread: activeThread,
+    chatLoading,
     pendingInstruction,
     onConversationUpdate,
   }: {
+    thread?: { id: string } | null;
+    chatLoading?: boolean;
     chatError?: string | null;
     pendingInstruction?: { id: number; text: string } | null;
     onConversationUpdate?: () => void;
   }) => (
     <div data-testid="chat-rail">
+      <span data-testid="active-chat">{chatLoading ? "loading" : activeThread?.id}</span>
       {chatError ? <div role="alert">{chatError}</div> : null}
       {pendingInstruction ? (
         <div data-testid="pending-chat-instruction">{pendingInstruction.text}</div>
@@ -145,7 +151,9 @@ vi.mock("@/components/project/ProjectShell", () => ({
 vi.mock("@/components/project/ProjectLeftNav", () => ({
   ProjectLeftNav: ({
     workflows,
+    chatHistory,
   }: {
+    chatHistory?: { onSelectThread: (id: string) => void; onNewChat?: () => void };
     workflows?: {
       tiles: Array<{ id: string; status: string; statusLabel: string }>;
     };
@@ -153,6 +161,9 @@ vi.mock("@/components/project/ProjectLeftNav", () => ({
     const costPlan = workflows?.tiles.find((tile) => tile.id === "cost-plan");
     return (
       <div data-testid="cost-plan-nav-status">
+        <button onClick={() => chatHistory?.onSelectThread("thread-2")}>Select second chat</button>
+        <button onClick={() => chatHistory?.onSelectThread(thread.id)}>Select first chat</button>
+        <button onClick={() => chatHistory?.onNewChat?.()}>New chat</button>
         {costPlan ? `${costPlan.status}:${costPlan.statusLabel}` : "missing"}
       </div>
     );
@@ -346,6 +357,51 @@ describe("ProjectCockpitPage cost plan workflow", () => {
     mocks.waitForWorkflowRun.mockImplementation(
       async (_client, _projectId, run) => ({ ...run, state: "complete" }),
     );
+  });
+
+  it("loads thread details and history concurrently, then reopens cached chats without waiting", async () => {
+    renderProjectCockpit();
+    await waitFor(() => expect(screen.getByTestId("active-chat")).toHaveTextContent(thread.id));
+    let resolveThread!: (value: typeof thread) => void;
+    mocks.api.getThread.mockReturnValueOnce(new Promise((resolve) => { resolveThread = resolve; }));
+    await userEvent.click(screen.getByRole("button", { name: "Select second chat" }));
+    expect(mocks.api.getThreadMessages).toHaveBeenCalledWith("thread-2");
+    await act(async () => resolveThread({ ...thread, id: "thread-2" }));
+    await waitFor(() => expect(screen.getByTestId("active-chat")).toHaveTextContent("thread-2"));
+    mocks.api.getThreadMessages.mockReturnValue(new Promise(() => {}));
+    await userEvent.click(screen.getByRole("button", { name: "Select first chat" }));
+    expect(screen.getByTestId("active-chat")).toHaveTextContent(thread.id);
+  });
+
+  it("ignores an earlier selection that resolves after a later selection", async () => {
+    renderProjectCockpit();
+    await waitFor(() => expect(screen.getByTestId("active-chat")).toHaveTextContent(thread.id));
+    let resolveThread!: (value: typeof thread) => void;
+    mocks.api.getThread.mockReturnValueOnce(new Promise((resolve) => { resolveThread = resolve; }));
+    await userEvent.click(screen.getByRole("button", { name: "Select second chat" }));
+    await userEvent.click(screen.getByRole("button", { name: "Select first chat" }));
+    await act(async () => resolveThread({ ...thread, id: "thread-2" }));
+    expect(screen.getByTestId("active-chat")).toHaveTextContent(thread.id);
+  });
+
+  it("opens a writable new chat before creating anything on the server", async () => {
+    renderProjectCockpit();
+    await screen.findByTestId("active-chat");
+    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
+    expect(screen.getByRole("textbox", { name: "Message" })).toBeEnabled();
+    expect(mocks.api.createThread).not.toHaveBeenCalled();
+  });
+
+  it("starts the new conversation with the first message after server creation", async () => {
+    mocks.api.createThread.mockResolvedValue({ ...thread, id: "new-thread" });
+    renderProjectCockpit();
+    await waitFor(() => expect(screen.getByTestId("active-chat")).toHaveTextContent(thread.id));
+    await userEvent.click(screen.getByRole("button", { name: "New chat" }));
+    await userEvent.type(screen.getByRole("textbox", { name: "Message" }), "Review these tenders");
+    await userEvent.click(screen.getByRole("button", { name: "Ask SiteWise" }));
+    await waitFor(() => expect(screen.getByTestId("active-chat")).toHaveTextContent("new-thread"));
+    expect(screen.getByTestId("pending-chat-instruction")).toHaveTextContent("Review these tenders");
+    expect(mocks.api.getThreadMessages).not.toHaveBeenCalled();
   });
 
   it("reuses one rolling Pulse query while navigating and updating the cockpit", async () => {

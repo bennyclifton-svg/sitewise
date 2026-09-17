@@ -1,4 +1,90 @@
+## Latest opening composition and white finish
+
+The opening and project-focus view now use the supplied right-hand oblique angle (direction 0.48, 0.32, 1), retaining the wider 64% desktop fit and soft edge fade. The remaining upper-window figure is removed. Street service routes and all solar-panel frames, cells and mounts are white, including the panels on townhouse five; the building cutaway remains blue.
+
+## Solar doubled to two rows per roof plane
+
+Each townhouse now has 16 panels: two rows of four on each of the two broad upper roof planes (112 panels across seven townhouses). Flush low mounts and inverter connections are retained. Columns clear the whirlybirds, and the steep front roof stays clear.
+
+## Front-view opening and soft ends
+
+The landing model now opens straight from the front with a slight elevation (direction 0, 0.15, 1). Desktop framing uses a wider 64% site fit to approximate the supplied reference; the project-focus action restores the same view. A horizontal canvas mask softly fades both ends while leaving the page copy, map and controls unaffected. Mobile uses a separate, narrower edge fade.
+
+## Solar layout correction
+
+Eight panels per townhouse (56 total): four on each broad shallow upper roof plane. Panels follow the roof slopes with approximately 70 mm centre clearance and low mounting rails; the steep front roof and rear dormer cap are clear. Branch cables join at the ridge and continue to the garage inverter.
+
+## Latest presentation and performance update
+
+Road removed, footpath retained, poles moved toward the kerb, telecom street pit/cable and seven garage terminations added. Four solar panels per flat rear roof tilt left and connect to garage inverters. Spherical whirlybirds rotate; garage six opens once. Boxed controls align with the scroll arrow.
+
+Runtime batching reduces mesh count from 2,206 to 242 and measured default-view draw calls from 4,393 to 481. Geometry detail, discipline ownership and animation roots are retained. Shadow rendering is cached between relevant changes.
+
+## Bored piers and strip-footing grid
+
+Added 24 bored piers on a 3-by-8 grid at the eight existing longitudinal footing lines. Each is 300 mm diameter, from model ground level to 3 m below ground. Three transverse strip-footing rows (front/middle/rear) connect the grid at the existing strip-footing elevation, -0.40 to -0.85 m. Existing longitudinal footings remain. All additions belong to structure, with townhouse five's portions blue.
+
+## Service audit and filter refinement
+
+Room-specific electrical reticulation, 200 mm supply ducts, rear/side wet-area extraction, spinning condenser fans, explicit wet-fixture connections and seven 2 x 2 x 0.5 m driveway detention tanks are now in the landing viewer. Civil filtering isolates drainage rather than paving. Hover changes the whole terrace whenever a discipline is already clicked. See [current services audit](terrace/STREET-SERVICES-AUDIT.md).
+
+## Latest landing presentation update
+
+Seven-home white terrace with blue cutaway TH05. Curtains, robes and partition framing are now removed from the cutaway. Connected blue street services, seven meters and entry lights, two poles with four thin conductors and a right-hand transformer/downfeed, varied trees, one upper-window silhouette, animated garage/two tiny white finches and seven rotating roof ventilators are included. Permanent compact discipline controls replace camera buttons; hover previews TH05, click toggles all dwellings. Hero platform copy and CTA sit lower.
+
+See [services audit](terrace/STREET-SERVICES-AUDIT.md) for scope and validation. These viewer overrides supersede older presentation notes below; source BIM geometry is retained.
+
 # Current integrated coordination checkpoint
+
+## Landing viewer � seven-home terrace
+
+The landing viewer uses the compressed `terrace-7.glb` asset with an elevated,
+angled ISO opening view. The model is white, with TH05 opened to reveal blue
+structure, interiors and services. TH05 drywall, ceilings and service-enclosure
+finishes are removed while stairs, window coverings, furniture and appliances
+remain. Lower fill/ambient light gives stronger shadow contrast. The road block is hidden. Static open-door,
+blind and parked-car variation is present; the six shared rear balcony blades
+are white and raked to continue the main roof slope. End wings and ground garden
+walls are unchanged. These presentation edits are applied in the viewer without
+altering the retained architectural master. See `terrace/README.md` for exact
+poses, provenance and regeneration instructions.
+
+The five-home production details below describe the retained previous model,
+which is no longer the landing viewer asset.
+
+## Separate brick-terrace redesign study
+
+The user-authorised six- and seven-home street-facing redesign is under
+`terrace/`. Start with `terrace/REVIEW.md` and `terrace/README.md`. Current
+`terrace/option-7/terrace-7.blend` and `terrace/option-6/terrace-6.blend` use the
+later supplied four-bedroom plan: ground living/kitchen to garden, two bedrooms
+on each upper level, first-floor laundry and rear balconies. They include the
+painted stair battens, flat fine-perforated rear screens, shared front/rear privacy
+blades, reduced front loggias, double-width rear dormers and timber paling fences,
+plus all eight discipline
+collections. These are separate architectural concepts on a reshaped illustrative
+site. The v23 editable master is retained; the landing viewer now uses the
+seven-home export described above.
+
+The latest frontage revision adds enclosed pure-white entries/garages, relocated
+bins, a shallower pitched roof continuation, three windows at each exposed end,
+and 2.2 m side gardens with picket fences on block dwarf walls. Targeted end-wall
+openings are modelled; roof framing/drainage and window lintels await the next
+structural/services review.
+
+The next detailing pass closes roof joints, corrects the entry electrical route,
+improves trees and their boundary clearance, and adds taller end windows with
+opposing wedge privacy hoods. Raked rafters and steel roof supports now follow
+the roof profile, with dormer trimmers, cheek/window frames, hood frames and end
+lintels. See `terrace/option-7/roof-frame.png`. Member sizing/connections and roof
+drainage remain concept-level; downpipes were preserved.
+
+Current models mirror terraces 2, 4 and 6, including dwelling layouts, roof
+framing, services, gardens and crossings. Shared boundaries and exposed end
+treatments remain fixed. Seven-home garage pairs are 2–3, 4–5 and 6–7 with
+the retained numbering. See `terrace/option-7/plan-TH02-0.png` for the alternate plan.
+
+## Existing production model
 
 The opening/Front camera uses the elevated street-side angle from the latest
 reference, a closer 40 m base distance, and a leftward composition shift so the

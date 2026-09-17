@@ -327,13 +327,17 @@ export function useProjectEventCursor({
 
     const schedule = (delay: number) => {
       if (cancelled || document.visibilityState === "hidden") return;
+      if (timer) clearTimeout(timer);
       timer = setTimeout(poll, delay);
     };
     const poll = async () => {
       if (cancelled || inFlight || document.visibilityState === "hidden") return;
+      if (timer) clearTimeout(timer);
       inFlight = true;
       try {
         const response = await api.getProjectEvents(projectId, cursorRef.current);
+        if (cancelled) return;
+        const freshEvents: ProjectEvent[] = [];
         for (const event of response.events) {
           if (
             event.sequence <= cursorRef.current ||
@@ -342,9 +346,10 @@ export function useProjectEventCursor({
             continue;
           }
           seenIdsRef.current.add(event.id);
-          applyDurableProjectEvent(queryClient, event);
+          freshEvents.push(event);
           onEvent?.(event);
         }
+        applyDurableProjectEvents(queryClient, freshEvents);
         cursorRef.current = Math.max(cursorRef.current, response.next_after);
         schedule(response.events.length >= 100 ? 0 : active ? 250 : 1_500);
       } catch {
@@ -378,21 +383,25 @@ export function applyDurableProjectEvent(
   queryClient: QueryClient,
   event: ProjectEvent,
 ) {
-  applyProjectResourceSignal(queryClient, {
-    projectId: event.project_id,
-    resourceType: event.resource_type,
-  });
-  const changedResources =
-    event.payload.changedResources ?? event.payload.changed_resources;
-  if (Array.isArray(changedResources)) {
-    for (const resourceType of changedResources) {
-      if (typeof resourceType === "string") {
-        applyProjectResourceSignal(queryClient, {
-          projectId: event.project_id,
-          resourceType,
-        });
+  applyDurableProjectEvents(queryClient, [event]);
+}
+
+function applyDurableProjectEvents(queryClient: QueryClient, events: ProjectEvent[]) {
+  // One event page is one refresh boundary. Keep every event callback, but avoid
+  // repeatedly cancelling the same in-flight fetch for overlapping resources.
+  const keys = new Map<string, ReturnType<typeof invalidationKeys>[number]>();
+  for (const event of events) {
+    const changed = event.payload.changedResources ?? event.payload.changed_resources;
+    const resources = [event.resource_type, ...(Array.isArray(changed) ? changed : [])];
+    for (const resourceType of resources) {
+      if (typeof resourceType !== "string") continue;
+      for (const key of invalidationKeys(event.project_id, resourceType)) {
+        keys.set(JSON.stringify(key), key);
       }
     }
+  }
+  for (const queryKey of keys.values()) {
+    void queryClient.invalidateQueries({ queryKey, exact: !["pulse", "evidence-document"].includes(queryKey[2]) });
   }
 }
 
@@ -433,6 +442,8 @@ function invalidationKeys(projectId: string, resourceType: string) {
       return [projectActivityKeys.root(projectId)];
     case "procurement_strategy":
       return [workbenchKeys.procurementStrategy(projectId)];
+    case "cost_plan":
+      return [workbenchKeys.costPlan(projectId), projectKeys.workspaceTree(projectId)];
     default:
       return [];
   }

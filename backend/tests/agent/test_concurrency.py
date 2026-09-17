@@ -1,7 +1,9 @@
 import asyncio
 import contextlib
 
-from app.agent.concurrency import AgentTurnAlreadyRunning, AgentTurnRegistry
+import pytest
+
+from app.agent.concurrency import AgentQueueTimeout, AgentTurnAlreadyRunning, AgentTurnRegistry
 from tests.conftest import run_async
 
 
@@ -94,3 +96,51 @@ async def _duplicate_thread_is_rejected() -> None:
 
 def test_duplicate_thread_is_rejected() -> None:
     run_async(_duplicate_thread_is_rejected())
+
+
+@pytest.mark.parametrize("key", ["queued", "queued-thread"])
+def test_queued_turn_can_be_cancelled_without_starting(key):
+    async def scenario():
+        registry = AgentTurnRegistry(max_concurrent=1)
+        entered = asyncio.Event()
+        async with registry.turn_scope("busy"):
+            queued = asyncio.create_task(_enter_turn(registry, "queued", "queued-thread", entered))
+            await asyncio.sleep(0.01)
+            cancelled = await registry.cancel(key)
+            if not cancelled:
+                queued.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await queued
+            assert cancelled
+        assert not entered.is_set()
+        async with asyncio.timeout(0.1):
+            async with registry.turn_scope("next"):
+                pass
+    run_async(scenario())
+
+
+def test_duplicate_is_rejected_while_capacity_is_full():
+    async def scenario():
+        registry = AgentTurnRegistry(max_concurrent=1)
+        async with registry.turn_scope("busy", thread_id="thread"):
+            with pytest.raises(AgentTurnAlreadyRunning):
+                async with asyncio.timeout(0.1):
+                    async with registry.turn_scope("duplicate", thread_id="thread"):
+                        pytest.fail("duplicate executed")
+    run_async(scenario())
+
+
+def test_queue_timeout_unregisters_without_releasing_an_unowned_slot():
+    async def scenario():
+        registry = AgentTurnRegistry(max_concurrent=1, queue_timeout=0.01)
+        async with registry.turn_scope("busy"):
+            with pytest.raises(AgentQueueTimeout):
+                async with registry.turn_scope("queued", thread_id="thread"):
+                    pytest.fail("queued work executed")
+            assert not await registry.cancel("thread")
+            with pytest.raises(AgentQueueTimeout):
+                async with registry.turn_scope("another"):
+                    pytest.fail("timed out waiter leaked capacity")
+        async with registry.turn_scope("queued", thread_id="thread"):
+            pass
+    run_async(scenario())

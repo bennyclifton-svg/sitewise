@@ -7,6 +7,15 @@ backend/.pytest-tmp/
 backend/.pytest-tmp*
 **/.pytest-tmp/
 .uv-cache
+.tmp
+.tools
+.worktrees
+.agents
+.codex
+.pnpm-store
+output
+work
+backend/tmp
 tmp
 data/*
 !data/seed/

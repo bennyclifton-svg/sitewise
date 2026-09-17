@@ -20,7 +20,7 @@ function stageMessage(progress: IngestUploadProgress): string {
 
   if (completed >= total) {
     const failedSuffix = failedCount > 0 ? ` · ${failedCount} failed` : "";
-    return `Finished ingesting ${total} document${total === 1 ? "" : "s"}${failedSuffix}.`;
+    return `Upload step finished for ${total} document${total === 1 ? "" : "s"}${failedSuffix}. Processing status is shown in the document list.`;
   }
   if (!currentFilename) {
     return `Preparing ${total} document${total === 1 ? "" : "s"}…`;

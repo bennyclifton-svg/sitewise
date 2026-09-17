@@ -168,7 +168,9 @@ def test_single_submission_keeps_fee_table_without_inventing_a_ranking():
     markdown = render_review(**review_example("consultant", firms=1))
     assert "Only one firm has submitted" in markdown
     assert "Fee comparison" in markdown
-    assert "| Stage 1 | $1,000.00 [1] |" in markdown
+    assert "| Stage 1 | **$1,000.00** · [1] (p. 2) |" in markdown
+    assert "| **Item total** | **$6,000.00** |" in markdown
+    assert "| **Difference** | **$94,000.00** · Unreconciled |" in markdown
 
 
 def test_matrix_rejects_cross_firm_or_repeated_evidence():

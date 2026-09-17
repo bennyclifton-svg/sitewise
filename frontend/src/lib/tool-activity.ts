@@ -58,9 +58,23 @@ export function formatToolActivityLabel(event: ToolStatusEvent): string {
  */
 export function toolActivityLines(events: ToolStatusEvent[]): ToolActivityLine[] {
   const lines: ToolActivityLine[] = [];
+  const byCallId = new Map<string, ToolActivityLine>();
 
   for (const [index, event] of events.entries()) {
     const label = formatToolActivityLabel(event);
+    if (event.callId) {
+      const existing = byCallId.get(event.callId);
+      if (existing) {
+        existing.state = event.state;
+        existing.label = label;
+        existing.detail = detailForEvent(event);
+      } else {
+        const line = { id: event.callId, state: event.state, label, detail: detailForEvent(event) };
+        byCallId.set(event.callId, line);
+        lines.push(line);
+      }
+      continue;
+    }
     const previousEvent = index > 0 ? events[index - 1] : null;
     const previousLine = lines[lines.length - 1];
 

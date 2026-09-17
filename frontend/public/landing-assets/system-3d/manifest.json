@@ -1,0 +1,74 @@
+[
+  {
+    "name": "drawings",
+    "glb": "drawings.glb",
+    "preview": "drawings.png",
+    "mesh_objects": 32,
+    "faces": 4959,
+    "bytes": 313936
+  },
+  {
+    "name": "cost-programme",
+    "glb": "cost-programme.glb",
+    "preview": "cost-programme.png",
+    "mesh_objects": 38,
+    "faces": 7164,
+    "bytes": 471996
+  },
+  {
+    "name": "hard-hat",
+    "glb": "hard-hat.glb",
+    "preview": "hard-hat.png",
+    "mesh_objects": 9,
+    "faces": 6805,
+    "bytes": 334776
+  },
+  {
+    "name": "contract-coordination",
+    "glb": "contract-coordination.glb",
+    "preview": "contract-coordination.png",
+    "mesh_objects": 32,
+    "faces": 8458,
+    "bytes": 545748
+  },
+  {
+    "name": "planning-legislation",
+    "glb": "planning-legislation.glb",
+    "preview": "planning-legislation.png",
+    "mesh_objects": 21,
+    "faces": 10381,
+    "bytes": 641236
+  },
+  {
+    "name": "ncc-bca",
+    "glb": "ncc-bca.glb",
+    "preview": "ncc-bca.png",
+    "mesh_objects": 21,
+    "faces": 8152,
+    "bytes": 526924
+  },
+  {
+    "name": "australian-standards",
+    "glb": "australian-standards.glb",
+    "preview": "australian-standards.png",
+    "mesh_objects": 21,
+    "faces": 11365,
+    "bytes": 690348
+  },
+  {
+    "name": "advice",
+    "glb": "advice.glb",
+    "preview": "advice.png",
+    "mesh_objects": 19,
+    "faces": 3910,
+    "bytes": 292576
+  },
+  {
+    "name": "emails",
+    "glb": "emails.glb",
+    "preview": "emails.png",
+    "mesh_objects": 21,
+    "faces": 5385,
+    "bytes": 363400
+  }
+]

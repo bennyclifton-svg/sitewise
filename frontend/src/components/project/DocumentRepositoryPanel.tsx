@@ -1567,6 +1567,16 @@ export function DocumentRepositoryPanel({
                           activeArtefactId={usageHighlightArtefactId}
                         />
                       </div>
+                      {["failed", "error"].includes(row.ingest_status ?? "") && (
+                        <p role="status" className="mt-1 text-xs text-destructive">
+                          Could not read this file. Re-upload it to retry.
+                        </p>
+                      )}
+                      {["pending", "queued", "ingesting"].includes(row.ingest_status ?? "") && (
+                        <p role="status" className="mt-1 text-xs text-muted-foreground">
+                          {row.ingest_status === "ingesting" ? "Reading file…" : "Waiting to read file…"}
+                        </p>
+                      )}
                     </td>
                     <td className="document-repository-col-revision truncate px-1 py-2">
                       {displayValue(row.revision)}

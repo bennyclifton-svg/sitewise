@@ -1,5 +1,11 @@
 # syntax=docker/dockerfile:1
 
+ARG PREVIOUS_WEB_IMAGE=nginx:1.27-alpine
+FROM ${PREVIOUS_WEB_IMAGE} AS previous-assets
+RUN mkdir -p /retained/assets \
+    && if [ -d /usr/share/nginx/html/assets ]; then \
+         cp -a /usr/share/nginx/html/assets/. /retained/assets/; fi
+
 FROM node:22.20.0-alpine AS deps
 
 WORKDIR /app/frontend
@@ -28,6 +34,7 @@ RUN pnpm build
 FROM nginx:1.27-alpine AS runtime
 
 COPY deploy/nginx/sitewise.conf /etc/nginx/conf.d/default.conf
+COPY --from=previous-assets /retained/assets /usr/share/nginx/html/assets
 COPY --from=builder /app/frontend/dist /usr/share/nginx/html
 
 EXPOSE 80

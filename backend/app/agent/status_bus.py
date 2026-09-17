@@ -2,6 +2,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
+from app.agent.observability import current_tool_trace
 
 
 AgentStatusPayload = dict[str, Any]
@@ -47,6 +48,9 @@ class AgentTurnStatusBus:
             "state": state,
         }
         payload.update(metadata)
+        trace = current_tool_trace.get()
+        if trace is not None and str(trace.turn_id) == turn_id and kind == "tool":
+            payload["callId"] = str(trace.id)
         payload = {key: value for key, value in payload.items() if value is not None}
 
         async with self._lock:

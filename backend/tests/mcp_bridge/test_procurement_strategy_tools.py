@@ -88,6 +88,19 @@ def test_procurement_strategy_tools_are_direct_and_discoverable(monkeypatch) -> 
     assert expected.issubset(run_async(run()))
 
 
+def test_every_pi_direct_tool_is_registered_with_mcp(monkeypatch) -> None:
+    from app.agent.pi_process import PI_MCP_DIRECT_TOOLS, PI_WEB_DIRECT_TOOLS
+
+    server, *_ = _install(monkeypatch)
+
+    async def run():
+        async with Client(server.mcp) as client:
+            return {tool.name for tool in await client.list_tools()}
+
+    advertised = set(PI_MCP_DIRECT_TOOLS + PI_WEB_DIRECT_TOOLS)
+    assert advertised <= run_async(run())
+
+
 def test_apply_operations_requires_strategy_scope_and_publishes_resource(
     monkeypatch,
 ) -> None:

@@ -24,7 +24,7 @@ type ChatRailProps = {
   chatError?: string | null;
   onRetry?: () => void;
   selectedCitationId: string | null;
-  onConversationUpdate: () => void;
+  onConversationUpdate: (threadId: string) => void;
   onResourceEvent?: (event: ResourceEvent) => void;
   onDocumentSelectionEvent?: (event: DocumentSelectionEvent) => void;
   onUserSubmit?: () => void;
@@ -115,7 +115,7 @@ export function ChatRail({
               <ChatPanel
                 threadId={session.thread.id}
                 initialMessages={session.messages}
-                onConversationUpdate={onConversationUpdate}
+                onConversationUpdate={() => onConversationUpdate(session.thread.id)}
                 onResourceEvent={onResourceEvent}
                 onDocumentSelectionEvent={onDocumentSelectionEvent}
                 onUserSubmit={onUserSubmit}

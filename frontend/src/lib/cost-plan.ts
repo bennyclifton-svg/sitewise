@@ -18,13 +18,13 @@ export type CostPlanItem = {
 };
 
 export type CostPlanTotals = {
-  budget: string;
+  budget: string | null;
   committed: string;
   forecast: string;
   paid: string;
-  variance: string;
-  total_excluding_gst: string;
-  total_including_gst: string;
+  variance: string | null;
+  total_excluding_gst: string | null;
+  total_including_gst: string | null;
 };
 
 export type CostPlanItemVariations = {
@@ -79,15 +79,15 @@ export type CostPlanSort = {
 };
 
 export type CostPlanLineRollup = {
-  budget: number;
+  budget: number | null;
   approvedContract: number;
   forecastVariations: number;
   approvedVariations: number;
   forecastFinalCost: number;
-  budgetVariance: number;
+  budgetVariance: number | null;
   claimedToDate: number;
   thisMonth: number;
-  remaining: number;
+  remaining: number | null;
 };
 
 export type CostPlanClaimedAmounts = {
@@ -195,6 +195,7 @@ export function calculateCostPlanTotals(
   const contingencyPercent = options.contingencyPercent ?? 0;
   const escalationPercent = options.escalationPercent ?? 0;
   const gstTreatment = options.gstTreatment ?? "exclusive";
+  const hasUnpricedItems = items.some((item) => item.budget == null || item.budget === "");
   const budget = items.reduce((sum, item) => sum + amount(item.budget), 0);
   const committed = items.reduce((sum, item) => sum + amount(item.committed), 0);
   const forecast = items.reduce((sum, item) => sum + amount(item.forecast), 0);
@@ -211,13 +212,13 @@ export function calculateCostPlanTotals(
     including = subtotal;
   }
   return {
-    budget: money(budget),
+    budget: hasUnpricedItems ? null : money(budget),
     committed: money(committed),
     forecast: money(forecast),
     paid: money(paid),
-    variance: money(budget - forecast),
-    total_excluding_gst: money(excluding),
-    total_including_gst: money(including),
+    variance: hasUnpricedItems ? null : money(budget - forecast),
+    total_excluding_gst: hasUnpricedItems ? null : money(excluding),
+    total_including_gst: hasUnpricedItems ? null : money(including),
   };
 }
 
@@ -313,7 +314,7 @@ export function lineRollup(
   variations: CostPlanItemVariations,
   claimed: CostPlanClaimedAmounts = { claimedToDate: 0, thisMonth: 0 },
 ): CostPlanLineRollup {
-  const budget = amount(item.budget);
+  const budget = item.budget == null || item.budget === "" ? null : amount(item.budget);
   const approvedContract = amount(item.committed);
   const forecastVariations = amount(variations.forecast_variations);
   const approvedVariations = amount(variations.approved_variations);
@@ -325,25 +326,29 @@ export function lineRollup(
     forecastVariations,
     approvedVariations,
     forecastFinalCost,
-    budgetVariance: budget - forecastFinalCost,
+    budgetVariance: budget === null ? null : budget - forecastFinalCost,
     claimedToDate: claimed.claimedToDate,
     thisMonth: claimed.thisMonth,
-    remaining: budget - claimed.claimedToDate,
+    remaining: budget === null ? null : budget - claimed.claimedToDate,
   };
+}
+
+function sumKnownAmounts(left: number | null, right: number | null): number | null {
+  return left === null || right === null ? null : left + right;
 }
 
 export function sumLineRollups(rows: CostPlanLineRollup[]): CostPlanLineRollup {
   return rows.reduce(
     (total, row) => ({
-      budget: total.budget + row.budget,
+      budget: sumKnownAmounts(total.budget, row.budget),
       approvedContract: total.approvedContract + row.approvedContract,
       forecastVariations: total.forecastVariations + row.forecastVariations,
       approvedVariations: total.approvedVariations + row.approvedVariations,
       forecastFinalCost: total.forecastFinalCost + row.forecastFinalCost,
-      budgetVariance: total.budgetVariance + row.budgetVariance,
+      budgetVariance: sumKnownAmounts(total.budgetVariance, row.budgetVariance),
       claimedToDate: total.claimedToDate + row.claimedToDate,
       thisMonth: total.thisMonth + row.thisMonth,
-      remaining: total.remaining + row.remaining,
+      remaining: sumKnownAmounts(total.remaining, row.remaining),
     }),
     {
       budget: 0,

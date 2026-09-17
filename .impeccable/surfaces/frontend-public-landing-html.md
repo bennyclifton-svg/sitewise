@@ -20,3 +20,7 @@ related_targets: ["frontend/public/landing-assets/landing-layout.css","frontend/
 - **Evidence:** Seven Hills remains a synthetic demonstration. The reconstructed landscape is illustrative, not survey or project evidence; no asserted geographic accuracy or invented source provenance.
 
 Latest refinement (9 September 2026): hero headline and in detail. use Manifa Advertising 600 with ss06, replacing Nunito/Funnel for these roles. Chalk-white model, faint warm balcony accent, neutral daylight with strong shadow definition. Copy and animation retained.
+
+Latest refinement (13 September 2026): retain the seven-townhouse model on a half-depth ivory scale-model plinth following only the site and front footpath, with both footpath ends flush with the lot and a narrow 0.175m blue base strip. Conceal buried services in the whole-project view; remove the plinth and ground concealment for isolated-system inspection.
+
+Diagram refinement (13 September 2026): strip `#project-system` to the directional line field only — construction lines from top, bottom, left and right, on the angle. Remove the 3D objects, labels, icons, lot-chip triangle, copy and figure chrome.

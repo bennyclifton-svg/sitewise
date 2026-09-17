@@ -1,14 +1,14 @@
 import asyncio
-import contextlib
 import uuid
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from typing import Any
 
 from app.agent.pi_process import PiTurnError
-from app.chat.streaming import _sse, clerk_status_event, stream_error
+from app.chat.streaming import _sse, clerk_status_event
 
 
 StatusEvent = Mapping[str, Any] | str
+HEARTBEAT_SECONDS = 15.0
 
 
 def _status_event(payload: StatusEvent) -> str:
@@ -32,16 +32,16 @@ def _cancel_pending(*tasks: asyncio.Task[Any] | None) -> None:
 
 
 async def _drain_cancelled(*tasks: asyncio.Task[Any] | None) -> None:
-    for task in tasks:
-        if task is not None and not task.done():
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+    await asyncio.gather(
+        *(task for task in tasks if task is not None), return_exceptions=True,
+    )
 
 
 async def relay_agent_turn(
     chunks: AsyncIterator[str],
     *,
     status: AsyncIterator[StatusEvent] | None = None,
+    on_complete: Callable[[], Awaitable[None]] | None = None,
 ) -> AsyncIterator[str]:
     message_id = f"msg_{uuid.uuid4().hex}"
     text_id = f"text_{uuid.uuid4().hex}"
@@ -58,18 +58,26 @@ async def relay_agent_turn(
     try:
         while chunk_task is not None:
             pending = {task for task in (chunk_task, status_task) if task is not None}
-            done, _ = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            done, _ = await asyncio.wait(
+                pending, timeout=HEARTBEAT_SECONDS,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if not done:
+                # SSE comments keep quiet model/tool calls connected without
+                # adding user-visible activity or cancelling the pending read.
+                yield ": keep-alive\n\n"
+                continue
 
             if status_task is not None and status_task in done:
                 try:
                     status_payload = status_task.result()
                 except StopAsyncIteration:
                     status_task = None
-                except Exception:
+                except Exception as exc:
                     _cancel_pending(chunk_task)
-                    async for event in stream_error("Agent status stream failed"):
-                        yield event
-                    return
+                    raise PiTurnError(
+                        f"Agent status stream failed ({type(exc).__name__})"
+                    ) from exc
                 else:
                     yield _status_event(status_payload)
                     status_task = asyncio.create_task(_next_item(status)) if status is not None else None
@@ -82,15 +90,25 @@ async def relay_agent_turn(
                 except PiTurnError:
                     _cancel_pending(status_task)
                     raise
-                except Exception:
+                except Exception as exc:
                     _cancel_pending(status_task)
-                    async for event in stream_error("Agent turn failed"):
-                        yield event
-                    return
+                    raise PiTurnError(
+                        f"Agent output stream failed ({type(exc).__name__})"
+                    ) from exc
                 else:
                     yield _sse({"type": "text-delta", "id": text_id, "delta": chunk})
                     chunk_task = asyncio.create_task(_next_item(chunks))
 
+        _cancel_pending(status_task)
+        await _drain_cancelled(status_task)
+        status_task = None
+        if on_complete is not None:
+            try:
+                await on_complete()
+            except Exception as exc:
+                raise PiTurnError(
+                    f"Agent completion persistence failed ({type(exc).__name__})"
+                ) from exc
         yield _sse({"type": "text-end", "id": text_id})
         yield _sse({"type": "finish"})
         yield _sse("[DONE]")

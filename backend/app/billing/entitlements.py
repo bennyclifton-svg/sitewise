@@ -70,7 +70,7 @@ async def get_entitlement_state(
     return EntitlementState(
         plan_id=plan_id or "unknown",
         subscription_status=latest_subscription.status if latest_subscription else "missing",
-        read_only=active_subscription is None,
+        read_only=active_subscription is None or plan_id is None,
         billing_provider="stripe",
         billing_enabled=True,
         has_customer=True,

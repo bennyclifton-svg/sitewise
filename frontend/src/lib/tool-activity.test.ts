@@ -6,6 +6,20 @@ import {
   toolActivityLines,
 } from "@/lib/tool-activity";
 
+it("groups interleaved status updates by call ID without collapsing repeated calls", () => {
+  const base: ToolStatusEvent = { kind: "tool", tool: "search_procurement_candidates", state: "running", message: "Researching candidates" };
+  const lines = toolActivityLines([
+    { ...base, callId: "architect" },
+    { ...base, callId: "civil" },
+    { ...base, callId: "architect", state: "done" },
+    { ...base, callId: "architect", state: "done" },
+    { ...base, callId: "civil", state: "error" },
+  ]);
+  expect(lines.map(({ id, state }) => ({ id, state }))).toEqual([
+    { id: "architect", state: "done" }, { id: "civil", state: "error" },
+  ]);
+});
+
 describe("formatToolActivityLabel", () => {
   it("keeps backend messages that already include a document subject", () => {
     const event: ToolStatusEvent = {

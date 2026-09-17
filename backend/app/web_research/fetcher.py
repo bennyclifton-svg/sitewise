@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from urllib.parse import urljoin, urlsplit
 
 import httpx
+from app.agent.observability import provider_span
 
 from app.web_research.service import FetchedPage
 
@@ -84,6 +85,7 @@ class SafePageFetcher:
         self._max_bytes = max_bytes
         self._max_redirects = max_redirects
 
+    @provider_span("web", "fetch")
     async def fetch(self, url: str) -> FetchedPage:
         if self._client is not None:
             return await self._fetch(self._client, url)

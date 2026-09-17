@@ -13,6 +13,7 @@ type ChatHistoryNavProps = {
   activeThreadId?: string;
   onSelectThread: (threadId: string) => void;
   onCreateSession: (thread: ChatThread) => void;
+  onNewChat?: () => void;
   onActiveThreadDeleted: () => void;
 };
 
@@ -21,6 +22,7 @@ export function ChatHistoryNav({
   activeThreadId,
   onSelectThread,
   onCreateSession,
+  onNewChat,
   onActiveThreadDeleted,
 }: ChatHistoryNavProps) {
   const queryClient = useQueryClient();
@@ -65,7 +67,7 @@ export function ChatHistoryNav({
               disabled={createSessionMutation.isPending}
               aria-label="New chat"
               title="New chat"
-              onClick={createSession}
+              onClick={onNewChat ?? createSession}
             >
               <Plus className="size-5" aria-hidden />
             </button>

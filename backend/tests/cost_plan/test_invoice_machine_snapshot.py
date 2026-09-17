@@ -39,6 +39,46 @@ def _clean_extracted() -> ExtractedInvoice:
     return extract_invoice(_candidate("11-tax-invoice-quoin-architecture-01.md"))
 
 
+@pytest.mark.parametrize("review_state", ["posted", "ready_for_review", "needs_attention"])
+@pytest.mark.parametrize("conflicting", [False, True])
+def test_retry_preserves_invoice_review(review_state: str, conflicting: bool) -> None:
+    from app.cost_plan.invoice_service import normalize_business_key
+
+    extracted = _clean_extracted()
+    original_issues = [{"code": "MANUAL_REVIEW", "message": "Check agreed scope"}]
+    invoice = SimpleNamespace(
+        id=uuid.uuid4(),
+        supplier_key=normalize_business_key(extracted.supplier_name),
+        invoice_key=normalize_business_key(extracted.invoice_number),
+        invoice_date=extracted.invoice_date,
+        subtotal_ex_gst=extracted.subtotal_ex_gst,
+        gst=extracted.gst,
+        total_including_gst=extracted.total_including_gst,
+        review_state=review_state,
+        issues=original_issues.copy(),
+        allocations=["existing human allocation"],
+    )
+    session = AsyncMock()
+    session.add = MagicMock()
+    result_rows = MagicMock()
+    result_rows.scalars.return_value.first.return_value = invoice
+    session.execute.return_value = result_rows
+    retry_extracted = extracted.model_copy(update={"invoice_date": date(2026, 4, 1)}) if conflicting else extracted
+    with patch("app.cost_plan.invoice_service._record_invoice_event", new=AsyncMock()) as audit:
+        result = run_async(book_invoice(
+            session, project_id=uuid.uuid4(), created_by_user_id=uuid.uuid4(),
+            candidate=_candidate("11-tax-invoice-quoin-architecture-01.md"),
+            extracted=retry_extracted, allocations=[],
+        ))
+    assert result.status == ("conflict" if conflicting else "duplicate")
+    assert result.invoice is invoice
+    assert invoice.review_state == review_state
+    assert invoice.issues == original_issues
+    assert invoice.allocations == ["existing human allocation"]
+    session.add.assert_not_called()
+    audit.assert_awaited_once()
+
+
 def test_updating_reviewed_invoice_number_does_not_change_machine_snapshot() -> None:
     invoice = SimpleNamespace(
         machine_extraction={"invoice_number": "INV-1O42", "lines": []},

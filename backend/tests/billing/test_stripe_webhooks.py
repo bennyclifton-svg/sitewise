@@ -1,7 +1,13 @@
 import uuid
+import hashlib
+import hmac
+import time
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+
+import pytest
+from fastapi import HTTPException
 
 from fastapi.testclient import TestClient
 
@@ -13,6 +19,32 @@ from tests.conftest import run_async
 
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 CUSTOMER_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
+
+
+@pytest.mark.parametrize("tampered,age", [(True, 0), (False, 600)])
+def test_real_signature_verifier_rejects_tampering_and_expired_signatures(monkeypatch, tampered, age):
+    secret = "whsec_local_only"
+    monkeypatch.setattr(settings, "stripe_webhook_secret", secret)
+    payload = b'{"id":"evt_test","object":"event","type":"test"}'
+    timestamp = int(time.time()) - age
+    signature = hmac.new(secret.encode(), str(timestamp).encode() + b"." + payload, hashlib.sha256).hexdigest()
+    with pytest.raises(HTTPException) as error:
+        stripe_webhooks.verify_stripe_webhook(payload + (b" " if tampered else b""), f"t={timestamp},v1={signature}")
+    assert error.value.status_code == 400
+
+
+def test_stripe_refresh_failure_does_not_update_entitlement(monkeypatch):
+    def fail(*args, **kwargs):
+        raise stripe_webhooks.stripe.APIConnectionError("offline fixture")
+    monkeypatch.setattr(stripe_webhooks.stripe.Subscription, "retrieve", fail)
+    upsert = AsyncMock()
+    monkeypatch.setattr(stripe_webhooks, "upsert_stripe_subscription", upsert)
+    with pytest.raises(HTTPException) as error:
+        run_async(stripe_webhooks.sync_stripe_webhook(AsyncMock(), {
+            "type": "customer.subscription.updated", "data": {"object": {"id": "sub_123"}},
+        }))
+    assert error.value.status_code == 502
+    upsert.assert_not_awaited()
 
 
 def test_stripe_webhook_bad_signature_returns_400_and_writes_nothing(monkeypatch):
@@ -80,6 +112,12 @@ def test_checkout_completed_upserts_customer_and_subscription(monkeypatch):
     monkeypatch.setattr(stripe_webhooks, "upsert_stripe_customer", upsert_customer)
     monkeypatch.setattr(stripe_webhooks, "upsert_stripe_subscription", upsert_subscription)
 
+    monkeypatch.setattr(stripe_webhooks, "get_stripe_customer_by_stripe_id", AsyncMock(return_value=SimpleNamespace(id=CUSTOMER_ID)))
+    monkeypatch.setattr(stripe_webhooks, "_current_subscription", AsyncMock(return_value={
+        "id": "sub_123", "customer": "cus_123", "status": "active",
+        "items": {"data": [{"price": {"id": "price_123"}}]},
+    }))
+
     result = run_async(
         stripe_webhooks.sync_stripe_webhook(
             session,
@@ -124,6 +162,12 @@ def test_subscription_deleted_marks_subscription_inactive(monkeypatch):
     monkeypatch.setattr(stripe_webhooks, "upsert_stripe_subscription", upsert_subscription)
     timestamp = int(datetime(2026, 7, 4, tzinfo=timezone.utc).timestamp())
 
+    monkeypatch.setattr(stripe_webhooks, "_current_subscription", AsyncMock(return_value={
+        "id": "sub_123", "customer": "cus_123", "status": "canceled",
+        "items": {"data": [{"price": {"id": "price_123"}}]},
+        "canceled_at": timestamp,
+    }))
+
     result = run_async(
         stripe_webhooks.sync_stripe_webhook(
             session,
@@ -153,3 +197,22 @@ def test_subscription_deleted_marks_subscription_inactive(monkeypatch):
         timestamp,
         tz=timezone.utc,
     )
+
+
+def test_delayed_checkout_cannot_reactivate_cancelled_subscription(monkeypatch):
+    session = AsyncMock()
+    monkeypatch.setattr(stripe_webhooks, "upsert_stripe_customer", AsyncMock(return_value=SimpleNamespace(id=CUSTOMER_ID)))
+    monkeypatch.setattr(stripe_webhooks, "get_stripe_customer_by_stripe_id", AsyncMock(return_value=SimpleNamespace(id=CUSTOMER_ID)))
+    upsert = AsyncMock()
+    monkeypatch.setattr(stripe_webhooks, "upsert_stripe_subscription", upsert)
+    monkeypatch.setattr(stripe_webhooks.stripe.Subscription, "retrieve", lambda *a, **kw: {
+        "id": "sub_123", "customer": "cus_123", "status": "canceled",
+        "items": {"data": [{"price": {"id": "price_123"}}]},
+    })
+    event = {"type": "checkout.session.completed", "data": {"object": {
+        "customer": "cus_123", "subscription": "sub_123",
+        "metadata": {"user_id": str(USER_ID), "price_id": "price_123"},
+    }}}
+    run_async(stripe_webhooks.sync_stripe_webhook(session, event))
+    run_async(stripe_webhooks.sync_stripe_webhook(session, event))
+    assert [call.kwargs["status"] for call in upsert.await_args_list] == ["canceled", "canceled"]

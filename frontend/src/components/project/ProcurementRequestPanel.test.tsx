@@ -159,11 +159,11 @@ describe("ProcurementRequestPanel", () => {
 
     expect(await screen.findByLabelText("Procurement Strategy")).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Firm 1" })).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "Status" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Procurement" })).toBeTruthy();
     expect(screen.queryByRole("columnheader", { name: "Notes" })).toBeNull();
     const requestLink = screen.getByRole("button", { name: "Open Architect RFP" });
-    expect(requestLink.closest("td")).toContainElement(
-      screen.getByLabelText("Architect status"),
+    expect(requestLink.closest("tr")).toContainElement(
+      screen.getByLabelText("Architect procurement"),
     );
     expect(screen.queryByLabelText("Architect notes")).toBeNull();
     expect(
@@ -178,8 +178,7 @@ describe("ProcurementRequestPanel", () => {
     const user = userEvent.setup();
     const { onCreate } = renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Actions for Architect" }));
-    await user.click(screen.getByRole("menuitem", { name: "Create RFP" }));
+    await user.click(await screen.findByRole("button", { name: "Create RFP for Architect" }));
 
     expect(onCreate).toHaveBeenCalledWith("consultant_rfp", "Architect");
   });
@@ -317,83 +316,6 @@ describe("ProcurementRequestPanel", () => {
     );
   });
 
-  it("shows a changed status immediately while saving in the background", async () => {
-    const user = userEvent.setup();
-    let finishSave: ((value: ProcurementStrategy) => void) | undefined;
-    vi.mocked(api.applyProcurementStrategyOperations).mockReturnValue(
-      new Promise<ProcurementStrategy>((resolve) => {
-        finishSave = resolve;
-      }),
-    );
-    renderPanel();
-
-    await user.click(
-      await screen.findByRole("button", { name: "Architect: Recommendation" }),
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Architect: Recommendation" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByRole("button", { name: "Actions for Architect" }),
-    ).not.toBeDisabled();
-
-    finishSave?.({
-      ...strategy,
-      revision: 2,
-      rows: [{ ...strategy.rows[0], status: "evaluating" }],
-    });
-  });
-
-  it("queues further status changes without freezing the grid", async () => {
-    const user = userEvent.setup();
-    const saves: Array<(value: ProcurementStrategy) => void> = [];
-    vi.mocked(api.applyProcurementStrategyOperations).mockImplementation(
-      () =>
-        new Promise<ProcurementStrategy>((resolve) => {
-          saves.push(resolve);
-        }),
-    );
-    renderPanel();
-
-    await user.click(
-      await screen.findByRole("button", { name: "Architect: Submitted" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Architect: Recommendation" }),
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Architect: Recommendation" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(api.applyProcurementStrategyOperations).toHaveBeenCalledTimes(1);
-
-    saves[0]?.({
-      ...strategy,
-      revision: 2,
-      rows: [{ ...strategy.rows[0], status: "responses_received" }],
-    });
-    await waitFor(() =>
-      expect(api.applyProcurementStrategyOperations).toHaveBeenNthCalledWith(
-        2,
-        "mosaic",
-        2,
-        [
-          {
-            operation: "UPDATE_ROW",
-            row_id: "row-1",
-            status: "evaluating",
-          },
-        ],
-      ),
-    );
-    saves[1]?.({
-      ...strategy,
-      revision: 3,
-      rows: [{ ...strategy.rows[0], status: "evaluating" }],
-    });
-  });
-
   it("keeps a deleted row removed when an older strategy reload finishes afterward", async () => {
     const user = userEvent.setup();
     let finishSave: ((value: ProcurementStrategy) => void) | undefined;
@@ -487,7 +409,7 @@ describe("ProcurementRequestPanel", () => {
     await user.click(
       await screen.findByRole("button", { name: "Actions for Architect" }),
     );
-    await user.click(screen.getByRole("menuitem", { name: "Compare firms" }));
+    await user.click(screen.getByRole("menuitem", { name: "Compare tenders" }));
 
     await waitFor(() => expect(onOpenTenderComparison).toHaveBeenCalledWith("review-1"));
     expect(api.startProcurementReview).toHaveBeenCalledWith({ project_id: "mosaic", row_id: "row-1", expected_submission_revision: 1, rerun: true });

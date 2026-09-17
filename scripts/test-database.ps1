@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string[]]$NodeId = @("tests/database/test_disposable_migrations.py"),
+    [string[]]$NodeId = @("tests/database/test_disposable_migrations.py", "tests/database/test_agent_replay.py"),
     [switch]$ValidateOnly,
     [string]$TestDatabaseUrl
 )
@@ -25,7 +25,7 @@ function Test-DatabaseTarget {
     $env:TEST_DATABASE_URL = $Url
     Push-Location $backendDir
     try {
-        uv run python -m app.database.disposable_target
+        uv run --frozen python -m app.database.disposable_target
         Assert-CommandSucceeded "Disposable database target validation failed."
     }
     finally {
@@ -100,13 +100,13 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
     Push-Location $backendDir
     try {
-        uv run alembic upgrade head
+        uv run --frozen alembic upgrade head
         Assert-CommandSucceeded "Alembic upgrade failed."
-        uv run alembic check
+        uv run --frozen alembic check
         Assert-CommandSucceeded "Alembic schema check failed."
-        uv run pytest -m database_integration @NodeId
+        uv run --frozen pytest -m database_integration @NodeId
         Assert-CommandSucceeded "Database integration tests failed."
-        uv run alembic heads
+        uv run --frozen alembic heads
         Assert-CommandSucceeded "Alembic head reporting failed."
     }
     finally {

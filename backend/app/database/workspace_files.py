@@ -89,6 +89,21 @@ async def get_workspace_file_by_path(
     return result.scalar_one_or_none()
 
 
+async def find_ingested_workspace_file(
+    session: AsyncSession, *, project_id: uuid.UUID, filename: str, content_hash: str
+) -> WorkspaceFile | None:
+    """Find a completed single-file upload even after auto-filing moved it."""
+    result = await session.execute(
+        select(WorkspaceFile).where(
+            WorkspaceFile.project_id == project_id,
+            WorkspaceFile.filename == filename,
+            WorkspaceFile.content_hash == content_hash,
+            WorkspaceFile.ingest_status.in_(["ingested", "skipped"]),
+        ).order_by(WorkspaceFile.created_at.asc(), WorkspaceFile.id.asc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def upsert_workspace_file(
     session: AsyncSession,
     *,

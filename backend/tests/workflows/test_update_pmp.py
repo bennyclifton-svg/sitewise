@@ -74,6 +74,22 @@ def _baseline_draft() -> DraftArtifact:
     )
 
 
+def test_queued_refresh_rejects_an_intervening_edit_before_model_work() -> None:
+    from app.projects.artefact_revisions import ArtefactRevisionConflict
+
+    with (
+        patch("app.workflows.update_pmp.locked_selections", new=AsyncMock(return_value={})),
+        patch("app.workflows.update_pmp.get_latest_draft_artifact", new=AsyncMock(return_value=_baseline_draft())),
+        patch("app.workflows.update_pmp.run_update_pmp_model", new=AsyncMock()) as model,
+    ):
+        with pytest.raises(ArtefactRevisionConflict, match="changed after"):
+            run_async(run_update_pmp_workflow(
+                AsyncMock(), user_id=USER_ID, project=_project(), thread_id=None,
+                expected_base_version=0,
+            ))
+    model.assert_not_awaited()
+
+
 def test_validate_update_pmp_output_preserves_baseline_headings() -> None:
     baseline = _valid_pmp_markdown()
     output = PmpDraftOutput(
@@ -156,13 +172,20 @@ def test_markdown_section_headings_extracts_custom_sections() -> None:
     ]
 
 
-def test_update_pmp_emits_lifecycle_progress_events() -> None:
+@pytest.mark.parametrize("latest_next_version", [2, 3])
+def test_update_pmp_emits_lifecycle_progress_events(latest_next_version: int) -> None:
+    from app.projects.artefact_revisions import ArtefactRevisionConflict
     published: list[dict] = []
     baseline = _baseline_draft()
     baseline.content_markdown = _valid_evidence_grounded_pmp_markdown()
 
     async def capture(progress: dict) -> None:
         published.append(progress)
+
+    async def publish_revision(*args, **kwargs):
+        if kwargs["expected_base_version"] != latest_next_version - 1:
+            raise ArtefactRevisionConflict("A human edit was published during generation")
+        return baseline
 
     with (
         patch(
@@ -218,13 +241,13 @@ def test_update_pmp_emits_lifecycle_progress_events() -> None:
         ),
         patch(
             "app.workflows.update_pmp.create_draft_artifact",
-            new=AsyncMock(return_value=baseline),
-        ),
+            new=AsyncMock(side_effect=publish_revision),
+        ) as publish,
         patch("app.workflows.update_pmp.sync_decisions_from_markdown", new=AsyncMock()),
         patch("app.workflows.update_pmp._persist_trace_message", new=AsyncMock()),
         patch(
             "app.workflows.create_pmp._next_version_hint",
-            new=AsyncMock(return_value=2),
+            new=AsyncMock(return_value=latest_next_version),
         ),
         patch(
             "app.workflows.create_pmp.sync_pmp_draft_workspace",
@@ -241,17 +264,24 @@ def test_update_pmp_emits_lifecycle_progress_events() -> None:
             ),
         ),
     ):
-        result = run_async(
-            run_update_pmp_workflow(
+        operation = run_update_pmp_workflow(
                 AsyncMock(),
                 user_id=USER_ID,
                 project=_project(),
                 thread_id=None,
                 on_preview=capture,
             )
-        )
+        if latest_next_version == 3:
+            with pytest.raises(ArtefactRevisionConflict):
+                run_async(operation)
+            assert publish.await_args.kwargs["expected_base_version"] == baseline.version
+            assert not any(item.get("stage") == "artefact_ready" for item in published)
+            return
+        result = run_async(operation)
 
     assert result.status == "complete"
+    # A human revision published during generation must not become its base.
+    assert publish.await_args.kwargs["expected_base_version"] == baseline.version
     stages = [item.get("stage") for item in published]
     assert "context_ready" in stages
     assert "retrieval_complete" in stages

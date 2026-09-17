@@ -1,0 +1,29 @@
+{
+  "status": "pass",
+  "front_blades": 6,
+  "front_blade_heights_m": [
+    1.25,
+    3.45
+  ],
+  "loggia_opening_m": [
+    2.9,
+    2.0
+  ],
+  "rear_dormer_width_m": 5.4,
+  "rear_privacy_walls": 6,
+  "rear_privacy_wall_vertical_extent_m": [
+    3.45,
+    9.38
+  ],
+  "perforation_pitch_m": 0.02,
+  "perforation_clear_hole_m": 0.014,
+  "protected_objects_verified": 2388,
+  "protected_systems": [
+    "civil",
+    "electrical",
+    "hydraulic",
+    "mechanical",
+    "structure"
+  ],
+  "upper_balcony_size_changed": false
+}

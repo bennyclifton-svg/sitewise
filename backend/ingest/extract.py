@@ -39,6 +39,10 @@ def extract_document(plan: IngestPlan) -> ExtractedDocument | None:
     cleaned = sanitize_text(extracted.normalized_content).strip()
     if not cleaned:
         logger.warning("extract_empty", relative_path=plan.entry.relative_path)
+        if extractor_name.startswith("pdf_"):
+            # False from the ingest pipeline means unchanged. An unreadable PDF
+            # must instead fail so the stored upload remains visibly retryable.
+            raise ValueError("No readable text was extracted from the PDF")
         return None
     return ExtractedDocument(
         normalized_content=cleaned,

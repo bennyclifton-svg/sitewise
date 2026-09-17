@@ -1,0 +1,9 @@
+/* Allison — handwritten hero closer (SIL OFL 1.1). */
+
+@font-face {
+  font-family: "Allison";
+  src: url("./fonts/allison/allison-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

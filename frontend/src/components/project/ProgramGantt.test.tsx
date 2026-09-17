@@ -99,6 +99,14 @@ function stateWithChildren(overrides: Partial<ProgrammeState> = {}): ProgrammeSt
 }
 
 describe("ProgramGantt", () => {
+  it.each(["edit", "figure"] as const)("labels unverified programme assumptions in %s mode", (mode) => {
+    const proposed = state();
+    const { rerender } = render(<ProgramGantt state={proposed} mode={mode} />);
+    expect(screen.getByText("3 activities contain assumed dates or durations. Verify them before relying on this programme.")).toBeVisible();
+    rerender(<ProgramGantt state={{ ...proposed, activities: proposed.activities.map((activity) => ({ ...activity, assumption: false })) }} mode={mode} />);
+    expect(screen.queryByText(/activities contain assumed dates/)).not.toBeInTheDocument();
+  });
+
   it("renders the default stage names", () => {
     render(<ProgramGantt state={state()} mode="edit" />);
     expect(screen.getAllByText("Planning").length).toBeGreaterThan(0);

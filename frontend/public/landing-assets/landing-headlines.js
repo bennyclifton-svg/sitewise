@@ -1,38 +1,38 @@
-import { revealHeadlineLines } from './landing-headline-reveal.js';
+import { playHeadlineType } from './landing-headline-type.js';
 import { playHeadlineMarks } from './landing-headline-marks.js';
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
 export async function mountHeadline(root = document) {
   const hero = root.querySelector('#sitewise-landing .sw-coordination') ?? root.querySelector('.sw-coordination');
-  const lines = [...(hero?.querySelectorAll('.sw-headline-line') ?? [])];
-  if (!hero || !lines.length) return;
+  const headline = hero?.querySelector('#sw-hero-title') ?? hero?.querySelector('h1');
+  if (!hero || !headline) return;
 
   const ready = () => hero.classList.add('is-headline-ready');
-  const instant = () => reducedMotion.matches || typeof lines[0].animate !== 'function';
-  const clearInline = () => {
-    lines.forEach(line => {
-      line.removeAttribute('style');
-      line.querySelector('.sw-headline-ink')?.removeAttribute('style');
-    });
-  };
+  const instant = () => reducedMotion.matches || typeof headline.animate !== 'function';
+
+  try {
+    await document.fonts?.ready;
+  } catch {
+    // Keep the closer readable even if the font enumerator is missing.
+  }
 
   if (instant()) {
+    await playHeadlineType(headline, { reducedMotion: true });
     ready();
     await playHeadlineMarks(hero, { reducedMotion: true });
     return;
   }
 
   try {
-    await document.fonts?.ready;
     if (instant() || window.scrollY > hero.clientHeight / 2) {
+      await playHeadlineType(headline, { reducedMotion: true });
       ready();
       await playHeadlineMarks(hero, { reducedMotion: true });
       return;
     }
 
-    const animations = revealHeadlineLines(lines);
-    let aborted = false;
+    const controller = new AbortController();
     function detach() {
       window.removeEventListener('resize', abort);
       window.removeEventListener('pagehide', abort);
@@ -40,11 +40,8 @@ export async function mountHeadline(root = document) {
       reducedMotion.removeEventListener('change', abort);
     }
     function abort() {
-      if (aborted) return;
-      aborted = true;
-      animations.forEach(animation => animation?.cancel?.());
-      clearInline();
-      playHeadlineMarks(hero, { reducedMotion: true });
+      if (controller.signal.aborted) return;
+      controller.abort();
       detach();
     }
     function onPause(event) {
@@ -56,12 +53,9 @@ export async function mountHeadline(root = document) {
     window.addEventListener('sitewise:motion-pause', onPause);
     reducedMotion.addEventListener('change', abort, { once: true });
 
-    await Promise.all(animations.map(animation => animation?.finished).filter(Boolean)).catch(() => {});
-    clearInline();
-    if (!aborted) {
-      await playHeadlineMarks(hero, { reducedMotion: instant() });
-      detach();
-    }
+    await playHeadlineMarks(hero, { reducedMotion: false });
+    await playHeadlineType(headline, { signal: controller.signal });
+    if (!controller.signal.aborted) detach();
   } finally {
     ready();
   }

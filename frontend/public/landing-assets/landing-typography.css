@@ -11,6 +11,10 @@
 .sw-source-credits * {
   font-family: 'Instrument Sans', Arial, sans-serif !important;
 }
+#sitewise-landing .sw-headline-hand,
+#sitewise-landing .sw-headline-hand * {
+  font-family: Allison, cursive !important;
+}
 #sitewise-landing .sw-coordination h1,
 #sitewise-landing .sw-coordination h1 .sw-detail-reveal,
 #sitewise-landing .sw-workspace-intro h2,

@@ -42,9 +42,9 @@ def test_database_runner_has_fail_closed_lifecycle_and_shared_commands() -> None
     assert "docker compose" in source
     assert "up --detach --wait" in source
     assert "CREATE TABLE IF NOT EXISTS clerk_test_environment" in source
-    assert "uv run alembic upgrade head" in source
-    assert "uv run alembic check" in source
-    assert 'uv run pytest -m database_integration' in source
+    assert "uv run --frozen alembic upgrade head" in source
+    assert "uv run --frozen alembic check" in source
+    assert 'uv run --frozen pytest -m database_integration' in source
     assert "finally" in source
     assert "down --volumes --remove-orphans" in source
 
@@ -174,13 +174,14 @@ def test_database_runner_tears_down_after_partial_compose_failure(tmp_path: Path
     assert "postgresql://" not in rendered
 
 
-def test_database_smoke_ci_is_manual_private_and_uses_shared_runner() -> None:
+def test_database_smoke_ci_is_required_private_and_uses_shared_runner() -> None:
     workflow = yaml.safe_load(CI_FILE.read_text(encoding="utf-8"))
     database_job = workflow["jobs"]["database-smoke"]
     triggers = workflow.get("on", workflow.get(True, {}))
 
     assert "workflow_dispatch" in triggers
-    assert database_job["if"] == "github.event_name == 'workflow_dispatch'"
+    assert "if" not in database_job
+    assert "database-smoke" in workflow["jobs"]["release-images"]["needs"]
     assert database_job["timeout-minutes"] <= 15
     runner_steps = [
         step

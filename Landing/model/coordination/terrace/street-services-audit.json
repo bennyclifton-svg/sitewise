@@ -1,0 +1,23 @@
+{
+  "scope": "Illustrative landing-model inventory and street tie-in audit; not an engineering/clash certification.",
+  "source_routes": {
+    "electrical": 210,
+    "mechanical": 91,
+    "hydraulic": 266,
+    "civil": 13
+  },
+  "source_route_total": 580,
+  "homes_with_power_water_sewer_and_front_rear_downpipes": 7,
+  "water_meter_box_source_count": 0,
+  "existing_stormwater_main_diameter_m": 0.3,
+  "presentation_stormwater_main_diameter_m": 0.4,
+  "presentation_sewer_centre_elevation_m": -1.9,
+  "findings": [
+    "All seven dwelling sanitary and electricity laterals already reach their original street mains.",
+    "Stormwater downpipe ends and pit laterals have about 60 mm lateral separation; explicit connecting branches are added.",
+    "Water service lines bypass any above-ground meter; seven connected meter loops are added beside the front enclosures.",
+    "Rear downpipes previously ran to front drainage without individual rear pits; seven rear pits are added.",
+    "Existing building services are retained. New sewer drops tie original laterals into the lower street main.",
+    "New overhead power connects two poles, a pole riser, a front pillar and the existing electricity distribution conduit."
+  ]
+}

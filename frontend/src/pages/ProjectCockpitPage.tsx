@@ -1,9 +1,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate, useOutlet, useParams } from "react-router-dom";
 
 import { ChatActivityProvider, useChatActivity } from "@/components/chat/chat-activity";
+import { NewChatPanel } from "@/components/chat/NewChatPanel";
 import type { PendingChatInstruction } from "@/components/chat/ChatPanel";
 import { chatThreadQueryKey } from "@/components/chat/chat-query-keys";
 import { DocumentRepositoryPanel } from "@/components/project/DocumentRepositoryPanel";
@@ -218,6 +219,8 @@ function ProjectCockpitContents() {
   const [selectedPlatformKnowledge, setSelectedPlatformKnowledge] =
     useState<PlatformKnowledgeDocument | null>(null);
   const [snapshot, setSnapshot] = useState<ProjectSnapshot | null>(null);
+  const chatNavigation = useRef(0);
+  const [newChat, setNewChat] = useState(false);
   const [thread, setThread] = useState<ChatThread | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [latestDraft, setLatestDraft] = useState<DraftArtifactSummary | null>(null);
@@ -478,6 +481,7 @@ function ProjectCockpitContents() {
     const id = projectId;
     let cancelled = false;
 
+    const navigation = ++chatNavigation.current;
     async function loadProjectChat() {
       setChatLoading(true);
       setChatError(null);
@@ -485,16 +489,17 @@ function ProjectCockpitContents() {
         const bootstrap = await api.getProjectChatBootstrap(id);
         const existingThread = bootstrap.thread ?? (await api.createProjectThread(id));
         const loadedMessages = bootstrap.thread ? bootstrap.messages : [];
-        if (cancelled) return;
+        if (cancelled || navigation !== chatNavigation.current) return;
+        queryClient.setQueryData(["chat", "session", existingThread.id], { thread: existingThread, messages: loadedMessages });
         setThread(existingThread);
         setMessages(loadedMessages);
         setChatRevision((current) => current + 1);
       } catch (loadError) {
-        if (!cancelled) {
+        if (!cancelled && navigation === chatNavigation.current) {
           setChatError(formatApiError(loadError, "Could not open project chat."));
         }
       } finally {
-        if (!cancelled) setChatLoading(false);
+        if (!cancelled && navigation === chatNavigation.current) setChatLoading(false);
       }
     }
 
@@ -502,7 +507,7 @@ function ProjectCockpitContents() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, chatReloadToken]);
+  }, [projectId, chatReloadToken, queryClient]);
 
   async function refreshEvidence() {
     if (!projectId) return;
@@ -523,14 +528,21 @@ function ProjectCockpitContents() {
     });
   }
 
-  async function refreshMessages() {
-    if (!thread) return;
+  async function refreshMessages(threadId = thread?.id) {
+    if (!threadId) return;
+    const navigation = chatNavigation.current;
     try {
-      const loadedMessages = await api.getThreadMessages(thread.id);
+      const loadedMessages = await api.getThreadMessages(threadId);
+      queryClient.setQueryData<{ thread: ChatThread; messages: ChatMessage[] }>(
+        ["chat", "session", threadId],
+        (cached) => cached ? { ...cached, messages: loadedMessages } : undefined,
+      );
+      if (navigation !== chatNavigation.current || threadId !== thread?.id) return;
       // Keep ChatPanel mounted; remounting resets scroll through full history.
       setMessages(loadedMessages);
       setChatError(null);
     } catch (loadError) {
+      if (navigation !== chatNavigation.current || threadId !== thread?.id) return;
       // A post-turn refresh must not unmount chat. Update PMP and other long
       // runs can make this GET miss the default window; the thread is already open.
       if (loadError instanceof ApiError && loadError.isNetworkError) {
@@ -540,11 +552,16 @@ function ProjectCockpitContents() {
     }
   }
 
-  async function refreshChatThread() {
-    if (!thread) return;
+  async function refreshChatThread(threadId = thread?.id) {
+    if (!threadId) return;
+    const navigation = chatNavigation.current;
     try {
-      const updatedThread = await api.getThread(thread.id);
-      setThread(updatedThread);
+      const updatedThread = await api.getThread(threadId);
+      if (navigation === chatNavigation.current && threadId === thread?.id) setThread(updatedThread);
+      queryClient.setQueryData<{ thread: ChatThread; messages: ChatMessage[] }>(
+        ["chat", "session", threadId],
+        (cached) => cached ? { ...cached, thread: updatedThread } : undefined,
+      );
       queryClient.setQueryData<ChatThread[]>(chatThreadQueryKey, (current) =>
         current?.map((item) => (item.id === updatedThread.id ? updatedThread : item)),
       );
@@ -657,34 +674,71 @@ function ProjectCockpitContents() {
   }
 
   async function handleSelectThread(threadId: string) {
+    const navigation = ++chatNavigation.current;
+    setNewChat(false);
+    setPendingChatInstruction(null);
     setChatPanelCollapsed(false);
     setSelectedCitationId(null);
     setChatError(null);
-    if (thread?.id === threadId) return;
-    if (busyThreadIds.has(threadId)) {
-      const parked = queryClient
-        .getQueryData<ChatThread[]>(chatThreadQueryKey)
-        ?.find((candidate) => candidate.id === threadId);
-      if (parked) {
-        setThread(parked);
-        return;
-      }
+    if (thread?.id === threadId && !chatLoading) {
+      setChatLoading(false);
+      return;
     }
-    setChatLoading(true);
+    const cached = queryClient.getQueryData<{ thread: ChatThread; messages: ChatMessage[] }>(
+      ["chat", "session", threadId],
+    );
+    const listed = queryClient.getQueryData<ChatThread[]>(chatThreadQueryKey)
+      ?.find((candidate) => candidate.id === threadId);
+    const updatedAt = queryClient.getQueryState(["chat", "session", threadId])?.dataUpdatedAt ?? 0;
+    const fresh = cached && Date.now() - updatedAt < 30_000 ? cached : undefined;
+    setThread(fresh?.thread ?? listed ?? cached?.thread ?? null);
+    setMessages(fresh?.messages ?? []);
+    setChatLoading(!fresh);
+    if (busyThreadIds.has(threadId) && (cached || listed)) {
+      setChatLoading(false);
+      return;
+    }
     try {
-      const loadedThread = await api.getThread(threadId);
-      const loadedMessages = await api.getThreadMessages(threadId);
-      setThread(loadedThread);
-      setMessages(loadedMessages);
+      const loaded = await queryClient.fetchQuery({
+        queryKey: ["chat", "session", threadId],
+        queryFn: async () => {
+          const [loadedThread, loadedMessages] = await Promise.all([
+            api.getThread(threadId),
+            api.getThreadMessages(threadId),
+          ]);
+          return { thread: loadedThread, messages: loadedMessages };
+        },
+        staleTime: 30_000,
+      });
+      if (navigation !== chatNavigation.current) return;
+      setThread(loaded.thread);
+      setMessages(loaded.messages);
       setChatRevision((current) => current + 1);
     } catch (loadError) {
-      setChatError(formatApiError(loadError, "Could not open that chat session."));
+      if (navigation === chatNavigation.current) {
+        setChatError(formatApiError(loadError, "Could not open that chat session."));
+      }
     } finally {
-      setChatLoading(false);
+      if (navigation === chatNavigation.current) setChatLoading(false);
     }
   }
 
+  function handleNewChat() {
+    ++chatNavigation.current;
+    setNewChat(true);
+    setChatLoading(false);
+    setChatError(null);
+    setPendingChatInstruction(null);
+    leaveTenderRoute();
+    setActiveView("workbench");
+    setChatPanelCollapsed(false);
+  }
+
   function handleCreateThread(created: ChatThread) {
+    ++chatNavigation.current;
+    setNewChat(false);
+    setChatLoading(false);
+    queryClient.setQueryData(["chat", "session", created.id], { thread: created, messages: [] });
     setChatPanelCollapsed(false);
     setThread(created);
     setMessages([]);
@@ -719,6 +773,7 @@ function ProjectCockpitContents() {
   }
 
   function promoteChatFromComposer() {
+    setNewChat(false);
     leaveTenderRoute();
     setActiveView("workbench");
     setChatPanelCollapsed(false);
@@ -1083,7 +1138,8 @@ function ProjectCockpitContents() {
           }}
           chatHistory={{
             projectId: project.id,
-            activeThreadId: thread?.id,
+            activeThreadId: newChat ? undefined : thread?.id,
+            onNewChat: handleNewChat,
             onSelectThread: (threadId) => void handleSelectThread(threadId),
             onCreateSession: handleCreateThread,
             onActiveThreadDeleted: () => void handleActiveThreadDeleted(),
@@ -1108,44 +1164,61 @@ function ProjectCockpitContents() {
         />
       }
       chatPanel={
-        <Suspense fallback={null}>
-          <ChatRail
-            layout="main"
-            collapsed={chatCollapsed}
-            onCollapsedChange={handleChatCollapsedChange}
-            thread={thread}
-            messages={messages}
-            chatRevision={chatRevision}
-            chatLoading={chatLoading}
-            chatError={chatError}
-            onRetry={() => setChatReloadToken((current) => current + 1)}
-            selectedCitationId={selectedCitationId}
-            onConversationUpdate={() => {
-              void Promise.allSettled([refreshMessages(), refreshChatThread()]);
-              projectEvents.pollNow();
-            }}
-            onResourceEvent={projectEvents.applyResource}
-            onDocumentSelectionEvent={(event) => {
-              if (event.projectId !== project.id) return;
-              setSelectedRepositoryEvidenceIds((current) =>
-                applyDocumentSelectionEvent(
-                  current,
-                  event,
-                  evidence.map((item) => item.id),
-                ),
-              );
-            }}
-            onUserSubmit={promoteChatFromComposer}
-            pendingInstruction={pendingChatInstruction}
-            onPendingInstructionConsumed={(id) => {
-              setPendingChatInstruction((current) =>
-                current?.id === id ? null : current,
-              );
-            }}
-            selectedDocumentIds={selectedRepositoryDocumentIds}
-            onSelectCitation={handleSelectCitation}
-          />
-        </Suspense>
+        <>
+          {newChat ? (
+            <NewChatPanel
+              key={project.id}
+              projectId={project.id}
+              collapsed={chatCollapsed}
+              onCollapsedChange={handleChatCollapsedChange}
+              onCreated={(created, text) => {
+                handleCreateThread(created);
+                promoteChatFromComposer();
+                setPendingChatInstruction({ id: Date.now(), text });
+              }}
+            />
+          ) : null}
+          <div hidden={newChat} className={newChat ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
+            <Suspense fallback={null}>
+              <ChatRail
+                layout="main"
+                collapsed={chatCollapsed}
+                onCollapsedChange={handleChatCollapsedChange}
+                thread={thread}
+                messages={messages}
+                chatRevision={chatRevision}
+                chatLoading={chatLoading}
+                chatError={chatError}
+                onRetry={() => setChatReloadToken((current) => current + 1)}
+                selectedCitationId={selectedCitationId}
+                onConversationUpdate={(threadId) => {
+                  void Promise.allSettled([refreshMessages(threadId), refreshChatThread(threadId)]);
+                  projectEvents.pollNow();
+                }}
+                onResourceEvent={projectEvents.applyResource}
+                onDocumentSelectionEvent={(event) => {
+                  if (event.projectId !== project.id) return;
+                  setSelectedRepositoryEvidenceIds((current) =>
+                    applyDocumentSelectionEvent(
+                      current,
+                      event,
+                      evidence.map((item) => item.id),
+                    ),
+                  );
+                }}
+                onUserSubmit={promoteChatFromComposer}
+                pendingInstruction={newChat ? null : pendingChatInstruction}
+                onPendingInstructionConsumed={(id) => {
+                  setPendingChatInstruction((current) =>
+                    current?.id === id ? null : current,
+                  );
+                }}
+                selectedDocumentIds={selectedRepositoryDocumentIds}
+                onSelectCitation={handleSelectCitation}
+              />
+            </Suspense>
+          </div>
+        </>
       }
       repository={
         <DocumentRepositoryPanel

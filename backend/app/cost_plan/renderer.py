@@ -6,7 +6,9 @@ from app.cost_plan.calculations import calculate_totals, optional_budget
 from app.cost_plan.schemas import CostPlanState
 
 
-def _currency(value: Decimal) -> str:
+def _currency(value: Decimal | None) -> str:
+    if value is None:
+        return "TBC"
     sign = "-" if value < 0 else ""
     return f"{sign}${abs(value):,.2f}"
 

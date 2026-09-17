@@ -284,6 +284,15 @@ export const api = {
     await api.delete<void>(`/chat/threads/${threadId}`);
   },
 
+  getAgentTurnStatus: async (threadId: string): Promise<{
+    turn_id: string | null;
+    status: string;
+    active: boolean;
+    started_at?: string;
+    expires_at?: string;
+    process_running?: boolean;
+  }> => api.get(`/chat/agent/${threadId}/status`),
+
   cancelAgentTurn: async (threadId: string): Promise<boolean> => {
     const response = await api.post<{ cancelled: boolean }>(
       `/chat/agent/${threadId}/cancel`,
@@ -1047,6 +1056,15 @@ export const api = {
     projectId: string,
   ): Promise<ProcurementStrategy> =>
     api.get<ProcurementStrategy>(`/projects/${projectId}/procurement-strategy`),
+
+  identifySubmissionFirm: (projectId: string, workspaceFileIds: string[]) =>
+    api.post<{
+      status: "identified" | "needs_name" | "different_firms";
+      company_name: string | null;
+      message: string | null;
+    }>(`/projects/${projectId}/procurement-strategy/identify-firm`, {
+      workspace_file_ids: workspaceFileIds,
+    }),
 
   downloadProcurementStrategy: async (
     projectId: string,

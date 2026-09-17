@@ -5,18 +5,21 @@ const SPACING = 8;
 const INK = [218 / 255, 214 / 255, 208 / 255];
 const CANVAS = [249 / 255, 247 / 255, 243 / 255];
 export const LINE_ALPHA = 0.7;
-export const WAVE_FREQ = 2;
-export const EDGE_BAND = 0.025;
+export const WAVE_AMP = 1.3;
+export const WAVE_FREQ = 4 / 3;
+export const EDGE_BAND = 0.045;
 export const FIELD_YAW = Math.PI / 2;
-export const CREST_LO = -6;
-export const CREST_HI = 8;
-export const BLUR_SPREAD = 1.25;
-export const BLUR_MIX = 0.3;
+export const CREST_LO = -6 * WAVE_AMP;
+export const CREST_HI = 8 * WAVE_AMP;
+export const BLUR_SPREAD = 2.1;
+export const BLUR_MIX = 0.52;
 
-export function waveHeight(x, y, time, freq = WAVE_FREQ) {
-  return 11 * Math.sin(x * 0.01 * freq + y * 0.004 * freq - time * 0.72)
+export function waveHeight(x, y, time, freq = WAVE_FREQ, amp = WAVE_AMP) {
+  return amp * (
+    11 * Math.sin(x * 0.01 * freq + y * 0.004 * freq - time * 0.72)
     + 6.5 * Math.sin(-x * 0.0065 * freq + y * 0.011 * freq - time * 1.05)
-    + 2.4 * Math.sin(x * 0.015 * freq - y * 0.008 * freq + time * 1.4);
+    + 2.4 * Math.sin(x * 0.015 * freq - y * 0.008 * freq + time * 1.4)
+  );
 }
 
 export function rotateGround(x, y, angle = FIELD_YAW) {
@@ -115,7 +118,7 @@ function isoBounds(segments) {
 
 // Height-fit puts the far edge at clip Y = 1/3. Zoom would send that
 // horizon off the top; FIELD_SHIFT_Y pulls it back so the top third stays sky.
-export const GROUND_ZOOM = 1.7;
+export const GROUND_ZOOM = 2.05;
 export const FIELD_SHIFT_X = 0;
 export const HORIZON_CLIP = 1 / 3;
 export const FIELD_SHIFT_Y = HORIZON_CLIP - (4 / 3) * GROUND_ZOOM + 1;
@@ -173,9 +176,11 @@ const lineVertex = `
   varying vec2 v_clip;
 
   float height(vec2 p) {
-    return 11.0 * sin(p.x * 0.01 * u_waveFreq + p.y * 0.004 * u_waveFreq - u_time * 0.72)
+    return ${WAVE_AMP.toFixed(2)} * (
+      11.0 * sin(p.x * 0.01 * u_waveFreq + p.y * 0.004 * u_waveFreq - u_time * 0.72)
       + 6.5 * sin(-p.x * 0.0065 * u_waveFreq + p.y * 0.011 * u_waveFreq - u_time * 1.05)
-      + 2.4 * sin(p.x * 0.015 * u_waveFreq - p.y * 0.008 * u_waveFreq + u_time * 1.4);
+      + 2.4 * sin(p.x * 0.015 * u_waveFreq - p.y * 0.008 * u_waveFreq + u_time * 1.4)
+    );
   }
 
   vec3 project(vec2 ground) {

@@ -10,11 +10,18 @@ class AgentTurnAlreadyRunning(RuntimeError):
     """Raised when a turn or thread already has a registered agent task."""
 
 
+class AgentQueueTimeout(TimeoutError):
+    """Capacity did not become available before the queue deadline."""
+
+
 class AgentTurnRegistry:
-    def __init__(self, *, max_concurrent: int) -> None:
+    def __init__(self, *, max_concurrent: int, queue_timeout: float = 30) -> None:
         if max_concurrent < 1:
             raise ValueError("max_concurrent must be at least 1")
         self._semaphore = asyncio.Semaphore(max_concurrent)
+        if queue_timeout <= 0:
+            raise ValueError("queue_timeout must be positive")
+        self._queue_timeout = queue_timeout
         self._lock = asyncio.Lock()
         self._tasks_by_turn_id: dict[str, asyncio.Task[Any]] = {}
         self._turn_ids_by_thread_id: dict[str, str] = {}
@@ -27,20 +34,20 @@ class AgentTurnRegistry:
         thread_id: str | None = None,
         task: asyncio.Task[Any] | None = None,
     ) -> AsyncIterator[None]:
-        await self._semaphore.acquire()
-        registered = False
+        await self.register(turn_id, task or _current_task(), thread_id=thread_id)
+        acquired = False
         try:
-            await self.register(
-                turn_id,
-                task or _current_task(),
-                thread_id=thread_id,
-            )
-            registered = True
+            try:
+                async with asyncio.timeout(self._queue_timeout):
+                    await self._semaphore.acquire()
+                acquired = True
+            except TimeoutError as exc:
+                raise AgentQueueTimeout("Timed out waiting for agent capacity") from exc
             yield
         finally:
-            if registered:
-                await self.unregister(turn_id)
-            self._semaphore.release()
+            await self.unregister(turn_id)
+            if acquired:
+                self._semaphore.release()
 
     async def register(
         self,
@@ -77,6 +84,12 @@ class AgentTurnRegistry:
         task.cancel()
         return True
 
+    async def is_running(self, key: str) -> bool:
+        async with self._lock:
+            turn_id = self._turn_ids_by_thread_id.get(key, key)
+            task = self._tasks_by_turn_id.get(turn_id)
+            return task is not None and not task.done()
+
 
 def _current_task() -> asyncio.Task[Any]:
     task = asyncio.current_task()
@@ -85,4 +98,7 @@ def _current_task() -> asyncio.Task[Any]:
     return task
 
 
-agent_turn_registry = AgentTurnRegistry(max_concurrent=settings.agent_max_concurrent_turns)
+agent_turn_registry = AgentTurnRegistry(
+    max_concurrent=settings.agent_max_concurrent_turns,
+    queue_timeout=settings.agent_queue_timeout_seconds,
+)

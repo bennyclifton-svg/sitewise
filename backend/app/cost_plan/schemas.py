@@ -82,17 +82,17 @@ class CostItemInput(BaseModel):
 
 
 class CostPlanTotals(BaseModel):
-    budget: Money
+    budget: Money | None
     committed: Money
     forecast: Money
     paid: Money
-    variance: Money
-    allowances: Money
-    contingency: Money
-    escalation: Money
-    gst: Money
-    total_excluding_gst: Money
-    total_including_gst: Money
+    variance: Money | None
+    allowances: Money | None
+    contingency: Money | None
+    escalation: Money | None
+    gst: Money | None
+    total_excluding_gst: Money | None
+    total_including_gst: Money | None
 
 
 class DependencySnapshot(BaseModel):

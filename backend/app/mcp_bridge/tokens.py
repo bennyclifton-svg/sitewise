@@ -59,7 +59,8 @@ def mint_turn_token(
     secret = _resolve_secret(secret)
     now = time.time() if now is None else now
     ttl_seconds = (
-        settings.agent_turn_timeout_seconds + 30 if ttl_seconds is None else ttl_seconds
+        settings.agent_turn_timeout_seconds + settings.agent_queue_timeout_seconds + 30
+        if ttl_seconds is None else ttl_seconds
     )
     payload = {"uid": str(user_id), "pid": str(project_id), "exp": now + ttl_seconds}
     if turn_id is not None:

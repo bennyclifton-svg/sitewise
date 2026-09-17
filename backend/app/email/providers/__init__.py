@@ -15,7 +15,7 @@ def email_provider_from_settings(settings) -> EmailProvider:
         # The fake provider reports a successful send and delivers nothing.
         # Reaching it in production is worse than an outage, because the UI
         # says "sent" and no one finds out until the recipient asks.
-        if str(getattr(settings, "environment", "development")).lower() == (
+        if str(getattr(settings, "environment", "development")).strip().lower() == (
             "production"
         ):
             raise ProviderNotConfigured(

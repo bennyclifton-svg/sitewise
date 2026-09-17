@@ -1,23 +1,30 @@
 #sitewise-landing .sw-prompts { padding: clamp(64px,8vw,120px) clamp(24px,5vw,80px); color: #292722; max-width: 1600px; margin: auto; }
 #sitewise-landing .sw-prompts h2 { font-size: clamp(32px,3.8vw,56px); line-height: 1.1; font-weight: 400; letter-spacing: -.025em; margin: 0 0 18px; text-transform: none; }
 #sitewise-landing .sw-prompts-intro { font-size: 18px; line-height: 1.55; max-width: 660px; margin: 0 0 44px; }
-#sitewise-landing .sw-prompt-explorer { position: relative; min-height: 650px; }
-#sitewise-landing .sw-prompt-group { width: 28%; }
-#sitewise-landing .sw-prompt-group h3 { margin: 32px 0 8px; padding-bottom: 10px; border-bottom: 2px solid #8caaaF; font-size: 21px; font-weight: 700; color: #292722; text-transform: none; letter-spacing: -.01em; }
-#sitewise-landing .sw-prompt-group:first-child h3 { margin-top: 0; }
-#sitewise-landing .sw-prompt-choice > summary { padding: 12px 30px 12px 0; border-bottom: 1px solid #d5d4ce; cursor: pointer; font-size: 17px; line-height: 1.4; list-style: none; position: relative; }
-#sitewise-landing .sw-prompt-choice > summary::-webkit-details-marker { display: none; }
-#sitewise-landing .sw-prompt-choice > summary::after { content: ''; position: absolute; right: 6px; top: 21px; width: 7px; height: 7px; border-top: 1px solid; border-right: 1px solid; transform: rotate(45deg); }
-#sitewise-landing .sw-prompt-choice[open] > summary { color: #075570; font-weight: 700; border-color: #075570; }
-#sitewise-landing .sw-prompt-choice > summary:hover { color: #075570; }
-#sitewise-landing .sw-prompts summary:focus-visible { outline: 2px solid #075570; outline-offset: 4px; }
+#sitewise-landing .sw-prompt-explorer { position: relative; min-height: 420px; }
+#sitewise-landing .sw-prompt-nav { width: 28%; display: flex; flex-direction: column; }
+#sitewise-landing .sw-prompt-nav button { margin: 0; padding: 14px 0 10px; border: 0; border-bottom: 2px solid #8caaaF; background: transparent; font: inherit; font-size: 21px; font-weight: 700; letter-spacing: -.01em; text-align: left; color: #292722; cursor: pointer; }
+#sitewise-landing .sw-prompt-nav button + button { margin-top: 18px; }
+#sitewise-landing .sw-prompt-nav button:hover,
+#sitewise-landing .sw-prompt-nav button[aria-pressed="true"] { color: #075570; border-color: #075570; }
 #sitewise-landing .sw-prompt-preview { position: absolute; top: 0; left: 34%; right: 0; padding: 0; }
-#sitewise-landing .sw-prompt-preview h4 { font-size: 25px; font-weight: 400; margin: 0 0 24px; }
-#sitewise-landing .sw-prompt-preview h5 { font-size: 15px; margin: 28px 0 12px; font-weight: 700; }
-#sitewise-landing .sw-prompt-records { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 16px; line-height: 1.5; }
-#sitewise-landing .sw-prompt-records li { border-bottom: 1px solid #b5c5c8; padding-bottom: 4px; }
+#sitewise-landing .sw-prompt-switch { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0 0 24px; }
+#sitewise-landing .sw-prompt-switch[hidden],
+#sitewise-landing .sw-prompt-panel[hidden] { display: none; }
+#sitewise-landing .sw-prompt-switch button { margin: 0; padding: 0 0 6px; border: 0; border-bottom: 1px solid transparent; background: transparent; font: inherit; font-size: 25px; font-weight: 400; color: #64615b; cursor: pointer; }
+#sitewise-landing .sw-prompt-switch button:hover { color: #075570; }
+#sitewise-landing .sw-prompt-switch button[aria-pressed="true"] { color: #292722; border-color: #075570; }
+#sitewise-landing .sw-prompts button:focus-visible { outline: 2px solid #075570; outline-offset: 4px; }
 #sitewise-landing .sw-example-composer { border: 1px solid #4d5357; border-radius: 14px; background: #222629; color: #f2f3f3; padding: 28px; }
 #sitewise-landing .sw-example-field { font-size: 18px; line-height: 1.7; margin: 0 0 32px; cursor: text; }
+#sitewise-landing .sw-prompt-word { display: inline-block; white-space: pre-wrap; }
+#sitewise-landing .sw-prompt-word.is-pending { opacity: 0; transform: translateY(6px); }
+@media (prefers-reduced-motion: no-preference) {
+  #sitewise-landing .sw-prompt-explorer:not(.is-prompt-ready) .sw-example-field { color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sitewise-landing .sw-prompt-word.is-pending { opacity: 1; transform: none; }
+}
 #sitewise-landing .sw-example-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 #sitewise-landing .sw-example-depth { display: flex; border: 1px solid #62696c; border-radius: 999px; overflow: hidden; }
 #sitewise-landing .sw-example-depth button { display: flex; align-items: center; gap: 6px; padding: 9px 12px; color: #c8cdcf; border: 0; background: transparent; font-size: 13px; cursor: pointer; }
@@ -28,12 +35,13 @@
 #sitewise-landing .sw-example-actions button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; color: #c8cdcf; border: 0; border-radius: 50%; background: transparent; }
 #sitewise-landing .sw-example-actions .sw-example-send { color: #17262c; background: #93cedd; }
 #sitewise-landing .sw-example-composer :focus-visible { outline: 2px solid #93cedd; outline-offset: 4px; }
-#sitewise-landing .sw-prompt-note { font-size: 13px; color: #64615b; line-height: 1.5; margin-top: 28px; }
 @media(max-width: 899px) {
-  #sitewise-landing .sw-prompt-group { width: 100%; }
-  #sitewise-landing .sw-prompt-preview { position: static; padding: 24px 0 32px; border-top: 0; }
+  #sitewise-landing .sw-prompt-nav { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 0 20px; }
+  #sitewise-landing .sw-prompt-nav button { margin-top: 0; padding: 8px 0; font-size: 18px; }
+  #sitewise-landing .sw-prompt-nav button + button { margin-top: 0; }
+  #sitewise-landing .sw-prompt-preview { position: static; padding: 24px 0 0; }
+  #sitewise-landing .sw-prompt-switch button { font-size: 20px; }
   #sitewise-landing .sw-example-composer { padding: 20px; }
   #sitewise-landing .sw-example-field { font-size: 16px; }
-  #sitewise-landing .sw-prompt-choice[open] > summary::after { transform: rotate(135deg); }
   #sitewise-landing .sw-prompt-explorer { min-height: 0; }
 }

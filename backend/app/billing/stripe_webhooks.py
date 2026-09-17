@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -7,6 +8,7 @@ from typing import Any
 
 import stripe
 from fastapi import HTTPException, status
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -106,24 +108,17 @@ async def _sync_checkout_completed(
     if not user_id_text or not stripe_customer_id or not stripe_subscription_id or not price_id:
         return StripeWebhookResult(action="ignored", event_type=event_type)
 
+    subscription = await _current_subscription(session, stripe_subscription_id)
+    if subscription.get("customer") != stripe_customer_id:
+        raise HTTPException(status_code=502, detail="Stripe subscription customer mismatch.")
     customer_details = _as_mapping(checkout.get("customer_details"))
-    customer = await upsert_stripe_customer(
+    await upsert_stripe_customer(
         session,
         user_id=uuid.UUID(user_id_text),
         stripe_customer_id=stripe_customer_id,
         email=_string(customer_details.get("email")),
     )
-    await upsert_stripe_subscription(
-        session,
-        customer_id=customer.id,
-        stripe_subscription_id=stripe_subscription_id,
-        price_id=price_id,
-        status="active",
-        current_period_start=None,
-        current_period_end=None,
-        cancel_at_period_end=False,
-        canceled_at=None,
-    )
+    await _sync_subscription(session, event_type, subscription)
     return StripeWebhookResult(action="checkout_completed", event_type=event_type)
 
 
@@ -166,6 +161,21 @@ async def _sync_subscription(
     return StripeWebhookResult(action="subscription_synced", event_type=event_type)
 
 
+async def _current_subscription(session: AsyncSession, subscription_id: str) -> dict[str, Any]:
+    # Hold through commit: old/repeated events must not overwrite newer state.
+    await session.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                          {"key": f"stripe-subscription:{subscription_id}"})
+    if not settings.stripe_secret_key:
+        raise HTTPException(status_code=503, detail="Stripe billing is not configured.")
+    try:
+        subscription = await asyncio.to_thread(
+            stripe.Subscription.retrieve, subscription_id, api_key=settings.stripe_secret_key,
+        )
+    except stripe.StripeError as exc:
+        raise HTTPException(status_code=502, detail="Could not refresh Stripe subscription.") from exc
+    return _event_mapping(subscription)
+
+
 async def sync_stripe_webhook(
     session: AsyncSession,
     event: dict[str, Any],
@@ -175,8 +185,13 @@ async def sync_stripe_webhook(
     if event_type == "checkout.session.completed":
         return await _sync_checkout_completed(session, event_type, payload)
     if event_type in {
+        "customer.subscription.created",
         "customer.subscription.updated",
         "customer.subscription.deleted",
     }:
-        return await _sync_subscription(session, event_type, payload)
+        subscription_id = _string(payload.get("id"))
+        if not subscription_id:
+            return StripeWebhookResult(action="ignored", event_type=event_type)
+        current = await _current_subscription(session, subscription_id)
+        return await _sync_subscription(session, event_type, current)
     return StripeWebhookResult(action="ignored", event_type=event_type)

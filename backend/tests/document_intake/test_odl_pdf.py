@@ -88,3 +88,25 @@ def test_extract_pages_falls_back_to_json_content(monkeypatch) -> None:
 
     assert pages[0].page_no == 1
     assert pages[0].text == "First\nSecond"
+
+
+def test_marker_only_pdf_does_not_become_retrievable_text(monkeypatch) -> None:
+    def fake_convert(**kwargs) -> None:
+        output = Path(kwargs["output_dir"])
+        (output / "doc.md").write_text("<!-- page 1 -->\n\n<!-- page 2 -->", encoding="utf-8")
+        (output / "doc.txt").write_text("=== page 1 ===\n\n=== page 2 ===", encoding="utf-8")
+        (output / "doc.json").write_text('{"kids": []}', encoding="utf-8")
+
+    monkeypatch.setattr("app.document_intake.odl_pdf.opendataloader_pdf.convert", fake_convert)
+    assert extract_pdf_document(b"synthetic-scanned-pdf", hybrid=False).pages == []
+
+
+def test_marker_only_markdown_falls_back_to_real_json_content(monkeypatch) -> None:
+    def fake_convert(**kwargs) -> None:
+        output = Path(kwargs["output_dir"])
+        (output / "doc.md").write_text("<!-- page 1 -->\n\n<!-- page 2 -->", encoding="utf-8")
+        (output / "doc.json").write_text(json.dumps({"kids": [{"page number": 2, "content": "Consent is conditional."}]}), encoding="utf-8")
+
+    monkeypatch.setattr("app.document_intake.odl_pdf.opendataloader_pdf.convert", fake_convert)
+    document = extract_pdf_document(b"synthetic-pdf", hybrid=False)
+    assert [(p.page_no, p.text) for p in document.pages] == [(2, "Consent is conditional.")]

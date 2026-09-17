@@ -50,6 +50,15 @@ const disciplines = [
 ];
 
 describe("ProcurementStrategyGrid", () => {
+  it("offers document linking in every empty firm cell and respects locked rows", () => {
+    const props = { strategy, disciplines, saving: false, onApply: vi.fn(), onRefresh: vi.fn() };
+    const { rerender } = render(<ProcurementStrategyGrid {...props} />);
+    for (const slot of [1, 2, 3]) {
+      expect(screen.getByRole("button", { name: `Link documents for Structural, Firm ${slot}` })).toBeEnabled();
+    }
+    rerender(<ProcurementStrategyGrid {...props} strategy={{ ...strategy, rows: strategy.rows.map((row) => ({ ...row, locked: true })) }} />);
+    expect(screen.getByRole("button", { name: "Link documents for Structural, Firm 1" })).toBeDisabled();
+  });
   it("keeps strategy controls at the toolbar edges and removes the discipline count", async () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn().mockResolvedValue(undefined);
@@ -138,41 +147,32 @@ describe("ProcurementStrategyGrid", () => {
     ]);
   });
 
-  it("presents the four status milestones as cumulative toggle buttons", async () => {
+  it("shows chronological actions and only opens a completed comparison", async () => {
     const user = userEvent.setup();
-    const onApply = vi.fn().mockResolvedValue(undefined);
-    render(
-      <ProcurementStrategyGrid
-        strategy={strategy}
-        disciplines={disciplines}
-        saving={false}
-        onApply={onApply}
-        onRefresh={vi.fn()}
-      />,
-    );
+    const onCreateRequest = vi.fn();
+    const onCompare = vi.fn();
+    const onOpenReview = vi.fn();
+    const props = { strategy, disciplines, saving: false, onApply: vi.fn(), onRefresh: vi.fn(), onCreateRequest, onCompare, onOpenReview };
+    const { rerender } = render(<ProcurementStrategyGrid {...props} />);
+    expect(screen.queryByRole("button", { name: "Structural: Issued" })).toBeNull();
+    expect(screen.getByRole("button", { name: "View comparison for Structural" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Create RFP for Structural" }));
+    await user.click(screen.getByRole("button", { name: "Compare tenders for Structural" }));
+    expect(onCreateRequest).toHaveBeenCalledWith(strategy.rows[0]);
+    expect(onCompare).toHaveBeenCalledWith(strategy.rows[0]);
+    rerender(<ProcurementStrategyGrid {...props} comparingRowId="row-1" />);
+    expect(screen.getByRole("button", { name: "Compare tenders for Structural" })).toBeDisabled();
+    rerender(<ProcurementStrategyGrid {...props} strategy={{ ...strategy, rows: [{ ...strategy.rows[0], recommendation_draft_id: "report-v2", comparison_id: "comparison-2" }] }} />);
+    await user.click(screen.getByRole("button", { name: "View comparison for Structural" }));
+    expect(onOpenReview).toHaveBeenCalledWith("report-v2");
+  });
 
-    const issued = screen.getByRole("button", { name: "Structural: Issued" });
-    const submitted = screen.getByRole("button", {
-      name: "Structural: Submitted",
-    });
-    const recommendation = screen.getByRole("button", {
-      name: "Structural: Recommendation",
-    });
-    const contract = screen.getByRole("button", { name: "Structural: Contract" });
-
-    expect(issued).toHaveAttribute("aria-pressed", "false");
-    expect(submitted).toHaveAttribute("aria-pressed", "false");
-    expect(recommendation).toHaveTextContent("Rec.");
-    expect(contract).toHaveAttribute("aria-pressed", "false");
-
-    await user.click(recommendation);
-    expect(onApply).toHaveBeenCalledWith([
-      {
-        operation: "UPDATE_ROW",
-        row_id: "row-1",
-        status: "evaluating",
-      },
-    ]);
+  it("marks only the explicitly awarded firm", () => {
+    const candidate = { id: "firm-1", slot: 1, company_name: "Caposi", website_url: null, location_text: null, source_url: null, source_title: null, researched_at: null };
+    render(<ProcurementStrategyGrid strategy={{ ...strategy, rows: [{ ...strategy.rows[0], awarded_candidate_id: candidate.id, status: "awarded", candidates: [candidate, { ...candidate, id: "firm-2", slot: 2, company_name: "Other firm" }] }] }} disciplines={disciplines} saving={false} onApply={vi.fn()} onRefresh={vi.fn()} />);
+    expect(screen.getByTitle("Caposi — Awarded")).toHaveValue("Caposi");
+    expect(screen.getAllByLabelText("Awarded")).toHaveLength(1);
+    expect(screen.getByLabelText("Structural, Firm 2")).not.toHaveAttribute("title", expect.stringContaining("Awarded"));
   });
 
   it("removes notes and consultant source links from the row", () => {
@@ -210,7 +210,7 @@ describe("ProcurementStrategyGrid", () => {
 
     expect(screen.queryByPlaceholderText("Add note")).toBeNull();
     expect(screen.queryByRole("link", { name: "Source" })).toBeNull();
-    expect(screen.getByRole("columnheader", { name: "Status" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Procurement" })).toBeTruthy();
   });
 
   it("uses clear labels in the row action menu", async () => {
@@ -238,6 +238,43 @@ describe("ProcurementStrategyGrid", () => {
     expect(below).toHaveTextContent("Add discipline below");
     expect(lock).toHaveTextContent("Lock row");
     expect(remove).toHaveTextContent("Delete row");
+  });
+
+  it("shows the full discipline names in the add-discipline menu", async () => {
+    const user = userEvent.setup();
+    const longDisciplineLabel =
+      "Mechanical, electrical, fire and hydraulic services";
+
+    render(
+      <ProcurementStrategyGrid
+        strategy={strategy}
+        disciplines={[
+          ...disciplines,
+          {
+            code: "consultant.building-services",
+            label: longDisciplineLabel,
+            participant_type: "consultant",
+            request_kind: "consultant_rfp",
+            workspace_slug: "building-services-engineer",
+          },
+        ]}
+        saving={false}
+        onApply={vi.fn().mockResolvedValue(undefined)}
+        onRefresh={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Add discipline" }));
+    await user.click(screen.getByRole("button", { name: "Discipline to add" }));
+
+    const optionLabel = screen.getByText(longDisciplineLabel);
+    const menu = optionLabel.closest('[data-slot="dropdown-menu-content"]');
+
+    expect(optionLabel).not.toHaveClass("truncate");
+    expect(menu).toHaveClass("w-max");
+    expect(menu).toHaveClass(
+      "min-w-[var(--radix-dropdown-menu-trigger-width)]",
+    );
   });
 
   it("groups consultants and trades and sorts each list alphanumerically", () => {

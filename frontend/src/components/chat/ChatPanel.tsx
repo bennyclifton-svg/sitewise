@@ -1,5 +1,6 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import { useAgentStreamResume } from "@/components/chat/use-agent-stream-resume";
 import { ArrowDown } from "lucide-react";
 import {
   useCallback,
@@ -18,11 +19,11 @@ import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatErrorBanner } from "@/components/chat/ChatErrorBanner";
 import { SourcePassagePanel } from "@/components/chat/SourcePassagePanel";
 import { UserMessage } from "@/components/chat/UserMessage";
+import { useAgentRunStatus } from "@/components/chat/use-agent-run-status";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import {
-  getSelectedAgentModel,
-  subscribeSelectedAgentModel,
+  agentModelPayload,
 } from "@/lib/agent-model";
 import { getAccessToken } from "@/lib/auth";
 import {
@@ -108,6 +109,7 @@ export function ChatPanel({
   const isEmbedded = isRail || isMain;
   const [input, setInput] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [cancellationError, setCancellationError] = useState<string | null>(null);
   const [internalSelectedCitation, setInternalSelectedCitation] = useState<Citation | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
@@ -135,11 +137,6 @@ export function ChatPanel({
     getSelectedChatModel,
     () => null,
   );
-  const agentModel = useSyncExternalStore(
-    subscribeSelectedAgentModel,
-    getSelectedAgentModel,
-    () => null,
-  );
 
   const activeCitationId =
     onSelectCitation !== undefined ? selectedCitationId : internalSelectedCitation?.sourceId ?? null;
@@ -154,7 +151,6 @@ export function ChatPanel({
 
   const transport = useMemo(() => {
     const selectedModel = chatModel ?? getSelectedChatModel();
-    const selectedAgentModel = agentModel ?? getSelectedAgentModel();
     const params = new URLSearchParams();
     if (crossProject) {
       params.set("cross_project", "true");
@@ -172,15 +168,18 @@ export function ChatPanel({
         const token = await getAccessToken();
         return token ? { Authorization: `Bearer ${token}` } : {};
       },
+      prepareReconnectToStreamRequest: ({ id }) => ({
+        api: `${env.apiBaseUrl.replace(/\/$/, "")}/chat/agent/${encodeURIComponent(id)}/stream`,
+      }),
+      // The chat SDK may retain this transport across renders. Read the model
+      // preference when sending so a tier change also applies to this thread.
       prepareSendMessagesRequest: ({ id, messages, body }) => ({
         body: {
           ...body,
           thread_id: id,
           messages,
           ...(agentMode
-            ? {
-                ...(selectedAgentModel ? { agent_model: selectedAgentModel } : {}),
-              }
+            ? agentModelPayload()
             : selectedModel
               ? { chat_model: selectedModel }
               : {}),
@@ -191,10 +190,9 @@ export function ChatPanel({
     agentMode,
     crossProject,
     chatModel,
-    agentModel,
   ]);
 
-  const { messages, sendMessage, status, error, stop } = useChat({
+  const { messages, sendMessage, status, error, stop, setMessages, clearError, resumeStream } = useChat({
     id: threadId,
     messages: toUiMessages(initialMessages),
     transport,
@@ -222,7 +220,32 @@ export function ChatPanel({
     },
   });
 
-  const isBusy = status === "submitted" || status === "streaming";
+  const isStreaming = status === "submitted" || status === "streaming";
+  const [resumePaused, setResumePaused] = useState(false);
+  const { run, unavailable: runStatusUnavailable } = useAgentRunStatus(
+    threadId, agentMode, isStreaming,
+    () => {
+      void api.getThreadMessages(threadId).then((saved) => {
+        setMessages(toUiMessages(saved));
+        clearError();
+        onConversationUpdate?.();
+      }).catch(() => setCancellationError("Could not reload the saved result. Refresh this chat to check it."));
+    },
+  );
+  useAgentStreamResume({
+    turnId: agentMode && run?.active ? run.turn_id : null,
+    streaming: isStreaming,
+    paused: resumePaused,
+    prepare: () => {
+      clearError();
+      setMessages((current) => {
+        const lastUser = current.findLastIndex((message) => message.role === "user");
+        return lastUser < 0 ? current : current.slice(0, lastUser + 1);
+      });
+    },
+    resume: resumeStream,
+  });
+  const isBusy = isStreaming || Boolean(run?.active);
   const [turnStarted, setTurnStarted] = useState(false);
   if (isBusy && !turnStarted) {
     setTurnStarted(true);
@@ -247,6 +270,7 @@ export function ChatPanel({
     consumedInstructionIdRef.current = instructionId;
     onPendingInstructionConsumed?.(instructionId);
     if (!text) return;
+    queueMicrotask(() => setResumePaused(false));
     onUserSubmit?.();
     const submittedDocumentIds = [...selectedDocumentIds];
     void (async () => {
@@ -412,6 +436,7 @@ export function ChatPanel({
   async function handleSubmit() {
     const text = input.trim();
     if (!text || isBusy) return;
+    setResumePaused(false);
     const submittedDocumentIds = [...selectedDocumentIds];
     setInput("");
     onUserSubmit?.();
@@ -426,11 +451,13 @@ export function ChatPanel({
   }
 
   async function handleStop() {
+    setResumePaused(true);
+    setCancellationError(null);
     stop();
     try {
       await api.cancelAgentTurn(threadId);
     } catch {
-      setStatusMessage("Cancellation requested");
+      setCancellationError("Could not confirm cancellation. The task may still be running.");
     }
   }
 
@@ -523,8 +550,34 @@ export function ChatPanel({
             ) : null}
           </div>
 
-        {chatError ? (
+        {agentMode && !isStreaming && (run?.active || run?.status === "expired" || runStatusUnavailable) ? (
+          <div className="rounded-md border border-border px-4 py-3 text-sm" role="status">
+            <p className="font-medium">
+              {runStatusUnavailable ? "Cannot check request status" : run?.status === "expired"
+                ? "Previous request expired" : run?.status === "reserved"
+                  ? "Request queued" : "Previous request is still active"}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              {runStatusUnavailable ? "The connection was lost. Completion has not been confirmed."
+                : run?.status === "expired" ? "Completion was not confirmed. Review saved changes before retrying."
+                  : "Checking for the saved result. You can stop this request before sending another."}
+              {run?.started_at ? ` Started ${new Date(run.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.` : ""}
+            </p>
+            <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void handleStop()}>
+              Stop previous request
+            </Button>
+          </div>
+        ) : null}
+        {chatError && !run?.active ? (
           <ChatErrorBanner message={chatError.message} kind={chatError.kind} />
+        ) : null}
+        {cancellationError ? (
+          <div>
+            <ChatErrorBanner message={cancellationError} kind="network" />
+            <Button type="button" variant="outline" size="sm" onClick={() => void handleStop()}>
+              Retry cancellation
+            </Button>
+          </div>
         ) : null}
 
         <ChatComposer

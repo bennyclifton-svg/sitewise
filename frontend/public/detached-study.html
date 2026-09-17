@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Detached housing — SiteWise study</title>
+  <link rel="stylesheet" href="./landing-assets/detached/study.css">
+</head>
+<body>
+  <header><a href="./landing.html">SiteWise</a><h1>Detached housing</h1><span>Four homes · House three open</span></header>
+  <main data-detached-viewer></main>
+  <footer>
+    <div role="group" aria-label="Building systems">
+      <button data-system="all" aria-pressed="true">Whole scheme</button>
+      <button data-system="structure" aria-pressed="false">Structure</button>
+      <button data-system="electrical" aria-pressed="false">Electrical</button>
+      <button data-system="mechanical" aria-pressed="false">Mechanical</button>
+      <button data-system="hydraulic" aria-pressed="false">Hydraulic</button>
+      <button data-system="civil" aria-pressed="false">Civil</button>
+      <button data-system="interiors" aria-pressed="false">Interiors</button>
+      <button data-system="landscape" aria-pressed="false">Landscape</button>
+    </div>
+    <div role="group" aria-label="Model views"><button data-view="street">Street</button><button data-view="front">Front</button><button data-view="plan">Plan</button></div>
+    <p role="status">Loading the detached study…</p>
+  </footer>
+  <script type="module" src="./landing-assets/detached/viewer.js"></script>
+</body>
+</html>

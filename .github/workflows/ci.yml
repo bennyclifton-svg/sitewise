@@ -55,13 +55,13 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Lint backend
         working-directory: backend
-        run: uv run ruff check app ingest tender tests
+        run: uv run --frozen ruff check app ingest tender tests
       - name: Run offline backend tests
         working-directory: backend
-        run: uv run pytest -m "not integration and not tender_eval"
+        run: uv run --frozen pytest -m "not integration and not tender_eval and not database_integration"
       - name: Verify migration graph
         working-directory: backend
-        run: uv run pytest tests/tender/test_migrations.py -m "not integration"
+        run: uv run --frozen pytest tests/tender/test_migrations.py -m "not integration"
 
   frontend:
     name: Frontend checks
@@ -123,11 +123,10 @@ jobs:
 
       - name: Validate tender seed data
         working-directory: backend
-        run: uv run python ../data/tender/tools/validate.py
+        run: uv run --frozen python ../data/tender/tools/validate.py
 
   database-smoke:
     name: Disposable database smoke
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -140,3 +139,25 @@ jobs:
       - name: Run disposable database smoke
         shell: pwsh
         run: ./scripts/test-database.ps1
+
+  release-images:
+    name: Release image gate
+    needs: [backend-offline, frontend, tender-seeds, database-smoke]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build selected commit images (no push or deployment)
+        run: |
+          docker build -f deploy/docker/backend.Dockerfile --build-arg BUILD_SHA="$GITHUB_SHA" -t "sitewise-production-api:$GITHUB_SHA" .
+          docker build -f deploy/docker/frontend.Dockerfile --build-arg VITE_SUPABASE_URL=https://clerk-ci.invalid --build-arg VITE_SUPABASE_ANON_KEY=test-public-anon -t "sitewise-production-web:$GITHUB_SHA" .
+      - name: Verify web delivery and unbuffered streaming
+        run: python scripts/smoke-web-image.py "sitewise-production-web:$GITHUB_SHA" "sitewise-production-api:$GITHUB_SHA"
+      - name: Record tested image identities
+        run: |
+          printf '%s\n' "$GITHUB_SHA" > release-manifest.txt
+          docker image inspect "sitewise-production-api:$GITHUB_SHA" "sitewise-production-web:$GITHUB_SHA" --format '{{.Id}} {{json .RepoTags}}' >> release-manifest.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: release-manifest.txt

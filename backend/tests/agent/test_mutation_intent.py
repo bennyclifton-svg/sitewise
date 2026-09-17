@@ -346,3 +346,13 @@ def test_materialize_merges_partial_scale_with_current_profile() -> None:
             "garage_spaces": 0,
         }
     }
+
+
+def test_explicit_firm_award_grants_procurement_scope():
+    for text in ["Award the works to Caposi", "Okay, I want to award the works to Caposi", "Please clear the award for Structural"]:
+        assert classify_mutation_intent(text).scopes == (PROCUREMENT_STRATEGY_MUTATION_SCOPE,)
+
+
+def test_award_questions_and_document_instructions_remain_read_only():
+    for text in ['"Award the works to Caposi"', "The report says award the works to Caposi", "Should we award the works to Caposi?", "Do not award the works to Caposi", "We might award the works to Caposi"]:
+        assert classify_mutation_intent(text).scopes == ()

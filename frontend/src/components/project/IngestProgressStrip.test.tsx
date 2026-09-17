@@ -47,7 +47,8 @@ describe("IngestProgressStrip", () => {
         progress={progress({ completed: 3, currentFilename: null, stage: null, failedCount: 1 })}
       />,
     );
-    expect(screen.getByRole("status")).toHaveTextContent("Finished ingesting 3 documents");
+    expect(screen.getByRole("status")).toHaveTextContent("Upload step finished for 3 documents");
+    expect(screen.getByRole("status")).not.toHaveTextContent("Finished ingesting");
     expect(screen.getByRole("status")).toHaveTextContent("1 failed");
   });
 });

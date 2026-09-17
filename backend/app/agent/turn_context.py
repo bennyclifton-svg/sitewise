@@ -202,6 +202,11 @@ the roster, call refresh_procurement_strategy. To edit it, read the current
 revision then call apply_procurement_strategy_operations with narrow structured
 operations. Never overwrite locked rows or claim an update unless the tool
 succeeds.
+For an explicit instruction to award works to a named firm, read the roster and
+use AWARD_CANDIDATE with the matching row_id and candidate_id. Ask which firm or
+discipline if ambiguous. CLEAR_AWARD removes an award. Do not infer an award from
+a recommendation. Recording the procurement award alone does not authorise Cost
+Plan changes; use the cost tools separately when the user requests those changes.
 
 When asked to research possible tenderers, call search_procurement_candidates
 for each canonical discipline code. Results are commercial discovery leads, not
@@ -659,7 +664,22 @@ def build_agent_prompt(
         )
     elif _is_profile_proposal_confirmation_request(user_text, mutation_intent):
         blocks.append(_PROFILE_PROPOSAL_CONFIRMATION_GUIDANCE)
-    if is_consultant_appointment_request(user_text):
+    if re.search(r"\bcost\s+plan\b", user_text, re.I) and re.search(
+        r"\b(?:tender|contractor|awarded)\b", user_text, re.I
+    ):
+        blocks.append("""<awarded-tender-cost-plan>
+For an explicitly awarded contractor tender, read the named project document
+with get_document and the current row keys with get_cost_plan, then use
+apply_awarded_tender_to_cost_plan. Map each quoted line once; the tool sums and
+reconciles the amounts in Python and writes Approved Contract in one revision.
+Do not substitute a budget forecast, consultant appointment or Tender Comparison
+workflow. Do not infer a split for lump sums: keep them on a matching package
+row, or ask about the allocation. Resolve unclear GST, margin or accepted scope
+with one specific question before writing. Preserve existing budgets and paid
+amounts. Report saved revision and reconciled ex-GST sum only after success;
+otherwise state clearly that no contract update was saved and what is needed.
+</awarded-tender-cost-plan>""")
+    elif is_consultant_appointment_request(user_text):
         blocks.append(_CONSULTANT_APPOINTMENT_GUIDANCE)
     if is_adopted_cost_plan_budget_request(user_text):
         blocks.append(_ADOPTED_COST_PLAN_BUDGET_GUIDANCE)

@@ -69,7 +69,7 @@ export function MenuSelect({
       <DropdownMenuContent
         align="start"
         className={cn(
-          "max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto",
+          "max-h-64 w-max min-w-[var(--radix-dropdown-menu-trigger-width)] max-w-[calc(100vw-1rem)] overflow-y-auto",
           contentClassName,
         )}
       >
@@ -82,7 +82,9 @@ export function MenuSelect({
               onSelect={() => onChange(option.value)}
               className={cn(isSelected && "bg-muted font-medium")}
             >
-              <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words">
+                {option.label}
+              </span>
               {isSelected ? (
                 <Check className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               ) : (

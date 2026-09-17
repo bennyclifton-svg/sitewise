@@ -120,6 +120,7 @@ def test_direct_tools_allowlist_includes_ai_operation_surface() -> None:
     from app.agent.pi_process import PI_MCP_DIRECT_TOOLS
 
     for name in (
+        "apply_awarded_tender_to_cost_plan",
         "apply_artefact_operations",
         "apply_cost_plan_operations",
         "apply_programme_operations",
@@ -404,6 +405,50 @@ def test_apply_cost_plan_rejects_invalid_schema(monkeypatch) -> None:
         )
 
 
+@pytest.mark.parametrize("failure", [None, "authorization", "document", "total", "version"])
+def test_awarded_tender_validates_before_commit(monkeypatch, failure):
+    session = _Session(_project())
+    server, _access, mutation = _install(monkeypatch, session)
+    if failure == "authorization":
+        mutation.side_effect = ToolAuthError("not authorized")
+    document = SimpleNamespace(model_dump=lambda **_: {"source_document_id": str(DRAFT_ID)})
+    resolve = AsyncMock(return_value=[document])
+    if failure == "document":
+        resolve.side_effect = ValueError("document not in project")
+    monkeypatch.setattr(server, "resolve_selected_turn_documents", resolve)
+    monkeypatch.setattr(server, "read_typed_cost_plan", AsyncMock(return_value=SimpleNamespace(
+        items=[SimpleNamespace(item_key="roof", source_refs=[], paid=0)],
+    )))
+    persist = AsyncMock(return_value=SimpleNamespace(
+        state=SimpleNamespace(id=DRAFT_ID, version=2),
+        delta=SimpleNamespace(model_dump=lambda **_: {"version": 2}),
+    ))
+    if failure == "version":
+        persist.side_effect = ArtefactRevisionConflict("stale version")
+    monkeypatch.setattr(server, "persist_cost_operations", persist)
+    monkeypatch.setattr(server, "schedule_cost_plan_workbook_rebuild", Mock(return_value={"status": "queued"}))
+    args = {
+        "project_id": str(PROJECT_ID), "source_document_id": str(DRAFT_ID),
+        "contractor": "Kaposi", "expected_base_version": 1,
+        "contract_total_ex_gst": "11.00" if failure == "total" else "10.00",
+        "lines": [{"item_key": "roof", "amount_ex_gst": "10.00",
+                   "description": "Roof", "source_location": "page 1"}],
+    }
+    if failure:
+        with pytest.raises(ToolError):
+            _call(server, "apply_awarded_tender_to_cost_plan", args)
+        assert not session.committed
+        if failure != "version":
+            persist.assert_not_awaited()
+        if failure == "authorization":
+            resolve.assert_not_awaited()
+    else:
+        result = _call(server, "apply_awarded_tender_to_cost_plan", args)
+        assert result["delta"]["version"] == 2
+        assert session.committed
+        assert persist.await_args.kwargs["operations"][0].values["committed"] == "10.00"
+
+
 def test_apply_cost_plan_rejects_stale_revision(monkeypatch) -> None:
     session = _Session(_project())
     server, _access, _mutation = _install(monkeypatch, session)
@@ -465,6 +510,24 @@ def test_apply_programme_operations_writes_state(monkeypatch) -> None:
     persist.assert_awaited_once()
     assert result["kind"] == "programme_operations_applied"
     assert result["state"]["version"] == 2
+
+
+def test_apply_cost_plan_operations_schema_describes_operation_shape(monkeypatch) -> None:
+    session = _Session(_project())
+    server, _access, _mutation = _install(monkeypatch, session)
+
+    async def run():
+        async with Client(server.mcp) as client:
+            tools = await client.list_tools()
+            return next(tool for tool in tools if tool.name == "apply_cost_plan_operations")
+
+    tool = run_async(run())
+    items = tool.inputSchema["properties"]["operations"]["items"]
+    assert items["properties"]["operation"]["enum"] == [
+        "ADD", "UPDATE", "DELETE", "MOVE", "DUPLICATE",
+    ]
+    assert items["properties"]["target_type"]["enum"] == ["cost_item", "cost_category"]
+    assert items["properties"]["values"]["type"] == "object"
 
 
 def test_apply_programme_operations_schema_describes_operation_shape(monkeypatch) -> None:

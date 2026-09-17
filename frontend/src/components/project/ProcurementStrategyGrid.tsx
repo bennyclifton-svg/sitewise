@@ -1,4 +1,5 @@
 import {
+  Check,
   ArrowDownToLine,
   ArrowUpToLine,
   Download,
@@ -39,20 +40,8 @@ import type {
   ProcurementStrategy,
   ProcurementStrategyOperation,
   ProcurementStrategyRow,
-  ProcurementStrategyStatus,
   ProjectDiscipline,
 } from "@/lib/types/project";
-
-const STATUS_MILESTONES: Array<{
-  value: ProcurementStrategyStatus;
-  label: string;
-  shortLabel: string;
-}> = [
-  { value: "issued", label: "Issued", shortLabel: "Issued" },
-  { value: "responses_received", label: "Submitted", shortLabel: "Submitted" },
-  { value: "evaluating", label: "Recommendation", shortLabel: "Rec." },
-  { value: "awarded", label: "Contract", shortLabel: "Contract" },
-];
 
 type InsertTarget = {
   anchorId: string | null;
@@ -83,7 +72,6 @@ export function ProcurementStrategyGrid({
   evidence = [],
   selectedEvidenceIds = new Set<string>(),
   onOpenReview,
-  onOpenComparison,
   comparingRowId = null,
 }: {
   strategy: ProcurementStrategy;
@@ -100,7 +88,6 @@ export function ProcurementStrategyGrid({
   evidence?: EvidencePreview[];
   selectedEvidenceIds?: Set<string>;
   onOpenReview?: (draftId: string) => void;
-  onOpenComparison?: (comparisonId: string) => void;
   comparingRowId?: string | null;
 }) {
   const [insertTarget, setInsertTarget] = useState<InsertTarget | null>(null);
@@ -285,28 +272,19 @@ export function ProcurementStrategyGrid({
         </div>
       </div>
 
-      <div className="overflow-hidden border border-border bg-[var(--sw-panel)]">
-        <table className="w-full table-fixed border-collapse text-sm">
+      <div className="overflow-x-auto border border-border bg-[var(--sw-panel)]">
+        <table className="w-full table-fixed border-collapse text-sm" style={{ minWidth: strategy.tenderer_column_count === 3 ? 990 : 1150 }}>
           <colgroup>
-            <col style={{ width: "16%" }} />
+            <col style={{ width: 140 }} />
             {Array.from({ length: strategy.tenderer_column_count }, (_, index) => (
-              <col
-                key={index}
-                style={{
-                  width: strategy.tenderer_column_count === 3 ? "15%" : "12%",
-                }}
-              />
+              <col key={index} />
             ))}
-            <col
-              style={{
-                width: strategy.tenderer_column_count === 3 ? "35%" : "32%",
-              }}
-            />
-            <col style={{ width: "4%" }} />
+            <col style={{ width: 340 }} />
+            <col style={{ width: 30 }} />
           </colgroup>
           <thead>
             <tr className="border-b border-border bg-muted/35 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              <th className="border-r border-border bg-muted px-2.5 py-2.5 normal-case tracking-normal text-foreground">
+              <th className="px-2.5 py-2.5 normal-case tracking-normal text-foreground">
                 Discipline
               </th>
               {Array.from({ length: strategy.tenderer_column_count }, (_, index) => (
@@ -337,18 +315,18 @@ export function ProcurementStrategyGrid({
                   </div>
                 </th>
               ))}
-              <th className="px-1.5 py-2.5 normal-case tracking-normal">Status</th>
+              <th className="px-1.5 py-2.5 normal-case tracking-normal">Procurement</th>
               <th className="px-1 py-2.5"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {tableRows.map((item) =>
               item.type === "group" ? (
-                <tr key={item.key} className="border-y border-border bg-muted/50">
+                <tr key={item.key} className="border-y border-border/60 bg-muted/20">
                   <th
                     scope="rowgroup"
                     colSpan={strategy.tenderer_column_count + 3}
-                    className="px-2.5 py-2 text-left text-xs font-semibold uppercase tracking-wide text-foreground"
+                    className="px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground"
                   >
                     {item.label}
                   </th>
@@ -384,7 +362,6 @@ export function ProcurementStrategyGrid({
                   selectedEvidenceIds={selectedEvidenceIds}
                   projectId={strategy.project_id}
                   onOpenReview={onOpenReview}
-                  onOpenComparison={onOpenComparison}
                   comparing={comparingRowId === item.row.id}
                 />
               ),
@@ -463,7 +440,6 @@ function StrategyRow({
   selectedEvidenceIds,
   projectId,
   onOpenReview,
-  onOpenComparison,
   comparing,
 }: {
   row: ProcurementStrategyRow;
@@ -480,11 +456,20 @@ function StrategyRow({
   selectedEvidenceIds: Set<string>;
   projectId: string;
   onOpenReview?: (draftId: string) => void;
-  onOpenComparison?: (comparisonId: string) => void;
   comparing: boolean;
 }) {
   const protectedCell = row.locked || saving;
   const requestLabel = requestTypeLabel(row.request_kind);
+  const actionClass = "h-8 min-w-0 rounded-none px-1 text-xs text-muted-foreground hover:text-foreground disabled:border-transparent! disabled:bg-transparent! disabled:opacity-45!";
+  const completedActionClass = "text-[var(--sw-link)] hover:text-[var(--sw-link-hover)]";
+  const canViewComparison = Boolean(row.recommendation_draft_id && onOpenReview);
+  function handleRequest() {
+    if (request?.current_draft) onOpenRequest?.(request);
+    else if (!request) onCreateRequest?.(row);
+  }
+  function handleViewComparison() {
+    if (row.recommendation_draft_id) onOpenReview?.(row.recommendation_draft_id);
+  }
   const [linkError, setLinkError] = useState<string | null>(null);
   async function linkFiles(candidateId: string, ids: string[]) {
     if (protectedCell || !ids.length) return;
@@ -502,11 +487,11 @@ function StrategyRow({
     >
       <th
         scope="row"
-        className="border-r border-border bg-[var(--sw-panel)] px-2.5 py-2 text-left font-medium"
+        className="px-2.5 py-2 text-left font-medium"
       >
         <div className="flex items-center gap-2">
           {row.locked ? <Shield className="size-3.5 shrink-0 text-muted-foreground" aria-label="Locked" /> : null}
-          <span className="min-w-0 truncate" title={row.discipline_label}>
+          <span className="min-w-0 break-words" title={row.discipline_label}>
             {row.discipline_label}
           </span>
         </div>
@@ -520,7 +505,7 @@ function StrategyRow({
         const slot = index + 1;
         const candidate = row.candidates.find((item) => item.slot === slot);
         return (
-          <td key={slot} className="px-1.5 py-1.5 align-top"
+          <td key={slot} className="px-1.5 py-2 align-middle"
             onClickCapture={(event) => {
               if (candidate && (event.ctrlKey || event.metaKey)) {
                 event.preventDefault(); event.stopPropagation();
@@ -540,11 +525,13 @@ function StrategyRow({
                 if (typeof data === "object" && data !== null && "projectId" in data && data.projectId === projectId && "fileIds" in data && Array.isArray(data.fileIds) && data.fileIds.every((id) => typeof id === "string")) void linkFiles(candidate.id, data.fileIds);
               } catch { setLinkError("Select files from this project's document panel."); }
             }}>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
             <EditableCell
-              key={candidate?.company_name ?? "empty"}
+              key={`firm-${candidate?.company_name ?? "empty"}`}
               ariaLabel={`${row.discipline_label}, Firm ${slot}`}
               value={candidate?.company_name ?? ""}
               placeholder="Add firm"
+              awarded={Boolean(candidate && candidate.id === row.awarded_candidate_id)}
               disabled={protectedCell}
               onCommit={(companyName) =>
                 onApply([
@@ -559,45 +546,41 @@ function StrategyRow({
                 ])
               }
             />
-            {candidate && <FirmSubmissionLinks candidate={candidate} rowId={row.id} evidence={evidence} selectedIds={selectedEvidenceIds} disabled={protectedCell} onApply={onApply} />}
+            <FirmSubmissionLinks key={`links-${candidate?.id ?? "empty"}`} candidate={candidate} projectId={projectId} slot={slot} cellLabel={`${row.discipline_label}, Firm ${slot}`} rowId={row.id} evidence={evidence} selectedIds={selectedEvidenceIds} disabled={protectedCell} onApply={onApply} />
+            </div>
           </td>
         );
       })}
-      <td className="px-1.5 py-1.5 align-top">
-        <div className="flex items-center gap-1">
-          <StatusMilestones
-            row={row}
-            disabled={protectedCell}
-            onApply={onApply}
-          />
-          {request?.current_draft ? (
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              className="shrink-0 rounded-sm text-[var(--sw-beam-hex)]"
-              aria-label={`Open ${row.discipline_label} ${requestLabel}`}
-              title={`${requestLabel} v${request.current_draft.version} · ${requestStatusLabel(request)}`}
-              onClick={() => onOpenRequest?.(request)}
-            >
-              <FileText className="size-3.5" aria-hidden />
-            </Button>
-          ) : request ? (
-            <span
-              className="inline-flex size-6 shrink-0 items-center justify-center text-muted-foreground"
-              aria-label={`Preparing ${row.discipline_label} ${requestLabel}`}
-              title={`Preparing ${requestLabel}`}
-            >
-              <LoaderCircle className="size-3 animate-spin" aria-hidden />
-            </span>
-          ) : null}
+      <td className="px-1.5 py-2 align-middle">
+        <div role="group" aria-label={`${row.discipline_label} procurement`} className="grid grid-cols-[0.85fr_1fr_1.1fr] items-center gap-1">
+          <Button type="button" size="xs" variant="ghost" className={cn(actionClass, request?.current_draft && completedActionClass)}
+            aria-label={request?.current_draft ? `Open ${row.discipline_label} ${requestLabel}` : `Create ${requestLabel} for ${row.discipline_label}`}
+            title={request ? `${requestLabel} · ${requestStatusLabel(request)}` : undefined}
+            disabled={request ? !request.current_draft || !onOpenRequest : saving || !onCreateRequest}
+            onClick={handleRequest}>
+            {request && !request.current_draft ? <LoaderCircle className="size-3 animate-spin" aria-hidden /> : null}
+            {request?.current_draft ? `View ${requestLabel}` : request ? `Preparing ${requestLabel}` : `Create ${requestLabel}`}
+          </Button>
+          <Button type="button" size="xs" variant="ghost" className={actionClass}
+            aria-label={`Compare tenders for ${row.discipline_label}`}
+            disabled={saving || comparing || !onCompare}
+            onClick={() => onCompare?.(row)}>
+            {comparing ? <LoaderCircle className="size-3 animate-spin" aria-hidden /> : null}
+            {comparing ? "Comparing…" : "Compare tenders"}
+          </Button>
+          <Button type="button" size="xs" variant="ghost" className={cn(actionClass, canViewComparison && completedActionClass)}
+            aria-label={`View comparison for ${row.discipline_label}`}
+            title={row.recommendation_stale ? "Comparison uses earlier submissions" : "View completed comparison"}
+            disabled={!canViewComparison}
+            onClick={handleViewComparison}>
+            View comparison
+          </Button>
         </div>
-        {row.comparison_id && (!row.recommendation_draft_id || (row.status === "evaluating" && row.recommendation_stale)) && <Button size="xs" variant="link" className="mt-1 h-auto whitespace-normal px-0 text-left text-xs" onClick={() => onOpenComparison?.(row.comparison_id!)}>Open comparison</Button>}
-        {row.recommendation_draft_id && <Button size="xs" variant="link" className="mt-1 h-auto whitespace-normal px-0 text-left text-xs" onClick={() => onOpenReview?.(row.recommendation_draft_id!)}>Review recommendation{row.recommendation_stale ? " (earlier files)" : ""}</Button>}
-        {comparing && <p role="status" className="mt-1 text-xs text-muted-foreground">Starting comparison…</p>}
+        {comparing && <span role="status" className="sr-only">Starting comparison for {row.discipline_label}</span>}
         {linkError && <p role="alert" className="text-xs text-destructive">{linkError}</p>}
       </td>
-      <td className="px-1 py-1.5 align-top text-center">
+      <td className="px-1 py-2 align-middle">
+        <div className="flex items-center justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -613,27 +596,22 @@ function StrategyRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
-            {request?.current_draft ? (
-              <DropdownMenuItem onSelect={() => onOpenRequest?.(request)}>
-                <FileText className="size-3.5" aria-hidden />
-                Open {requestLabel}
-              </DropdownMenuItem>
-            ) : !request ? (
-              <DropdownMenuItem
-                disabled={!onCreateRequest}
-                onSelect={() => onCreateRequest?.(row)}
-              >
-                <FileText className="size-3.5" aria-hidden />
-                Create {requestLabel}
-              </DropdownMenuItem>
-            ) : null}
+            <DropdownMenuItem disabled={request ? !request.current_draft || !onOpenRequest : saving || !onCreateRequest} onSelect={handleRequest}>
+              <FileText className="size-3.5" aria-hidden />
+              {request?.current_draft ? `View ${requestLabel}` : request ? `Preparing ${requestLabel}` : `Create ${requestLabel}`}
+            </DropdownMenuItem>
+
             <DropdownMenuItem
-              disabled={!onCompare || comparing}
+              disabled={saving || !onCompare || comparing}
               title="Review linked submissions"
               onSelect={() => onCompare?.(row)}
             >
               <GitCompareArrows className="size-3.5" aria-hidden />
-              Compare firms
+              Compare tenders
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={!canViewComparison} onSelect={handleViewComparison}>
+              <FileText className="size-3.5" aria-hidden />
+              View comparison
             </DropdownMenuItem>
             <DropdownMenuItem
               aria-label={`Edit ${row.discipline_label} with AI`}
@@ -700,66 +678,9 @@ function StrategyRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </td>
     </tr>
-  );
-}
-
-function StatusMilestones({
-  row,
-  disabled,
-  onApply,
-}: {
-  row: ProcurementStrategyRow;
-  disabled: boolean;
-  onApply: (operations: ProcurementStrategyOperation[]) => Promise<void>;
-}) {
-  const currentIndex = STATUS_MILESTONES.findIndex(
-    (milestone) => milestone.value === row.status,
-  );
-
-  return (
-    <div
-      role="group"
-      aria-label={`${row.discipline_label} status`}
-      className="grid min-w-0 flex-1 grid-cols-4 overflow-hidden rounded-sm border border-border"
-    >
-      {STATUS_MILESTONES.map((milestone, index) => {
-        const fulfilled = currentIndex >= index;
-        return (
-          <button
-            key={milestone.value}
-            type="button"
-            aria-label={`${row.discipline_label}: ${milestone.label}`}
-            aria-pressed={fulfilled}
-            title={milestone.label}
-            disabled={disabled}
-            className={cn(
-              "h-7 min-w-0 border-r border-border px-1 text-[10px] font-medium text-muted-foreground outline-none transition-colors last:border-r-0 hover:bg-muted hover:text-foreground focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
-              fulfilled &&
-                "bg-[color-mix(in_oklch,var(--sw-beam)_14%,transparent)] text-foreground",
-            )}
-            onClick={() => {
-              const status =
-                currentIndex === index
-                  ? index === 0
-                    ? "not_started"
-                    : STATUS_MILESTONES[index - 1].value
-                  : milestone.value;
-              void onApply([
-                {
-                  operation: "UPDATE_ROW",
-                  row_id: row.id,
-                  status,
-                },
-              ]);
-            }}
-          >
-            <span className="block truncate">{milestone.shortLabel}</span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -782,12 +703,14 @@ function EditableCell({
   ariaLabel,
   disabled,
   onCommit,
+  awarded = false,
 }: {
   value: string;
   placeholder: string;
   ariaLabel: string;
   disabled: boolean;
   onCommit: (value: string) => Promise<void>;
+  awarded?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   function commit() {
@@ -796,12 +719,15 @@ function EditableCell({
     void onCommit(next);
   }
   return (
+    <div className="relative min-w-0">
+    {awarded && <Check className="pointer-events-none absolute left-1.5 top-2 size-4 text-[var(--sw-success-text)]" aria-label="Awarded" />}
     <Input
+      title={awarded ? `${value} — Awarded` : value || undefined}
       value={draft}
       disabled={disabled}
       aria-label={ariaLabel}
       placeholder={placeholder}
-      className="h-8 min-w-0 border-transparent bg-transparent px-1.5 hover:border-input focus-visible:bg-background"
+      className={cn("h-8 min-w-0 rounded-none border-border/50 bg-transparent px-1.5 text-sm placeholder:text-muted-foreground hover:border-input focus-visible:bg-background md:text-sm", awarded && "border-[var(--sw-success-border)]! bg-[var(--sw-success-bg)]! pl-7 font-medium text-[var(--sw-success-text)]!")}
       onChange={(event) => setDraft(event.target.value)}
       onBlur={commit}
       onKeyDown={(event) => {
@@ -812,6 +738,7 @@ function EditableCell({
         }
       }}
     />
+    </div>
   );
 }
 

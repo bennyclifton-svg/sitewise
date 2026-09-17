@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ChatPanel } from "@/components/chat/ChatPanel";
+import { api } from "@/lib/api";
 
 // This suite deliberately uses the real `useChat` + `DefaultChatTransport`
 // (ChatPanel.test.tsx mocks them) so that per-delta React updates are
@@ -13,7 +14,11 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/api", () => ({
-  api: { cancelAgentTurn: vi.fn() },
+  api: {
+    cancelAgentTurn: vi.fn(),
+    getAgentTurnStatus: vi.fn().mockResolvedValue({ turn_id: null, active: false, status: "idle" }),
+    getThreadMessages: vi.fn().mockResolvedValue([]),
+  },
 }));
 
 vi.mock("@/lib/queries/agent-configuration", () => ({
@@ -61,6 +66,49 @@ function uiMessageStreamBody(deltaCount: number): string {
 }
 
 describe("ChatPanel long answer streaming", () => {
+  it("replays a disconnected turn through GET without duplicating text or resending the request", async () => {
+    let sent = false;
+    let finished = false;
+    vi.mocked(api.getAgentTurnStatus).mockImplementation(async () => ({
+      turn_id: sent ? "turn-1" : null,
+      active: sent && !finished,
+      status: finished ? "completed" : sent ? "running" : "idle",
+    }));
+    vi.mocked(api.getThreadMessages).mockResolvedValue([
+      { id: "user-1", role: "user", content: "Research local firms", message_data: null, created_at: "2026-09-17T00:00:00Z" },
+      { id: "msg-1", role: "assistant", content: "Found firms. Saved candidates.", message_data: null, created_at: "2026-09-17T00:00:01Z" },
+    ]);
+    const encode = (parts: unknown[]) => parts.map((part) => `data: ${JSON.stringify(part)}\n\n`).join("");
+    const prefix = [
+      { type: "start", messageId: "msg-1" },
+      { type: "text-start", id: "text-1" },
+      { type: "text-delta", id: "text-1", delta: "Found firms. " },
+    ];
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") {
+        sent = true;
+        return new Response(encode(prefix), { headers: { "content-type": "text/event-stream" } });
+      }
+      finished = true;
+      return new Response(encode([...prefix,
+        { type: "text-delta", id: "text-1", delta: "Saved candidates." },
+        { type: "text-end", id: "text-1" }, { type: "finish" },
+      ]) + "data: [DONE]\n\n", { headers: { "content-type": "text/event-stream" } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      render(<ChatPanel threadId="thread-replay" initialMessages={[]} agentMode projectId="project-1" layout="main" />);
+      fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Research local firms" } });
+      fireEvent.click(screen.getByLabelText("Ask SiteWise"));
+      await waitFor(() => expect(screen.getByLabelText("Conversation history").textContent).toContain("Saved candidates."), { timeout: 6000 });
+      expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+      expect(fetchMock.mock.calls.some(([url, init]) => String(url).endsWith("/chat/agent/thread-replay/stream") && init?.method === "GET")).toBe(true);
+      expect(screen.getByLabelText("Conversation history").textContent?.match(/Found firms\./g)).toHaveLength(1);
+    } finally {
+      vi.mocked(api.getAgentTurnStatus).mockResolvedValue({ turn_id: null, active: false, status: "idle" });
+    }
+  });
+
   it("sends the selected document-register rows with an agent message", async () => {
     const fetchMock = vi.fn<
       (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>

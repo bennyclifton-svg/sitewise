@@ -480,10 +480,10 @@ def _write_summary_item_row(worksheet: Worksheet, row: int, item: CostPlanLine) 
         6: f'=SUMIFS(Variations!$E$5:$E$500,Variations!$B$5:$B$500,C{row},Variations!$D$5:$D$500,"<>Approved")',
         7: f"=SUMIF(Variations!$B$5:$B$500,C{row},Variations!$G$5:$G$500)",
         8: f"=SUM(E{row}:G{row})",
-        9: f"=D{row}-H{row}",
+        9: f'=IF(ISNUMBER(D{row}),D{row}-H{row},"TBC")',
         10: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,"<="&EOMONTH(K$2,0))',
         11: f'=SUMIFS(Invoices!$G$5:$G$500,Invoices!$F$5:$F$500,C{row},Invoices!$H$5:$H$500,">="&EOMONTH(K$2,-1)+1,Invoices!$H$5:$H$500,"<="&EOMONTH(K$2,0))',
-        12: f"=D{row}-J{row}",
+        12: f'=IF(ISNUMBER(D{row}),D{row}-J{row},"TBC")',
     }
     for column, value in values.items():
         worksheet.cell(row=row, column=column, value=value)
@@ -500,8 +500,12 @@ def _write_summary_total_row(
     worksheet.cell(row=row, column=3, value="Subtotal")
     for column in range(4, 13):
         letter = get_column_letter(column)
+        refs = f"{letter}{start_row}:{letter}{end_row}"
+        formula = f"=SUM({refs})"
+        if column in {4, 9, 12}:
+            formula = f'=IF(COUNT({refs})={end_row - start_row + 1},SUM({refs}),"TBC")'
         worksheet.cell(
-            row=row, column=column, value=f"=SUM({letter}{start_row}:{letter}{end_row})"
+            row=row, column=column, value=formula
         )
 
 
@@ -516,7 +520,10 @@ def _write_summary_grand_total_row(
         letter = get_column_letter(column)
         if subtotal_rows:
             refs = ",".join(f"{letter}{subtotal_row}" for subtotal_row in subtotal_rows)
-            worksheet.cell(row=row, column=column, value=f"=SUM({refs})")
+            formula = f"=SUM({refs})"
+            if column in {4, 9, 12}:
+                formula = f'=IF(COUNT({refs})={len(subtotal_rows)},SUM({refs}),"TBC")'
+            worksheet.cell(row=row, column=column, value=formula)
         else:
             worksheet.cell(row=row, column=column, value=0)
 
@@ -781,23 +788,21 @@ def _summary_rollup_values(workbook: Workbook) -> dict[tuple[str, int, int], Any
             continue
         if "subtotal" in row_label:
             for column in range(4, 13):
-                rollup[("Summary", row, column)] = sum(
-                    _summary_number(summary, rollup, item_row, column)
-                    for item_row in current_group_rows
+                rollup[("Summary", row, column)] = _summary_total(
+                    summary, rollup, current_group_rows, column
                 )
             current_group_rows = []
             continue
         if "grand total" in row_label:
             for column in range(4, 13):
-                rollup[("Summary", row, column)] = sum(
-                    _summary_number(summary, rollup, item_row, column)
-                    for item_row in item_rows
+                rollup[("Summary", row, column)] = _summary_total(
+                    summary, rollup, item_rows, column
                 )
             continue
         if not cost_item:
             continue
 
-        budget = _number(summary.cell(row=row, column=4).value) or 0
+        budget = _number(summary.cell(row=row, column=4).value)
         approved_contract = _number(summary.cell(row=row, column=5).value) or 0
         forecast_variations = variation_amounts[cost_item]["forecast"]
         approved_variations = variation_amounts[cost_item]["approved"]
@@ -813,13 +818,14 @@ def _summary_rollup_values(workbook: Workbook) -> dict[tuple[str, int, int], Any
         )
         forecast_final = approved_contract + forecast_variations + approved_variations
 
+        rollup[("Summary", row, 4)] = budget if budget is not None else "TBC"
         rollup[("Summary", row, 6)] = forecast_variations
         rollup[("Summary", row, 7)] = approved_variations
         rollup[("Summary", row, 8)] = forecast_final
-        rollup[("Summary", row, 9)] = budget - forecast_final
+        rollup[("Summary", row, 9)] = budget - forecast_final if budget is not None else "TBC"
         rollup[("Summary", row, 10)] = claimed_to_date
         rollup[("Summary", row, 11)] = this_month
-        rollup[("Summary", row, 12)] = budget - claimed_to_date
+        rollup[("Summary", row, 12)] = budget - claimed_to_date if budget is not None else "TBC"
         item_rows.append(row)
         current_group_rows.append(row)
 
@@ -870,16 +876,21 @@ def _summary_header_row(worksheet: Worksheet) -> int | None:
     return None
 
 
-def _summary_number(
+def _summary_total(
     worksheet: Worksheet,
     rollup: dict[tuple[str, int, int], Any],
-    row: int,
+    rows: list[int],
     column: int,
-) -> float:
-    value = rollup.get(
-        ("Summary", row, column), worksheet.cell(row=row, column=column).value
-    )
-    return _number(value) or 0
+) -> float | str:
+    values = [
+        _number(rollup.get(
+            ("Summary", row, column), worksheet.cell(row=row, column=column).value
+        ))
+        for row in rows
+    ]
+    if column in {4, 9, 12} and any(value is None for value in values):
+        return "TBC"
+    return sum(value or 0 for value in values)
 
 
 def _last_visible_row(

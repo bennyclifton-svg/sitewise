@@ -49,6 +49,7 @@ async def count_monthly_agent_turns(
         select(func.count(AgentTurn.id)).where(
             AgentTurn.user_id == user_id,
             AgentTurn.created_at >= month_start(now),
+            AgentTurn.status != "not_started",
         )
     )
     return int(result.scalar_one() or 0)
@@ -116,6 +117,14 @@ async def reserve_agent_turn(
         used = await count_monthly_agent_turns(session, user_id=user_id, now=current)
         return existing, _usage_state(used), False
 
+    active = await session.scalar(select(AgentTurn.id).where(
+        AgentTurn.thread_id == thread_id,
+        AgentTurn.state == "active",
+        AgentTurn.expires_at > current,
+    ).limit(1))
+    if active is not None:
+        raise HTTPException(status_code=409, detail="An agent turn is already running for this chat.")
+
     used = await count_monthly_agent_turns(session, user_id=user_id, now=current)
     state = _usage_state(used)
     if state.quota > 0 and used >= state.quota:
@@ -138,11 +147,25 @@ async def reserve_agent_turn(
         runtime=runtime,
         model=model,
         status="reserved",
-        expires_at=current + timedelta(seconds=settings.agent_turn_timeout_seconds + 30),
+        expires_at=current + timedelta(seconds=(
+            settings.agent_turn_timeout_seconds + settings.agent_queue_timeout_seconds + 30
+        )),
     )
     session.add(turn)
     await session.flush()
     return turn, _usage_state(used + 1), True
+
+
+async def start_agent_turn(session: AsyncSession, turn_id: uuid.UUID) -> bool:
+    """Claim execution once, serialized with cancellation even across API processes."""
+    await _advisory_lock(session, f"agent-turn:{turn_id}")
+    turn = await session.get(AgentTurn, turn_id, with_for_update=True)
+    if (turn is None or turn.state != "active" or turn.status != "reserved"
+            or turn.expires_at <= datetime.now(UTC)):
+        return False
+    turn.status = "running"
+    await session.flush()
+    return True
 
 
 async def revoke_agent_turn(session: AsyncSession, turn_id: uuid.UUID) -> bool:
@@ -150,10 +173,12 @@ async def revoke_agent_turn(session: AsyncSession, turn_id: uuid.UUID) -> bool:
     turn = await session.get(AgentTurn, turn_id, with_for_update=True)
     if turn is None:
         return False
+    if turn.state == "completed":
+        return False
     if turn.state == "revoked":
         return True
     turn.state = "revoked"
-    turn.status = "cancelled"
+    turn.status = "not_started" if turn.status == "reserved" else "cancelled"
     turn.revoked_at = datetime.now(UTC)
     await session.flush()
     return True

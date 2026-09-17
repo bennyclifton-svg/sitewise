@@ -163,7 +163,9 @@ def _pages_from_marked_text(text: str, marker_re: re.Pattern[str]) -> list[PageE
         if page_text:
             pages.append(PageExtract(page_no=current_page, text=page_text))
 
-    if pages:
+    # Recognized separators are structure, not evidence. An image-only PDF can
+    # contain separators for every page without any extracted text.
+    if current_page is not None:
         return pages
     return [PageExtract(page_no=1, text=text.strip())]
 

@@ -1,5 +1,6 @@
 from app.database.base import Base
 from app.database.agent_turn import AgentTurn
+from app.database.agent_event import AgentTurnEvent, AgentToolCall
 from app.database.activity_event import ActivityEvent
 from app.database.artefact_export import ArtefactExport
 from app.database.chat_message import ChatMessage
@@ -52,6 +53,8 @@ from app.email.models import (
 )
 
 __all__ = [
+    "AgentTurnEvent",
+    "AgentToolCall",
     "PromptLibrary",
     "Base",
     "AgentTurn",

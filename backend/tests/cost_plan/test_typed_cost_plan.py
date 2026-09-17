@@ -214,7 +214,7 @@ def test_float_and_incomplete_unit_rate_inputs_are_rejected() -> None:
         )
 
 
-def test_tbc_cost_item_remains_typed_and_contributes_zero_to_totals() -> None:
+def test_tbc_cost_item_keeps_dependent_totals_unknown() -> None:
     tbc = _item(
         item_key="structural-engineer",
         cost_code="6",
@@ -241,7 +241,11 @@ def test_tbc_cost_item_remains_typed_and_contributes_zero_to_totals() -> None:
     workbook = build_typed_cost_plan_workbook(project_title="House", state=state)
     summary = load_workbook(BytesIO(workbook.content), data_only=False)["Summary"]
 
-    assert totals.budget == Decimal("0.00")
+    assert totals.budget is None
+    assert totals.variance is None
+    assert totals.total_including_gst is None
+    assert "Budget: **TBC**" in markdown
+    assert "Total including GST: **TBC**" in markdown
     assert "| 6 | Consultants | Structural engineer | TBC |" in markdown
     assert summary["C5"].value == "Structural engineer"
     assert summary["D5"].value is None

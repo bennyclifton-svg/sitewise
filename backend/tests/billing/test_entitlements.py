@@ -101,3 +101,13 @@ def test_entitlement_provider_stripe_without_customer_is_read_only(monkeypatch):
     assert state.subscription_status == "missing"
     assert state.read_only is True
     assert state.has_customer is False
+
+
+def test_unknown_stripe_price_does_not_grant_a_sitewise_plan(monkeypatch):
+    monkeypatch.setattr(settings, "billing_provider", "stripe")
+    monkeypatch.setattr(settings, "stripe_price_id", "price_sitewise")
+    monkeypatch.setattr(entitlements, "get_stripe_customer_by_user_id",
+                        AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4())))
+    monkeypatch.setattr(entitlements, "get_active_stripe_subscription_for_user",
+                        AsyncMock(return_value=SimpleNamespace(status="active", price_id="price_other_product")))
+    assert run_async(entitlements.get_entitlement_state(AsyncMock(), USER_ID)).read_only

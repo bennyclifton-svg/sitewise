@@ -173,6 +173,14 @@ def test_pi_mcp_config_allows_the_tender_comparison_workflow(tmp_path: Path) -> 
     } <= set(direct_tools)
 
 
+def test_pi_exposes_the_snapshot_reads_required_by_its_instructions(tmp_path):
+    _write_pi_mcp_config(tmp_path, mcp_url="http://test/mcp")
+    config = json.loads((tmp_path / ".pi" / "mcp.json").read_text(encoding="utf-8"))
+    assert {"get_workflow_capabilities", "get_project_next_actions"} <= set(
+        config["mcpServers"]["clerk"]["directTools"]
+    )
+
+
 def test_pi_mcp_config_only_allows_web_tools_when_enabled(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -524,6 +532,15 @@ def test_build_env_injects_xai_api_key(monkeypatch, tmp_path: Path) -> None:
 
     assert env["XAI_API_KEY"] == "xai-test-key"
     assert env["OPENAI_API_KEY"] == "openai-platform-key"
+
+
+def test_pi_child_does_not_inherit_application_secrets(monkeypatch, tmp_path):
+    for key in ("DATABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "STRIPE_SECRET_KEY",
+                "MAILGUN_API_KEY", "AGENT_TURN_TOKEN_SECRET", "NODE_OPTIONS"):
+        monkeypatch.setenv(key, "must-not-reach-pi")
+    env = _build_env(mcp_url="http://test/mcp", turn_token="turn-token", cwd=tmp_path)
+    assert "must-not-reach-pi" not in env.values()
+    assert env["CLERK_MCP_TOKEN"] == "turn-token"
 
 
 def test_stream_pi_turn_rejects_grok_without_xai_key(monkeypatch, tmp_path: Path) -> None:

@@ -22,6 +22,7 @@ export type WebSourceTrace = {
 };
 
 export type ToolStatusEvent = {
+  callId?: string;
   kind: "tool";
   tool: string;
   state: ToolStatusState;
@@ -123,6 +124,7 @@ export function toolStatusFromPart(part: MessagePart): ToolStatusEvent | null {
   }
   return {
     kind: "tool",
+    callId: typeof data.callId === "string" ? data.callId : undefined,
     tool: data.tool,
     state: data.state,
     message: data.message,

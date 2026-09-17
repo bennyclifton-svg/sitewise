@@ -154,6 +154,17 @@ def should_skip_unchanged(session, plan: IngestPlan, content_hash: str) -> bool:
     return existing == content_hash
 
 
+def is_unchanged(plan: IngestPlan) -> bool:
+    """Check the same project/path/hash scope before extraction or provider calls.
+
+    Persistence repeats the check because another importer may finish meanwhile.
+    The read transaction is closed before any expensive work starts.
+    """
+    content_hash = file_content_hash(plan.entry.absolute_path)
+    with get_sync_session_factory()() as session:
+        return should_skip_unchanged(session, plan, content_hash)
+
+
 def upsert_document(
     session,
     plan: IngestPlan,

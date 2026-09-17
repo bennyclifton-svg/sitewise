@@ -19,6 +19,7 @@ type ChatHistoryConfig = {
   activeThreadId?: string;
   onSelectThread: (threadId: string) => void;
   onCreateSession: (thread: ChatThread) => void;
+  onNewChat?: () => void;
   onActiveThreadDeleted: () => void;
 };
 
@@ -91,6 +92,7 @@ export function ProjectLeftNav({
           activeThreadId={chatHistory.activeThreadId}
           onSelectThread={chatHistory.onSelectThread}
           onCreateSession={chatHistory.onCreateSession}
+          onNewChat={chatHistory.onNewChat}
           onActiveThreadDeleted={chatHistory.onActiveThreadDeleted}
         />
       ) : chatHistoryPreview ? (

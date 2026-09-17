@@ -98,6 +98,31 @@ describe("CostPlanGrid", () => {
     vi.restoreAllMocks();
   });
 
+  it("shows an unknown budget as TBC and persists an explicitly entered zero", async () => {
+    const unknownItems = [item("unknown", { budget: null })];
+    vi.mocked(api.getCostPlanState).mockResolvedValue({ version: 1, items: unknownItems, totals: calculateCostPlanTotals(unknownItems), categories: ["Construction"] });
+    render(<CostPlanGrid projectId="project-unknown" />);
+    const budget = await screen.findByLabelText("unknown budget");
+    expect(budget).toHaveValue("");
+    expect(budget).toHaveAttribute("placeholder", "TBC");
+    expect(screen.getAllByText("TBC").length).toBeGreaterThanOrEqual(3);
+    fireEvent.blur(budget);
+    expect(api.applyCostPlanOperations).not.toHaveBeenCalled();
+    fireEvent.change(budget, { target: { value: "0" } });
+    fireEvent.blur(budget);
+    await waitFor(() => expect(api.applyCostPlanOperations).toHaveBeenCalled());
+    expect(JSON.stringify(vi.mocked(api.applyCostPlanOperations).mock.calls)).toContain('"budget":"0"');
+  });
+
+  it("clears a known budget to unknown rather than approving zero", async () => {
+    render(<CostPlanGrid projectId="project-clear-budget" />);
+    const budget = await screen.findByLabelText("joinery budget");
+    fireEvent.change(budget, { target: { value: "" } });
+    fireEvent.blur(budget);
+    await waitFor(() => expect(api.applyCostPlanOperations).toHaveBeenCalled());
+    expect(JSON.stringify(vi.mocked(api.applyCostPlanOperations).mock.calls)).toContain('"budget":null');
+  });
+
   it("reloads when the published revision changes", async () => {
     vi.mocked(api.getCostPlanState)
       .mockResolvedValueOnce({

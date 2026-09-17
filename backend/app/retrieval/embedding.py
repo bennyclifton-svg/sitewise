@@ -4,6 +4,7 @@ import structlog
 from openai import AsyncOpenAI
 
 from app.config import settings
+from app.agent.observability import provider_span
 
 logger = structlog.get_logger(__name__)
 
@@ -13,6 +14,7 @@ def get_embedding_client() -> AsyncOpenAI:
     return AsyncOpenAI(api_key=settings.openai_api_key)
 
 
+@provider_span("openai", "embedding")
 async def embed_query(text: str) -> list[float] | None:
     normalized = text.strip()
     if not normalized:

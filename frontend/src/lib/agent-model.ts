@@ -1,7 +1,5 @@
 const STORAGE_KEY = "clerk.agentModel.v2";
 const CHANGE_EVENT = "clerk:agent-model-change";
-const RETIRED_THOROUGH_IDS = new Set(["gpt-5.6-sol", "openai:gpt-5.6-sol"]);
-const CURRENT_THOROUGH_ID = "xai:grok-4.6";
 
 export type AgentModelOption = {
   id: string;
@@ -30,7 +28,7 @@ export function getSelectedAgentModel(): string | null {
   if (!stored) {
     return null;
   }
-  return RETIRED_THOROUGH_IDS.has(stored) ? CURRENT_THOROUGH_ID : stored;
+  return stored;
 }
 
 export function setSelectedAgentModel(modelId: string | null): void {

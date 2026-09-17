@@ -1,0 +1,76 @@
+{
+  "status": "pass",
+  "entries": [
+    {
+      "dwelling": 1,
+      "door_x": [
+        5.866666666666666,
+        6.816666666666666
+      ],
+      "stair_start_x": 5.916666666666666
+    },
+    {
+      "dwelling": 2,
+      "door_x": [
+        5.866666666666665,
+        6.816666666666665
+      ],
+      "stair_start_x": 5.916666666666666
+    },
+    {
+      "dwelling": 3,
+      "door_x": [
+        5.866666666666667,
+        6.816666666666666
+      ],
+      "stair_start_x": 5.916666666666668
+    },
+    {
+      "dwelling": 4,
+      "door_x": [
+        5.866666666666664,
+        6.816666666666663
+      ],
+      "stair_start_x": 5.916666666666664
+    },
+    {
+      "dwelling": 5,
+      "door_x": [
+        5.866666666666667,
+        6.81666666666667
+      ],
+      "stair_start_x": 5.916666666666664
+    },
+    {
+      "dwelling": 6,
+      "door_x": [
+        5.866666666666667,
+        6.81666666666667
+      ],
+      "stair_start_x": 5.916666666666664
+    }
+  ],
+  "end_windows": 6,
+  "side_yard_m": 2.2,
+  "roof_ridge_m": 10.3,
+  "roof_profile_yz": [
+    [
+      0,
+      6.6
+    ],
+    [
+      2,
+      9.65
+    ],
+    [
+      7.8,
+      10.3
+    ],
+    [
+      14.6,
+      8.95
+    ]
+  ],
+  "bins_clear_of_garages": true,
+  "scope": "Architecture and landscape; end masonry/lining openings and bin/entry-walk positions updated. Roof structure and drainage require next coordination review."
+}

@@ -27,6 +27,8 @@ export function ChatErrorBanner({ message, kind }: ChatErrorBannerProps) {
 
 function headingForKind(kind: ChatErrorKind): string {
   switch (kind) {
+    case "already_running":
+      return "Request already in progress";
     case "auth":
       return "Session expired";
     case "forbidden":

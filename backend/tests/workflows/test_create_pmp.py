@@ -59,6 +59,10 @@ def _no_consultant_fact_reconcile(monkeypatch: pytest.MonkeyPatch) -> None:
         "app.workflows.create_pmp._reconcile_consultant_facts_for_pmp",
         AsyncMock(return_value=0),
     )
+    monkeypatch.setattr(
+        "app.workflows.create_pmp._next_version_hint",
+        AsyncMock(return_value=1),
+    )
 
 
 def _project(**overrides) -> Project:
@@ -297,6 +301,7 @@ def test_create_pmp_fails_when_platform_and_project_sources_missing() -> None:
 
 
 def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
+    generation_finished = False
     output = PmpDraftOutput(
         title="Project Management Plan",
         markdown=_valid_pmp_markdown(),
@@ -330,6 +335,15 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
         whole_document=True,
     )
 
+    async def generate(**kwargs):
+        nonlocal generation_finished
+        generation_finished = True
+        return output
+
+    async def next_version(*args):
+        # Simulate another revision being published while the model runs.
+        return 2 if generation_finished else 1
+
     with (
         patch(
             "app.workflows.create_pmp.load_mobilisation_project_evidence_documents",
@@ -345,11 +359,11 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
         ),
         patch(
             "app.workflows.create_pmp.run_create_pmp_model",
-            new=AsyncMock(return_value=output),
+            new=AsyncMock(side_effect=generate),
         ),
         patch(
             "app.workflows.create_pmp._next_version_hint",
-            new=AsyncMock(return_value=1),
+            new=AsyncMock(side_effect=next_version),
         ),
         patch(
             "app.workflows.create_pmp.create_draft_artifact",
@@ -368,6 +382,7 @@ def test_create_pmp_greenfield_from_platform_whole_documents() -> None:
     assert result.status == "complete"
     assert result.draft is not None
     create_draft.assert_awaited_once()
+    assert create_draft.await_args.kwargs["expected_base_version"] == 0
     assert create_draft.await_args.kwargs["model"] == "openai-responses:gpt-5.6-terra"
     provenance = create_draft.await_args.kwargs["provenance_metadata"]
     assert provenance["draft_mode"] == "platform_seeded"

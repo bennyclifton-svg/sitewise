@@ -46,6 +46,11 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # ignored file or the parent shell from supplying credentials to ordinary tests.
 TEST_ENV_SENTINELS = MappingProxyType(
     {
+        "ENVIRONMENT": "test",
+        "EMAIL_PROVIDER": "fake",
+        "MAILGUN_API_KEY": "test-mailgun-key-must-not-authenticate",
+        "MAILGUN_INBOUND_SIGNING_KEY": "test-mailgun-signing-must-not-authenticate",
+        "EMAIL_INBOUND_WEBHOOK_SECRET": "test-inbound-secret-must-not-authenticate",
         "DEPLOYMENT_ENVIRONMENT": "test",
         "BUILD_SHA": "pytest-offline-sentinel",
         "DATABASE_URL": (

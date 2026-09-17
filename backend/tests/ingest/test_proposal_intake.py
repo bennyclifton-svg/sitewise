@@ -14,6 +14,12 @@ CORPUS = Path(__file__).resolve().parents[3] / "docs/demo-corpus/seven-hills"
 PROPOSALS = sorted((CORPUS / "02-consultant-procurement").glob("*/proposals/*.md"))
 
 
+@pytest.fixture(autouse=True)
+def _fresh_intake(monkeypatch):
+    # These extraction fixtures represent new documents, without a database.
+    monkeypatch.setattr(pipeline, "is_unchanged", lambda plan: False)
+
+
 @pytest.mark.parametrize("source", PROPOSALS, ids=lambda path: path.stem)
 def test_intake_classifies_extracted_proposal_and_its_proponent(source, monkeypatch):
     entry = ManifestEntry(source, f"04-projects/test/_inbox/{source.name}",

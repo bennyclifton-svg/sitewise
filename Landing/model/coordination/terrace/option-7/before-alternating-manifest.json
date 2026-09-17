@@ -1,0 +1,481 @@
+{
+  "option": 7,
+  "frontage_m": 49.0,
+  "site_depth_m": 24.3,
+  "source_boundary_retained": false,
+  "count_by_system": {
+    "architecture": 1303,
+    "structure": 1846,
+    "electrical": 462,
+    "mechanical": 280,
+    "hydraulic": 364,
+    "interiors": 1854,
+    "civil": 103,
+    "landscape": 2492
+  },
+  "homes": [
+    {
+      "dwelling": 1,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 2,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 3,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 4,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 5,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 6,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    },
+    {
+      "dwelling": 7,
+      "width_m": 7.0,
+      "depth_m": 14.4,
+      "levels": [
+        0.35,
+        3.45,
+        6.55
+      ],
+      "garage_clear_width_m": 3.1,
+      "stair_flight_m": 0.9,
+      "loggia_clear_m": [
+        2.9,
+        1.6
+      ],
+      "ground_passage_clear_m": 0.93,
+      "garden_depth_m": 6,
+      "roof_peak_m": 10.3,
+      "ac_system": "Ducted indoor units on three levels; rear condenser",
+      "roof_rooms": 2,
+      "ground_garden_room": 0,
+      "bedrooms": 4,
+      "living_location": "Ground floor opening to rear garden",
+      "kitchen_location": "Ground floor",
+      "laundry_location": "First floor rear",
+      "rear_balcony_depth_m": 2.7
+    }
+  ],
+  "routes": 580,
+  "assumptions": [
+    "New illustrative site, no surveyed boundary",
+    "North orientation unconfirmed; fins are a privacy concept",
+    "Masonry ground/first storeys; provisional RC slabs and steel/timber roof",
+    "Two roof bedrooms and flexible ground garden room per home",
+    "No structural calculations, plant sizing or authority connection approval"
+  ],
+  "reference_refinements": [
+    "Painted stair batten screens",
+    "Folded perforated rear screens",
+    "Pale garden privacy walls",
+    "Curved brick garden seats"
+  ],
+  "planning_basis": "Four-bedroom reference supplied during design",
+  "architecture_feedback": {
+    "status": "pass",
+    "front_blades": 6,
+    "front_blade_heights_m": [
+      1.25,
+      3.45
+    ],
+    "loggia_opening_m": [
+      2.9,
+      2.0
+    ],
+    "rear_dormer_width_m": 5.4,
+    "rear_privacy_walls": 6,
+    "rear_privacy_wall_vertical_extent_m": [
+      3.45,
+      9.38
+    ],
+    "perforation_pitch_m": 0.02,
+    "perforation_clear_hole_m": 0.014,
+    "protected_objects_verified": 2388,
+    "protected_systems": [
+      "civil",
+      "electrical",
+      "hydraulic",
+      "mechanical",
+      "structure"
+    ],
+    "upper_balcony_size_changed": false
+  },
+  "frontage_revision": {
+    "status": "pass",
+    "entries": [
+      {
+        "dwelling": 1,
+        "door_x": [
+          4.7,
+          5.65
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 2,
+        "door_x": [
+          4.699999999999999,
+          5.649999999999999
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 3,
+        "door_x": [
+          4.699999999999999,
+          5.649999999999999
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 4,
+        "door_x": [
+          4.699999999999999,
+          5.649999999999999
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 5,
+        "door_x": [
+          4.700000000000003,
+          5.650000000000006
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 6,
+        "door_x": [
+          4.700000000000003,
+          5.650000000000006
+        ],
+        "stair_start_x": 4.75
+      },
+      {
+        "dwelling": 7,
+        "door_x": [
+          4.700000000000003,
+          5.650000000000006
+        ],
+        "stair_start_x": 4.75
+      }
+    ],
+    "end_windows": 6,
+    "side_yard_m": 2.2,
+    "roof_ridge_m": 10.3,
+    "roof_profile_yz": [
+      [
+        0,
+        6.6
+      ],
+      [
+        2,
+        9.65
+      ],
+      [
+        7.8,
+        10.3
+      ],
+      [
+        14.6,
+        8.95
+      ]
+    ],
+    "bins_clear_of_garages": true,
+    "scope": "Architecture and landscape; end masonry/lining openings and bin/entry-walk positions updated. Roof structure and drainage require next coordination review."
+  },
+  "detail_review": {
+    "status": "pass",
+    "roof_joint_gaps_closed": 6,
+    "downpipes_unchanged": true,
+    "front_services_below_ground": true,
+    "end_window_heights_m": [
+      1.45,
+      1.8,
+      2.0
+    ],
+    "hood_projection_m": 0.62,
+    "hood_openings": [
+      "first floor: rear",
+      "roof floor: front"
+    ],
+    "trees": [
+      {
+        "dwelling": 1,
+        "rear": false,
+        "centre": [
+          5.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 1,
+        "rear": true,
+        "centre": [
+          1.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 2,
+        "rear": false,
+        "centre": [
+          12.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 2,
+        "rear": true,
+        "centre": [
+          8.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 3,
+        "rear": false,
+        "centre": [
+          19.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 3,
+        "rear": true,
+        "centre": [
+          15.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 4,
+        "rear": false,
+        "centre": [
+          26.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 4,
+        "rear": true,
+        "centre": [
+          22.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 5,
+        "rear": false,
+        "centre": [
+          33.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 5,
+        "rear": true,
+        "centre": [
+          29.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 6,
+        "rear": false,
+        "centre": [
+          40.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 6,
+        "rear": true,
+        "centre": [
+          36.75,
+          18.6
+        ],
+        "radius": 1.02
+      },
+      {
+        "dwelling": 7,
+        "rear": false,
+        "centre": [
+          47.98,
+          -1.08
+        ],
+        "radius": 0.58
+      },
+      {
+        "dwelling": 7,
+        "rear": true,
+        "centre": [
+          43.75,
+          18.6
+        ],
+        "radius": 1.02
+      }
+    ],
+    "raked_rafter_segments": 357,
+    "roof_frame": "Profile-aligned rafters, trimmed dormers, cheek/window frames, wedge frames and end lintels; provisional member sizes"
+  }
+}

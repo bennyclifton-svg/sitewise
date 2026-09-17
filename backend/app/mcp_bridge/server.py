@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from fastmcp import FastMCP
+from app.mcp_bridge.tracing import ToolTracingMiddleware
 from fastmcp.exceptions import ToolError
 from fastmcp.server.dependencies import get_http_headers
 from openai import OpenAIError
@@ -165,6 +166,7 @@ from app.projects.workflow_capabilities import (
 )
 from app.cost_plan.dependencies import dependency_snapshot as cost_dependency_snapshot
 from app.cost_plan.schemas import CostItemInput, CostPlanOperation, CostPlanState
+from app.cost_plan.tender_award import AwardedTenderLine, awarded_tender_operations
 from app.cost_plan.consultant_appointment import (
     ConsultantAppointmentError,
     appoint_consultant as persist_consultant_appointment,
@@ -263,6 +265,7 @@ from tender.services.cost_handoff import (
 from tender.services.progress import FAILED_JOB_DETAIL
 
 mcp = FastMCP("clerk", mask_error_details=True)
+mcp.add_middleware(ToolTracingMiddleware())
 
 TENDER_DOCUMENT_KEYWORDS = (
     "tender",
@@ -1873,6 +1876,11 @@ async def apply_procurement_strategy_operations(
     Supports ADD_ROW, UPDATE_ROW, MOVE_ROW, DELETE_ROW, LOCK_ROW, UNLOCK_ROW,
     UPSERT_CANDIDATE, CLEAR_CANDIDATE and SET_TENDERER_COLUMN_COUNT. Candidate
     research provenance belongs in source_url and source_title.
+    To record an explicit user award, use AWARD_CANDIDATE with row_id and
+    candidate_id from get_procurement_strategy. This marks only that firm as
+    awarded, for consultants or contractors. Never infer an award from a
+    recommendation. CLEAR_AWARD with row_id removes the award. These operations
+    do not update the Cost Plan; apply costs separately when instructed.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:
@@ -2363,16 +2371,76 @@ async def appoint_consultant(
 
 
 @mcp.tool
+async def apply_awarded_tender_to_cost_plan(
+    project_id: str,
+    source_document_id: str,
+    contractor: str,
+    expected_base_version: int,
+    contract_total_ex_gst: str,
+    lines: list[AwardedTenderLine],
+) -> dict:
+    """Record an explicitly awarded contractor's tender as Approved Contract.
+
+    Read the source with get_document and item keys with get_cost_plan first.
+    Map each priced source line once; include explicit margin as a separate line.
+    All amounts must be decimal strings excluding GST. Python sums grouped rows
+    and rejects a mismatch with the stated contract total. If GST, margin or
+    the accepted scope is ambiguous, ask the user before calling this tool.
+    Existing budget, payments and variations are preserved. This replaces the
+    mapped rows' contract amounts; it does not add a second contract to them.
+    """
+    pid = uuid.UUID(project_id)
+    async with get_session_factory()() as session:
+        try:
+            authorization = await authorize_project_mutation_with_claims(
+                session, authorization_header=_auth_header(), project_id=pid,
+            )
+            documents = await resolve_selected_turn_documents(
+                session, project_id=pid, document_ids=[uuid.UUID(source_document_id)],
+            )
+            base = await read_typed_cost_plan(
+                session, project_id=pid, owner_user_id=authorization.claims.user_id,
+            )
+            operations = awarded_tender_operations(
+                base, lines=lines, contract_total_ex_gst=contract_total_ex_gst,
+                contractor=contractor, source=documents[0].model_dump(mode="json"),
+            )
+            result = await persist_cost_operations(
+                session, project=authorization.project,
+                author_user_id=authorization.claims.user_id,
+                expected_base_version=expected_base_version, operations=operations,
+                actor_source="awarded_tender",
+            )
+            await session.commit()
+            workbook = schedule_cost_plan_workbook_rebuild(pid, result.state.version)
+        except (ToolAuthError, ValueError, RuntimeError, LookupError,
+                ArtefactPolicyViolation, ArtefactRevisionConflict) as exc:
+            raise ToolError(str(exc)) from exc
+    await agent_turn_status_bus.publish(
+        str(authorization.claims.turn_id), message="Saved awarded tender to Cost Plan",
+        kind="resource", projectId=str(pid), resourceType="cost_plan",
+        resourceId=str(result.state.id), action="updated", version=result.state.version,
+    )
+    return {
+        "kind": "awarded_tender_applied", "contractor": contractor,
+        "contract_total_ex_gst": contract_total_ex_gst,
+        "delta": result.delta.model_dump(mode="json"), "workbook": workbook,
+    }
+
+
+@mcp.tool
 async def apply_cost_plan_operations(
     project_id: str,
     expected_base_version: int,
-    operations: list[dict],
+    operations: list[CostPlanOperation],
 ) -> dict:
     """Apply up to 50 structured Cost Plan operations in one revision.
 
     Interpret natural language into ADD/UPDATE/DELETE/MOVE/DUPLICATE operations;
     deterministic application code validates dependencies and recalculates totals.
     The workbook is queued separately and is never edited as text.
+    For cost_item updates, target_id is the item_key returned by get_cost_plan;
+    values contains changed CostItemInput fields, with money as decimal strings.
     """
     pid = uuid.UUID(project_id)
     async with get_session_factory()() as session:

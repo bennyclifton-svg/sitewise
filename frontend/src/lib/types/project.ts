@@ -265,6 +265,7 @@ export type DocumentUsageMark = {
 export type EvidencePreview = {
   id: string;
   workspace_file_id?: string | null;
+  ingest_status?: string | null;
   title: string;
   filename: string;
   relative_path: string;
@@ -769,6 +770,7 @@ export type ProcurementStrategyRow = {
   comparison_id?: string | null;
   recommendation_draft_id?: string | null;
   recommendation_stale?: boolean;
+  awarded_candidate_id?: string | null;
 };
 
 export type ProcurementStrategy = {
@@ -792,9 +794,12 @@ export type ProcurementStrategyOperation = {
     | "UNLOCK_ROW"
     | "UPSERT_CANDIDATE"
     | "CLEAR_CANDIDATE"
+    | "AWARD_CANDIDATE"
+    | "CLEAR_AWARD"
     | "SET_TENDERER_COLUMN_COUNT"
     | "LINK_CANDIDATE_FILES"
-    | "UNLINK_CANDIDATE_FILES";
+    | "UNLINK_CANDIDATE_FILES"
+    | "CREATE_CANDIDATE_FROM_FILES";
   candidate_id?: string;
   workspace_file_ids?: string[];
   row_id?: string;

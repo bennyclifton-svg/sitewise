@@ -1,0 +1,28 @@
+{
+  "status": "pass",
+  "checks": [
+    "TH01: systems, component families, passage and stair void verified",
+    "TH01: four beds and rear balcony slabs verified",
+    "TH02: systems, component families, passage and stair void verified",
+    "TH02: four beds and rear balcony slabs verified",
+    "TH03: systems, component families, passage and stair void verified",
+    "TH03: four beds and rear balcony slabs verified",
+    "TH04: systems, component families, passage and stair void verified",
+    "TH04: four beds and rear balcony slabs verified",
+    "TH05: systems, component families, passage and stair void verified",
+    "TH05: four beds and rear balcony slabs verified",
+    "TH06: systems, component families, passage and stair void verified",
+    "TH06: four beds and rear balcony slabs verified",
+    "TH07: systems, component families, passage and stair void verified",
+    "TH07: four beds and rear balcony slabs verified",
+    "Roof sheets meet at each party boundary; superseded flat roof joists removed"
+  ],
+  "objects": 8704,
+  "routes_checked": 580,
+  "scope": "Presence, finite geometry, stair openings, passage allowance and nonzero routes",
+  "exclusions": [
+    "No engineering sizing",
+    "No exhaustive inter-service or structural clash detection",
+    "No swept path, solar, acoustic, fire or planning assessment"
+  ]
+}

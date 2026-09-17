@@ -1,5 +1,5 @@
 import { mountEstate } from './estate-development.js';
-import { mountCadastralSea } from './cadastral-sea.js?v=hero-field-10';
+import { mountCadastralSea } from './cadastral-sea.js?v=hero-field-11';
 /* global document, window, fetch, IntersectionObserver, CustomEvent */
 const ns = 'http://www.w3.org/2000/svg';
 const preference = window.matchMedia('(prefers-reduced-motion: reduce)');

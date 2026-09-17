@@ -14,6 +14,7 @@ import {
   duplicateCostItemOptimistically,
   formatCostPlanMoney,
   lineRollup,
+  sumLineRollups,
   moveCostItemOptimistically,
   parseCostPlanMoneyInput,
   readCostPlanTab,
@@ -238,5 +239,28 @@ describe("cost plan tab persistence", () => {
 
     expect(readCostPlanTab("project-2")).toBe(DEFAULT_COST_PLAN_TAB);
     expect(readCostPlanTab("project-1")).toBe("variations");
+  });
+});
+
+
+describe("unknown budget rollups", () => {
+  it("keeps optimistic API totals unknown without changing recorded commitments", () => {
+    const totals = calculateCostPlanTotals([
+      item("known", { budget: "100", committed: "25" }),
+      item("unknown", { budget: null }),
+    ]);
+    expect(totals).toMatchObject({
+      budget: null, variance: null, total_excluding_gst: null,
+      total_including_gst: null, committed: "25.00",
+    });
+    expect(calculateCostPlanTotals([item("zero", { budget: "0" })]).budget).toBe("0.00");
+  });
+  it("keeps unknown budgets, variance and remaining unknown through totals", () => {
+    const variations = { forecast_variations: "0", approved_variations: "0" };
+    const unknown = lineRollup(item("unknown", { budget: null }), variations);
+    const known = lineRollup(item("known"), variations);
+    expect(unknown).toMatchObject({ budget: null, budgetVariance: null, remaining: null });
+    expect(sumLineRollups([known, unknown])).toMatchObject({ budget: null, budgetVariance: null, remaining: null });
+    expect(lineRollup(item("zero", { budget: "0" }), variations).budget).toBe(0);
   });
 });

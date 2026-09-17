@@ -1640,7 +1640,7 @@ html.sw-atmosphere-dense { --sw-grain-opacity: 0; --sw-key-tint: transparent; }
 }
 
 .sw-composer {
-  --sw-composer-bg: var(--cockpit-card-surface);
+  --sw-composer-bg: var(--cockpit-workspace-surface);
   --sw-composer-edge: var(--cockpit-card-border);
   --sw-composer-edge-top: var(--cockpit-card-border);
   --sw-composer-rule: var(--cockpit-border);
@@ -1791,6 +1791,7 @@ html[data-theme="light"] .sw-composer {
   line-height: 1.35;
   color: var(--sw-composer-ink);
   caret-color: var(--sw-composer-sky);
+  background: transparent;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1803,6 +1804,7 @@ html[data-theme="light"] .sw-composer {
 .sw-field textarea:disabled {
   cursor: not-allowed;
   opacity: 0.7;
+  background: transparent;
 }
 
 .sw-field textarea:focus,
@@ -2283,6 +2285,11 @@ html[data-theme="light"] .sw-composer {
   background-color: var(--sw-action-disabled-bg);
   border-color: var(--sw-action-disabled-border);
   opacity: 1;
+}
+#root .sw-field textarea,
+#root .sw-field textarea:disabled {
+  background-color: transparent;
+  border-color: transparent;
 }
 .sw-primary-action {
   border: 1px solid var(--sw-action-primary-border);

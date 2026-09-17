@@ -42,6 +42,35 @@ def _project(owner_user_id: uuid.UUID = USER_ID):
     return SimpleNamespace(id=PROJECT_ID, owner_user_id=owner_user_id)
 
 
+def test_identify_submission_firm_is_owner_scoped(client: TestClient) -> None:
+    with patch(
+        "app.api.projects.get_project",
+        new=AsyncMock(return_value=_project(OTHER_USER_ID)),
+    ), patch("app.api.projects.identify_submission_firm", new=AsyncMock()) as identify:
+        response = client.post(
+            f"/projects/{PROJECT_ID}/procurement-strategy/identify-firm",
+            json={"workspace_file_ids": [str(uuid.uuid4())]},
+        )
+    assert response.status_code == 403
+    identify.assert_not_awaited()
+
+
+def test_identify_submission_firm_rejects_foreign_files(client: TestClient, mock_session: AsyncMock) -> None:
+    mock_session.execute.return_value = MagicMock()
+    mock_session.execute.return_value.scalars.return_value.all.return_value = []
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.require_active_entitlement", new=AsyncMock()),
+        patch("app.procurement.submission_identity.extract_identities", new=AsyncMock()) as extract,
+    ):
+        response = client.post(
+            f"/projects/{PROJECT_ID}/procurement-strategy/identify-firm",
+            json={"workspace_file_ids": [str(uuid.uuid4())]},
+        )
+    assert response.status_code == 422
+    extract.assert_not_awaited()
+
+
 def _view() -> ProcurementRequestView:
     return ProcurementRequestView(
         id=REQUEST_ID,

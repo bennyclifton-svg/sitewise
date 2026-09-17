@@ -33,6 +33,17 @@ PROJECT_ID = uuid.UUID("33333333-3333-3333-3333-333333333333")
 THREAD_ID = uuid.UUID("44444444-4444-4444-4444-444444444444")
 NOW = datetime(2026, 7, 3, 12, 0, 0, tzinfo=timezone.utc)
 
+
+@pytest.fixture(autouse=True)
+def replay_journal(monkeypatch):
+    from tests.agent.test_turn_supervisor import MemoryJournal
+
+    journal = MemoryJournal()
+    monkeypatch.setattr(chat_api, "tool_trace_statuses", AsyncMock(return_value=[]))
+    journal.reconcile = AsyncMock()
+    monkeypatch.setattr(chat_api.agent_turn_supervisor, "journal", journal)
+    return journal
+
 BODY = {
     "threadId": str(THREAD_ID),
     "messages": [
@@ -245,6 +256,7 @@ def client(mock_session: AsyncMock, monkeypatch: pytest.MonkeyPatch) -> TestClie
         yield mock_session
 
     monkeypatch.setattr(settings, "agent_runtime_enabled", True)
+    monkeypatch.setattr(chat_api, "start_agent_turn", AsyncMock(return_value=True))
     monkeypatch.setattr(
         chat_api,
         "get_project_snapshot",
@@ -541,7 +553,7 @@ def test_agent_stream_persists_user_then_successful_assistant_message(
     assert token_mint.call_args.kwargs["project_id"] == PROJECT_ID
     assert isinstance(token_mint.call_args.kwargs["turn_id"], uuid.UUID)
     assert mock_session.commit.await_count == 1
-    assert assistant_session.commit.await_count == 1
+    assert assistant_session.commit.await_count == 2  # Durable start, then result.
 
     calls = chat_api.create_message.await_args_list
     assert calls[0].kwargs["role"] == "user"
@@ -1408,10 +1420,97 @@ def test_agent_stream_persists_failed_error_for_pi_provider_failure(
     )
 
 
+def test_unexpected_stream_failure_is_not_saved_as_interruption(
+    client, monkeypatch, tmp_path,
+):
+    async def failed_pi(**_kwargs):
+        yield "I will research local firms."
+        raise ValueError("private provider detail")
+
+    _patch_agent_stream_turn(monkeypatch, tmp_path, stream_pi_turn=failed_pi)
+    response = client.post("/chat/agent/stream", json=BODY)
+    assistant_calls = [
+        call for call in chat_api.create_message.await_args_list
+        if call.kwargs["role"] == "assistant"
+    ]
+    assert chat_api.FAILED_TURN_MESSAGE in response.text
+    assert assistant_calls[0].kwargs["content"] == (
+        "I will research local firms.\n\n" + chat_api.FAILED_TURN_MESSAGE
+    )
+    assert "private provider detail" not in response.text
+
+
+def test_success_is_saved_before_client_receives_finish(client, monkeypatch, tmp_path):
+    async def successful_pi(**_kwargs):
+        yield "Procurement strategy updated."
+
+    saved_session, _ = _patch_agent_stream_turn(
+        monkeypatch, tmp_path, stream_pi_turn=successful_pi,
+    )
+
+    async def run():
+        response = await chat_api.post_agent_stream(
+            chat_api.StreamChatRequest.model_validate(BODY),
+            user=CurrentUser(id=USER_ID, email="test@example.com"),
+            session=AsyncMock(),
+        )
+        try:
+            async for event in response.body_iterator:
+                if '"type": "finish"' in event or '"type":"finish"' in event:
+                    chat_api.complete_agent_turn.assert_awaited_once()
+                    assert saved_session.commit.await_count >= 2
+                    return
+            pytest.fail("No finish event received")
+        finally:
+            await response.body_iterator.aclose()
+
+    run_async(run())
+
+
+@pytest.mark.parametrize(
+    "failure", [chat_api.PiTurnError, chat_api.PiTurnTimeout, asyncio.CancelledError],
+)
+def test_failed_turn_is_saved_before_client_receives_done(
+    client, monkeypatch, tmp_path, failure,
+):
+    async def failed_pi(**_kwargs):
+        if False:
+            yield ""
+        raise failure("diagnostic failure")
+
+    saved_session, revoke = _patch_agent_stream_turn(
+        monkeypatch, tmp_path, stream_pi_turn=failed_pi,
+    )
+
+    async def run():
+        response = await chat_api.post_agent_stream(
+            chat_api.StreamChatRequest.model_validate(BODY),
+            user=CurrentUser(id=USER_ID, email="test@example.com"),
+            session=AsyncMock(),
+        )
+        try:
+            async for event in response.body_iterator:
+                if "[DONE]" in event:
+                    # A reader can close immediately on the terminal event.
+                    revoke.assert_awaited_once()
+                    assert saved_session.commit.await_count >= 2
+                    break
+        finally:
+            await response.body_iterator.aclose()
+
+    run_async(run())
+
+
+@pytest.mark.parametrize("prompt", [
+    "research and populate 3 access consultants suitable for this project",
+    "Research 3 suitable architects and civil engineers and populate the firm 1/2 "
+    "and three for architect and civil engineer in the procurement strategy.",
+])
 def test_agent_stream_binds_candidate_population_scope_from_exact_prompt(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
+    prompt,
 ) -> None:
     async def fake_stream_pi_turn(**_kwargs):
         yield "Done"
@@ -1425,10 +1524,7 @@ def test_agent_stream_binds_candidate_population_scope_from_exact_prompt(
                 "parts": [
                     {
                         "type": "text",
-                        "text": (
-                            "research and populate 3 access consultants "
-                            "suitable for this project"
-                        ),
+                        "text": prompt,
                     }
                 ],
             }
@@ -1513,14 +1609,172 @@ def test_extracted_setup_patch_uses_the_request_session(monkeypatch) -> None:
 def test_agent_cancel_requires_thread_owner_and_cancels(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    mock_session,
 ) -> None:
-    cancel = AsyncMock(return_value=True)
+    turn_id = uuid.uuid4()
+    mock_session.scalar.return_value = turn_id
+    cancel = Mock(return_value=True)
 
     monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
-    monkeypatch.setattr(chat_api.agent_turn_registry, "cancel", cancel)
+    monkeypatch.setattr(chat_api.agent_turn_supervisor, "cancel", cancel)
+    monkeypatch.setattr(chat_api, "revoke_agent_turn", AsyncMock())
 
     response = client.post(f"/chat/agent/{THREAD_ID}/cancel")
 
     assert response.status_code == 200
     assert response.json() == {"cancelled": True}
-    cancel.assert_awaited_once_with(str(THREAD_ID))
+    cancel.assert_called_once_with(turn_id)
+    chat_api.revoke_agent_turn.assert_awaited_once_with(mock_session, turn_id)
+
+
+@pytest.mark.parametrize("expired", [False, True])
+def test_agent_status_exposes_expiry_without_claiming_completion(client, mock_session, monkeypatch, expired):
+    from datetime import UTC, timedelta
+    now = datetime.now(UTC)
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    monkeypatch.setattr(chat_api.agent_turn_registry, "is_running", AsyncMock(return_value=False))
+    mock_session.scalar.return_value = SimpleNamespace(
+        id=uuid.uuid4(), state="active", status="running", created_at=now,
+        expires_at=now + timedelta(seconds=-1 if expired else 60),
+    )
+    response = client.get(f"/chat/agent/{THREAD_ID}/status")
+    assert response.status_code == 200
+    assert response.json()["status"] == ("expired" if expired else "running")
+    assert response.json()["active"] is (not expired)
+    assert response.json()["process_running"] is False
+
+
+def test_agent_status_requires_thread_owner(client, mock_session, monkeypatch):
+    thread = _thread()
+    thread.user_id = OTHER_USER_ID
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=thread))
+    response = client.get(f"/chat/agent/{THREAD_ID}/status")
+    assert response.status_code == 403
+    mock_session.scalar.assert_not_awaited()
+
+
+@pytest.mark.parametrize("failure", ["cancelled", "capacity"])
+def test_waiting_failure_never_invokes_pi(client, monkeypatch, failure):
+    from contextlib import asynccontextmanager
+    from app.agent.concurrency import AgentQueueTimeout
+
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(chat_api, "require_project_owner", AsyncMock(return_value=SimpleNamespace(
+        id=PROJECT_ID, title="Test", archetype=None, state=None, phase=None,
+        building_class=None, work_type=None, project_metadata=None,
+    )))
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    monkeypatch.setattr(chat_api, "reserve_agent_turn", AsyncMock(return_value=(
+        SimpleNamespace(id=uuid.uuid4()), SimpleNamespace(warning=False), True,
+    )))
+    monkeypatch.setattr(chat_api, "_persist_agent_user_message", AsyncMock(return_value=None))
+    monkeypatch.setattr(chat_api, "mint_turn_token", Mock(return_value="test-token"))
+    monkeypatch.setattr(chat_api, "_agent_workspace", Mock(return_value="unused"))
+    monkeypatch.setattr(chat_api, "get_session_factory", lambda: _SessionFactory(AsyncMock()))
+    persist = AsyncMock()
+    monkeypatch.setattr(chat_api, "_persist_incomplete_agent_turn", persist)
+    apply_profile = AsyncMock()
+    monkeypatch.setattr(chat_api, "_apply_extracted_setup_patch", apply_profile)
+    stream = Mock()
+    monkeypatch.setattr(chat_api, "stream_pi_turn", stream)
+
+    @asynccontextmanager
+    async def unavailable(*args, **kwargs):
+        if failure == "capacity":
+            raise AgentQueueTimeout()
+        yield
+
+    monkeypatch.setattr(chat_api.agent_turn_registry, "turn_scope", unavailable)
+    monkeypatch.setattr(chat_api, "start_agent_turn", AsyncMock(return_value=False))
+    response = client.post("/chat/agent/stream", json=BODY)
+    assert response.status_code == 200
+    assert "Waiting for chat capacity" in response.text
+    assert "[DONE]" in response.text
+    stream.assert_not_called()
+    apply_profile.assert_not_awaited()
+    persist.assert_awaited_once()
+
+
+def test_retry_of_existing_message_does_not_execute_or_finalize(client, monkeypatch, replay_journal):
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    monkeypatch.setattr(chat_api, "require_active_entitlement", AsyncMock())
+    monkeypatch.setattr(chat_api, "require_project_owner", AsyncMock(return_value=SimpleNamespace(
+        id=PROJECT_ID, title="Test", archetype=None, state=None, phase=None,
+        building_class=None, work_type=None, project_metadata=None,
+    )))
+    monkeypatch.setattr(chat_api, "list_messages", AsyncMock(return_value=[]))
+    turn_id = uuid.uuid4()
+    replay_journal.events[turn_id] = ["data: [DONE]\n\n"]
+    intent = classify_mutation_intent("Compare the tender quotes")
+    monkeypatch.setattr(chat_api, "reserve_agent_turn", AsyncMock(return_value=(
+        SimpleNamespace(id=turn_id, thread_id=THREAD_ID, state="completed", user_message_hash=intent.user_message_hash), SimpleNamespace(warning=False), False,
+    )))
+    stream, persist = Mock(), AsyncMock()
+    monkeypatch.setattr(chat_api, "stream_pi_turn", stream)
+    monkeypatch.setattr(chat_api, "_persist_incomplete_agent_turn", persist)
+    response = client.post("/chat/agent/stream", json=BODY)
+    assert response.status_code == 200
+    assert "[DONE]" in response.text
+    stream.assert_not_called()
+    persist.assert_not_awaited()
+
+
+@pytest.mark.parametrize("path", ["stream", "turns/55555555-5555-5555-5555-555555555555/tools"])
+def test_replay_and_trace_require_thread_owner(client, monkeypatch, path):
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread(owner_id=OTHER_USER_ID)))
+    response = client.get(f"/chat/agent/{THREAD_ID}/{path}")
+    assert response.status_code == 403
+
+
+def test_replay_requires_matching_turn_and_valid_cursor(client, monkeypatch, mock_session):
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    mock_session.scalar.return_value = None
+    response = client.get(f"/chat/agent/{THREAD_ID}/stream?turn_id={uuid.uuid4()}")
+    assert response.status_code == 404
+    response = client.get(f"/chat/agent/{THREAD_ID}/stream?after=-1")
+    assert response.status_code == 422
+    assert client.get(f"/chat/agent/{THREAD_ID}/stream").status_code == 204
+
+
+def test_replay_uses_cursor_without_starting_pi(client, monkeypatch, mock_session, replay_journal):
+    turn_id = uuid.uuid4()
+    monkeypatch.setattr(chat_api, "get_thread_by_id", AsyncMock(return_value=_thread()))
+    monkeypatch.setattr(chat_api, "require_project_owner", AsyncMock())
+    pi = Mock(side_effect=AssertionError("Replay must not start Pi"))
+    monkeypatch.setattr(chat_api, "stream_pi_turn", pi)
+    mock_session.scalar.return_value = SimpleNamespace(id=turn_id, project_id=PROJECT_ID, state="completed")
+    replay_journal.events[turn_id] = ['data: {"type":"start"}\n\n', "data: [DONE]\n\n"]
+    response = client.get(f"/chat/agent/{THREAD_ID}/stream?turn_id={turn_id}&after=1")
+    assert response.status_code == 200
+    assert "id: 2" in response.text
+    assert '"start"' not in response.text
+    pi.assert_not_called()
+
+
+def test_route_disconnect_keeps_pi_running_until_saved_completion(client, monkeypatch, tmp_path):
+    async def run():
+        release = asyncio.Event()
+
+        async def pi(**kwargs):
+            yield "Researching firms"
+            await release.wait()
+            yield "Saved candidates"
+
+        _patch_agent_stream_turn(monkeypatch, tmp_path, stream_pi_turn=pi)
+        response = await chat_api.post_agent_stream(
+            chat_api.StreamChatRequest.model_validate(BODY),
+            user=CurrentUser(id=USER_ID, email="test@example.com"), session=AsyncMock(),
+        )
+        turn_id = uuid.UUID(response.headers["X-Agent-Turn-Id"])
+        await anext(response.body_iterator)
+        await response.body_iterator.aclose()
+        assert chat_api.agent_turn_supervisor.running(turn_id)
+        chat_api.revoke_agent_turn.assert_not_awaited()
+        release.set()
+        events = [event async for event in chat_api.agent_turn_supervisor.stream(turn_id)]
+        assert "Saved candidates" in "".join(events)
+        chat_api.complete_agent_turn.assert_awaited_once()
+        await chat_api.agent_turn_supervisor.close()
+
+    run_async(run())

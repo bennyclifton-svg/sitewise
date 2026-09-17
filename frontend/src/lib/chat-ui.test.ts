@@ -10,6 +10,7 @@ import type { UIMessage } from "ai";
 
 describe("classifyChatError", () => {
   it.each([
+    ["An agent turn is already running for this chat.", "already_running"],
     ["429 rate limit exceeded", "rate_limit"],
     ["tool failed: start_tender_comparison", "tool"],
     ["partial pipeline incomplete", "partial_pipeline"],

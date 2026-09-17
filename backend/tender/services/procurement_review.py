@@ -91,7 +91,7 @@ async def prepare_procurement_review(
         for quote in quotes
     }
     language = await load_report_language(session)
-    if "procurement_review" not in language:
+    if "additive_matrix" not in language.get("procurement_review", {}):
         raise ValueError(
             "Procurement review language is not installed; run the tender seed loader"
         )

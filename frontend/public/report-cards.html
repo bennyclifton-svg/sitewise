@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SiteWise — report card study</title>
+  <link rel="stylesheet" href="./style-guide/instrument-sans-font.css">
+  <link rel="stylesheet" href="./landing-assets/report-cards.css">
+  <script type="module" src="./landing-assets/report-cards.js"></script>
+</head>
+<body>
+<main class="report-study">
+  <header class="study-heading"><a href="./landing.html#project-system" class="study-brand">SiteWise</a><span>Report interaction study</span></header>
+  <section class="report-demo" aria-labelledby="study-title">
+    <div class="study-intro"><h1 id="study-title">One project. Four evolving records.</h1><p>Upright reports, layered together. Hover, focus or select a report to slide the others aside.</p></div>
+    <div class="report-source"><strong>SiteWise</strong><span>Project workspace</span><button type="button" data-update>Preview a project update <span aria-hidden="true">↓</span></button></div>
+    <svg class="report-connections" viewBox="0 0 1200 75" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1"><path d="M600 0V20L578 42H160L150 52V75M600 20L622 42H1040L1050 52V75M450 42V75M750 42V75"/></g></svg>
+    <div class="report-deck" aria-label="Generated project records">
+      <article class="report-card" style="--index:0" data-report="pmp">
+        <h2><button class="report-select" aria-pressed="false"><span>Project Management Plan</span><span class="report-revision">Rev <b data-revision>08</b></span></button></h2>
+        <div class="report-toolbar"><span>Project plan</span><span>Draft · for review</span></div>
+        <div class="report-paper">
+          <h3>Project scope</h3><p>Deliver the coordinated design against the approved scope, budget and programme.</p>
+          <h3>Delivery approach</h3><p class="report-change" data-plan-text>Complete consultant coordination before releasing the structural package.</p>
+          <h3>Actions &amp; decisions</h3><ul><li>Confirm the revised drawing register.</li><li>Resolve outstanding consultant inputs.</li><li>Review procurement dependencies.</li></ul>
+          <div class="report-document-foot">Project Management Plan <span>1 / 8</span></div>
+        </div>
+      </article>
+      <article class="report-card" style="--index:1" data-report="program">
+        <h2><button class="report-select" aria-pressed="false"><span>Program</span><span class="report-revision">Rev <b data-revision>12</b></span></button></h2>
+        <div class="report-toolbar"><span>Activities</span><span>Weeks 1–8</span></div>
+        <div class="report-gantt" role="img" aria-label="Illustrative programme with six linked activities across eight weeks">
+          <div class="gantt-head"><span>Activity</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span></div>
+          <div class="gantt-row"><span>Design</span><div><i style="--start:0;--duration:3"></i></div></div>
+          <div class="gantt-row"><span>Approvals</span><div><i style="--start:2;--duration:2"></i></div></div>
+          <div class="gantt-row"><span>Procurement</span><div><i data-bar style="--start:3;--duration:2"></i></div></div>
+          <div class="gantt-row"><span>Site works</span><div><i data-bar style="--start:4;--duration:1"></i></div></div>
+          <div class="gantt-row"><span>Structure</span><div><i data-bar style="--start:5;--duration:2"></i></div></div>
+          <div class="gantt-row"><span>Services</span><div><i data-bar style="--start:6;--duration:1"></i></div></div>
+        </div>
+        <p class="report-caption" data-program-text>Linked activities · current forecast</p>
+      </article>
+      <article class="report-card" style="--index:2" data-report="cost">
+        <h2><button class="report-select" aria-pressed="false"><span>Cost Plan</span><span class="report-revision">Rev <b data-revision>06</b></span></button></h2>
+        <div class="report-toolbar"><span>Forecast</span><span>AUD · excl. GST</span></div>
+        <table class="report-table"><caption class="visually-hidden">Illustrative cost forecast</caption><thead><tr><th scope="col">Item</th><th scope="col">Budget</th><th scope="col">Forecast</th></tr></thead><tbody>
+          <tr><th scope="row">Site works</th><td>240,000</td><td>245,000</td></tr>
+          <tr><th scope="row">Structure</th><td>850,000</td><td class="report-change" data-cost>872,000</td></tr>
+          <tr><th scope="row">Services</th><td>420,000</td><td>415,000</td></tr>
+          <tr><th scope="row">Fitout</th><td>310,000</td><td>325,000</td></tr>
+          <tr><th scope="row">External</th><td>180,000</td><td>185,000</td></tr>
+        </tbody><tfoot><tr><th scope="row">Total</th><td>2,000,000</td><td data-total>2,042,000</td></tr></tfoot></table>
+        <p class="report-caption">Forecast changes remain visible for review.</p>
+      </article>
+      <article class="report-card" style="--index:3" data-report="procurement">
+        <h2><button class="report-select" aria-pressed="false"><span>Procurement Strategy</span><span class="report-revision">Rev <b data-revision>04</b></span></button></h2>
+        <div class="report-toolbar"><span>Package matrix</span><span>4 packages</span></div>
+        <table class="report-table procurement-table"><caption class="visually-hidden">Illustrative procurement strategy</caption><thead><tr><th scope="col">Package</th><th scope="col">Route</th><th scope="col">Status</th></tr></thead><tbody>
+          <tr><th scope="row">Civil</th><td>Selected tender</td><td>In review</td></tr>
+          <tr><th scope="row">Structure</th><td>Open tender</td><td class="report-change" data-procurement>Preparing</td></tr>
+          <tr><th scope="row">Services</th><td>Selected tender</td><td>Scoping</td></tr>
+          <tr><th scope="row">Fitout</th><td>Selected tender</td><td>Planned</td></tr>
+        </tbody></table>
+        <div class="procurement-note"><span>Next decision</span><p data-procurement-note>Confirm the structural scope before issuing the package.</p></div>
+      </article>
+    </div>
+    <p class="study-status" role="status" aria-live="polite" data-status>Illustrative project data. Select a card to hold it forward; select it again or press Escape to release.</p>
+  </section>
+  <form class="study-controls" aria-label="Adjust card composition">
+    <label>Separation <input id="separation" name="separation" type="range" min="32" max="110" value="78"><output for="separation" data-separation-value>78 px</output></label>
+    <label>Depth angle <input id="angle" name="angle" type="range" min="15" max="65" step="1" value="44"><output for="angle" data-angle-value>3°</output></label>
+    <button type="button" data-reset>Reset composition</button>
+  </form>
+  <footer class="study-footer"><span>Interaction prototype · not the live landing page</span><a href="https://ui.aceternity.com/labs/fey-cards">Fey Cards inspiration ↗</a></footer>
+</main>
+</body>
+</html>

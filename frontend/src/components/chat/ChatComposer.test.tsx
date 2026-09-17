@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ChatComposer } from "@/components/chat/ChatComposer";
+import { agentModelPayload } from "@/lib/agent-model";
+
+const tierFixture = vi.hoisted(() => ({ thoroughId: "xai:grok-4.6" }));
 
 vi.mock("@/lib/queries/agent-configuration", () => ({
   useAgentConfiguration: () => ({
@@ -12,7 +15,7 @@ vi.mock("@/lib/queries/agent-configuration", () => ({
         default_model: "openai:gpt-5.6-luna",
         models: [
           { id: "openai:gpt-5.6-luna", label: "Fast", is_default: true },
-          { id: "xai:grok-4.6", label: "Thorough", is_default: false },
+          { id: tierFixture.thoroughId, label: "Thorough", is_default: false },
         ],
       },
       legacy: { default_model: "gpt-5.6-luna", models: [] },
@@ -97,6 +100,45 @@ describe("ChatComposer focus", () => {
 
     fireEvent.blur(field);
     expect(composer).not.toHaveClass("is-focused");
+  });
+});
+
+describe("ChatComposer model selection", () => {
+  afterEach(() => {
+    tierFixture.thoroughId = "xai:grok-4.6";
+    window.localStorage.clear();
+  });
+
+  it.each(["xai:grok-4.6", "openai:gpt-5.6-sol"])(
+    "keeps Thorough visibly selected when configuration advertises %s",
+    async (advertisedId) => {
+      window.localStorage.clear();
+      tierFixture.thoroughId = advertisedId;
+      renderComposer();
+      await userEvent.click(screen.getByRole("button", { name: "Thorough" }));
+      expect(screen.getByRole("button", { name: "Thorough" })).toHaveAttribute("aria-pressed", "true");
+      expect(screen.getByRole("button", { name: "Fast" })).toHaveAttribute("aria-pressed", "false");
+      expect(agentModelPayload()).toEqual({ agent_model: advertisedId });
+    },
+  );
+
+  it("restores Thorough after reopening chat and persists a switch back to Fast", async () => {
+    window.localStorage.clear();
+    tierFixture.thoroughId = "openai:gpt-5.6-sol";
+    const composer = <ChatComposer value="" onChange={vi.fn()} onSubmit={vi.fn()} isBusy={false} />;
+    const first = render(composer);
+    await userEvent.click(screen.getByRole("button", { name: "Thorough" }));
+    first.unmount();
+
+    const reopened = render(composer);
+    expect(screen.getByRole("button", { name: "Thorough" })).toHaveAttribute("aria-pressed", "true");
+    expect(agentModelPayload()).toEqual({ agent_model: "openai:gpt-5.6-sol" });
+    await userEvent.click(screen.getByRole("button", { name: "Fast" }));
+    reopened.unmount();
+
+    render(composer);
+    expect(screen.getByRole("button", { name: "Fast" })).toHaveAttribute("aria-pressed", "true");
+    expect(agentModelPayload()).toEqual({});
   });
 });
 

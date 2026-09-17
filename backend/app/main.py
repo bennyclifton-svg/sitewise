@@ -23,6 +23,7 @@ from app.api.pulse import router as pulse_router
 from app.api.projects import sitewise_router
 from app.auth.dependencies import create_auth_http_client
 from app.config import settings
+from app.agent.runtime import agent_turn_supervisor
 from app.database.session import get_engine
 from app.logging import configure_logging, get_logger
 from app.mcp_bridge.server import mcp
@@ -72,13 +73,18 @@ async def lifespan(_app: FastAPI):
                 "Set MAILGUN_API_KEY and EMAIL_PROVIDER=mailgun to send."
             ),
         )
+    if settings.agent_runtime_enabled:
+        await agent_turn_supervisor.journal.reconcile()
     _app.state.auth_http_client = create_auth_http_client()
     # The MCP session manager needs its own lifespan running alongside ours.
     worker_handle = await start_inprocess_tender_worker()
     workflow_worker_handle = await start_inprocess_workflow_worker()
     try:
         async with mcp_app.lifespan(_app):
-            yield
+            try:
+                yield
+            finally:
+                await agent_turn_supervisor.close()
     finally:
         await stop_inprocess_workflow_worker(workflow_worker_handle)
         await stop_inprocess_tender_worker(worker_handle)
@@ -161,6 +167,7 @@ fastapi_app.mount("/mcp", mcp_app)
 async def health() -> dict[str, str]:
     return {
         "status": "ok",
+        "build_sha": settings.build_sha or "unknown",
         "chat_model": settings.openai_chat_model,
         "chat_provider": f"openai-responses:{settings.openai_chat_model}",
         "pmp_model": settings.pmp_model,

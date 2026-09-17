@@ -69,6 +69,13 @@ conventions, they are for software agents — ignore them.
      hunt Cost Plan or PMP schema first, and do not call refresh_cost_plan;
      the proposal's classified discipline selects the row and the write
      rebases stale evidence.
+   - apply_awarded_tender_to_cost_plan - map a user-awarded contractor tender
+     onto existing Cost Plan item keys; reconcile extracted ex-GST lines with
+     the accepted total in Python before saving Approved Contract. Read the
+     source and current plan first; resolve unclear margin/GST before writing.
+     For a genuinely missing package row, add it with apply_cost_plan_operations
+     first, then use the returned version for the award. Never invent a split
+     of a quoted lump sum or count the same source line twice.
    - get_cost_plan - read the current typed Cost Plan version and item keys
      before constructing apply_cost_plan_operations.
    - get_procurement_strategy - read the canonical discipline/trade roster,
@@ -79,7 +86,10 @@ conventions, they are for software agents — ignore them.
      in an available Tenderer slot and their status is aligned to Awarded.
    - apply_procurement_strategy_operations - add, update, move, lock, unlock,
      or delete rows; update status/notes; and populate or clear Tenderer slots
-     against the exact current revision.
+     against the exact current revision. Record an explicit award using
+     AWARD_CANDIDATE with row_id and candidate_id from the roster; CLEAR_AWARD
+     removes it. Never infer an award from a recommendation. This marks the
+     chosen firm only; Cost Plan changes require a separate user instruction.
    - search_procurement_candidates - discover commercial candidate leads for a
      canonical discipline code. Preserve result URL/title when populating a
      Tenderer slot. Results are leads, not endorsements or project evidence;

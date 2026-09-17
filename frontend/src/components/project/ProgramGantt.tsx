@@ -813,9 +813,17 @@ export function ProgramGantt({
     </div>
   );
 
+  const assumptionCount = state.activities.filter((activity) => activity.assumption).length;
+  const assumptionNotice = assumptionCount > 0 ? (
+    <p className="text-sm text-muted-foreground">
+      {assumptionCount} {assumptionCount === 1 ? "activity contains" : "activities contain"} assumed dates or durations. Verify them before relying on this programme.
+    </p>
+  ) : null;
+
   if (mode === "figure") {
     return (
       <div className="flex min-w-0 flex-col gap-2">
+        {assumptionNotice}
         <div className="flex print:hidden">
           <div className="flex overflow-hidden border">
             {FIGURE_SCALES.map((scale) => (
@@ -839,6 +847,7 @@ export function ProgramGantt({
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
+      {assumptionNotice}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex overflow-hidden border">
           {(["week", "month", "quarter"] as const).map((scale) => (

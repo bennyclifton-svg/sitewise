@@ -201,18 +201,18 @@ def test_database_dns_and_socket_authority_require_exact_literal_endpoint() -> N
 
 
 @pytest.mark.database_integration
-def test_database_marker_grants_only_the_validated_endpoint(monkeypatch) -> None:
-    target = parse_disposable_database_target(
-        "postgresql://clerk_test:password@127.0.0.1:55432/clerk_test"
-    )
-    monkeypatch.setattr(offline_network, "_STARTUP_DATABASE_TARGET", target)
+def test_database_marker_grants_only_the_validated_endpoint() -> None:
+    # The fixture has already leased the validated startup endpoint. Changing
+    # the startup variable afterwards must not change that active lease.
+    target = offline_network._STARTUP_DATABASE_TARGET
+    assert target is not None
 
     assert offline_network.OFFLINE_NETWORK_GUARD.allowed is False
     assert offline_network.OFFLINE_NETWORK_GUARD.database_target == target
 
     permitted = offline_network.OFFLINE_NETWORK_GUARD.call(
         lambda address: "connected",
-        ("127.0.0.1", 55432),
+        target.endpoint,
         operation="socket.socket.connect",
     )
 

@@ -28,6 +28,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, get_current_user
 from app.billing.entitlements import require_active_entitlement
+from app.procurement.submission_identity import (
+    FirmIdentity,
+    IdentifyFirmRequest,
+    identify_submission_firm,
+)
 from app.database.activity_events import (
     delete_project_activity_runs,
     list_project_activity_runs,
@@ -703,6 +708,7 @@ def _evidence_preview_from_workspace_file(record: WorkspaceFile) -> EvidencePrev
     return EvidencePreview(
         id=record.id,
         workspace_file_id=record.id,
+        ingest_status=getattr(record, "ingest_status", None),
         title=record.filename,
         filename=record.filename,
         relative_path=record.workspace_path,
@@ -3800,6 +3806,23 @@ async def post_project_procurement_strategy_operations(
     except ProcurementStrategyValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return await _procurement_strategy_view(session, strategy=strategy, project=project)
+
+
+@router.post("/{project_id}/procurement-strategy/identify-firm")
+async def post_identify_submission_firm(
+    project_id: uuid.UUID,
+    body: IdentifyFirmRequest,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> FirmIdentity:
+    _require_project_owner(await get_project(session, project_id), user.id)
+    await require_active_entitlement(session, user)
+    try:
+        return await identify_submission_firm(
+            session, project_id=project_id, file_ids=body.workspace_file_ids
+        )
+    except ProcurementStrategyValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/{project_id}/procurement-requests")

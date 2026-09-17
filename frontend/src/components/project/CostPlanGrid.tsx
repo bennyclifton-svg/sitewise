@@ -945,7 +945,7 @@ function createBlankCostItem(category: string, stamp: number): CostPlanItem {
     category,
     item: "New item",
     display_order: stamp,
-    budget: "0",
+    budget: null,
     committed: "0",
     forecast: "0",
     paid: "0",
@@ -1023,7 +1023,7 @@ function CostPlanRowActions({
   );
 }
 
-function MoneyCell({ value, summary = false }: { value: number; summary?: boolean }) {
+function MoneyCell({ value, summary = false }: { value: number | null; summary?: boolean }) {
   return (
     <td
       className={cn(
@@ -1031,7 +1031,7 @@ function MoneyCell({ value, summary = false }: { value: number; summary?: boolea
         summary && "cost-plan-grid-cell--summary",
       )}
     >
-      {formatCostPlanMoney(value)}
+      {value === null ? "TBC" : formatCostPlanMoney(value)}
     </td>
   );
 }
@@ -1040,26 +1040,33 @@ function MoneyInput({
   value,
   ariaLabel,
   onCommit,
+  onClear,
 }: {
   value: string;
   ariaLabel: string;
   onCommit: (next: string) => void;
+  onClear?: () => void;
 }) {
-  const display = formatCostPlanMoney(amount(value));
+  const display = onClear && value === "" ? "" : formatCostPlanMoney(amount(value));
   return (
     <input
       key={value}
       className="cost-plan-grid-input cost-plan-grid-input--money"
       defaultValue={display}
+      placeholder={onClear ? "TBC" : undefined}
       aria-label={ariaLabel}
       onClick={(event) => event.stopPropagation()}
       onBlur={(event) => {
+        if (onClear && event.target.value.trim() === "") {
+          if (value !== "") onClear();
+          return;
+        }
         const parsed = parseCostPlanMoneyInput(event.target.value);
         if (parsed === null) {
           event.target.value = display;
           return;
         }
-        if (amount(parsed) === amount(value)) {
+        if (amount(parsed) === amount(value) && !(onClear && value === "")) {
           event.target.value = display;
           return;
         }
@@ -1189,6 +1196,7 @@ function ItemRow({
         <MoneyInput
           value={item.budget ?? ""}
           ariaLabel={`${item.item} budget`}
+          onClear={() => updateItem({ budget: null }, { ...item, budget: null })}
           onCommit={(budget) => updateItem({ budget }, { ...item, budget })}
         />
       </td>

@@ -87,6 +87,10 @@ class ProcurementStrategyRow(Base):
     )
     discipline_code: Mapped[str | None] = mapped_column(String(128))
     submission_revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    awarded_candidate_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("procurement_strategy_candidates.id", ondelete="SET NULL", use_alter=True, name="fk_strategy_awarded_candidate"),
+    )
     comparison_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
     recommendation_draft_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("draft_artifacts.id", ondelete="SET NULL")
@@ -117,6 +121,7 @@ class ProcurementStrategyRow(Base):
     strategy: Mapped[ProcurementStrategy] = relationship(back_populates="rows")
     candidates: Mapped[list["ProcurementStrategyCandidate"]] = relationship(
         back_populates="row",
+        foreign_keys="ProcurementStrategyCandidate.strategy_row_id",
         cascade="all, delete-orphan",
         passive_deletes=True,
         order_by="ProcurementStrategyCandidate.slot",
@@ -182,7 +187,7 @@ class ProcurementStrategyCandidate(Base):
         onupdate=func.now(),
     )
 
-    row: Mapped[ProcurementStrategyRow] = relationship(back_populates="candidates")
+    row: Mapped[ProcurementStrategyRow] = relationship(back_populates="candidates", foreign_keys=[strategy_row_id])
     submission_files: Mapped[list["ProcurementCandidateFile"]] = relationship(
         cascade="all, delete-orphan", passive_deletes=True, lazy="selectin",
         order_by="ProcurementCandidateFile.position",

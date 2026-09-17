@@ -1,0 +1,146 @@
+{
+  "status": "pass",
+  "roof_joint_gaps_closed": 6,
+  "downpipes_unchanged": true,
+  "front_services_below_ground": true,
+  "end_window_heights_m": [
+    1.45,
+    1.8,
+    2.0
+  ],
+  "hood_projection_m": 0.62,
+  "hood_openings": [
+    "first floor: rear",
+    "roof floor: front"
+  ],
+  "trees": [
+    {
+      "dwelling": 1,
+      "rear": false,
+      "centre": [
+        5.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 1,
+      "rear": true,
+      "centre": [
+        1.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 2,
+      "rear": false,
+      "centre": [
+        12.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 2,
+      "rear": true,
+      "centre": [
+        8.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 3,
+      "rear": false,
+      "centre": [
+        19.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 3,
+      "rear": true,
+      "centre": [
+        15.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 4,
+      "rear": false,
+      "centre": [
+        26.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 4,
+      "rear": true,
+      "centre": [
+        22.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 5,
+      "rear": false,
+      "centre": [
+        33.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 5,
+      "rear": true,
+      "centre": [
+        29.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 6,
+      "rear": false,
+      "centre": [
+        40.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 6,
+      "rear": true,
+      "centre": [
+        36.75,
+        18.6
+      ],
+      "radius": 1.02
+    },
+    {
+      "dwelling": 7,
+      "rear": false,
+      "centre": [
+        47.98,
+        -1.08
+      ],
+      "radius": 0.58
+    },
+    {
+      "dwelling": 7,
+      "rear": true,
+      "centre": [
+        43.75,
+        18.6
+      ],
+      "radius": 1.02
+    }
+  ],
+  "raked_rafter_segments": 357,
+  "roof_frame": "Profile-aligned rafters, trimmed dormers, cheek/window frames, wedge frames and end lintels; provisional member sizes"
+}

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
 import shutil
 import subprocess
+import time
 import uuid
 from collections import deque
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Protocol
 
 from app.config import settings
+from app.agent.observability import current_turn_id
+from app.logging import get_logger
 from app.agent.process_tree import subprocess_group_options, terminate_process_tree
 
 PI_MCP_DIRECT_TOOLS = (
@@ -36,6 +38,7 @@ PI_MCP_DIRECT_TOOLS = (
     "get_artefact_blocks",
     "apply_artefact_operations",
     "apply_cost_plan_operations",
+    "apply_awarded_tender_to_cost_plan",
     "get_programme",
     "ensure_programme",
     "apply_programme_operations",
@@ -56,6 +59,8 @@ PI_MCP_DIRECT_TOOLS = (
     "get_project_profile",
     "get_project_profile_options",
     "get_project_snapshot",
+    "get_project_next_actions",
+    "get_workflow_capabilities",
     "list_shared_project_knowledge",
     "get_shared_project_knowledge",
     "upsert_shared_project_knowledge",
@@ -102,6 +107,7 @@ PI_WEB_DIRECT_TOOLS = (
 # Pi serializes complete tool results and terminal events as single JSONL records.
 # Keep bounded headroom above asyncio's 64 KiB default for document-heavy turns.
 PI_STREAM_READER_LIMIT_BYTES = 16 * 1024 * 1024
+log = get_logger(__name__)
 
 
 class PiTurnError(Exception):
@@ -116,6 +122,9 @@ class PiTurnTimeout(PiTurnError):
 class _PiStreamState:
     emitted_text: bool = False
     terminal_error: str | None = None
+    model_started: float | None = None
+    provider: str | None = None
+    model: str | None = None
 
 
 class _Stream(Protocol):
@@ -317,7 +326,7 @@ def _prompt_file_arg(workspace: Path, prompt_path: Path) -> str:
 
 
 def _build_env(*, mcp_url: str, turn_token: str, cwd: Path) -> dict[str, str]:
-    env = os.environ.copy()
+    env = settings.agent_process_environment
     env["CLERK_MCP_TOKEN"] = turn_token
     env["AGENT_TURN_TOKEN"] = turn_token
     env["PI_OFFLINE"] = "1"
@@ -327,8 +336,7 @@ def _build_env(*, mcp_url: str, turn_token: str, cwd: Path) -> dict[str, str]:
     env["MCP_DIRECT_TOOLS"] = ",".join(
         f"clerk/{name}" for name in _direct_tool_names()
     )
-    if settings.agent_platform_api_key:
-        env["OPENAI_API_KEY"] = settings.agent_platform_api_key
+    env["OPENAI_API_KEY"] = settings.agent_platform_api_key or settings.openai_api_key
     if settings.xai_api_key:
         env["XAI_API_KEY"] = settings.xai_api_key
     _write_pi_mcp_config(cwd, mcp_url=mcp_url)
@@ -361,10 +369,19 @@ def _update_pi_stream_state(raw_line: str, state: _PiStreamState) -> None:
     except json.JSONDecodeError:
         return
 
+    if event.get("type") == "message_start" and (event.get("message") or {}).get("role") == "assistant":
+        state.model_started = time.perf_counter()
     if event.get("type") == "message_end":
         message = event.get("message") or {}
         if message.get("role") != "assistant":
             return
+        log.info(
+            "agent_model_request", turn_id=current_turn_id.get(),
+            provider=state.provider, model=state.model,
+            duration_ms=int((time.perf_counter() - state.model_started) * 1000) if state.model_started is not None else None,
+            outcome=message.get("stopReason") if message.get("stopReason") in {"stop", "length", "toolUse", "error", "aborted"} else "unknown",
+        )
+        state.model_started = None
         if message.get("stopReason") == "error":
             error = message.get("errorMessage")
             state.terminal_error = (
@@ -465,7 +482,7 @@ async def stream_pi_turn(
         )
         env = _build_env(mcp_url=mcp_url, turn_token=turn_token, cwd=workspace)
         stderr_tail: deque[str] = deque(maxlen=20)
-        stream_state = _PiStreamState()
+        stream_state = _PiStreamState(provider=resolved_provider, model=model or settings.pi_model)
 
         try:
             process = await spawn(argv=argv, env=env, cwd=str(workspace))

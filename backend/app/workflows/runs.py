@@ -617,6 +617,19 @@ def _validate_expected_snapshot(
         )
 
 
+async def latest_document_ingest_run(
+    session: AsyncSession, *, project_id: uuid.UUID, workspace_file_id: uuid.UUID
+) -> WorkflowRun | None:
+    result = await session.execute(
+        select(WorkflowRun).where(
+            WorkflowRun.project_id == project_id,
+            WorkflowRun.workflow_type == "ingest_project_document",
+            WorkflowRun.run_brief["parameters"]["workspace_file_id"].astext == str(workspace_file_id),
+        ).order_by(WorkflowRun.created_at.desc(), WorkflowRun.id.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def _find_idempotent_run(
     session: AsyncSession,
     *,

@@ -31,7 +31,7 @@ def optional_budget(item: CostItemInput) -> Decimal | None:
 
 
 def resolved_budget(item: CostItemInput) -> Decimal:
-    """Return the arithmetic value of a cost item; an unpriced TBC row is zero."""
+    """Sum known amounts internally; callers must preserve unpriced totals."""
     return optional_budget(item) or Decimal("0.00")
 
 
@@ -45,6 +45,11 @@ def calculate_totals(
     if contingency_percent < 0 or escalation_percent < 0:
         raise CostPlanCalculationError("percentages cannot be negative")
 
+    has_unpriced_items = any(optional_budget(item) is None for item in items)
+    has_unpriced_allowances = any(
+        optional_budget(item) is None and item.allowance_type in {"pc", "ps", "contingency"}
+        for item in items
+    )
     budgets = [resolved_budget(item) for item in items]
     budget = money(sum(budgets, Decimal("0")))
     committed = money(sum((item.committed for item in items), Decimal("0")))
@@ -77,15 +82,15 @@ def calculate_totals(
         including = subtotal
 
     return CostPlanTotals(
-        budget=budget,
+        budget=None if has_unpriced_items else budget,
         committed=committed,
         forecast=forecast,
         paid=paid,
-        variance=money(budget - forecast),
-        allowances=allowances,
-        contingency=contingency,
-        escalation=escalation,
-        gst=gst,
-        total_excluding_gst=excluding,
-        total_including_gst=including,
+        variance=None if has_unpriced_items else money(budget - forecast),
+        allowances=None if has_unpriced_allowances else allowances,
+        contingency=None if has_unpriced_items else contingency,
+        escalation=None if has_unpriced_items else escalation,
+        gst=None if has_unpriced_items else gst,
+        total_excluding_gst=None if has_unpriced_items else excluding,
+        total_including_gst=None if has_unpriced_items else including,
     )

@@ -1666,9 +1666,15 @@ async def run_create_pmp_workflow(
     snapshot: ProjectSnapshot | None = None,
     generation_context: ProjectGenerationContext | None = None,
     on_preview: PreviewPublisher | None = None,
+    expected_base_version: int | None = None,
 ) -> CreatePmpResponse:
     trace: list[WorkflowTraceEvent] = []
     run_id = uuid.uuid4()
+    # Publication must reject edits made while this generation is in progress.
+    existing_version = (
+        expected_base_version + 1 if expected_base_version is not None
+        else await _next_version_hint(session, project.id, WORKFLOW_TYPE)
+    )
     context_started = time.perf_counter()
     fact_count = await _reconcile_consultant_facts_for_pmp(session, project=project)
     if fact_count:
@@ -2416,7 +2422,6 @@ async def run_create_pmp_workflow(
     output.markdown = prepare_issue_markdown(
         output.markdown, project_title=project.title
     )
-    existing_version = await _next_version_hint(session, project.id, WORKFLOW_TYPE)
     if snapshot is not None:
         output.markdown = apply_profile_basis(output.markdown, snapshot.profile)
     output.markdown = sync_document_control_version(output.markdown, existing_version)

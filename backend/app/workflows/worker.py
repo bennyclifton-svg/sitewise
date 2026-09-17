@@ -134,6 +134,7 @@ async def _dispatch(
             snapshot=snapshot,
             generation_context=generation_context,
             on_preview=on_preview,
+            expected_base_version=run.frozen_artefact_version,
         )
     elif run.workflow_type == "refresh_project_plan":
         result = await run_update_pmp_workflow(
@@ -142,6 +143,7 @@ async def _dispatch(
             snapshot=snapshot,
             generation_context=generation_context,
             on_preview=on_preview,
+            expected_base_version=run.frozen_artefact_version,
         )
     elif run.workflow_type == "create_cost_plan":
         result = await run_create_cost_plan_workflow(

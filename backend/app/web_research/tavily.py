@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import httpx
+from app.agent.observability import provider_span
 
 from app.web_research.service import WebSearchProviderError, WebSearchResult
 
@@ -53,6 +54,7 @@ class TavilySearchProvider:
                 max_results=max_results,
             )
 
+    @provider_span("tavily", "search")
     async def _search(
         self,
         client: httpx.AsyncClient,

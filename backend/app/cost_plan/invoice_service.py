@@ -13,7 +13,6 @@ from sqlalchemy.orm import selectinload
 from app.cost_plan.invoice_candidates import InvoiceCandidate
 from app.cost_plan.invoice_extraction import extract_invoice_secondary
 from app.cost_plan.invoice_issues import (
-    InvoiceIssue,
     allocation_issues,
     arithmetic_issues,
     field_reconciliation,
@@ -140,15 +139,8 @@ async def book_invoice(
     ).scalars().first()
     if existing is not None:
         if _same_financial_facts(existing, extracted):
-            existing.issues = [
-                InvoiceIssue(
-                    code="DUPLICATE_INVOICE",
-                    severity="info",
-                    field=None,
-                    message="Invoice is already booked with the same financial facts",
-                ).model_dump()
-            ]
-            existing.review_state = "duplicate"
+            # Duplicate describes this attempt, not the original invoice's review.
+            # A retry must preserve human decisions, issues and allocations.
             await _record_invoice_event(
                 session,
                 project_id=project_id,
@@ -157,18 +149,8 @@ async def book_invoice(
                 message="Duplicate invoice skipped",
             )
             return InvoiceBookingResult(status="duplicate", invoice=existing)
-        existing.issues = [
-            InvoiceIssue(
-                code="CONFLICTING_DUPLICATE",
-                severity="error",
-                field=None,
-                message=(
-                    f"{extracted.supplier_name} invoice {extracted.invoice_number} "
-                    "is already booked with different financial facts"
-                ),
-            ).model_dump()
-        ]
-        existing.review_state = "conflict"
+        # Conflicting incoming facts require review of the new attempt. They do
+        # not revoke or replace a decision on the already-booked invoice.
         await _record_invoice_event(
             session,
             project_id=project_id,

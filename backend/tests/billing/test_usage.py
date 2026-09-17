@@ -15,6 +15,54 @@ USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 USER = CurrentUser(id=USER_ID, email="a@example.com")
 
 
+@pytest.mark.parametrize("state,status_value,expired", [
+    ("revoked", "not_started", False), ("active", "running", False),
+    ("completed", "completed", False), ("active", "reserved", True),
+])
+def test_start_rejects_cancelled_duplicate_completed_and_expired_turns(
+    monkeypatch, state, status_value, expired,
+):
+    turn = SimpleNamespace(state=state, status=status_value,
+                           expires_at=datetime.now(UTC) + timedelta(seconds=-1 if expired else 60))
+    session = AsyncMock()
+    session.get.return_value = turn
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    assert not run_async(usage.start_agent_turn(session, uuid.uuid4()))
+    session.flush.assert_not_awaited()
+
+
+def test_start_claims_only_once(monkeypatch):
+    turn = SimpleNamespace(state="active", status="reserved",
+                           expires_at=datetime.now(UTC) + timedelta(seconds=60))
+    session = AsyncMock()
+    session.get.return_value = turn
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    turn_id = uuid.uuid4()
+    assert run_async(usage.start_agent_turn(session, turn_id))
+    assert turn.status == "running"
+    assert not run_async(usage.start_agent_turn(session, turn_id))
+
+
+def test_cancel_before_execution_releases_quota_reservation(monkeypatch):
+    turn = SimpleNamespace(state="active", status="reserved")
+    session = AsyncMock()
+    session.get.return_value = turn
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    assert run_async(usage.revoke_agent_turn(session, uuid.uuid4()))
+    assert turn.status == "not_started"
+    assert turn.state == "revoked"
+
+
+def test_late_stop_preserves_an_already_committed_completion(monkeypatch):
+    turn = SimpleNamespace(state="completed", status="completed")
+    session = AsyncMock()
+    session.get.return_value = turn
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    assert not run_async(usage.revoke_agent_turn(session, uuid.uuid4()))
+    assert turn.status == "completed"
+    session.flush.assert_not_awaited()
+
+
 def test_under_quota_allows_agent_turn(monkeypatch):
     monkeypatch.setattr(settings, "agent_monthly_turn_quota", 100)
     monkeypatch.setattr(usage, "count_monthly_agent_turns", AsyncMock(return_value=12))
@@ -96,6 +144,19 @@ def test_reservation_retry_reuses_durable_turn_without_double_count(monkeypatch)
     assert turn is existing
     assert state.used_turns == 1
     assert created is False
+    session.add.assert_not_called()
+
+
+def test_second_message_cannot_bypass_an_active_thread_reservation(monkeypatch):
+    monkeypatch.setattr(usage, "_advisory_lock", AsyncMock())
+    session = MagicMock()
+    session.scalar = AsyncMock(side_effect=[None, uuid.uuid4()])
+    with pytest.raises(HTTPException) as error:
+        run_async(usage.reserve_agent_turn(
+            session, turn_id=uuid.uuid4(), project_id=uuid.uuid4(), user_id=USER_ID,
+            thread_id=uuid.uuid4(), user_message_id="second-message", runtime="pi", model="test",
+        ))
+    assert error.value.status_code == 409
     session.add.assert_not_called()
 
 

@@ -3,6 +3,21 @@ import * as THREE from 'three'
 import type { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { mountModelWheelZoom } from './model-wheel-zoom'
 
+it('zooms throughout the viewfinder and lets the page scroll outside, even over geometry', () => {
+  const canvas = document.createElement('canvas'), frame = document.createElement('div')
+  frame.getBoundingClientRect = () => ({ left: 20, right: 180, top: 60, bottom: 140, width: 160, height: 80 }) as DOMRect
+  const controls = { enableZoom: false } as OrbitControls
+  canvas.addEventListener('wheel', event => { if (controls.enableZoom) event.preventDefault() })
+  const dispose = mountModelWheelZoom(canvas, new THREE.PerspectiveCamera(), controls, [], frame)
+  for (const [x, y, consumed] of [[25, 65, true], [100, 100, true], [19, 100, false], [100, 141, false]] as const) {
+    const event = new WheelEvent('wheel', { clientX: x, clientY: y, cancelable: true })
+    canvas.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(consumed)
+  }
+  dispose()
+  expect(controls.enableZoom).toBe(false)
+})
+
 it('consumes wheel only over visible model geometry and releases it outside', () => {
   const canvas = document.createElement('canvas')
   canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 200 }) as DOMRect

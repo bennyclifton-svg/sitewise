@@ -53,6 +53,7 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     )
     workspace_file = SimpleNamespace(
         id=workspace_file_id,
+        ingest_status="failed",
         filename="E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
         workspace_path="04-projects/demo/_inbox/E00 - ELECTRICAL - COVER SHEET - [C1].pdf",
     )
@@ -74,6 +75,7 @@ def test_append_unindexed_inbox_workspace_files_adds_pending_inbox_rows() -> Non
     assert pending.id == workspace_file_id
     assert pending.category is None
     assert pending.document_class == "unknown"
+    assert pending.ingest_status == "failed"
 
 
 def test_register_title_ignores_legacy_document_type() -> None:

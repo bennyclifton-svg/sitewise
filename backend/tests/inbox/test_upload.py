@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -16,6 +17,59 @@ from tests.conftest import run_async
 USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 PROJECT_ID = uuid.UUID("22222222-2222-2222-2222-222222222222")
 NOW = datetime(2026, 6, 7, 12, 0, 0, tzinfo=timezone.utc)
+
+
+def test_duplicate_upload_after_filing_reuses_the_stored_document() -> None:
+    from ingest.hashing import bytes_content_hash
+    content = b"Synthetic acceptance evidence"
+    filed = SimpleNamespace(
+        id=uuid.uuid4(), content_hash=bytes_content_hash(content), size_bytes=len(content),
+        ingest_status="ingested", workspace_path="04-projects/demo/01-brief/brief.md",
+    )
+
+    async def exercise() -> None:
+        with (
+            patch("app.inbox.service.lock_project", new=AsyncMock(return_value=_project())),
+            patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=None)),
+            patch("app.inbox.service.find_ingested_workspace_file", new=AsyncMock(return_value=filed), create=True),
+            patch("app.inbox.service._record_file_activity", new=AsyncMock()),
+            patch("app.inbox.service.upload_project_file", side_effect=AssertionError("must not upload again")),
+        ):
+            outcomes = await upload_inbox_files(
+                AsyncMock(), project=_project(), user_id=USER_ID,
+                items=[InboxUploadItem(filename="brief.md", content=content)], snapshot=None,
+            )
+        assert outcomes[0].id == filed.id
+        assert outcomes[0].workspace_path == filed.workspace_path
+        assert outcomes[0].message == "Identical content already uploaded"
+    run_async(exercise())
+
+
+@pytest.mark.parametrize("run_state", ["queued", "running"])
+def test_repeated_upload_reuses_active_ingest(run_state: str) -> None:
+    from ingest.hashing import bytes_content_hash
+    content = b"Synthetic acceptance evidence"
+    stored = SimpleNamespace(
+        id=uuid.uuid4(), content_hash=bytes_content_hash(content), size_bytes=len(content),
+        ingest_status="queued", workspace_path="04-projects/demo/_inbox/brief.md",
+    )
+    active = SimpleNamespace(id=uuid.uuid4(), state=run_state)
+    async def exercise() -> None:
+        with (
+            patch("app.inbox.service.lock_project", new=AsyncMock(return_value=_project())),
+            patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=stored)),
+            patch("app.inbox.service.latest_document_ingest_run", new=AsyncMock(return_value=active)),
+            patch("app.inbox.service.upload_project_file") as upload,
+            patch("app.inbox.service.start_workflow_run", new=AsyncMock()) as start,
+        ):
+            outcomes = await upload_inbox_files(
+                AsyncMock(), project=_project(), user_id=USER_ID,
+                items=[InboxUploadItem(filename="brief.md", content=content)], snapshot=None,
+            )
+        assert outcomes[0].workflow_run_id == active.id
+        upload.assert_not_called()
+        start.assert_not_awaited()
+    run_async(exercise())
 
 
 def _project() -> Project:
@@ -37,7 +91,8 @@ def _project() -> Project:
 
 
 @pytest.fixture
-def mock_session() -> AsyncMock:
+def mock_session(monkeypatch) -> AsyncMock:
+    monkeypatch.setattr("app.inbox.service.lock_project", AsyncMock(return_value=_project()))
     return AsyncMock()
 
 
@@ -88,11 +143,16 @@ def test_validate_upload_batch_accepts_rtf(monkeypatch: pytest.MonkeyPatch) -> N
         [InboxUploadItem(filename="iwlep2022344.rtf", content=b"{\\rtf1 body}")]
     )
 
+@pytest.mark.parametrize("retry", [False, True])
 def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
     mock_session: AsyncMock,
+    retry: bool,
 ) -> None:
     project = _project()
     content = b"# Procurement matrix\n\nEvaluation content."
+    from ingest.hashing import bytes_content_hash
+    previous_run = SimpleNamespace(id=uuid.uuid4(), state="failed")
+    previous_file = SimpleNamespace(id=uuid.uuid4(), content_hash=bytes_content_hash(content), ingest_status="failed")
     snapshot = type(
         "Snapshot",
         (),
@@ -105,7 +165,8 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
 
     async def _run() -> None:
         with (
-            patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=None)),
+            patch("app.inbox.service.get_workspace_file_by_path", new=AsyncMock(return_value=previous_file if retry else None)),
+            patch("app.inbox.service.latest_document_ingest_run", new=AsyncMock(return_value=previous_run)),
             patch("app.inbox.service.upload_project_file") as mock_upload,
             patch(
                 "app.inbox.service.lock_project",
@@ -158,9 +219,8 @@ def test_upload_inbox_files_stores_and_queues_ingest_without_sorting(
             "workspace_file_id": str(outcomes[0].id),
             "document_metadata": {},
         }
-        assert mock_start.await_args.kwargs["request"].idempotency_key.endswith(
-            outcomes[0].content_hash
-        )
+        key = mock_start.await_args.kwargs["request"].idempotency_key
+        assert key.endswith(f":retry:{previous_run.id}" if retry else outcomes[0].content_hash)
         assert len(outcomes) == 1
         assert outcomes[0].workspace_path == "04-projects/demo/_inbox/EVALUATION/matrix.md"
         assert outcomes[0].ingest_status == "queued"
@@ -180,6 +240,7 @@ def test_upload_inbox_files_hides_storage_provider_error(
 
     async def _run() -> None:
         with (
+            patch("app.inbox.service.find_ingested_workspace_file", new=AsyncMock(return_value=None)),
             patch(
                 "app.inbox.service.get_workspace_file_by_path",
                 new=AsyncMock(return_value=None),
@@ -228,6 +289,32 @@ def test_post_inbox_upload_requires_project_ownership(client: TestClient, mock_s
         )
 
     assert response.status_code == 403
+
+
+def test_download_rejects_other_owner_before_reading_storage(client):
+    project = _project()
+    project.owner_user_id = uuid.uuid4()
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=project)),
+        patch("app.api.projects.download_project_file") as download,
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/workspace-files/download", params={"path": "04-projects/demo/report.pdf"})
+    assert response.status_code == 403
+    download.assert_not_called()
+
+
+@pytest.mark.parametrize("path", ["04-projects/other/private.pdf", "../../private.pdf"])
+def test_download_cannot_resolve_another_projects_file(client, path):
+    lookup = AsyncMock(return_value=None)
+    with (
+        patch("app.api.projects.get_project", new=AsyncMock(return_value=_project())),
+        patch("app.api.projects.get_workspace_file_by_path", lookup),
+        patch("app.api.projects.download_project_file") as download,
+    ):
+        response = client.get(f"/projects/{PROJECT_ID}/workspace-files/download", params={"path": path})
+    assert response.status_code == 404
+    assert lookup.await_args.kwargs["project_id"] == PROJECT_ID
+    download.assert_not_called()
 
 
 def test_post_inbox_upload_returns_upload_results(client: TestClient, mock_session: AsyncMock) -> None:

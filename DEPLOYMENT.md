@@ -65,14 +65,14 @@ source-managed nginx or Traefik configuration in a separately approved release.
 
 | Service | Role |
 | --- | --- |
-| `sitewise-api` | FastAPI API, TCM router, billing, Hermes/MCP runtime |
+| `sitewise-api` | FastAPI API, TCM router, billing, Pi/MCP runtime |
 | `sitewise-worker` | Tender Comparison worker running `python -m tender.worker` |
 | `sitewise-core-workflow-worker` | Durable core workflow worker running `python -m app.workflows.worker` |
 | `sitewise-web` | Static React SPA and nginx proxy to FastAPI |
 | Supabase | Auth, Postgres, and object storage |
 | Stripe | Billing provider |
 
-The backend image bundles Hermes CLI v0.17.x with JVM/ODL support, FastAPI, MCP,
+The backend image bundles Pi CLI 0.83.0 with JVM/ODL support, FastAPI, MCP,
 and the Tender Comparison worker path. `AGENT_WORKSPACE_ROOT` is a persistent
 volume for scratch and artefact files; Supabase Storage stays canonical for
 uploaded source documents. nginx must keep `/api/*` and SSE streams unbuffered.
@@ -126,8 +126,13 @@ Required backend values:
 Agent and billing values:
 
 - `AGENT_RUNTIME_ENABLED`
-- `HERMES_BINARY_PATH`
-- `HERMES_INVOCATION_MODE`
+- `PI_BINARY_PATH`
+- `PI_MCP_ADAPTER_PATH`
+- `PI_MODEL_PROVIDER`
+- `PI_MODEL`
+- `PI_MODEL_OPTIONS`
+- `XAI_API_KEY`
+- `AGENT_QUEUE_TIMEOUT_SECONDS`
 - `AGENT_PLATFORM_API_KEY`
 - `AGENT_MCP_URL`
 - `AGENT_WORKSPACE_ROOT`
@@ -143,8 +148,8 @@ Agent and billing values:
 
 Email values (inbound is dark until a signing key is set):
 
-- `ENVIRONMENT=development` until Mailgun sending is configured; `production` refuses `EMAIL_PROVIDER=fake`
-- `EMAIL_PROVIDER=fake` until Mailgun sending is configured, then `mailgun`
+- `ENVIRONMENT=production` (required for customer launch)
+- `EMAIL_PROVIDER=mailgun` with a valid outbound key; missing configuration must fail startup
 - `MAILGUN_API_KEY` / `MAILGUN_SENDING_DOMAIN` / `MAILGUN_API_BASE` for outbound
 - `EMAIL_INBOUND_DOMAIN=sitewise.au`
 - `EMAIL_INBOUND_WEBHOOK_SECRET` — native JSON webhook; optional if Mailgun is used
@@ -263,8 +268,8 @@ curl -sS https://api.openai.com/v1/models -H "Authorization: Bearer $KEY" \
 
 ## 3. Deploy sequence
 
-Order matters. Migrations are additive, so schema-first is safe for the
-still-running old code; code-first is not.
+Order matters. Review pending migrations for compatibility; do not assume
+they are additive. Build and test the candidate before changing the schema.
 
 ### Step 1 — Reconcile the persistent Dokploy environment
 
@@ -297,9 +302,9 @@ COST_PLAN_MODEL=gpt-5.6-luna
 TENDER_MODEL_EXTRACT=gpt-5.6-luna
 TENDER_MODEL_ADJUDICATE_SMALL=gpt-5.6-terra
 TENDER_MODEL_ADJUDICATE_FRONTIER=gpt-5.6-sol
-HERMES_MODEL_PROVIDER=openai-api
-HERMES_MODEL=gpt-5.6-terra
-HERMES_MODEL_OPTIONS=openai-api:gpt-5.6-sol:GPT-5.6 Sol (complex),openai-api:gpt-5.6-terra:GPT-5.6 Terra (balanced),openai-api:gpt-5.6-luna:GPT-5.6 Luna (fast),openai-codex:gpt-5.5:gpt-5.5 (Codex subscription)
+PI_MODEL_PROVIDER=openai
+PI_MODEL=gpt-5.6-luna
+PI_MODEL_OPTIONS=openai:gpt-5.6-luna:Fast,xai:grok-4.6:Thorough
 ```
 
 Leave `OPENAI_EMBEDDING_MODEL=text-embedding-3-small` alone — embeddings are a
@@ -310,7 +315,7 @@ mirror of production.
 
 #### Workflow queue scope (required from `046_workflow_run_queue_scope`)
 
-The workflow worker runs **in-process inside the API**, and every environment
+The core workflow worker runs as a separate Compose service, and every environment
 pointed at this Supabase project polls the same `workflow_runs` table. Before
 the queue scope existed, a run queued from a laptop could be claimed and
 executed by this container — which is how two artefacts in the same test wave
@@ -340,101 +345,13 @@ environment if the build args are not wired through. The value lands in each
 artefact's `provenance_metadata.dependency_snapshot.build_version`, alongside
 `queue_scope`, which is what makes a generated document attributable to a build.
 
-### Step 2 — Migrate the production database
+### Steps 2-4 - Selected-commit release gate
 
-The backend container's CMD is just `uvicorn` — there is no migrate-on-start.
-Run Alembic from the laptop; `backend/.env` already points at prod:
-
-```bash
-cd backend
-uv run alembic current   # read-only; confirm where prod actually is
-uv run alembic heads     # confirm the target
-uv run alembic upgrade head
-```
-
-If `current` already equals `heads`, skip — DB and code drift independently and
-prod is often already at head.
-
-### Step 3 — Push only after required CI
-
-```bash
-git add -A
-git commit -m "…"
-git push origin main
-```
-
-Production Dokploy `Auto Deploy` was disabled on 2026-08-14 under hardening task
-CH-0.0. A push to `main` is **not** a production deployment instruction and must
-not update the production checkout, build an image, or restart a container.
-Until the protected immutable-image release path in CH-1.7C exists, routine
-production releases are blocked. Only an explicitly approved emergency/manual
-selection by the named operator is allowed.
-
-Historical note: before CH-0.0, a push to `main` triggered Dokploy independently
-of CI; this was confirmed twice on 2026-08-02. During those deployments the
-`code` directory could briefly contain only a partial `.git` checkout. Do not
-restore that automatic path as a rollback.
-
-### Step 4 — Emergency/manual rollout only (temporary)
-
-This step is not a routine release path. Use it only for a named, explicitly
-approved production emergency until CH-1.7C replaces it. Record the selected
-source SHA, image IDs, operator, UTC time, approval, and before/after health.
-
-The compose uses `pull_policy: never` with `image: sitewise-production-*:latest`,
-so **Dokploy builds the images on the VPS from current `main`**. There is no
-registry push step.
-
-Preferred (unattended) — Dokploy API:
-
-```bash
-# needs DOKPLOY_URL + DOKPLOY_TOKEN from section 1
-curl -sS -X POST "$DOKPLOY_URL/api/compose.deploy" \
-  -H "x-api-key: $DOKPLOY_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"composeId":"<COMPOSE_ID>"}'
-```
-
-`<COMPOSE_ID>`: `TODO` — read it from the Dokploy compose app's URL.
-
-Fallback A — SSH and drive the effective Dokploy compose file directly:
-
-```bash
-ssh root@45.151.153.218
-cd /etc/dokploy/compose/sitewise-3m1mco/code
-test -f deploy/dokploy.compose.yml
-docker compose \
-  --env-file deploy/.env \
-  -p sitewise-3m1mco \
-  -f deploy/dokploy.compose.yml \
-  config --quiet
-docker compose \
-  --env-file deploy/.env \
-  -p sitewise-3m1mco \
-  -f deploy/dokploy.compose.yml \
-  up -d --build
-```
-
-Dokploy adds routing labels and the `dokploy-network` attachment to its effective
-checkout copy of `deploy/dokploy.compose.yml`, so that file is normally dirty on
-the VPS. Preserve those changes; do not replace it with the pristine git copy.
-
-Check disk before an on-host build with `df -h /` and `docker system df`. The
-backend image is large because it includes LibreOffice, Hermes, Playwright and
-document-extraction dependencies. Linux builds must retain the explicit
-CPU-only PyTorch source in `backend/pyproject.toml`/`uv.lock`; resolving the CUDA
-wheels exhausted the 50 GB VPS during the first attempt. After a successful
-deploy, `docker builder prune --all --force` and `docker image prune --force`
-remove build cache and dangling layers without touching running containers or
-volumes. The 2026-08-02 cleanup moved `/` from 89% to 77% used.
-
-The API image must contain `/app/data/taxonomy`, `/app/data/seed`,
-`/app/data/skills/reference`, `/app/data/tender`, and
-`/app/docs/clerk-brief.md`. A build that omits these source-of-truth files fails
-at startup with `FileNotFoundError: /app/data/taxonomy/emphasis-profiles.json`.
-
-Fallback B — Dokploy dashboard: open the `sitewise` compose app, click
-**Deploy** / **Redeploy**.
+Follow [the selected-commit release procedure](docs/releases/launch-release.md).
+It replaces the former routine-release block and emergency-only main rebuild.
+Keep Auto Deploy disabled. Do not run migrations using an implicit laptop .env.
+Build and smoke-test the selected commit before migrating, then promote the exact
+recorded image IDs with --no-build. The procedure includes rollback and asset retention.
 
 ### Step 5 — Verify
 

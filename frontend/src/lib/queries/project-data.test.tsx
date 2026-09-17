@@ -185,6 +185,56 @@ describe("project event reconciliation", () => {
     });
     expect(api.getProjectEvents).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps one polling timer after an immediate refresh", async () => {
+    vi.mocked(api.getProjectEvents).mockResolvedValue({ events: [], next_after: 0 });
+    const hook = renderHook(() => useProjectEventCursor({
+      projectId: "project-1", enabled: true, active: true,
+    }), { wrapper: wrapper(client()) });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    await act(async () => { hook.result.current.pollNow(); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    // Initial request, explicit request, then four periodic requests.
+    expect(api.getProjectEvents).toHaveBeenCalledTimes(6);
+    hook.unmount();
+  });
+
+  it("ignores an old project's response after navigation", async () => {
+    let resolveOld!: (value: { events: ProjectEvent[]; next_after: number }) => void;
+    vi.mocked(api.getProjectEvents)
+      .mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValue({ events: [], next_after: 0 });
+    const onEvent = vi.fn();
+    const queryClient = client();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const hook = renderHook(({ projectId }) => useProjectEventCursor({
+      projectId, enabled: true, active: true, onEvent,
+    }), { initialProps: { projectId: "project-1" }, wrapper: wrapper(queryClient) });
+    hook.rerender({ projectId: "project-2" });
+    await act(async () => { resolveOld({ events: [event()], next_after: 1 }); });
+    expect(onEvent).not.toHaveBeenCalled();
+    expect(invalidate).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it.each([1, 2, 4])("coalesces a page from %s simultaneous workflows", async (workflows) => {
+    const events = Array.from({ length: workflows * 10 }, (_, index) => event({
+      id: `event-${index}`, sequence: index + 1, resource_type: "workflow_run",
+      payload: { changedResources: ["project_evidence", "workflow_run"] },
+    }));
+    vi.mocked(api.getProjectEvents).mockResolvedValue({ events, next_after: events.length });
+    const queryClient = client();
+    const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const onEvent = vi.fn();
+    const hook = renderHook(() => useProjectEventCursor({
+      projectId: "project-1", enabled: true, active: true, onEvent,
+    }), { wrapper: wrapper(queryClient) });
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    console.info(JSON.stringify({ workflows, events: events.length, invalidations: invalidate.mock.calls.length }));
+    expect(onEvent).toHaveBeenCalledTimes(events.length);
+    expect(invalidate).toHaveBeenCalledTimes(6);
+    hook.unmount();
+  });
 });
 
 function client() {

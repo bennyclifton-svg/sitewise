@@ -10,6 +10,7 @@ import {
   FIELD_YAW,
   HORIZON_CLIP,
   turnFittedPoint,
+  WAVE_AMP,
   WAVE_FREQ,
   EDGE_BAND,
   BLUR_SPREAD,
@@ -49,13 +50,15 @@ describe('cadastral sea geometry', () => {
     ]);
   });
 
-  it('tightens travelling waves to half their previous ground length', () => {
-    expect(WAVE_FREQ).toBe(2);
-    expect(waveHeight(12, -8, 0.4, 2)).not.toBeCloseTo(waveHeight(12, -8, 0.4, 1), 5);
+  it('keeps travelling waves longer than the previous tight field', () => {
+    expect(WAVE_FREQ).toBeCloseTo(4 / 3);
+    expect(WAVE_AMP).toBeCloseTo(1.3);
+    expect(waveHeight(12, -8, 0.4, 4 / 3)).not.toBeCloseTo(waveHeight(12, -8, 0.4, 2), 5);
+    expect(Math.abs(waveHeight(12, -8, 0.4))).toBeCloseTo(Math.abs(waveHeight(12, -8, 0.4, WAVE_FREQ, 1)) * 1.3, 5);
   });
 
-  it('softens only the outer few percent of the frame so the middle stays sharp', () => {
-    expect(EDGE_BAND).toBeCloseTo(0.025);
+  it('softens a wider outer band so the field reads as a veil, not a survey', () => {
+    expect(EDGE_BAND).toBeCloseTo(0.045);
   });
 
   it('stacks several travelling waves so a still field is choppy, not a single swell', () => {
@@ -89,12 +92,12 @@ describe('cadastral sea geometry', () => {
   });
 
   it('zooms the live field a little further and parks the horizon two thirds up the page', () => {
-    expect(GROUND_ZOOM).toBeCloseTo(1.7);
+    expect(GROUND_ZOOM).toBeCloseTo(2.05);
     expect(LINE_ALPHA).toBeCloseTo(0.7);
     expect(FIELD_SHIFT_X).toBeCloseTo(0);
     const base = fitGroundFrame({ minX: -30, maxX: 30, minY: -4, maxY: 4 }, 1);
     const live = fitGroundFrame({ minX: -30, maxX: 30, minY: -4, maxY: 4 }, 1, GROUND_ZOOM, FIELD_SHIFT_X, FIELD_SHIFT_Y);
-    expect(live[0]).toBeCloseTo(base[0] * 1.7);
+    expect(live[0]).toBeCloseTo(base[0] * 2.05);
     expect(4 * live[1] + live[3]).toBeLessThan(-1);
     expect(-4 * live[1] + live[3]).toBeCloseTo(HORIZON_CLIP, 5);
   });
@@ -121,8 +124,8 @@ describe('cadastral sea geometry', () => {
   });
 
   it('keeps trough lines mostly in focus so the blur stays a light veil', () => {
-    expect(BLUR_SPREAD).toBeCloseTo(1.25);
-    expect(BLUR_MIX).toBeCloseTo(0.3);
+    expect(BLUR_SPREAD).toBeCloseTo(2.1);
+    expect(BLUR_MIX).toBeCloseTo(0.52);
   });
 
   it('turns a fitted point around the bottom so the near-left corner drops into the frame', () => {

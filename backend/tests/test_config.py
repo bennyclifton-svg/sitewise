@@ -14,6 +14,25 @@ def _settings_kwargs() -> dict[str, str]:
     }
 
 
+def test_mailgun_settings_accept_configured_provider():
+    configured = Settings(**_settings_kwargs(), _env_file=None,
+                          email_provider="mailgun", mailgun_api_key="test-key")
+    assert configured.email_provider == "mailgun"
+
+
+def test_mailgun_settings_require_key():
+    with pytest.raises(ValidationError, match="MAILGUN_API_KEY"):
+        Settings(**_settings_kwargs(), _env_file=None,
+                 email_provider="mailgun", mailgun_api_key="")
+
+
+@pytest.mark.parametrize("environment", ["production", " Production "])
+def test_production_rejects_fake_email_at_startup(environment):
+    with pytest.raises(ValidationError, match="fake"):
+        Settings(**_settings_kwargs(), _env_file=None,
+                 environment=environment, email_provider="fake")
+
+
 def test_agent_runtime_enabled_requires_turn_token_secret():
     with pytest.raises(ValidationError, match="AGENT_TURN_TOKEN_SECRET"):
         Settings(

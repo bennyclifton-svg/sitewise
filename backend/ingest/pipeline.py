@@ -10,7 +10,7 @@ from ingest.discover import discover_corpus
 from ingest.embed import embed_texts
 from ingest.extract import extract_document
 from ingest.metadata import infer_project_context
-from ingest.persist import persist_ingest
+from ingest.persist import is_unchanged, persist_ingest
 from ingest.router import build_ingest_plan, should_persist_chunks
 from ingest.types import FolderSummary, IngestPlan, ManifestEntry
 
@@ -162,6 +162,12 @@ def ingest_plan(
     skip_if_unchanged: bool = True,
     trace_callback: TraceCallback | None = None,
 ) -> bool:
+    if skip_if_unchanged and is_unchanged(plan):
+        _emit_trace(
+            trace_callback, "persist", "skipped",
+            "Ingest skipped because content is unchanged.", chunk_count=0,
+        )
+        return False
     extracted = extract_document(plan)
     if extracted is None:
         _emit_trace(

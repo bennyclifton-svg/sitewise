@@ -2,11 +2,15 @@ import asyncio
 import time
 import uuid
 from collections.abc import AsyncIterator, Mapping
-from contextlib import suppress
+from contextlib import aclosing, suppress
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi import Response
+from app.agent.runtime import agent_turn_supervisor
+from app.database.agent_event import AgentToolCall
+from app.mcp_bridge.tracing import tool_trace_statuses
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,10 +19,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic_ai.exceptions import ModelHTTPError
 
 from app.auth.dependencies import CurrentUser, get_current_user
-from app.agent.concurrency import AgentTurnAlreadyRunning, agent_turn_registry
+from app.agent.concurrency import AgentQueueTimeout, AgentTurnAlreadyRunning, agent_turn_registry
 from app.agent.document_context import (
     SelectedDocumentContextError,
-    documents_from_turn_context,
     resolve_selected_turn_documents,
 )
 from app.agent.pi_models import (
@@ -61,6 +64,7 @@ from app.billing.entitlements import require_active_entitlement
 from app.billing.usage import (
     complete_agent_turn,
     reserve_agent_turn,
+    start_agent_turn,
     revoke_agent_turn,
 )
 from app.database.agent_turn import AgentTurn
@@ -422,7 +426,9 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
     seen_web_sources: set[str] = set()
 
     for event in status_events:
-        if event.get("kind") != "tool" or event.get("state") != "done":
+        if event.get("kind") != "tool" or event.get("state") not in {"done", "error"}:
+            continue
+        if event.get("state") == "error" and not event.get("callId"):
             continue
         tool = event.get("tool")
         if not isinstance(tool, str) or not tool:
@@ -473,9 +479,14 @@ def _agent_source_trace(status_events: list[Mapping[str, Any]]) -> dict[str, Any
                     web_sources.append(source)
                     seen_web_sources.add(source_key)
 
-        key = f"{tool}\0{knowledge_path if isinstance(knowledge_path, str) else ''}"
+        key = str(event.get("callId") or f"{tool}\0{knowledge_path if isinstance(knowledge_path, str) else ''}")
         if key not in seen_tool_keys:
             item: dict[str, Any] = {"name": tool}
+            if event.get("callId"):
+                item["callId"] = event["callId"]
+                for field in ("durationMs", "outcome", "committedRevisions"):
+                    if field in event:
+                        item[field] = event[field]
             message = event.get("message")
             if isinstance(message, str) and message:
                 item["message"] = message
@@ -838,47 +849,34 @@ async def post_agent_stream(
         model="application" if plan_command else model_override.model if model_override else settings.pi_model,
     )
     turn_id = turn.id
-    if not reserved and not plan_command:
-        # A transport retry must describe the same selection the first request
-        # froze. The workflow tool independently reads this stored context too.
-        selected_documents = documents_from_turn_context(
-            getattr(turn, "input_context", None)
-        )
-        agent_prompt = build_agent_prompt(
-            user_text,
-            project_id=str(thread.project_id),
-            title=project.title,
-            archetype=project.archetype,
-            state=project.state,
-            phase=project.phase,
-            building_class=project.building_class,
-            work_type=project.work_type,
-            project_metadata=getattr(project, "project_metadata", None),
-            history=[
-                HistoryMessage(role=message.role, content=message.content)
-                for message in prior_messages
-            ],
-            mutation_intent=mutation_intent,
-            snapshot=snapshot,
-            selected_documents=selected_documents,
-        )
+    if not reserved:
+        if turn.thread_id != thread.id or turn.user_message_hash != mutation_intent.user_message_hash:
+            raise HTTPException(status_code=409, detail="Message ID belongs to a different request.")
+        await session.commit()
+        if turn.state != "active" and not agent_turn_supervisor.running(turn_id):
+            await agent_turn_supervisor.journal.repair(turn_id)
+        return _agent_replay_response(turn_id)
     confirmed_profile_change = None
     applied_setup_change = None
     applied_scope_change = None
-    if reserved:
+
+    async def prepare_profile_updates(profile_session: AsyncSession) -> None:
+        nonlocal project, snapshot, agent_prompt
+        nonlocal applied_setup_change, applied_scope_change, confirmed_profile_change
+        project = await require_project_owner(profile_session, thread.project_id, user.id)
         applied_setup_change = await _apply_extracted_setup_patch(
-            session,
+            profile_session,
             project=project,
             mutation_intent=mutation_intent,
         )
         applied_scope_change = await _apply_typical_work_scope(
-            session,
+            profile_session,
             project=project,
             mutation_intent=mutation_intent,
         )
         if applied_scope_change is not None:
             snapshot = await get_project_snapshot(
-                session,
+                profile_session,
                 project_id=project.id,
                 owner_user_id=user.id,
             )
@@ -903,7 +901,7 @@ async def post_agent_stream(
             )
         if applied_setup_change is not None:
             snapshot = await get_project_snapshot(
-                session,
+                profile_session,
                 project_id=project.id,
                 owner_user_id=user.id,
             )
@@ -937,7 +935,7 @@ async def post_agent_stream(
         )
         if proposal is not None:
             resolution = await accept_profile_proposal(
-                session,
+                profile_session,
                 project=project,
                 proposal_id=proposal.id,
                 expected_profile_revision=proposal.profile_revision,
@@ -946,7 +944,7 @@ async def post_agent_stream(
             confirmed_profile_change = resolution.profile_change
             if confirmed_profile_change is not None:
                 snapshot = await get_project_snapshot(
-                    session,
+                    profile_session,
                     project_id=project.id,
                     owner_user_id=user.id,
                 )
@@ -1018,18 +1016,13 @@ async def post_agent_stream(
         failure_message: str | None = None
         first_text_ms: int | None = None
         plan_reply: str | None = None
-        title_task = (
-            asyncio.create_task(generate_thread_title(user_text, ""))
-            if fallback_title is not None and not plan_command
-            else None
-        )
+        title_task = None
 
         async def agent_chunks() -> AsyncIterator[str]:
-            nonlocal completed, first_text_ms
+            nonlocal first_text_ms
             if plan_reply is not None:
                 answer_parts.append(plan_reply)
                 yield plan_reply
-                completed = True
                 return
             pi_kwargs = (
                 {
@@ -1046,18 +1039,81 @@ async def post_agent_stream(
                 cwd=workspace,
                 **pi_kwargs,
             )
-            async for chunk in stream:
-                if first_text_ms is None:
-                    first_text_ms = int((time.perf_counter() - stream_start) * 1000)
-                answer_parts.append(chunk)
-                yield chunk
+            async with aclosing(stream):
+                async for chunk in stream:
+                    if first_text_ms is None:
+                        first_text_ms = int((time.perf_counter() - stream_start) * 1000)
+                    answer_parts.append(chunk)
+                    yield chunk
+
+        async def finalize_completed_turn() -> None:
+            nonlocal completed
+            tool_status_events[:0] = await tool_trace_statuses(turn_id)
+            content = "".join(answer_parts)
+            source_trace = _agent_source_trace(tool_status_events)
+            if plan_command:
+                source_trace["model"] = {"used": False, "label": "Application action"}
+            generated_title = await title_task if title_task is not None else None
+            async with factory() as persist_session:
+                await _persist_agent_assistant_message(
+                    persist_session,
+                    thread_id=body.thread_id,
+                    project_id=thread.project_id,
+                    turn_id=turn_id,
+                    content=content,
+                    runtime=agent_runtime,
+                    source_trace=source_trace,
+                    terminal_events=_sanitized_terminal_events(tool_status_events),
+                )
+                if generated_title is not None and generated_title != fallback_title:
+                    await replace_thread_title_if_matches(
+                        persist_session,
+                        body.thread_id,
+                        expected_title=fallback_title,
+                        title=generated_title,
+                    )
+                elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
+                await complete_agent_turn(
+                    persist_session,
+                    turn_id,
+                    status_value="completed",
+                    latency_ms=elapsed_ms,
+                )
+                await persist_session.commit()
+            elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
+            log.info(
+                "agent_stream_persisted",
+                request_id=str(request_id),
+                project_id=str(thread.project_id),
+                user_id=str(user.id),
+                thread_id=str(body.thread_id),
+                turn_id=str(turn_id),
+                timings_ms={
+                    "auth": auth_ms,
+                    "quota": quota_ms,
+                    "prompt_build": prompt_build_ms,
+                    "first_text": first_text_ms,
+                    "total": elapsed_ms,
+                },
+                task_route=task_route.model_dump(mode="json"),
+            )
             completed = True
 
         try:
+            yield clerk_status_event("Waiting for chat capacity", kind="queue")
             async with agent_turn_registry.turn_scope(
                 str(turn_id),
                 thread_id=str(body.thread_id),
             ):
+                async with factory() as claim_session:
+                    claimed = await start_agent_turn(claim_session, turn_id)
+                    if not claimed:
+                        raise asyncio.CancelledError
+                    await prepare_profile_updates(claim_session)
+                    await claim_session.commit()
+                yield clerk_status_event("Starting chat", kind="queue")
+                if fallback_title is not None and not plan_command:
+                    title_task = asyncio.create_task(generate_thread_title(user_text, ""))
                 if quota_state.warning:
                     yield clerk_status_event(
                         "You are near this month's agent quota.",
@@ -1119,8 +1175,12 @@ async def post_agent_stream(
                         except SQLAlchemyError as exc:
                             raise PiTurnError("Could not persist the project plan request") from exc
                     traced_statuses = _capture_status_events(statuses, tool_status_events)
-                    async for event in relay_agent_turn(agent_chunks(), status=traced_statuses):
-                        yield event
+                    async with aclosing(relay_agent_turn(
+                        agent_chunks(), status=traced_statuses,
+                        on_complete=finalize_completed_turn,
+                    )) as relayed:
+                        async for event in relayed:
+                            yield event
         except AgentTurnAlreadyRunning:
             failure_message = ALREADY_RUNNING_TURN_MESSAGE
             log.warning(
@@ -1128,9 +1188,6 @@ async def post_agent_stream(
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
             )
-            async for event in stream_error(failure_message):
-                yield event
-            return
         except asyncio.CancelledError:
             failure_message = INTERRUPTED_TURN_MESSAGE
             log.info(
@@ -1139,9 +1196,8 @@ async def post_agent_stream(
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
             )
-            async for event in stream_error(failure_message):
-                yield event
-            return
+        except AgentQueueTimeout:
+            failure_message = "Chat capacity is busy. Please send a new message to try again."
         except PiTurnTimeout:
             failure_message = TIMEOUT_TURN_MESSAGE
             log.warning(
@@ -1151,14 +1207,10 @@ async def post_agent_stream(
                 turn_id=str(turn_id),
                 agent_runtime=agent_runtime,
             )
-            async for event in stream_error(failure_message):
-                yield event
-            return
         except PiTurnError as exc:
             failure_message = FAILED_TURN_MESSAGE
             log.warning(
                 "agent_stream_failed",
-                debug_tag="[DEBUG-pi-turn-error]",
                 user_id=str(user.id),
                 thread_id=str(body.thread_id),
                 turn_id=str(turn_id),
@@ -1166,9 +1218,6 @@ async def post_agent_stream(
                 error_type=type(exc).__name__,
                 error=str(exc),
             )
-            async for event in stream_error(failure_message):
-                yield event
-            return
         finally:
             if not completed:
                 if title_task is not None:
@@ -1180,6 +1229,7 @@ async def post_agent_stream(
                 content = f"{partial}\n\n{message}" if partial else message
 
                 async def finalize_incomplete_turn() -> None:
+                    tool_status_events[:0] = await tool_trace_statuses(turn_id)
                     async with factory() as failed_session:
                         await _persist_incomplete_agent_turn(
                             failed_session,
@@ -1196,65 +1246,115 @@ async def post_agent_stream(
 
                 await asyncio.shield(finalize_incomplete_turn())
 
-        if completed:
-            content = "".join(answer_parts)
-            source_trace = _agent_source_trace(tool_status_events)
-            if plan_command:
-                source_trace["model"] = {"used": False, "label": "Application action"}
-            generated_title = await title_task if title_task is not None else None
-            async with factory() as persist_session:
-                await _persist_agent_assistant_message(
-                    persist_session,
-                    thread_id=body.thread_id,
-                    project_id=thread.project_id,
-                    turn_id=turn_id,
-                    content=content,
-                    runtime=agent_runtime,
-                    source_trace=source_trace,
-                    terminal_events=_sanitized_terminal_events(tool_status_events),
-                )
-                if generated_title is not None and generated_title != fallback_title:
-                    await replace_thread_title_if_matches(
-                        persist_session,
-                        body.thread_id,
-                        expected_title=fallback_title,
-                        title=generated_title,
-                    )
-                elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
-                await complete_agent_turn(
-                    persist_session,
-                    turn_id,
-                    status_value="completed",
-                    latency_ms=elapsed_ms,
-                )
-                await persist_session.commit()
-            elapsed_ms = int((time.perf_counter() - stream_start) * 1000)
-            log.info(
-                "agent_stream_persisted",
-                request_id=str(request_id),
-                project_id=str(thread.project_id),
-                user_id=str(user.id),
-                thread_id=str(body.thread_id),
-                turn_id=str(turn_id),
-                timings_ms={
-                    "auth": auth_ms,
-                    "quota": quota_ms,
-                    "prompt_build": prompt_build_ms,
-                    "first_text": first_text_ms,
-                    "total": elapsed_ms,
-                },
-                task_route=task_route.model_dump(mode="json"),
-            )
+        if failure_message is not None:
+            # The client may disconnect as soon as it sees the terminal event.
+            # Commit the failure first so reloading cannot hide the outcome.
+            async for event in stream_error(failure_message):
+                yield event
+            return
 
+    agent_turn_supervisor.start(turn_id, event_stream())
+    return _agent_replay_response(turn_id)
+
+
+def _agent_replay_response(turn_id: uuid.UUID, after: int = 0) -> StreamingResponse:
     return StreamingResponse(
-        event_stream(),
+        agent_turn_supervisor.stream(turn_id, after=after),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "x-vercel-ai-ui-message-stream": "v1",
+            "X-Accel-Buffering": "no",
+            "X-Agent-Turn-Id": str(turn_id),
         },
     )
+
+
+@router.get("/agent/{thread_id}/stream")
+async def resume_agent_stream(
+    thread_id: uuid.UUID,
+    turn_id: uuid.UUID | None = None,
+    after: int = Query(default=0, ge=0),
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> Response:
+    thread = await get_thread_by_id(session, thread_id)
+    require_thread_owner(thread, user.id)
+    query = select(AgentTurn).where(
+        AgentTurn.thread_id == thread_id, AgentTurn.user_id == user.id,
+        AgentTurn.project_id == thread.project_id,
+    )
+    if turn_id is not None:
+        query = query.where(AgentTurn.id == turn_id)
+    else:
+        query = query.where(AgentTurn.state == "active")
+    turn = await session.scalar(query.order_by(AgentTurn.created_at.desc()).limit(1))
+    if turn is None:
+        if turn_id is not None:
+            raise HTTPException(status_code=404, detail="Agent turn not found.")
+        return Response(status_code=204)
+    await require_project_owner(session, turn.project_id, user.id)
+    replay_id = turn.id
+    needs_repair = turn.state != "active" and not agent_turn_supervisor.running(turn.id)
+    await session.commit()
+    if needs_repair:
+        await agent_turn_supervisor.journal.repair(replay_id)
+    return _agent_replay_response(replay_id, after)
+
+
+@router.get("/agent/{thread_id}/status")
+async def get_agent_status(
+    thread_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    thread = await get_thread_by_id(session, thread_id)
+    require_thread_owner(thread, user.id)
+    # A rejected duplicate must not hide the original request's outcome.
+    turn = await session.scalar(
+        select(AgentTurn).where(
+            AgentTurn.thread_id == thread_id,
+            AgentTurn.user_id == user.id,
+            AgentTurn.status != "not_started",
+        ).order_by(AgentTurn.created_at.desc()).limit(1)
+    )
+    if turn is None:
+        return {"status": "idle", "active": False, "turn_id": None}
+    expired = turn.state == "active" and turn.expires_at <= datetime.now(UTC)
+    state = "expired" if expired else turn.status
+    active = turn.state == "active" and not expired
+    return {
+        "turn_id": str(turn.id), "status": state, "active": active,
+        "started_at": turn.created_at.isoformat(),
+        "expires_at": turn.expires_at.isoformat(),
+        "process_running": agent_turn_supervisor.running(turn.id),
+    }
+
+
+@router.get("/agent/{thread_id}/turns/{turn_id}/tools")
+async def get_agent_tool_trace(
+    thread_id: uuid.UUID,
+    turn_id: uuid.UUID,
+    user: CurrentUser = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    thread = await get_thread_by_id(session, thread_id)
+    require_thread_owner(thread, user.id)
+    await require_project_owner(session, thread.project_id, user.id)
+    turn = await session.scalar(select(AgentTurn.id).where(
+        AgentTurn.id == turn_id, AgentTurn.thread_id == thread_id,
+        AgentTurn.user_id == user.id, AgentTurn.project_id == thread.project_id,
+    ))
+    if turn is None:
+        raise HTTPException(status_code=404, detail="Agent turn not found.")
+    calls = (await session.scalars(select(AgentToolCall).where(AgentToolCall.turn_id == turn_id).order_by(AgentToolCall.created_at, AgentToolCall.id))).all()
+    return [{
+        "call_id": str(call.id), "turn_id": str(turn_id), "tool": call.tool,
+        "duration_ms": call.duration_ms, "outcome": call.outcome,
+        "error_type": call.error_type, "committed_revisions": call.committed_revisions,
+        "providers": call.providers,
+    } for call in calls]
 
 
 @router.post("/agent/{thread_id}/cancel")
@@ -1278,8 +1378,8 @@ async def post_agent_cancel(
     if active_turn_id is not None:
         await revoke_agent_turn(session, active_turn_id)
         await session.commit()
-    cancelled = await agent_turn_registry.cancel(str(thread_id))
-    return {"cancelled": cancelled}
+    cancelled = agent_turn_supervisor.cancel(active_turn_id) if active_turn_id is not None else False
+    return {"cancelled": cancelled or active_turn_id is not None}
 
 
 @router.post("/stream")

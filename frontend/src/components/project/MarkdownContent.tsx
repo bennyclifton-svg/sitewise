@@ -35,6 +35,8 @@ import {
 import { InlineListItemEditor } from "@/components/project/InlineListItemEditor";
 import { InlineMarkdownEditor } from "@/components/project/InlineMarkdownEditor";
 import { InlineTableRowEditor } from "@/components/project/InlineTableRowEditor";
+import { PriceMatrixTable } from "@/components/project/PriceMatrixTable";
+import { parsePriceMatrix } from "@/lib/price-matrix";
 import { SitewiseMark } from "@/components/SitewiseMark";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1169,6 +1171,11 @@ function baseComponents(): Components {
     table: function MarkdownTable({ children, node }) {
       const editOptions = useMarkdownRender();
       if (isProgrammeSectionBody(node, editOptions)) return null;
+      const matrix = parsePriceMatrix(
+        editOptions.renderedMarkdown.slice(node?.position?.start.offset, node?.position?.end.offset),
+        editOptions.sourceMarkdown,
+      );
+      if (matrix) return <PriceMatrixTable matrix={matrix} />;
       const projectTitle = editOptions.projectTitle;
       const isInformationRegister = informationRegisterTable(children);
       const headers = headerLabelsFromTable(children);

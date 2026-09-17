@@ -13,6 +13,7 @@ export type ChatErrorKind =
   | "partial_pipeline"
   | "network"
   | "interrupted"
+  | "already_running"
   | "generic";
 
 export const INTERRUPTED_TURN_MESSAGE =
@@ -112,6 +113,13 @@ function mediaTypeForSource(sourceType: string | null): string {
 export function classifyChatError(error: Error): { kind: ChatErrorKind; message: string } {
   const text = error.message.trim();
   const lower = text.toLowerCase();
+
+  if (lower.includes("already running")) {
+    return {
+      kind: "already_running",
+      message: "The new request did not start because this chat already has an active request. Check its status or stop it before trying again.",
+    };
+  }
 
   if (
     text.includes("401") ||

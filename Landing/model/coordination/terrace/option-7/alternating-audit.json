@@ -1,0 +1,83 @@
+{
+  "status": "pass",
+  "mirrored_dwellings": [
+    2,
+    4,
+    6
+  ],
+  "objects_mirrored": 3360,
+  "preserved_boundary_objects": 21,
+  "garages": [
+    {
+      "dwelling": 1,
+      "side": "left",
+      "bounds_x": [
+        0.44999998807907104,
+        3.450000047683716
+      ]
+    },
+    {
+      "dwelling": 2,
+      "side": "right",
+      "bounds_x": [
+        10.550000190734863,
+        13.550000190734863
+      ]
+    },
+    {
+      "dwelling": 3,
+      "side": "left",
+      "bounds_x": [
+        14.449999809265137,
+        17.450000762939453
+      ]
+    },
+    {
+      "dwelling": 4,
+      "side": "right",
+      "bounds_x": [
+        24.549999237060547,
+        27.549999237060547
+      ]
+    },
+    {
+      "dwelling": 5,
+      "side": "left",
+      "bounds_x": [
+        28.450000762939453,
+        31.450000762939453
+      ]
+    },
+    {
+      "dwelling": 6,
+      "side": "right",
+      "bounds_x": [
+        38.54999923706055,
+        41.54999923706055
+      ]
+    },
+    {
+      "dwelling": 7,
+      "side": "left",
+      "bounds_x": [
+        42.45000076293945,
+        45.45000076293945
+      ]
+    }
+  ],
+  "paired_garages": [
+    [
+      2,
+      3
+    ],
+    [
+      4,
+      5
+    ],
+    [
+      6,
+      7
+    ]
+  ],
+  "scope": "All dwelling disciplines mirrored, including crossings/pits; shared boundaries and exposed end-window treatments retained"
+}

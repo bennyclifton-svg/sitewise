@@ -84,11 +84,11 @@ function analyzeResult(overrides: Partial<PdfAnalyzeResult> = {}): PdfAnalyzeRes
   };
 }
 
-function renderPanel(onUploadComplete = vi.fn().mockResolvedValue(undefined)) {
+function renderPanel(onUploadComplete = vi.fn().mockResolvedValue(undefined), evidence: EvidencePreview[] = []) {
   const view = render(
     <DocumentRepositoryPanel
       projectId="project-1"
-      evidence={[]}
+      evidence={evidence}
       selectedEvidenceId={null}
       workspaceTree={[]}
       selectedWorkspacePath={null}
@@ -110,6 +110,14 @@ function dropFile(container: HTMLElement, file: File) {
 }
 
 describe("DocumentRepositoryPanel navigation", () => {
+  it("shows a durable recovery message for an unreadable non-invoice file", () => {
+    renderPanel(undefined, [{
+      id: "failed-file", title: "Synthetic scan", filename: "scan.pdf",
+      relative_path: "project/_inbox/scan.pdf", source_type: "project_evidence",
+      document_class: "unknown", excerpt: "", ingest_status: "failed",
+    }]);
+    expect(screen.getByRole("status")).toHaveTextContent("Could not read this file. Re-upload it to retry.");
+  });
   it("uses one button to switch document views", () => {
     renderPanel();
     fireEvent.click(screen.getByRole("button", { name: "Switch to tree view" }));

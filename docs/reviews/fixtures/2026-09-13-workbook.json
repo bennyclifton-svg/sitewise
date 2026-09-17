@@ -1,0 +1,243 @@
+{
+  "samples": [
+    {
+      "concurrency": 1,
+      "sample": 0,
+      "wall_ms": 905.7218999951147,
+      "cpu_ms": 875.0,
+      "output_bytes": [
+        40792
+      ],
+      "peak_process_working_set": 114253824
+    },
+    {
+      "concurrency": 1,
+      "sample": 1,
+      "wall_ms": 861.21929998626,
+      "cpu_ms": 843.75,
+      "output_bytes": [
+        40792
+      ],
+      "peak_process_working_set": 115617792
+    },
+    {
+      "concurrency": 1,
+      "sample": 2,
+      "wall_ms": 877.8689999890048,
+      "cpu_ms": 890.625,
+      "output_bytes": [
+        40795
+      ],
+      "peak_process_working_set": 119197696
+    },
+    {
+      "concurrency": 1,
+      "sample": 3,
+      "wall_ms": 964.9992000195198,
+      "cpu_ms": 890.625,
+      "output_bytes": [
+        40796
+      ],
+      "peak_process_working_set": 121470976
+    },
+    {
+      "concurrency": 1,
+      "sample": 4,
+      "wall_ms": 873.6269999935757,
+      "cpu_ms": 828.125,
+      "output_bytes": [
+        40796
+      ],
+      "peak_process_working_set": 121479168
+    },
+    {
+      "concurrency": 1,
+      "sample": 5,
+      "wall_ms": 869.9501000228338,
+      "cpu_ms": 828.125,
+      "output_bytes": [
+        40796
+      ],
+      "peak_process_working_set": 121503744
+    },
+    {
+      "concurrency": 1,
+      "sample": 6,
+      "wall_ms": 915.9700000018347,
+      "cpu_ms": 921.875,
+      "output_bytes": [
+        40796
+      ],
+      "peak_process_working_set": 121790464
+    },
+    {
+      "concurrency": 2,
+      "sample": 0,
+      "wall_ms": 1741.4731000026222,
+      "cpu_ms": 1718.75,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 122843136
+    },
+    {
+      "concurrency": 2,
+      "sample": 1,
+      "wall_ms": 1761.4769999927375,
+      "cpu_ms": 1765.625,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 123047936
+    },
+    {
+      "concurrency": 2,
+      "sample": 2,
+      "wall_ms": 1766.3991000154056,
+      "cpu_ms": 1750.0,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 123056128
+    },
+    {
+      "concurrency": 2,
+      "sample": 3,
+      "wall_ms": 1745.5529000144452,
+      "cpu_ms": 1734.375,
+      "output_bytes": [
+        40795,
+        40795
+      ],
+      "peak_process_working_set": 123363328
+    },
+    {
+      "concurrency": 2,
+      "sample": 4,
+      "wall_ms": 1782.5246000138577,
+      "cpu_ms": 1796.875,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 126783488
+    },
+    {
+      "concurrency": 2,
+      "sample": 5,
+      "wall_ms": 1771.0478999943007,
+      "cpu_ms": 1750.0,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 126795776
+    },
+    {
+      "concurrency": 2,
+      "sample": 6,
+      "wall_ms": 1821.8568000011146,
+      "cpu_ms": 1796.875,
+      "output_bytes": [
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 126795776
+    },
+    {
+      "concurrency": 4,
+      "sample": 0,
+      "wall_ms": 3531.7115999932867,
+      "cpu_ms": 3531.25,
+      "output_bytes": [
+        40796,
+        40796,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 127590400
+    },
+    {
+      "concurrency": 4,
+      "sample": 1,
+      "wall_ms": 3502.5045000074897,
+      "cpu_ms": 3515.625,
+      "output_bytes": [
+        40796,
+        40795,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 133988352
+    },
+    {
+      "concurrency": 4,
+      "sample": 2,
+      "wall_ms": 3558.196500001941,
+      "cpu_ms": 3546.875,
+      "output_bytes": [
+        40796,
+        40796,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 134156288
+    },
+    {
+      "concurrency": 4,
+      "sample": 3,
+      "wall_ms": 3589.101599995047,
+      "cpu_ms": 3578.125,
+      "output_bytes": [
+        40796,
+        40796,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 134156288
+    },
+    {
+      "concurrency": 4,
+      "sample": 4,
+      "wall_ms": 3502.06289999187,
+      "cpu_ms": 3500.0,
+      "output_bytes": [
+        40795,
+        40795,
+        40796,
+        40795
+      ],
+      "peak_process_working_set": 134156288
+    },
+    {
+      "concurrency": 4,
+      "sample": 5,
+      "wall_ms": 3496.3157000020146,
+      "cpu_ms": 3515.625,
+      "output_bytes": [
+        40796,
+        40796,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 134172672
+    },
+    {
+      "concurrency": 4,
+      "sample": 6,
+      "wall_ms": 3548.2937000051606,
+      "cpu_ms": 3593.75,
+      "output_bytes": [
+        40797,
+        40797,
+        40796,
+        40796
+      ],
+      "peak_process_working_set": 134176768
+    }
+  ],
+  "independent_coordinator_exports": 2
+}

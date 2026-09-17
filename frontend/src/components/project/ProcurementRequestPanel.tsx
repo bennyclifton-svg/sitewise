@@ -387,6 +387,7 @@ export function ProcurementRequestPanel({
     ];
     setPendingStrategyOperations(pendingStrategyOperationsRef.current);
     setStrategyError(null);
+    let saveError: unknown;
     strategySaveQueue.current = strategySaveQueue.current.then(async () => {
       try {
         const saved = await api.applyProcurementStrategyOperations(
@@ -397,6 +398,7 @@ export function ProcurementRequestPanel({
         confirmedStrategyRef.current = saved;
         queryClient.setQueryData(workbenchKeys.procurementStrategy(project.id), saved);
       } catch (nextError) {
+        saveError = nextError;
         setStrategyError(
           nextError instanceof ApiError
             ? nextError.message
@@ -422,6 +424,10 @@ export function ProcurementRequestPanel({
       }
     });
     await strategySaveQueue.current;
+    // Linking controls retain their selection until the server accepts the change.
+    if (saveError && operations.some((operation) => ["CREATE_CANDIDATE_FROM_FILES", "LINK_CANDIDATE_FILES", "UNLINK_CANDIDATE_FILES"].includes(operation.operation))) {
+      throw saveError;
+    }
   }
 
   async function refreshStrategy() {
@@ -506,7 +512,6 @@ export function ProcurementRequestPanel({
             onCompare={(row) => void compareRow(row)}
             comparingRowId={comparingRowId}
             onOpenReview={(draftId) => void openRecommendation(draftId)}
-            onOpenComparison={onOpenTenderComparison}
             evidence={repositoryEvidence}
             selectedEvidenceIds={selectedEvidenceIds}
             onEditWithAi={onEditStrategyRowWithAi}
