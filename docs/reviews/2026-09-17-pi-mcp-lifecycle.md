@@ -1,5 +1,9 @@
 # Pi, MCP and backend lifecycle review — 17 September 2026
 
+Follow-through: the two P1 recommendations are implemented in the working tree;
+see [implementation and verification](2026-09-17-pi-p1-implementation.md). The
+findings below describe the reviewed baseline.
+
 ## Conclusion and scope
 
 The reported screenshot shows partial assistant text followed by the application's
