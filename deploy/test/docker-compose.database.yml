@@ -20,4 +20,6 @@ services:
 
 networks:
   database_test:
-    internal: true
+    # Tests run on the host: internal networks suppress published-port access.
+    # The explicit 127.0.0.1 binding above keeps PostgreSQL host-only.
+    driver: bridge

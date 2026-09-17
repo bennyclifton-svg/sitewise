@@ -31,7 +31,7 @@ def test_database_compose_is_private_ephemeral_and_digest_pinned() -> None:
     assert database["healthcheck"]["test"] == [
         "CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"
     ]
-    assert compose["networks"]["database_test"]["internal"] is True
+    assert compose["networks"]["database_test"] == {"driver": "bridge"}
     assert "volumes" not in compose
 
 
